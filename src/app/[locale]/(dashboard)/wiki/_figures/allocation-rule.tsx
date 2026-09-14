@@ -16,14 +16,14 @@ import { STAGE_SHORT } from "@/components/detail/initiative-labels";
  */
 export function AllocationRule() {
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
+    <div className="overflow-x-auto rounded-lg bg-card shadow-card">
       <table className="w-full min-w-[440px] border-collapse text-sm">
         <thead>
           <tr>
             {["Schritt", "Kanban-Spalte", "Darf Budget tragen", "Muss Budget haben"].map((h) => (
               <th
                 key={h}
-                className="whitespace-nowrap border-b px-4 py-2.5 text-left font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground"
+                className="whitespace-nowrap border-b px-4 py-2.5 text-left font-mono text-meta uppercase tracking-[0.1em] text-muted-foreground"
               >
                 {h}
               </th>
@@ -36,7 +36,7 @@ export function AllocationRule() {
             const must = requiresCurrentAllocation(g);
             return (
               <tr key={g}>
-                <td className="border-b border-border/60 px-4 py-2 font-mono text-[12.5px] text-foreground">
+                <td className="border-b border-border/60 px-4 py-2 font-mono text-xs text-foreground">
                   {gateStepNumber(g)}
                 </td>
                 <td className="border-b border-border/60 px-4 py-2 text-muted-foreground">

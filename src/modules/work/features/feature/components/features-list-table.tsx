@@ -54,7 +54,7 @@ export function FeaturesListTable({
     showSelection && rows.length > 0 && rows.every((r) => selectedIds!.has(r.id));
 
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
+    <div className="overflow-x-auto rounded-lg bg-card shadow-card">
       <table className="w-full border-collapse text-sm">
         <thead className="bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
           <tr className="border-b">
@@ -64,7 +64,7 @@ export function FeaturesListTable({
                   type="checkbox"
                   checked={allVisibleSelected}
                   onChange={() => onToggleSelectAll?.(rows.map((r) => r.id))}
-                  className="size-4 rounded border-border"
+                  className="size-4 rounded-sm border-border"
                   aria-label="Alle sichtbaren auswählen"
                 />
               </th>

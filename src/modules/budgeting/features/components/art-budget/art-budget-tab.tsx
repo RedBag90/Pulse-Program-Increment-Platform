@@ -65,8 +65,8 @@ function RemainingTile({
           : "kein Rahmen zugesprochen";
 
   return (
-    <div className="rounded-lg border bg-card p-4">
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-lg bg-card shadow-card p-4">
+      <div className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         Noch zu verteilen
       </div>
       <div className="mt-1 text-2xl font-semibold tabular-nums">
@@ -123,7 +123,7 @@ export function ArtBudgetTab({
 
       {view === "all" && detail.cycles.length > 1 && (
         <nav className="flex flex-wrap items-center gap-2" aria-label="Halbjahr">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <span className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Halbjahr
           </span>
           {detail.cycles.map((c) => (
@@ -156,8 +156,8 @@ export function ArtBudgetTab({
             <div
               className={`grid gap-4 ${s.source === "art" ? "md:grid-cols-5" : "md:grid-cols-4"}`}
             >
-              <div className="rounded-lg border bg-card p-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <div className="rounded-lg bg-card shadow-card p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   Zugeteilt
                 </div>
                 <div className="mt-1 text-2xl font-semibold tabular-nums">
@@ -169,8 +169,8 @@ export function ArtBudgetTab({
               </div>
 
               {TILE_ORDER.map((state) => (
-                <div key={state} className="rounded-lg border bg-card p-4">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <div key={state} className="rounded-lg bg-card shadow-card p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                     {ALLOCATION_STATE_LABELS[state]}
                   </div>
                   <div
@@ -199,7 +199,7 @@ export function ArtBudgetTab({
               </p>
             ) : (
               <ul className="divide-y rounded-lg border">
-                <li className="flex items-center gap-3 bg-surface-frame px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                <li className="flex items-center gap-3 bg-surface-frame px-3 py-2 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   <span className="flex-1">Epic</span>
                   <span className="w-32">Zustand</span>
                   <span className="w-28 text-right">Zuteilung</span>
@@ -214,7 +214,7 @@ export function ArtBudgetTab({
                       >
                         {s.titles[r.epicId] ?? r.epicId}
                       </Link>{" "}
-                      <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                      <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                         {r.stageGate}
                       </span>
                     </span>
@@ -282,7 +282,7 @@ export function ArtBudgetTab({
           ).map(([label, items]) =>
             items.length === 0 ? null : (
               <ul key={label} className="divide-y rounded-lg border">
-                <li className="flex items-center gap-3 bg-surface-frame px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                <li className="flex items-center gap-3 bg-surface-frame px-3 py-2 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   <span className="flex-1">{label}</span>
                   <span className="w-28 text-right">je Kachel</span>
                   <span className="w-28 text-right">p. a.</span>
@@ -374,7 +374,7 @@ function ReallocationView({ detail }: { detail: ArtBudgetDetail }) {
       <div className="grid overflow-hidden rounded-lg border md:grid-cols-2">
         <div className="border-b md:border-b-0 md:border-r">
           <div className="flex items-baseline gap-2 border-b bg-surface-frame px-3 py-2">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            <span className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
               Zugeteilt, nicht begonnen
             </span>
             <span className="ml-auto text-sm font-semibold tabular-nums">{formatEUR(freeSum)}</span>
@@ -403,7 +403,7 @@ function ReallocationView({ detail }: { detail: ArtBudgetDetail }) {
 
         <div>
           <div className="flex items-baseline gap-2 border-b bg-surface-frame px-3 py-2">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            <span className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
               Beantragt, nicht finanziert
             </span>
             <span className="ml-auto text-sm font-semibold tabular-nums">
@@ -433,7 +433,7 @@ function ReallocationView({ detail }: { detail: ArtBudgetDetail }) {
                         {u.title}
                       </Link>
                       {u.stageGate && (
-                        <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                        <span className="ml-1.5 rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                           {u.stageGate}
                         </span>
                       )}
@@ -537,7 +537,7 @@ function CoverageSection({ coverage }: { coverage: ArtCoverage }) {
           <div className="flex justify-between gap-4 border-b py-1.5">
             <dt>
               Eingeplante Feature-Last{" "}
-              <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+              <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                 {coverage.plannedJobSize} JS
               </span>
               {rate.rate != null && <> × {formatEUR(rate.rate)}</>}
@@ -579,7 +579,7 @@ function CoverageSection({ coverage }: { coverage: ArtCoverage }) {
       </p>
 
       {rate.caveats.length > 0 && (
-        <ul className="space-y-1 rounded-r-md border-l-2 border-l-amber-600 bg-amber-500/[0.07] px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+        <ul className="space-y-1 rounded-r-md border-l-2 border-l-amber-600 bg-amber-500/[0.07] px-3 py-2 text-sm text-warning dark:text-amber-400">
           {rate.caveats.map((c) => (
             <li key={c}>{c}</li>
           ))}

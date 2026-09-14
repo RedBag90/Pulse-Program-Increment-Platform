@@ -227,7 +227,7 @@ export function GateApproverRulesSection({
       </div>
 
       {saved && !editing && (
-        <p role="status" className="text-xs text-emerald-600">
+        <p role="status" className="text-xs text-success">
           Freigabe-Regeln gespeichert.
         </p>
       )}
@@ -238,11 +238,11 @@ export function GateApproverRulesSection({
           const d = editing ? drafts[gate]! : null;
           const required = d ? d.required : b.required;
           return (
-            <li key={gate} className="rounded-md border bg-card p-3">
+            <li key={gate} className="rounded-lg bg-card p-3 shadow-card">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-medium">{gateStepLabel(gate)}</span>
                 {!editing && (
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-label text-muted-foreground">
                     {SOURCE_LABELS[b.source]}
                   </span>
                 )}
@@ -273,9 +273,7 @@ export function GateApproverRulesSection({
                         </span>
                       ))}
                       {b.approverRoles.length === 0 && b.approverUserIds.length === 0 && (
-                        <span className="text-amber-700">
-                          Erforderlich, aber niemand hinterlegt.
-                        </span>
+                        <span className="text-warning">Erforderlich, aber niemand hinterlegt.</span>
                       )}
                       <span className="text-muted-foreground">
                         · {b.quorum === "all" ? "alle müssen zustimmen" : "eine Zustimmung genügt"}
@@ -357,7 +355,7 @@ export function GateApproverRulesSection({
       {editing && (
         <div className="space-y-2">
           {error && (
-            <p role="alert" className="text-xs text-red-600">
+            <p role="alert" className="text-xs text-destructive">
               {error}
             </p>
           )}

@@ -54,7 +54,7 @@ export function ScopePicker({
     .flatMap((vs) => vs.arts.map((a) => ({ ...a, vsId: vs.id })));
 
   return (
-    <fieldset className="border rounded p-4 space-y-4">
+    <fieldset className="space-y-4 rounded-md border p-4">
       <legend className="text-sm font-medium px-1">Visibility Scope</legend>
 
       {/* Value Stream level */}

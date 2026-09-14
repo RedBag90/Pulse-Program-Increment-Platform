@@ -67,8 +67,8 @@ export function ArtPotSection({
           { label: "Verteilt", value: sum, tone: "var(--primary)" },
           { label: "Rest", value: pot.total - sum, tone: over ? "var(--destructive)" : "" },
         ].map((t) => (
-          <div key={t.label} className="rounded-lg border bg-card p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <div key={t.label} className="rounded-lg bg-card shadow-card p-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
               {t.label}
             </div>
             <div
@@ -89,7 +89,7 @@ export function ArtPotSection({
         <div className="overflow-hidden rounded-lg border">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-surface-frame text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+              <tr className="border-b bg-surface-frame text-label uppercase tracking-[0.1em] text-muted-foreground">
                 <th className="p-2 text-left font-semibold">Epic</th>
                 <th className="p-2 text-left font-semibold">Reifegrad</th>
                 <th className="p-2 text-right font-semibold">Richtwert</th>
@@ -102,13 +102,13 @@ export function ArtPotSection({
                   <td className="p-2">
                     {r.title}
                     {r.askDrifted && (
-                      <span className="ml-2 text-xs text-amber-700 dark:text-amber-400">
+                      <span className="ml-2 text-xs text-warning dark:text-amber-400">
                         Business Case weicht vom eingefrorenen Richtwert ab
                       </span>
                     )}
                   </td>
                   <td className="p-2">
-                    <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                    <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                       {r.stageGate}
                     </span>
                   </td>

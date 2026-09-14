@@ -16,7 +16,7 @@ export function JoinForm({ token }: { token?: string }) {
 
   if (state.success) {
     return (
-      <div className="rounded-lg border bg-card p-6 text-center">
+      <div className="rounded-lg bg-card shadow-card p-6 text-center">
         <p className="text-sm font-medium">
           {state.autoAccepted
             ? "Du bist dem Bereich beigetreten."
@@ -46,7 +46,7 @@ export function JoinForm({ token }: { token?: string }) {
             required
             placeholder="z. B. K7P2M9QX"
             autoCapitalize="characters"
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm tracking-widest uppercase focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
         </div>
       )}
@@ -61,7 +61,7 @@ export function JoinForm({ token }: { token?: string }) {
           type="email"
           required
           placeholder="du@firma.de"
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>
 

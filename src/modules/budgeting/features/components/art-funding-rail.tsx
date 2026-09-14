@@ -42,7 +42,7 @@ export function ArtFundingRail({
   return (
     <nav
       aria-label="ART-Budget — Schritte"
-      className="flex overflow-x-auto rounded-lg border bg-card"
+      className="flex overflow-x-auto rounded-lg bg-card shadow-card"
     >
       {phases.map((p, i) => {
         const blocked = p.state === "blocked";
@@ -50,7 +50,7 @@ export function ArtFundingRail({
         const inner = (
           <>
             <span
-              className={`grid size-5 shrink-0 place-items-center rounded-full text-[10px] font-bold ${
+              className={`grid size-5 shrink-0 place-items-center rounded-full text-label font-bold ${
                 p.state === "done"
                   ? "bg-emerald-500 text-white"
                   : p.state === "current"
@@ -61,9 +61,9 @@ export function ArtFundingRail({
               {p.state === "done" ? "✓" : i + 1}
             </span>
             <span className="flex min-w-0 flex-col leading-tight">
-              <span className="truncate text-[12px] font-medium">{p.label}</span>
+              <span className="truncate text-xs font-medium">{p.label}</span>
               <span
-                className={`truncate text-[10px] ${mine ? "font-semibold text-primary" : "text-muted-foreground"}`}
+                className={`truncate text-label ${mine ? "font-semibold text-primary" : "text-muted-foreground"}`}
               >
                 {subLabel(p, surface)}
               </span>

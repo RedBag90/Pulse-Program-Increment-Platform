@@ -158,7 +158,7 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
                     {e.title}
                   </Link>
                   <span className="flex items-center gap-3">
-                    <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                    <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                       {STAGE_SHORT[e.stageGate as keyof typeof STAGE_SHORT] ?? e.stageGate}
                     </span>
                     <span className="tabular-nums text-muted-foreground">

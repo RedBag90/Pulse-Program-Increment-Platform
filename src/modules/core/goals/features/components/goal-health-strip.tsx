@@ -11,7 +11,7 @@ const TIER_BAR: Record<GoalStatusTier, string> = {
   neutral: "bg-slate-400",
 };
 const TIER_TEXT: Record<GoalStatusTier, string> = {
-  green: "text-emerald-600 dark:text-emerald-400",
+  green: "text-success dark:text-emerald-400",
   amber: "text-amber-600 dark:text-amber-400",
   rose: "text-rose-600 dark:text-rose-400",
   neutral: "text-muted-foreground",
@@ -53,10 +53,10 @@ export function GoalHealthStrip({
   const total = themes.length || 1;
 
   return (
-    <StatStrip className="rounded-xl bg-gradient-to-r from-primary/[0.05] to-card shadow-sm">
+    <StatStrip className="rounded-lg bg-gradient-to-r from-primary/[0.05] to-card shadow-sm">
       {/* Ø Fortschritt */}
       <div className="min-w-0 flex-1 px-4 py-3.5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+        <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Ø Fortschritt
         </p>
         <p className="mt-1.5 font-mono text-2xl font-light leading-none tabular-nums">
@@ -73,15 +73,15 @@ export function GoalHealthStrip({
 
       {/* Status-Verteilung */}
       <div className="min-w-0 flex-1 px-4 py-3.5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+        <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Status
         </p>
-        <div className="mt-1.5 flex h-5 flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[13px] font-medium tabular-nums">
+        <div className="mt-1.5 flex h-5 flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs font-medium tabular-nums">
           {TIER_ORDER.map((tier) =>
             counts[tier] > 0 ? (
               <span key={tier} className={`inline-flex items-baseline gap-1 ${TIER_TEXT[tier]}`}>
                 <span className="font-mono">{counts[tier]}</span>
-                <span className="text-[11px] font-normal">{TIER_LABEL[tier]}</span>
+                <span className="text-meta font-normal">{TIER_LABEL[tier]}</span>
               </span>
             ) : null,
           )}

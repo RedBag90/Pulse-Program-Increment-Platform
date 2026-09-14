@@ -144,7 +144,7 @@ export function BenefitHypothesisEditor({
           </summary>
           <div className="mt-3 space-y-3">
             {history.map((v, i) => (
-              <div key={i} className="space-y-1 rounded-md border bg-card p-3 text-xs">
+              <div key={i} className="space-y-1 rounded-md bg-card p-3 text-xs shadow-card">
                 <p className="text-muted-foreground/60">
                   {new Date(v.savedAt).toLocaleString("de-DE")}
                 </p>

@@ -159,12 +159,12 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
           value={query}
           onChange={(e) => pushParam({ q: e.target.value || null })}
           placeholder="Suche Feature …"
-          className="rounded-md border border-input bg-card px-3 py-1.5 text-sm"
+          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
         />
         <select
           value={scope}
           onChange={(e) => pushParam({ scope: e.target.value === "all" ? null : e.target.value })}
-          className="rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+          className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
         >
           {SCOPES.map((s) => (
             <option key={s} value={s}>
@@ -175,7 +175,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
         <select
           value={fromArt ?? ""}
           onChange={(e) => pushParam({ fromArt: e.target.value || null })}
-          className="rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+          className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
         >
           <option value="">Alle From-ARTs</option>
           {model.artOptions.map((a) => (
@@ -187,7 +187,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
         <select
           value={toArt ?? ""}
           onChange={(e) => pushParam({ toArt: e.target.value || null })}
-          className="rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+          className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
         >
           <option value="">Alle To-ARTs</option>
           {model.artOptions.map((a) => (
@@ -199,7 +199,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
         <select
           value={fromPi ?? ""}
           onChange={(e) => pushParam({ fromPi: e.target.value || null })}
-          className="rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+          className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
         >
           <option value="">Alle From-PIs</option>
           {model.piOptions.map((p) => (
@@ -211,7 +211,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
         <select
           value={toPi ?? ""}
           onChange={(e) => pushParam({ toPi: e.target.value || null })}
-          className="rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+          className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
         >
           <option value="">Alle To-PIs</option>
           {model.piOptions.map((p) => (
@@ -223,7 +223,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
       </div>
 
       {/* Tabelle */}
-      <div className="overflow-hidden rounded-2xl border bg-card">
+      <div className="overflow-hidden rounded-lg bg-card shadow-card">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/30 text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -234,7 +234,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
                     aria-label="Alle auswählen"
                     checked={filtered.length > 0 && filtered.every((r) => selected.has(r.id))}
                     onChange={toggleAll}
-                    className="size-4 rounded border-border"
+                    className="size-4 rounded-sm border-border"
                   />
                 </th>
               )}
@@ -276,12 +276,12 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
 
       {canBulk && selected.size > 0 && (
         <div className="pointer-events-none sticky bottom-4 z-30 mt-4 flex justify-center px-4">
-          <div className="pointer-events-auto flex w-full max-w-3xl flex-wrap items-center gap-3 rounded-2xl border bg-card px-4 py-2 shadow-lg">
+          <div className="pointer-events-auto flex w-full max-w-3xl flex-wrap items-center gap-3 rounded-lg bg-card px-4 py-2 shadow-lg ring-1 ring-foreground/10">
             <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium tabular-nums text-primary-foreground">
               {selected.size} ausgewählt
             </span>
             {bulkArtId == null ? (
-              <p className="text-xs text-amber-700">
+              <p className="text-xs text-warning">
                 Bulk-Unlink nur innerhalb eines From-ARTs möglich.
               </p>
             ) : (
@@ -289,7 +289,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
                 type="button"
                 disabled={pending}
                 onClick={runBulk}
-                className="rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                className="rounded-md border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive-surface disabled:opacity-50"
               >
                 {pending ? "…" : "Lösen"}
               </button>
@@ -298,7 +298,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
               type="button"
               onClick={() => setSelected(new Set())}
               aria-label="Auswahl aufheben"
-              className="ml-auto rounded border border-input p-1.5 text-muted-foreground hover:bg-muted"
+              className="ml-auto rounded-md border border-input p-1.5 text-muted-foreground hover:bg-muted"
             >
               <X className="size-3.5" />
             </button>
@@ -334,7 +334,7 @@ function DependencyRow({
             checked={selected}
             onChange={onToggle}
             aria-label={`${row.from.title} → ${row.to.title} auswählen`}
-            className="size-4 rounded border-border"
+            className="size-4 rounded-sm border-border"
           />
         </td>
       )}
@@ -347,7 +347,7 @@ function DependencyRow({
           {row.isCriticalPath && (
             <span
               title="Kritischer Pfad — Blocker mit Ziel in aktiver PI"
-              className="inline-flex size-5 items-center justify-center rounded bg-red-100 text-red-700"
+              className="inline-flex size-5 items-center justify-center rounded-sm bg-destructive-surface text-destructive"
             >
               <ShieldAlert className="size-3" />
             </span>
@@ -370,12 +370,12 @@ function DependencyRow({
             </>
           )}
           {row.isCrossArt && (
-            <span className="inline-flex items-center gap-1 rounded bg-orange-100 px-1.5 py-0.5 text-[10px] text-orange-700">
+            <span className="inline-flex items-center gap-1 rounded-sm bg-destructive-surface px-1.5 py-0.5 text-label text-destructive">
               <Split className="size-3" /> Cross-ART
             </span>
           )}
           {row.isCrossPi && (
-            <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">
+            <span className="inline-flex items-center gap-1 rounded-sm bg-warning-surface px-1.5 py-0.5 text-label text-warning">
               <Link2 className="size-3" /> Cross-PI
             </span>
           )}
@@ -392,7 +392,7 @@ function EndpointStatus({ status }: { status: string }) {
     return <StatusBadge status={status as FeatureStatus} />;
   }
   return (
-    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+    <span className="rounded-full bg-muted px-2 py-0.5 text-meta text-muted-foreground">
       {STATUS_LABELS[status] ?? status}
     </span>
   );
@@ -412,7 +412,7 @@ function EndpointCell({ endpoint }: { endpoint: DependencyOverviewRow["from"] })
       ) : (
         <span className="text-sm font-medium">{endpoint.title}</span>
       )}
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-meta text-muted-foreground">
         {endpoint.art?.name ?? "—"} · {endpoint.pi?.name ?? "Backlog"}
       </p>
     </div>

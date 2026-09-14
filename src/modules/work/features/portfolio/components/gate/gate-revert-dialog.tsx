@@ -46,7 +46,7 @@ export function GateRevertDialog({ epicId, current }: { epicId: string; current:
   }
 
   return (
-    <div className="w-full space-y-2 rounded-md border border-amber-200 bg-amber-50/40 p-2.5">
+    <div className="w-full space-y-2 rounded-md border border-warning/40 bg-warning-surface/60 p-2.5">
       <p className="text-xs font-medium">
         Zurückstufen auf {gateStepLabel(target)} — bitte begründen
       </p>
@@ -60,14 +60,14 @@ export function GateRevertDialog({ epicId, current }: { epicId: string; current:
         rows={3}
         maxLength={1000}
         placeholder="Begründung (erforderlich)"
-        className="w-full rounded border border-input px-2 py-1 text-xs"
+        className="w-full rounded-md border border-input px-2 py-1 text-xs"
       />
       <div className="flex gap-2">
         <button
           type="button"
           disabled={pending || !reason.trim()}
           onClick={submit}
-          className="rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+          className="rounded-md border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive-surface disabled:opacity-50"
         >
           {pending ? "…" : "Zurückstufen"}
         </button>

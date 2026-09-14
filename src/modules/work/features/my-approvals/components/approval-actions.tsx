@@ -15,11 +15,11 @@ import type { MyApprovalRow } from "@/modules/work/server/services/my-approvals"
  */
 
 const APPROVE =
-  "rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50";
+  "rounded-md bg-success px-3 py-1.5 text-sm font-medium text-background hover:bg-success/90 disabled:opacity-50";
 const REJECT =
-  "rounded border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50";
+  "rounded-md border border-destructive/40 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive-surface disabled:opacity-50";
 const CANCEL =
-  "rounded border border-input px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-50";
+  "rounded-md border border-input px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-50";
 
 type Mode = "approve" | "reject";
 
@@ -63,7 +63,7 @@ export function ApprovalActions({ row }: { row: MyApprovalRow }) {
   if (open) {
     const label = "Ablehnen";
     return (
-      <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50/40 p-3">
+      <div className="space-y-2 rounded-md border border-warning/40 bg-warning-surface/60 p-3">
         <p className="text-xs font-medium text-foreground">{label} — bitte begründen</p>
         <textarea
           value={comment}
@@ -71,7 +71,7 @@ export function ApprovalActions({ row }: { row: MyApprovalRow }) {
           rows={3}
           maxLength={2000}
           placeholder="Begründung (erforderlich)"
-          className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+          className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
         />
         <div className="flex gap-2">
           <button
@@ -95,7 +95,7 @@ export function ApprovalActions({ row }: { row: MyApprovalRow }) {
           </button>
         </div>
         {state.error ? (
-          <p role="alert" className="text-xs text-red-600">
+          <p role="alert" className="text-xs text-destructive">
             {state.error}
           </p>
         ) : null}
@@ -119,7 +119,7 @@ export function ApprovalActions({ row }: { row: MyApprovalRow }) {
         </button>
       </div>
       {state.error ? (
-        <p role="alert" className="text-xs text-red-600">
+        <p role="alert" className="text-xs text-destructive">
           {state.error}
         </p>
       ) : null}

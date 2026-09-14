@@ -72,7 +72,7 @@ export function EpicPlannedWindowForm({ epicId, plannedStartAt, plannedEndAt, de
         </p>
       )}
       {diverged && (
-        <p className="text-xs text-amber-700">
+        <p className="text-xs text-warning">
           Ist-Fenster (Feature-PIs) weicht vom Plan-Fenster ab — Feature-PIs ggf. umplanen oder den
           Reifegrad-Plan (L4.1/L4.2) anpassen.
         </p>

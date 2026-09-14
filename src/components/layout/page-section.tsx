@@ -18,7 +18,7 @@ interface Props {
  */
 export function PageSection({ children, title, actions, className }: Props) {
   return (
-    <section className={cn("space-y-4", className)}>
+    <section className={cn("space-y-[var(--section-inner-gap)]", className)}>
       {title && (
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">

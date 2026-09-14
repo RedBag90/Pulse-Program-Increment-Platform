@@ -35,7 +35,7 @@ export function GuideView({
 
       <article className="space-y-8">
         <header className="space-y-3">
-          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+          <p className="font-mono text-meta uppercase tracking-[0.14em] text-muted-foreground">
             <Link href="/wiki" className="hover:text-foreground">
               Wiki
             </Link>
@@ -45,7 +45,7 @@ export function GuideView({
             {CADENCE_LABEL[guide.cadence]} · {CADENCE_HINT[guide.cadence]}
           </p>
           <h1 className="font-heading text-3xl font-semibold tracking-tight">{guide.title}</h1>
-          <p className="max-w-[var(--reading-max-w)] text-[17px] leading-relaxed text-muted-foreground">
+          <p className="max-w-[var(--reading-max-w)] text-prose-lede leading-relaxed text-muted-foreground">
             {inline(guide.standfirst)}
           </p>
         </header>
@@ -72,14 +72,14 @@ export function GuideView({
             <h2 className="font-heading text-xl font-semibold tracking-tight">
               Sätze, die naheliegen und nicht stimmen
             </h2>
-            <div className="overflow-x-auto rounded-lg border bg-card">
+            <div className="overflow-x-auto rounded-lg bg-card shadow-card">
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr>
-                    <th className="border-b px-4 py-2.5 text-left font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">
+                    <th className="border-b px-4 py-2.5 text-left font-mono text-meta uppercase tracking-[0.1em] text-muted-foreground">
                       Satz
                     </th>
-                    <th className="border-b px-4 py-2.5 text-left font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">
+                    <th className="border-b px-4 py-2.5 text-left font-mono text-meta uppercase tracking-[0.1em] text-muted-foreground">
                       Warum er nicht stimmt
                     </th>
                   </tr>
@@ -106,14 +106,14 @@ export function GuideView({
             <h2 className="font-heading text-xl font-semibold tracking-tight">
               Wer welchen Schritt macht
             </h2>
-            <div className="overflow-x-auto rounded-lg border bg-card">
+            <div className="overflow-x-auto rounded-lg bg-card shadow-card">
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr>
                     {["Schritt", "Wer", "Recht"].map((h) => (
                       <th
                         key={h}
-                        className="border-b px-4 py-2.5 text-left font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground"
+                        className="border-b px-4 py-2.5 text-left font-mono text-meta uppercase tracking-[0.1em] text-muted-foreground"
                       >
                         {h}
                       </th>
@@ -131,7 +131,7 @@ export function GuideView({
                       </td>
                       <td className="border-b border-border/60 px-4 py-2.5 align-top last:border-b-0">
                         {w.capability ? (
-                          <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11.5px]">
+                          <code className="rounded-sm bg-muted px-1 py-0.5 font-mono text-xs">
                             {w.capability}
                           </code>
                         ) : (
@@ -170,10 +170,10 @@ function SeeAlso({ guide }: { guide: Guide }) {
         {targets.map((g) => (
           <li key={g.slug}>
             <Link href={`/wiki/${g.slug}`} className="group block">
-              <span className="text-[14.5px] font-medium text-foreground group-hover:underline">
+              <span className="text-sm font-medium text-foreground group-hover:underline">
                 {g.title}
               </span>
-              <span className="mt-0.5 block text-[13px] text-muted-foreground">{g.teaser}</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">{g.teaser}</span>
             </Link>
           </li>
         ))}
@@ -214,12 +214,12 @@ function PerspectiveSection({
             {index} · {perspective.label}
           </h2>
           {own && (
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary">
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-label uppercase tracking-[0.1em] text-primary">
               deine Rolle
             </span>
           )}
         </div>
-        <p className="text-[15px] text-muted-foreground">
+        <p className="text-prose text-muted-foreground">
           Meine Frage lautet: <strong className="text-foreground">{perspective.question}</strong>
         </p>
       </div>
@@ -257,7 +257,7 @@ function StationView({
         aria-hidden
         className="absolute bottom-0 left-[11px] top-7 w-px bg-border [li:last-child>&]:hidden"
       />
-      <span className="absolute left-0 top-0 flex size-[23px] items-center justify-center rounded-full border bg-card font-mono text-[11px] text-muted-foreground">
+      <span className="absolute left-0 top-0 flex size-[23px] items-center justify-center rounded-full border bg-card font-mono text-meta text-muted-foreground">
         {n}
       </span>
 
@@ -267,10 +267,10 @@ function StationView({
         {station.route && (
           <Link
             href={station.route}
-            className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-muted"
+            className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
           >
             Hier entlang
-            <code className="font-mono text-[11.5px] text-muted-foreground">{station.route}</code>
+            <code className="font-mono text-xs text-muted-foreground">{station.route}</code>
             <span aria-hidden>→</span>
           </Link>
         )}
@@ -286,11 +286,8 @@ function StationView({
  */
 function GuideToc({ guide, roles }: { guide: Guide; roles: readonly Role[] }) {
   return (
-    <nav
-      aria-label="Auf dieser Seite"
-      className="top-24 space-y-2 border-l pl-4 text-[13px] lg:sticky"
-    >
-      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+    <nav aria-label="Auf dieser Seite" className="top-24 space-y-2 border-l pl-4 text-xs lg:sticky">
+      <p className="font-mono text-label uppercase tracking-[0.14em] text-muted-foreground">
         Auf dieser Seite
       </p>
       <ul className="space-y-1.5">

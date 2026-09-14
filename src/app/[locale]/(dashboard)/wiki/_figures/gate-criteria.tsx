@@ -13,32 +13,32 @@ import { gateStepNumber } from "@/modules/work/domain/stage-gate";
  */
 export function GateCriteria() {
   return (
-    <div className="divide-y overflow-hidden rounded-lg border bg-card">
+    <div className="divide-y overflow-hidden rounded-lg bg-card shadow-card">
       {GATE_CRITERIA_DOC.map((doc) => (
         <div key={doc.stageTo} className="space-y-2.5 p-4">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+          <p className="font-mono text-meta uppercase tracking-[0.1em] text-muted-foreground">
             {gateStepNumber(doc.stageFrom)} <span aria-hidden>→</span>{" "}
             <span className="text-foreground">{gateStepNumber(doc.stageTo)}</span>
           </p>
           {doc.criteria.length === 0 ? (
-            <p className="text-[13.5px] text-muted-foreground">Kein eigenes Kriterium.</p>
+            <p className="text-sm text-muted-foreground">Kein eigenes Kriterium.</p>
           ) : (
             <ul className="space-y-2.5">
               {doc.criteria.map((c) => (
                 <li key={c.label} className="space-y-0.5">
-                  <p className="text-[14px] leading-snug text-foreground">
+                  <p className="text-sm leading-snug text-foreground">
                     {c.label}{" "}
                     <span
                       className={
                         c.blocking
-                          ? "ml-1 rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider text-amber-900 dark:text-amber-200"
-                          : "ml-1 rounded border bg-muted px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider text-muted-foreground"
+                          ? "ml-1 rounded-sm border border-amber-500/50 bg-amber-500/10 px-1.5 py-0.5 font-mono text-label uppercase tracking-[0.1em] text-amber-900 dark:text-amber-200"
+                          : "ml-1 rounded-sm border bg-muted px-1.5 py-0.5 font-mono text-label uppercase tracking-[0.1em] text-muted-foreground"
                       }
                     >
                       {c.blocking ? "blockierend" : "beratend"}
                     </span>
                   </p>
-                  <p className="max-w-[var(--reading-max-w)] text-[13px] leading-relaxed text-muted-foreground">
+                  <p className="max-w-[var(--reading-max-w)] text-xs leading-relaxed text-muted-foreground">
                     {c.help}
                   </p>
                 </li>

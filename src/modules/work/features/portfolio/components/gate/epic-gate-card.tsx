@@ -41,12 +41,18 @@ const PRIMARY =
   "inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50";
 const GHOST =
   "inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted disabled:opacity-50";
+/**
+ * Zustimmen · Ablehnen · Zurückgeben — die drei Entscheidungen am Tor, und
+ * damit die drei semantischen Rollen aus ADR-0021. Vorher standen hier acht
+ * rohe Palettenwerte (Emerald, Rot, Amber) **ohne** `dark:`-Partner: im
+ * Dunkelmodus leuchtende Flecken auf dunklem Grund.
+ */
 const APPROVE =
-  "rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50";
+  "rounded-md bg-success px-3 py-1.5 text-xs font-medium text-background hover:bg-success/90 disabled:opacity-50";
 const REJECT =
-  "rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50";
+  "rounded-md border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive-surface disabled:opacity-50";
 const CLARIFY =
-  "rounded-md border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-50";
+  "rounded-md border border-warning/40 px-3 py-1.5 text-xs font-medium text-warning hover:bg-warning-surface disabled:opacity-50";
 
 // Hier werden **Schritte** benannt, nicht Major-Gates: `L4` heißt deshalb
 // „L4.1 Umsetzung läuft" — dieselbe Zahl, die danach am Epic steht.
@@ -112,7 +118,7 @@ export function EpicGateCard({ epicId, gate, approvers, userLabels, classDrift }
   if (gate.disabled) return null;
 
   return (
-    <div className="space-y-3 rounded-lg border border-border bg-card p-3.5">
+    <div className="space-y-3 rounded-lg bg-card p-3.5 shadow-card">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm">
           <span className="font-medium">Reifegrad:</span> {gateLabel(gate.current)}
@@ -167,14 +173,14 @@ function HelpRequestControl({ epicId, requested }: { epicId: string; requested: 
           checked={requested}
           disabled={pending}
           onChange={(e) => toggle(e.target.checked)}
-          className="size-4 rounded border-input"
+          className="size-4 rounded-sm border-input"
         />
         <span className="inline-flex items-center gap-1.5 font-medium">
           <LifeBuoy className="size-3.5 text-muted-foreground" />I need help
         </span>
       </label>
       {requested && (
-        <p className="pl-6 text-[11px] text-muted-foreground">
+        <p className="pl-6 text-meta text-muted-foreground">
           VMO und Portfolio-Management sehen dieses Epic jetzt in „Meine Tasks".
         </p>
       )}
@@ -263,7 +269,7 @@ function NoRequest({
               }`}
             >
               {c.satisfied ? (
-                <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+                <Check className="mt-0.5 size-3.5 shrink-0 text-success" />
               ) : (
                 <Circle className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60" />
               )}
@@ -289,7 +295,7 @@ function NoRequest({
                       render={
                         <button
                           type="button"
-                          className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/50 hover:text-muted-foreground"
+                          className="text-label font-medium uppercase tracking-[0.1em] text-muted-foreground/50 hover:text-muted-foreground"
                         />
                       }
                     >
@@ -400,7 +406,7 @@ function OpenRequest({
         {request.approvers.map((a) => (
           <li key={a.id} className="flex items-start gap-2 text-xs">
             {a.status === "approved" ? (
-              <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+              <Check className="mt-0.5 size-3.5 shrink-0 text-success" />
             ) : a.status === "rejected" ? (
               <X className="mt-0.5 size-3.5 shrink-0 text-destructive" />
             ) : (
@@ -450,7 +456,7 @@ function DecideButtons({ transitionId }: { transitionId: string }) {
   if (open) {
     const label = open === "reject" ? "Ablehnen" : "In Klärung schicken";
     return (
-      <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50/40 p-2.5">
+      <div className="space-y-2 rounded-md border border-warning/30 bg-warning-surface/60 p-2.5">
         <p className="text-xs font-medium">{label} — bitte begründen</p>
         <textarea
           value={comment}
@@ -458,7 +464,7 @@ function DecideButtons({ transitionId }: { transitionId: string }) {
           rows={3}
           maxLength={1000}
           placeholder="Begründung (erforderlich)"
-          className="w-full rounded border border-input px-2 py-1 text-xs"
+          className="w-full rounded-md border border-input px-2 py-1 text-xs"
         />
         <div className="flex gap-2">
           <button

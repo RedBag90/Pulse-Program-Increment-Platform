@@ -15,14 +15,14 @@ export function EpicGoalsBadge({ goalLinks = [] }: Props) {
   if (goalLinks.length === 0) return null;
 
   return (
-    <section className="space-y-3 rounded-lg border bg-card p-4">
+    <section className="space-y-3 rounded-lg bg-card p-4 shadow-card">
       <header className="flex items-baseline justify-between">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <h3 className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Strategische Beitraege
         </h3>
         <Link
           href={"/ziele" as never}
-          className="text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+          className="text-meta text-muted-foreground hover:text-foreground hover:underline"
         >
           → Ziele-Modul
         </Link>
@@ -36,7 +36,7 @@ export function EpicGoalsBadge({ goalLinks = [] }: Props) {
           >
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{l.goalTitle}</p>
-              <p className="truncate text-[10px] text-muted-foreground">
+              <p className="truncate text-label text-muted-foreground">
                 {l.kpiId && l.conversionFactor != null
                   ? `1 ${l.kpiUnit || "KPI-Einheit"} → ${l.conversionFactor.toLocaleString(
                       "de-DE",
@@ -46,7 +46,7 @@ export function EpicGoalsBadge({ goalLinks = [] }: Props) {
             </div>
             <Link
               href={`/ziele?entity=objective&id=${l.objectiveId}` as never}
-              className="text-[10px] text-muted-foreground hover:text-foreground hover:underline"
+              className="text-label text-muted-foreground hover:text-foreground hover:underline"
               title="Im Strategie-Modul oeffnen"
             >
               →

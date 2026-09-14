@@ -97,7 +97,7 @@ export function StrategicBlock({ data }: { data: PortfolioOverview }) {
                   <ul className="space-y-1 border-l pl-3 pt-1">
                     {g.children.map((c) => (
                       <li key={c.id} className="space-y-0.5">
-                        <div className="flex items-baseline justify-between gap-3 text-[10px]">
+                        <div className="flex items-baseline justify-between gap-3 text-label">
                           <span className="truncate text-muted-foreground" title={c.title}>
                             {c.title}
                           </span>

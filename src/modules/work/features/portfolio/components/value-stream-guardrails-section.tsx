@@ -70,7 +70,7 @@ export function ValueStreamGuardrailsSection({
         >
           {tone === "green" ? "Im Ziel" : tone === "amber" ? "Abweichung" : "Kritisch"}
         </span>
-        <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+        <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
           {GUARDRAIL_SOURCE_LABELS[source]}
         </span>
       </div>
@@ -83,7 +83,7 @@ export function ValueStreamGuardrailsSection({
       <div className="overflow-hidden rounded-lg border">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b bg-surface-frame text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+            <tr className="border-b bg-surface-frame text-label uppercase tracking-[0.1em] text-muted-foreground">
               <th className="p-2 text-left font-semibold">Arbeitstyp</th>
               <th className="p-2 text-right font-semibold">Epics</th>
               <th className="p-2 text-right font-semibold">Abgeschlossen</th>
@@ -126,7 +126,7 @@ export function ValueStreamGuardrailsSection({
         <div className="overflow-hidden rounded-lg border">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-surface-frame text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+              <tr className="border-b bg-surface-frame text-label uppercase tracking-[0.1em] text-muted-foreground">
                 <th className="p-2 text-left font-semibold">Entwicklung</th>
                 <th className="p-2 text-right font-semibold">Business</th>
                 <th className="p-2 text-right font-semibold">Enabler</th>
@@ -159,8 +159,8 @@ export function ValueStreamGuardrailsSection({
       )}
 
       {preview && (
-        <div className="space-y-2 rounded-lg border bg-card p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+        <div className="space-y-2 rounded-lg bg-card p-4 shadow-card">
+          <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Guardrail 3 · Aufteilung bei einem Limit von {formatEUR(preview.threshold)}
           </p>
           <div className="grid gap-4 md:grid-cols-2">
@@ -194,9 +194,9 @@ export function ValueStreamGuardrailsSection({
       )}
 
       {canEdit && (
-        <form action={formAction} className="space-y-2 rounded-lg border bg-card p-4">
+        <form action={formAction} className="space-y-2 rounded-lg bg-card p-4 shadow-card">
           <input type="hidden" name="valueStreamId" value={valueStreamId} />
-          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Ziele dieses Wertstroms
           </p>
           <div className="flex flex-wrap items-center gap-3 text-sm">

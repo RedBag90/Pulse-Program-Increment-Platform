@@ -88,7 +88,7 @@ export function GuardrailMixCard<B extends string>({
                 const d = delta(row);
                 return (
                   <li key={b.id} className="grid grid-cols-[92px_1fr_auto] items-center gap-3">
-                    <span className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                    <span className="flex items-center gap-2 text-sm text-muted-foreground">
                       <span
                         className="size-2 shrink-0 rounded-[2px]"
                         style={{ backgroundColor: b.color }}

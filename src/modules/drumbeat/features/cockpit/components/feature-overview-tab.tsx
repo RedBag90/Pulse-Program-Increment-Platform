@@ -12,6 +12,7 @@ import {
   STATUS_LABELS,
 } from "@/components/detail/initiative-labels";
 import { buildInitiativeSummary } from "@/modules/core/kernel/domain/initiative-summary";
+import { WSJF_TIER_CLASS } from "@/components/detail/initiative-labels";
 import { formatDate } from "@/lib/formatting";
 import { formatWsjf } from "@/modules/core/kernel/domain/wsjf";
 import type { StageGate, InitiativeStatus } from "@/modules/core/kernel/domain/types";
@@ -31,13 +32,6 @@ const TIER_LABEL: Record<FeatureDetailModel["wsjf"]["tier"], string> = {
   low: "WSJF niedrig",
   unscored: "WSJF offen",
 };
-const TIER_CLASS: Record<FeatureDetailModel["wsjf"]["tier"], string> = {
-  high: "bg-emerald-100 text-emerald-700",
-  medium: "bg-amber-100 text-amber-700",
-  low: "bg-muted text-muted-foreground",
-  unscored: "bg-muted text-muted-foreground",
-};
-
 /**
  * Overview-Tab der Feature-Detail-Seite. Felds-Grid + Status-Aktionen.
  * Aktions-Buttons sind capability-gated und reflektieren die FSM aus
@@ -71,7 +65,7 @@ export function FeatureOverviewTab({
             >
               {model.parent.title}
               {model.parent.stageGate && (
-                <span className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                <span className="ml-1 rounded-sm bg-muted px-1 text-label text-muted-foreground">
                   {model.parent.stageGate}
                 </span>
               )}
@@ -112,7 +106,7 @@ export function FeatureOverviewTab({
           />
         </Field>
         <div>
-          <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Feature-Typ
           </p>
           {model.art ? (
@@ -140,7 +134,7 @@ export function FeatureOverviewTab({
       <WsjfBlock model={model} canEdit={canEdit} />
 
       <section>
-        <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Beschreibung
         </p>
         {canEdit && model.art ? (
@@ -151,7 +145,7 @@ export function FeatureOverviewTab({
             currentDescription={model.description ?? ""}
           />
         ) : model.description ? (
-          <p className="whitespace-pre-wrap rounded-lg border bg-card p-4 text-sm leading-relaxed">
+          <p className="whitespace-pre-wrap rounded-lg bg-card p-4 text-sm leading-relaxed shadow-card">
             {model.description}
           </p>
         ) : (
@@ -170,7 +164,7 @@ function SummaryHeader({ model }: { model: FeatureDetailModel }) {
   return (
     <section className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
       <StatusPill status={model.status} />
-      <span className={`rounded-full px-2 py-0.5 text-[11px] ${TIER_CLASS[model.wsjf.tier]}`}>
+      <span className={`rounded-full px-2 py-0.5 text-meta ${WSJF_TIER_CLASS[model.wsjf.tier]}`}>
         {TIER_LABEL[model.wsjf.tier]}
         {model.wsjf.computed != null && (
           <span className="ml-1 tabular-nums">· {formatWsjf(model.wsjf.computed)}</span>
@@ -179,7 +173,7 @@ function SummaryHeader({ model }: { model: FeatureDetailModel }) {
       {model.pi && (
         <Link
           href={`/umsetzung/pi/${model.pi.id}` as never}
-          className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] text-blue-700 hover:bg-blue-200"
+          className="inline-flex items-center gap-1 rounded-full bg-info-surface px-2 py-0.5 text-meta text-info hover:bg-info-surface/70"
         >
           {model.pi.name}
           <ArrowRight className="size-3" />
@@ -192,7 +186,7 @@ function SummaryHeader({ model }: { model: FeatureDetailModel }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         {label}
       </p>
       <div className="flex min-h-9 items-center rounded-lg border bg-muted/30 px-3 py-2 text-sm">
@@ -230,7 +224,7 @@ function SummaryBand({ model }: { model: FeatureDetailModel }) {
   });
   return (
     <section>
-      <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         Zusammenfassung
       </p>
       <p className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">{summary}</p>
@@ -254,7 +248,7 @@ function WsjfBlock({ model, canEdit }: { model: FeatureDetailModel; canEdit: boo
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-3">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           WSJF
         </p>
         {canEdit && model.art && (
@@ -278,7 +272,7 @@ function WsjfBlock({ model, canEdit }: { model: FeatureDetailModel; canEdit: boo
           </div>
         ))}
       </div>
-      <div className="flex flex-wrap items-center gap-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+      <div className="flex flex-wrap items-center gap-6 rounded-lg border border-info/30 bg-info-surface p-4">
         <div>
           <p className="text-xs text-muted-foreground">Cost of Delay</p>
           <p className="text-xl font-semibold text-foreground tabular-nums">{costOfDelay}</p>
@@ -304,7 +298,7 @@ function AcceptanceList({ items }: { items: string[] }) {
   if (items.length === 0) {
     return (
       <section>
-        <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Acceptance Criteria
         </p>
         <p className="rounded-lg border border-dashed bg-card px-4 py-3 text-sm text-muted-foreground">
@@ -315,10 +309,10 @@ function AcceptanceList({ items }: { items: string[] }) {
   }
   return (
     <section>
-      <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         Acceptance Criteria
       </p>
-      <ul className="space-y-1.5 rounded-lg border bg-card p-4 text-sm">
+      <ul className="space-y-1.5 rounded-lg bg-card p-4 text-sm shadow-card">
         {items.map((c, i) => (
           <li key={i} className="flex items-start gap-2">
             <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-muted-foreground/40" />

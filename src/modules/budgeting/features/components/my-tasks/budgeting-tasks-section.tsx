@@ -26,14 +26,14 @@ export function BudgetingTasksSection({
 
   return (
     <section className="space-y-2">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <h2 className="text-sm font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         Budgeting
       </h2>
       <ul className="mt-2 space-y-2">
         {funding.map((f) => (
           <li
             key={f.artId}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card px-4 py-3"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-card shadow-card px-4 py-3"
           >
             <div className="text-sm">
               <span className="font-medium">💶 {f.artName}</span> — das ART-Epic-Budget für{" "}
@@ -43,7 +43,7 @@ export function BudgetingTasksSection({
             </div>
             <Link
               href={f.href}
-              className="rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800"
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
               Budget verteilen →
             </Link>
@@ -52,7 +52,7 @@ export function BudgetingTasksSection({
         {tasks.map((t) => (
           <li
             key={t.groupId}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card px-4 py-3"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-card shadow-card px-4 py-3"
           >
             <div className="text-sm">
               <span className="font-medium">💰 {t.groupName}</span> verteilt das Budget für{" "}
@@ -65,7 +65,7 @@ export function BudgetingTasksSection({
             </div>
             <Link
               href={t.href}
-              className="rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800"
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
               Budget verteilen →
             </Link>

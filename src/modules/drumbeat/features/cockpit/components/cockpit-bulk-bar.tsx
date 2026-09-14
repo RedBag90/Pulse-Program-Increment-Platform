@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import type { CockpitPiSlot, FeatureStatus } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
+import type {
+  CockpitPiSlot,
+  FeatureStatus,
+} from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 
 /**
  * Sticky-Bar am unteren Page-Rand — erscheint, sobald ≥1 Zeile in der
@@ -60,7 +63,7 @@ export function CockpitBulkBar({
             disabled={!canUpdate}
             value={piChoice}
             onChange={(e) => setPiChoice(e.target.value)}
-            className="rounded border bg-background px-2 py-1 text-xs disabled:opacity-50"
+            className="rounded-md border bg-background px-2 py-1 text-xs disabled:opacity-50"
           >
             <option value={NO_PI}>— keine Aenderung —</option>
             <option value="__backlog__">Backlog</option>
@@ -78,7 +81,7 @@ export function CockpitBulkBar({
             disabled={!canSetDelivery}
             value={statusChoice}
             onChange={(e) => setStatusChoice(e.target.value)}
-            className="rounded border bg-background px-2 py-1 text-xs disabled:opacity-50"
+            className="rounded-md border bg-background px-2 py-1 text-xs disabled:opacity-50"
           >
             <option value={NO_STATUS}>— keine Aenderung —</option>
             {statusOptions.map((s) => (

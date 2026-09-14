@@ -44,7 +44,7 @@ export function CreateMenu() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="inline-flex size-8 items-center justify-center rounded-md text-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex size-8 items-center justify-center rounded-md text-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           aria-label="Create new"
         >
           <Plus className="size-4" />
@@ -54,7 +54,7 @@ export function CreateMenu() {
             <Fragment key={group.key}>
               {groupIdx > 0 && <DropdownMenuSeparator />}
               <DropdownMenuGroup>
-                <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                <DropdownMenuLabel className="text-label uppercase tracking-[0.1em] text-muted-foreground">
                   {group.label}
                 </DropdownMenuLabel>
                 {CREATE_REGISTRY.filter((entry) => entry.group === group.key).map((entry) => (

@@ -35,7 +35,7 @@ export function StructureListRow({ row, selected, onSelect }: Props) {
     <button
       type="button"
       onClick={() => onSelect(row.kind, row.id)}
-      className={`group w-full rounded-md border bg-card p-2.5 text-left transition-colors hover:bg-muted/50 ${
+      className={`group w-full rounded-md border bg-background p-2.5 text-left transition-colors hover:bg-muted/50 ${
         selected ? "border-primary ring-1 ring-primary" : ""
       }`}
       style={{ paddingLeft: `${0.625 + row.depth * 1}rem` }}
@@ -45,14 +45,14 @@ export function StructureListRow({ row, selected, onSelect }: Props) {
         <Icon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{row.label}</p>
-          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+          <p className="mt-0.5 truncate text-meta text-muted-foreground">
             <span className="opacity-60">{KIND_LABEL[row.kind]}</span>
             {row.subtitle && ` · ${row.subtitle}`}
           </p>
         </div>
         {row.gaps.length > 0 && (
           <span
-            className="inline-flex shrink-0 items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800"
+            className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-warning-surface px-1.5 py-0.5 text-label font-medium text-warning"
             title={row.gaps.join(", ")}
           >
             <AlertTriangle className="size-3" /> {row.gaps.length}

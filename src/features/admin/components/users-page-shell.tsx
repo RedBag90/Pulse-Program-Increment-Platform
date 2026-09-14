@@ -100,7 +100,7 @@ export function UsersPageShell({ model, canManage }: Props) {
       />
 
       {selectedOutOfView && (
-        <div className="flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <div className="flex items-center justify-between rounded-md border border-warning/40 bg-warning-surface px-3 py-2 text-xs text-warning">
           <span>Ausgewählte:r Benutzer:in ist im aktuellen Filter nicht sichtbar.</span>
           <button
             type="button"
@@ -141,7 +141,7 @@ export function UsersPageShell({ model, canManage }: Props) {
 
 function InvitePane({ onDone }: { onDone: () => void }) {
   return (
-    <section className="space-y-3 rounded-lg border bg-card p-4">
+    <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
       <div className="flex items-center justify-between">
         <h2 className="font-heading text-sm font-medium">Neue:n Benutzer:in einladen</h2>
         <button

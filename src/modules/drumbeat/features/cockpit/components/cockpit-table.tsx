@@ -224,7 +224,7 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
                   </td>
                   <td className="px-2 py-1.5 text-xs">
                     {f.hasBlocker && f.blockerHint ? (
-                      <span className="text-amber-700">⚠ {f.blockerHint}</span>
+                      <span className="text-warning">⚠ {f.blockerHint}</span>
                     ) : (
                       <span className="text-muted-foreground/60">—</span>
                     )}

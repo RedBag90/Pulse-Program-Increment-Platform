@@ -19,7 +19,10 @@ const SUBLABEL: Record<PeriodPhase["state"], string> = {
  */
 export function PeriodPhaseRail({ phases, basePath }: { phases: PeriodPhase[]; basePath: string }) {
   return (
-    <nav aria-label="Zeitraum — Phasen" className="flex overflow-x-auto rounded-lg border bg-card">
+    <nav
+      aria-label="Zeitraum — Phasen"
+      className="flex overflow-x-auto rounded-lg bg-card shadow-card"
+    >
       {phases.map((p, i) => {
         const blocked = p.state === "blocked";
         return (
@@ -33,7 +36,7 @@ export function PeriodPhaseRail({ phases, basePath }: { phases: PeriodPhase[]; b
             } ${p.state === "current" ? "bg-primary/5" : ""} ${blocked ? "opacity-60" : ""}`}
           >
             <span
-              className={`grid size-5 shrink-0 place-items-center rounded-full text-[10px] font-bold ${
+              className={`grid size-5 shrink-0 place-items-center rounded-full text-label font-bold ${
                 p.state === "done"
                   ? "bg-emerald-500 text-white"
                   : p.state === "current"
@@ -44,8 +47,8 @@ export function PeriodPhaseRail({ phases, basePath }: { phases: PeriodPhase[]; b
               {p.state === "done" ? "✓" : i + 1}
             </span>
             <span className="flex flex-col leading-tight">
-              <span className="text-[12px] font-medium">{p.label}</span>
-              <span className="text-[10px] text-muted-foreground">{SUBLABEL[p.state]}</span>
+              <span className="text-xs font-medium">{p.label}</span>
+              <span className="text-label text-muted-foreground">{SUBLABEL[p.state]}</span>
             </span>
           </Link>
         );

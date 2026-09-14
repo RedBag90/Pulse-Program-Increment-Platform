@@ -10,7 +10,7 @@ export function SectionLabel({ className, ...props }: ComponentProps<"h2">) {
   return (
     <h2
       className={cn(
-        "text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground",
+        "text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground",
         className,
       )}
       {...props}

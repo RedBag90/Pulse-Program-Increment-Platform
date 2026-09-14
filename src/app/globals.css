@@ -12,9 +12,41 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-heading: var(--font-geist-sans, ui-sans-serif, system-ui, sans-serif);
+  /*
+   * Die Überschrift hat seit ADR-0021 eine eigene Schrift. Vorher zeigte
+   * `--font-heading` auf dieselbe Familie wie `--font-sans` — ein Seam mit
+   * eigenem Vokabular, aber ohne Unterschied.
+   */
+  --font-heading: var(
+    --font-inter-tight,
+    var(--font-geist-sans),
+    ui-sans-serif,
+    system-ui,
+    sans-serif
+  );
   --font-sans: var(--font-geist-sans, ui-sans-serif, system-ui, sans-serif);
   --font-mono: var(--font-geist-mono, ui-monospace, "Cascadia Code", monospace);
+
+  /*
+   * Die zwei Stufen **unter** `text-xs` (ADR-0021). Bis September 2026 gab es
+   * dort keine Skala, sondern elf frei gewaehlte Pixelwerte zwischen 8 und
+   * 11,5 px in 292 Vorkommen — mehr als alle Groessen ueber `text-sm`
+   * zusammen. Als Token statt als Arbitrary Value, damit sie verhandelbar
+   * bleiben und an einer Stelle stehen.
+   */
+  --text-label: 0.625rem; /* 10px — Versal-Mikrolabel */
+  --text-meta: 0.6875rem; /* 11px — Metazeile, Fussnote */
+
+  /* Die Leseskala des Wikis.
+   *
+   * Lange Fliesstexte sind ein anderes Medium als eine Arbeitsflaeche: sie
+   * werden gelesen, nicht bedient, und stehen in `--reading-max-w`. Die
+   * Arbeitsflaechen-Leiter (text-sm 14 / text-base 16) laesst dafuer keine
+   * Stufe zwischen „klein" und „gross"; 15 px ist genau die, die ein Absatz
+   * braucht. Drei Tokens statt acht verstreuter Pixelwerte. */
+  --text-prose: 0.9375rem; /* 15px — Fliesstext im Wiki */
+  --text-prose-lede: 1.0625rem; /* 17px — Anrisstext ueber einem Leitfaden */
+  --text-code: 0.85em; /* relativ: Inline-Code waechst mit seinem Absatz */
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -33,6 +65,13 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-surface: var(--destructive-surface);
+  --color-success: var(--success);
+  --color-success-surface: var(--success-surface);
+  --color-warning: var(--warning);
+  --color-warning-surface: var(--warning-surface);
+  --color-info: var(--info);
+  --color-info-surface: var(--info-surface);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -60,6 +99,19 @@
   --shadow-xs: var(--elevation-xs);
   --shadow-sm: var(--elevation-sm);
   --shadow-md: var(--elevation-md);
+  /*
+   * `shadow-lg` war das einzige Level ohne Themen-Bindung und fiel auf
+   * Tailwinds hartes Schwarz zurueck — im Dunkelmodus der einzige nicht
+   * abgestimmte Schatten (9 Vorkommen, u. a. `Sheet`).
+   */
+  --shadow-lg: var(--elevation-lg);
+  /*
+   * Die Karte: **die Haarlinie liegt im Schatten**, nicht in einem Rahmen
+   * (ADR-0021). Ein Rahmen zeichnet auf jeder Flaeche dieselbe harte Kante;
+   * ein Elevation-Ring folgt der Ebene, auf der die Karte liegt — damit wird
+   * das Drei-Ebenen-Modell sichtbar, statt nur definiert zu sein.
+   */
+  --shadow-card: var(--elevation-card);
 }
 
 /* ── Light Theme ─────────────────────────────────── */
@@ -94,6 +146,26 @@
 
   --destructive: oklch(0.577 0.245 27.325);
 
+  /*
+   * Status — **immer als Paar**: eine Flaeche und eine Schrift, beide Themen
+   * (ADR-0021). Bis September 2026 fehlten diese Rollen ganz, und die Folge
+   * war absehbar: wer eine Warnung einfaerben wollte, fand kein Token und
+   * schrieb `bg-amber-50 text-amber-700` — 858 rohe Palettenwerte im Bestand,
+   * davon 388 ohne `dark:`-Partner.
+   *
+   * Helligkeit und Chroma folgen der vorhandenen Ordnung: Flaeche hell und
+   * schwach gesaettigt, Schrift dunkel und kraeftig, damit der Kontrast in
+   * beiden Themen traegt. `--destructive` bleibt unveraendert und bekommt nur
+   * seine fehlende Flaeche.
+   */
+  --success: oklch(0.52 0.13 160);
+  --success-surface: oklch(0.955 0.035 160);
+  --warning: oklch(0.52 0.12 78);
+  --warning-surface: oklch(0.96 0.04 78);
+  --info: oklch(0.52 0.16 250);
+  --info-surface: oklch(0.955 0.035 250);
+  --destructive-surface: oklch(0.955 0.03 27);
+
   --border: oklch(0.912 0.008 262);
   --input: oklch(0.912 0.008 262);
   --ring: oklch(0.546 0.245 262.881);
@@ -103,6 +175,11 @@
   --elevation-sm: 0 1px 2px 0 oklch(0.2 0.03 262 / 0.06), 0 2px 6px -1px oklch(0.2 0.03 262 / 0.07);
   --elevation-md:
     0 2px 4px -1px oklch(0.2 0.03 262 / 0.06), 0 6px 16px -2px oklch(0.2 0.03 262 / 0.09);
+  --elevation-lg:
+    0 4px 8px -2px oklch(0.2 0.03 262 / 0.07), 0 12px 32px -4px oklch(0.2 0.03 262 / 0.12);
+  --elevation-card:
+    0 0 0 1px oklch(0.2 0.03 262 / 0.07), 0 1px 2px 0 oklch(0.2 0.03 262 / 0.05),
+    0 2px 8px -2px oklch(0.2 0.03 262 / 0.06);
 
   /* Charts — blue scale + complementary */
   --chart-1: oklch(0.546 0.245 262.881);
@@ -123,8 +200,14 @@
   --reading-max-w: 68ch;
   --page-section-gap: 1.5rem;
   --section-inner-gap: 1rem;
-  --page-header-gap: 0.5rem;
-  --page-header-margin: 1.5rem;
+  /*
+   * `--page-header-gap` (0.5rem) und `--page-header-margin` (1.5rem) standen
+   * hier bis September 2026 und wurden von keiner Zeile gelesen. Schlimmer:
+   * sie beschrieben etwas anderes als der Code tat — der Abstand zwischen
+   * Titel und Untertitel ist `space-y-1` (0.25rem), und der Abstand zur ersten
+   * Sektion gehoert ohnehin `--page-section-gap`, das denselben Wert traegt.
+   * Ein Token, das etwas Falsches behauptet, ist schlechter als keines.
+   */
 
   /* Sidebar */
   --sidebar: oklch(0.985 0 0);
@@ -167,6 +250,15 @@
 
   --destructive: oklch(0.704 0.191 22.216);
 
+  /* Status (Dark) — Flaeche dunkel und schwach, Schrift hell und kraeftig. */
+  --success: oklch(0.76 0.12 160);
+  --success-surface: oklch(0.28 0.05 160);
+  --warning: oklch(0.8 0.12 78);
+  --warning-surface: oklch(0.29 0.05 78);
+  --info: oklch(0.75 0.13 250);
+  --info-surface: oklch(0.28 0.05 250);
+  --destructive-surface: oklch(0.29 0.055 27);
+
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.623 0.214 259.815);
@@ -175,6 +267,10 @@
   --elevation-xs: 0 1px 2px 0 oklch(0 0 0 / 0.4);
   --elevation-sm: 0 1px 2px 0 oklch(0 0 0 / 0.4), 0 2px 8px -1px oklch(0 0 0 / 0.4);
   --elevation-md: 0 2px 4px -1px oklch(0 0 0 / 0.45), 0 8px 20px -2px oklch(0 0 0 / 0.5);
+  --elevation-lg: 0 4px 8px -2px oklch(0 0 0 / 0.5), 0 16px 40px -4px oklch(0 0 0 / 0.6);
+  /* Auf dunklem Grund traegt der Schatten weniger — die Haarlinie uebernimmt. */
+  --elevation-card:
+    0 0 0 1px oklch(1 0 0 / 0.1), 0 1px 2px 0 oklch(0 0 0 / 0.3), 0 2px 8px -2px oklch(0 0 0 / 0.35);
 
   /* Charts */
   --chart-1: oklch(0.623 0.214 259.815);
@@ -219,9 +315,15 @@
   @page {
     margin: 12mm;
   }
+  /*
+   * Am **Attribut**, nicht an einer Utility-Klasse. Vorher stand hier
+   * `.rounded-lg` — jede Karte, die ihren Radius wechselt, haette damit still
+   * ihren Umbruchschutz verloren. `[data-slot="card"]` setzt `Card` selbst und
+   * ueberlebt jede Klassenaenderung.
+   */
   section,
   table,
-  .rounded-lg {
+  [data-slot="card"] {
     break-inside: avoid;
   }
 }

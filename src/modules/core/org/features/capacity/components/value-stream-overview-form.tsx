@@ -93,7 +93,7 @@ export function ValueStreamOverviewForm({
           emptyLabel="— Niemand —"
         />
         {vmoUsers.length === 0 ? (
-          <p className="text-xs text-amber-700">
+          <p className="text-xs text-warning">
             Keine Nutzer mit Portfolio-Manager-Rolle im Mandanten.
           </p>
         ) : (
@@ -107,7 +107,7 @@ export function ValueStreamOverviewForm({
         </p>
       )}
       {state.success && (
-        <p role="status" className="text-sm text-emerald-600">
+        <p role="status" className="text-sm text-success">
           Gespeichert.
         </p>
       )}

@@ -88,15 +88,15 @@ const FeatureNode = memo(function FeatureNode({ data }: { data: FeatureNodeData 
       <button
         type="button"
         onClick={() => data.onOpen(f.id)}
-        className="flex h-[64px] w-[200px] flex-col gap-1 rounded-md border bg-card px-2.5 py-1.5
+        className="flex h-[64px] w-[200px] flex-col gap-1 rounded-md bg-card px-2.5 py-1.5 shadow-card
           text-left shadow-sm transition-shadow hover:shadow-md"
         title={f.title}
       >
         <div className="flex items-center gap-1.5">
           <span className={`size-1.5 shrink-0 rounded-full ${STATUS_DOT[f.status]}`} />
-          <span className="line-clamp-2 text-[12px] font-medium leading-tight">{f.title}</span>
+          <span className="line-clamp-2 text-xs font-medium leading-tight">{f.title}</span>
         </div>
-        <div className="mt-auto flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+        <div className="mt-auto flex items-center justify-between gap-2 text-label text-muted-foreground">
           <span className="truncate">{STATUS_LABEL[f.status]}</span>
           {f.wsjfComputed != null && (
             <span className="shrink-0 font-medium">WSJF {formatWsjf(f.wsjfComputed)}</span>
@@ -128,8 +128,8 @@ const GhostNode = memo(function GhostNode({ data }: { data: GhostNodeData }) {
           text-muted-foreground"
         title={`${data.hint}: ${data.title}`}
       >
-        <span className="text-[10px] uppercase tracking-wide">{data.hint}</span>
-        <span className="line-clamp-2 text-[12px] font-medium leading-tight">{data.title}</span>
+        <span className="text-label uppercase tracking-[0.1em]">{data.hint}</span>
+        <span className="line-clamp-2 text-xs font-medium leading-tight">{data.title}</span>
       </div>
       <Handle
         type="source"
@@ -205,7 +205,7 @@ export function CockpitNetwork({ features, dependencies, artId, canLinkDependenc
         <button
           type="button"
           onClick={() => setAddState({ sourceId: "", anchorX: 24, anchorY: 64 })}
-          className="absolute right-3 top-3 z-20 rounded-md border bg-card px-2.5 py-1 text-xs font-medium shadow-sm hover:bg-muted/40"
+          className="absolute right-3 top-3 z-20 rounded-md bg-card px-2.5 py-1 text-xs font-medium shadow-card hover:bg-muted/40"
           title="Cross-ART-Dependency anlegen"
         >
           + Cross-ART

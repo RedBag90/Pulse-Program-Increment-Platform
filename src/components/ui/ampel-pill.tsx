@@ -42,7 +42,7 @@ export function AmpelPill({
     <span
       className={cn(
         "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5",
-        "text-[10.5px] font-medium uppercase tracking-[0.08em]",
+        "text-label font-medium uppercase tracking-[0.1em]",
         className,
       )}
       // `1f` = 12 % Alpha auf demselben Ton — eine Farbe, zwei Rollen.

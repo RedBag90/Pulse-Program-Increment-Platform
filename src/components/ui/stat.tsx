@@ -26,7 +26,7 @@ export interface StatProps {
 export function Stat({ label, value, delta, valueClassName, className }: StatProps) {
   return (
     <div className={cn("min-w-0 flex-1 px-4 py-3.5", className)}>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+      <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         {label}
       </p>
       <p
@@ -38,7 +38,9 @@ export function Stat({ label, value, delta, valueClassName, className }: StatPro
         {value}
       </p>
       {delta && (
-        <p className={cn("mt-1.5 font-mono text-[11px]", DELTA_TONE[delta.tone])}>{delta.text}</p>
+        <p className={cn("mt-1.5 font-mono text-meta tabular-nums", DELTA_TONE[delta.tone])}>
+          {delta.text}
+        </p>
       )}
     </div>
   );

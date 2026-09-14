@@ -58,7 +58,7 @@ export function EpicHistoryTimeline({
 }) {
   if (events.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed bg-card/50 px-4 py-10 text-center">
+      <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed bg-muted/20 px-4 py-10 text-center">
         <History className="size-6 text-muted-foreground/60" />
         <p className="text-sm text-muted-foreground">Noch keine Historie.</p>
       </div>
@@ -77,11 +77,11 @@ export function EpicHistoryTimeline({
             >
               <Icon className="size-3.5" />
             </span>
-            <div className="min-w-0 flex-1 rounded-lg border bg-card px-3 py-2 shadow-xs">
+            <div className="min-w-0 flex-1 rounded-lg bg-card px-3 py-2 shadow-card">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
                 <span className="font-medium">{actionLabel(e.action)}</span>
                 {e.detail && (
-                  <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                  <span className="rounded-sm bg-muted px-1.5 py-0.5 text-meta text-muted-foreground">
                     {e.detail}
                   </span>
                 )}

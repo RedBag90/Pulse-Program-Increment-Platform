@@ -44,7 +44,7 @@ export function StrategyLayoutToggle({ active }: Props) {
       options={OPTIONS}
       onChange={setLayout}
       ariaLabel="Layout"
-      className="bg-card text-[11px]"
+      className="bg-card text-meta"
     />
   );
 }

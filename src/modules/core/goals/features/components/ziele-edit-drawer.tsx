@@ -409,7 +409,7 @@ function GoalPane({
             className={INPUT}
             disabled={!canEdit}
           />
-          <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
+          <p className="mt-1 text-label leading-snug text-muted-foreground">
             Einheiten-Kaskade: Wie viel der Eltern-Einheit trägt 1 {node?.metricUnit || "Einheit"}{" "}
             dieses Ziels bei, wenn du seine KPI bewegst?
           </p>
@@ -544,7 +544,7 @@ function GoalPane({
   return (
     <div className="space-y-4">
       <header className="space-y-0.5 border-b pb-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           {isTopLevel
             ? "Ziel"
             : ancestors.length > 0
@@ -606,7 +606,7 @@ function GoalPane({
                 searchEnabled={model.modules.portfolio || model.modules.program}
               />
               {node.progressMode === "kpi_tree" && !nodeHasChildren && (
-                <p className="text-[10px] leading-snug text-muted-foreground">
+                <p className="text-label leading-snug text-muted-foreground">
                   Die KPIs verknüpfter Epics bilden über Δ × Umrechnungsfaktor den Ist-Wert dieses
                   Ziels (Fortschrittsquelle „KPI-Baum").
                 </p>
@@ -728,7 +728,7 @@ function SubGoals({
 
   return (
     <section className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         Unterziele
       </h3>
       {subgoals.length === 0 ? (
@@ -738,7 +738,7 @@ function SubGoals({
           {subgoals.map((sg) => (
             <li
               key={sg.id}
-              className="flex items-center gap-2 rounded-md border bg-card px-2 py-1.5 text-xs"
+              className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5 text-xs"
             >
               <Link
                 href={openHref(sg.id) as never}
@@ -747,15 +747,15 @@ function SubGoals({
               >
                 <span className="flex items-center gap-1.5">
                   <span className="truncate font-medium">{sg.title}</span>
-                  <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[9px] uppercase text-muted-foreground">
+                  <span className="shrink-0 rounded-sm bg-muted px-1 py-0.5 text-label uppercase text-muted-foreground">
                     {KIND_LABEL(sg.nodeKind)}
                   </span>
                 </span>
-                <span className="block truncate text-[10px] text-muted-foreground">
+                <span className="block truncate text-label text-muted-foreground">
                   {goalNodeTimeframeLabel(sg)}
                   {!sg.includeInParentRollup && (
                     <span
-                      className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[9px] font-medium text-amber-800"
+                      className="ml-1 rounded-sm bg-warning-surface px-1 py-0.5 text-label font-medium text-warning"
                       title="Zählt nicht im automatischen Fortschritt dieses Ziels"
                     >
                       nicht im Rollup
@@ -781,10 +781,10 @@ function SubGoals({
                       ? "Aus automatischem Fortschritt ausnehmen"
                       : "In automatischen Fortschritt aufnehmen"
                   }
-                  className={`grid size-5 shrink-0 place-items-center rounded hover:bg-muted disabled:opacity-50 ${
+                  className={`grid size-5 shrink-0 place-items-center rounded-sm hover:bg-muted disabled:opacity-50 ${
                     sg.includeInParentRollup
                       ? "text-muted-foreground hover:text-foreground"
-                      : "text-amber-700"
+                      : "text-warning"
                   }`}
                 >
                   {sg.includeInParentRollup ? "⊘" : "⊕"}
@@ -797,7 +797,7 @@ function SubGoals({
                   disabled={pending}
                   aria-label={`${sg.title} trennen`}
                   title="Trennen (auf oberste Ebene)"
-                  className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  className="grid size-5 shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
                 >
                   ✕
                 </button>
@@ -822,7 +822,7 @@ function SubGoals({
             <Link
               href={createHref as never}
               scroll={false}
-              className="text-xs font-medium text-blue-700 hover:underline"
+              className="text-xs font-medium text-primary hover:underline"
             >
               + Neues Unterziel
             </Link>
@@ -873,18 +873,18 @@ function ParentGoalSection({
 
   return (
     <section className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         Elternziel
       </h3>
       {parent ? (
-        <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm">
+        <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">
           <Link
             href={openHref(parent.id) as never}
             scroll={false}
             className="min-w-0 flex-1 hover:underline"
           >
             <span className="truncate font-medium">{parent.title}</span>
-            <span className="block truncate text-[10px] text-muted-foreground">
+            <span className="block truncate text-label text-muted-foreground">
               {Math.round((parent.progress ?? 0) * 100)} % · {goalNodeTimeframeLabel(parent)}
             </span>
           </Link>
@@ -1047,7 +1047,7 @@ function RelatedWorkUnified({
       subtitle: `Epic · ${e.stageGate}`,
       removeLabel: `Verknüpfung mit ${e.title} entfernen`,
       trailing: (
-        <span className="text-[10px] tabular-nums text-muted-foreground">
+        <span className="text-label tabular-nums text-muted-foreground">
           {e.trio.planned > 0
             ? `€${Math.round(e.trio.realized).toLocaleString("de-DE")} / ${Math.round(
                 e.trio.planned,
@@ -1067,7 +1067,7 @@ function RelatedWorkUnified({
 
   return (
     <section className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         Related work
       </h3>
       <LinkList
@@ -1157,11 +1157,11 @@ function GoalScopeLinks({
 
   return (
     <section className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         Verantwortung · Value Streams &amp; ARTs
       </h3>
       <div className="space-y-1.5">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Value Streams</p>
+        <p className="text-label uppercase tracking-[0.1em] text-muted-foreground">Value Streams</p>
         <LinkList
           variant="pill"
           emptyText="Keine Zuordnung."
@@ -1196,7 +1196,7 @@ function GoalScopeLinks({
         </LinkList>
       </div>
       <div className="space-y-1.5">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">ARTs</p>
+        <p className="text-label uppercase tracking-[0.1em] text-muted-foreground">ARTs</p>
         <LinkList
           variant="pill"
           emptyText="Keine Zuordnung."
@@ -1254,7 +1254,7 @@ function CustomFields({
   if (fields.length === 0) return null;
   return (
     <section className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         Custom Fields
       </h3>
       <div className="space-y-2">
@@ -1297,11 +1297,11 @@ function CustomFieldRow({
   }
 
   const inputCls =
-    "h-8 w-full rounded-md border bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50";
+    "h-8 w-full rounded-md border bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50";
 
   return (
     <label className="block space-y-1">
-      <span className="text-[11px] font-medium text-muted-foreground">{field.name}</span>
+      <span className="text-meta font-medium text-muted-foreground">{field.name}</span>
       {field.type === "select" ? (
         <select
           value={val}
@@ -1329,7 +1329,7 @@ function CustomFieldRow({
           className={inputCls}
         />
       )}
-      {state.error && <span className="text-[11px] text-destructive">{state.error}</span>}
+      {state.error && <span className="text-meta text-destructive">{state.error}</span>}
     </label>
   );
 }
@@ -1337,9 +1337,9 @@ function CustomFieldRow({
 // ── Form-Shell + Primitives ───────────────────────────────────────────
 
 const INPUT =
-  "h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50";
+  "h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50";
 const TEXTAREA =
-  "w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50";
+  "w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50";
 
 function Field({
   label,
@@ -1352,7 +1352,7 @@ function Field({
 }) {
   return (
     <label className="block space-y-1">
-      <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      <span className="flex items-center gap-1 text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
         {label}
         {hint ? <InfoHint text={hint} /> : null}
       </span>
@@ -1369,7 +1369,7 @@ function InfoHint({ text }: { text: string }) {
         type="button"
         aria-label="Erklärung"
         onClick={(e) => e.preventDefault()}
-        className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border text-[10px] font-normal normal-case leading-none text-muted-foreground hover:border-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border text-label font-normal normal-case leading-none text-muted-foreground hover:border-foreground hover:text-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         i
       </TooltipTrigger>
@@ -1408,7 +1408,7 @@ function FormShell({
       }}
     >
       <header className="space-y-0.5 border-b pb-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           {subtitle}
         </p>
         <h2 className="font-heading text-lg font-semibold tracking-tight">{title}</h2>

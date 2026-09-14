@@ -20,7 +20,7 @@ export function ConceptCallout({ storageKey }: { storageKey: string }) {
   if (dismissed) return null;
 
   return (
-    <div className="flex gap-3 rounded-lg border border-l-4 border-l-primary bg-card p-3 text-sm shadow-xs">
+    <div className="flex gap-3 rounded-lg border-l-4 border-l-primary bg-card p-3 text-sm shadow-card">
       <Info className="mt-0.5 size-4 shrink-0 text-primary" />
       <p className="flex-1 text-muted-foreground">{CONCEPT_HELP.solutionVsEpic}</p>
       <button

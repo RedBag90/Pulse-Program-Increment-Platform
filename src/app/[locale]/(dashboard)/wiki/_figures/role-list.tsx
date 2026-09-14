@@ -12,8 +12,11 @@ export function RoleList() {
   return (
     <div className="flex flex-wrap gap-1.5">
       {ALL_ROLES.map((r) => (
-        <span key={r} className="rounded border bg-card px-2.5 py-1.5 text-[13px] text-foreground">
-          {ROLE_LABELS[r]} <code className="font-mono text-[11px] text-muted-foreground">{r}</code>
+        <span
+          key={r}
+          className="rounded-md border bg-background px-2.5 py-1.5 text-xs text-foreground"
+        >
+          {ROLE_LABELS[r]} <code className="font-mono text-meta text-muted-foreground">{r}</code>
         </span>
       ))}
     </div>

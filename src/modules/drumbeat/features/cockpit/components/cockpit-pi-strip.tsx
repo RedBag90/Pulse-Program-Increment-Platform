@@ -60,7 +60,7 @@ export function CockpitPiStrip({ pis, window: nav, selectedPiId }: Props) {
         aria-label="Fenster zurück"
         disabled={!nav.canBack}
         onClick={() => shift(nav.offset - 1)}
-        className="grid size-7 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground hover:text-foreground disabled:opacity-30"
+        className="grid size-7 shrink-0 place-items-center rounded-md border bg-background text-muted-foreground hover:text-foreground disabled:opacity-30"
       >
         <ChevronLeft className="size-4" />
       </button>
@@ -83,12 +83,12 @@ export function CockpitPiStrip({ pis, window: nav, selectedPiId }: Props) {
             <span className="flex items-center gap-1 font-medium">
               {p.name}
               {p.isCurrent && (
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                <span className="text-label font-semibold uppercase tracking-[0.1em] text-primary">
                   jetzt
                 </span>
               )}
             </span>
-            <span className="text-[11px]">{p.featureCount} Features</span>
+            <span className="text-meta">{p.featureCount} Features</span>
           </button>
         );
       })}
@@ -98,7 +98,7 @@ export function CockpitPiStrip({ pis, window: nav, selectedPiId }: Props) {
         aria-label="Fenster vor"
         disabled={!nav.canForward}
         onClick={() => shift(nav.offset + 1)}
-        className="grid size-7 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground hover:text-foreground disabled:opacity-30"
+        className="grid size-7 shrink-0 place-items-center rounded-md border bg-background text-muted-foreground hover:text-foreground disabled:opacity-30"
       >
         <ChevronRight className="size-4" />
       </button>
@@ -107,7 +107,7 @@ export function CockpitPiStrip({ pis, window: nav, selectedPiId }: Props) {
         <button
           type="button"
           onClick={() => shift(0)}
-          className="ml-1 shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-medium text-primary hover:underline"
+          className="ml-1 shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-meta font-medium text-primary hover:underline"
         >
           Zum aktiven PI
         </button>

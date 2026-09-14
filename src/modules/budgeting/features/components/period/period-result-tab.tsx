@@ -19,9 +19,9 @@ import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { formatEUR } from "@/lib/formatting";
 
 const btn =
-  "rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50";
+  "rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50";
 const btnGreen =
-  "rounded bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50";
+  "rounded-md bg-success px-3 py-1.5 text-sm font-medium text-background hover:bg-success/90 disabled:opacity-50";
 
 /**
  * Reiter „Ergebnis": die endgültigen Beträge, die daraus abgeleiteten
@@ -119,7 +119,7 @@ export function PeriodResultTab({
     <div className="space-y-6">
       <section className="space-y-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Finale Beträge
           </h3>
           <span className="text-xs text-muted-foreground">
@@ -162,7 +162,7 @@ export function PeriodResultTab({
                     value={finals[c.id] ?? "0"}
                     disabled={!model.canFinalize}
                     onChange={(e) => setFinals((f) => ({ ...f, [c.id]: e.target.value }))}
-                    className="w-28 rounded border border-gray-300 px-2 py-1 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+                    className="w-28 rounded-md border border-input bg-background px-2 py-1 text-right text-sm tabular-nums focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
                   />
                 ) : (
                   <span className="font-medium">{formatEUR(c.finalAmount ?? 0)}</span>
@@ -174,9 +174,9 @@ export function PeriodResultTab({
           empty="Keine Kandidaten."
         />
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
         {decided && reserve < 0 && (
-          <p className="text-sm text-red-600">
+          <p className="text-sm text-destructive">
             Die Summe der finalen Beträge überschreitet den verteilbaren Topf.
           </p>
         )}
@@ -215,7 +215,7 @@ export function PeriodResultTab({
 
       {closed && valueStreams && valueStreams.rows.length > 0 && (
         <section className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Abgeleitete Budgets
           </h3>
           <p className="text-xs text-muted-foreground">
@@ -243,7 +243,7 @@ export function PeriodResultTab({
                     </tr>
                     {vs.runTotal > 0 && (
                       <tr className="border-b">
-                        <td className="px-3 py-1.5 pl-8 text-amber-700">Run the Business</td>
+                        <td className="px-3 py-1.5 pl-8 text-warning">Run the Business</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">
                           {formatEUR(vs.runTotal)}
                         </td>
@@ -275,7 +275,7 @@ export function PeriodResultTab({
 
       {closed && (
         <section className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Stand einfrieren
           </h3>
           <div className="flex flex-wrap items-center gap-3">

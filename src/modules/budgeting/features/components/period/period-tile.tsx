@@ -36,7 +36,7 @@ export function PeriodTileCard({ tile, muted }: { tile: PeriodTile; muted?: bool
   return (
     <Link
       href={tile.href}
-      className={`block rounded-lg border bg-card p-4 transition-colors hover:bg-muted/40 ${
+      className={`block rounded-lg bg-card shadow-card p-4 transition-colors hover:bg-muted/40 ${
         muted ? "opacity-60 hover:opacity-100" : ""
       }`}
     >

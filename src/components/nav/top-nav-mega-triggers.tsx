@@ -18,7 +18,7 @@ interface Props {
 }
 
 const triggerBase =
-  "flex h-12 items-center border-b-2 px-1 text-sm transition-colors -mb-px outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-12 items-center border-b-2 px-1 text-sm transition-colors -mb-px outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 /**
  * Top-nav trigger row. Single-item groups render as direct links; multi-item

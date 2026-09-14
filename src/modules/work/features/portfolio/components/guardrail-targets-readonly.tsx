@@ -33,7 +33,7 @@ export function GuardrailTargetsReadOnly({ targets }: Props) {
       </header>
       <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded-md border p-3">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="mb-2 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Horizon
           </p>
           <ul className="space-y-1 text-sm">
@@ -45,7 +45,7 @@ export function GuardrailTargetsReadOnly({ targets }: Props) {
           </ul>
         </div>
         <div className="rounded-md border p-3">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="mb-2 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Capacity
           </p>
           <ul className="space-y-1 text-sm">
@@ -54,7 +54,7 @@ export function GuardrailTargetsReadOnly({ targets }: Props) {
           </ul>
         </div>
         <div className="rounded-md border p-3">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="mb-2 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Engagement
           </p>
           <ul className="space-y-1 text-sm">

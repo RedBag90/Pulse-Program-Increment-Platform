@@ -96,7 +96,7 @@ export function IssuesFilterBar(p: Props) {
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Issue suchen …"
           aria-label="Issue suchen"
-          className="h-9 w-full rounded-md border bg-card pl-8 pr-3 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm shadow-xs focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>
 

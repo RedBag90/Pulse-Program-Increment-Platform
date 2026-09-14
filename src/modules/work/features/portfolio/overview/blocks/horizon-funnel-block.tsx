@@ -642,7 +642,7 @@ function FunnelCard({ items, cycleKey, horizonTargets }: FunnelProps) {
           der Kopfzeile steht (Zyklus, Grundlage der Größe), wiederholt sie
           nicht. Die Guardrail-Linie steht darin, weil sie sonst als
           Zeichenfehler durchginge. */}
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-label text-muted-foreground">
         <li className="flex items-center gap-1.5">
           <span className="inline-block size-2 rotate-45 bg-muted-foreground/70" />
           Produkt

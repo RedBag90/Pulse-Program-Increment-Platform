@@ -12,18 +12,16 @@ import { STATUS_LABELS } from "@/components/detail/initiative-labels";
  */
 export function DeliveryChain() {
   return (
-    <div className="divide-y overflow-hidden rounded-lg border bg-card">
+    <div className="divide-y overflow-hidden rounded-lg bg-card shadow-card">
       {FEATURE_DELIVERY_STATUSES.map((from) => {
         const to = FEATURE_DELIVERY_STATUSES.filter((t) => canDeliveryTransition(from, t));
         return (
           <div key={from} className="grid gap-2 p-4 sm:grid-cols-[190px_minmax(0,1fr)]">
-            <p className="text-[14px] font-medium text-foreground">
+            <p className="text-sm font-medium text-foreground">
               {STATUS_LABELS[from]}{" "}
-              <code className="font-mono text-[11px] font-normal text-muted-foreground">
-                {from}
-              </code>
+              <code className="font-mono text-meta font-normal text-muted-foreground">{from}</code>
             </p>
-            <p className="text-[13.5px] leading-relaxed text-muted-foreground">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               {to.length === 0 ? (
                 <span className="text-muted-foreground/70">Endzustand — keine Kante hinaus.</span>
               ) : (

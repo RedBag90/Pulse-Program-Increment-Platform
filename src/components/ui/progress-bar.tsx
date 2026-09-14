@@ -48,7 +48,7 @@ export function ProgressBar({
       />
       {targetLabel && (
         <span
-          className="absolute -top-4 -translate-x-1/2 whitespace-nowrap font-mono text-[9.5px] text-foreground/70"
+          className="absolute -top-4 -translate-x-1/2 whitespace-nowrap font-mono text-label text-foreground/70"
           style={{ left: `${targetPct}%` }}
           aria-hidden
         >

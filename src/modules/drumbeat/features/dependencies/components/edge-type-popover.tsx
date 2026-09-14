@@ -42,7 +42,7 @@ interface MenuProps {
 export function EdgeTypeMenu({ currentType, onChange, onDelete, onClose }: MenuProps) {
   return (
     <div className="w-48 rounded-md border bg-popover p-1 shadow-md">
-      <p className="px-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+      <p className="px-1 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         Abhängigkeitstyp
       </p>
       <div className="flex flex-col gap-0.5">
@@ -65,7 +65,7 @@ export function EdgeTypeMenu({ currentType, onChange, onDelete, onClose }: MenuP
             />
             <span>{EDGE_LABEL[t]}</span>
             {t === currentType && (
-              <span className="ml-auto text-[10px] text-muted-foreground">aktiv</span>
+              <span className="ml-auto text-label text-muted-foreground">aktiv</span>
             )}
           </button>
         ))}

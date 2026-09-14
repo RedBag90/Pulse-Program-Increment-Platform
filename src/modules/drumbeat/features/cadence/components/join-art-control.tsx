@@ -5,7 +5,7 @@ import { joinArtToTimelineAction } from "@/modules/drumbeat/features/cadence/act
 import { Button } from "@/components/ui/button";
 
 const SELECT_CLASS =
-  "h-7 rounded-md border border-input bg-transparent px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "h-7 rounded-md border border-input bg-transparent px-2 text-xs focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 interface ArtOption {
   id: string;

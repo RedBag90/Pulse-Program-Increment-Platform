@@ -49,7 +49,7 @@ export function EpicGateLadder({ current }: { current: GateStep }) {
               }`}
             />
             <span
-              className={`truncate font-mono text-[10px] tracking-tight ${
+              className={`truncate font-mono text-label tracking-tight ${
                 now ? "font-semibold text-primary" : "text-muted-foreground"
               }`}
               title={gateStepLabel(step)}

@@ -15,7 +15,7 @@ interface Props {
  */
 export function FeatureHistoryTab({ events, userLabels }: Props) {
   return (
-    <section className="rounded-lg border bg-card">
+    <section className="rounded-lg bg-card shadow-card">
       <InitiativeActivitySidebar events={events} userLabels={userLabels} />
     </section>
   );

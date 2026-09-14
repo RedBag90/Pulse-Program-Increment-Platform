@@ -16,7 +16,7 @@ import {
  */
 export function HorizonLadder() {
   return (
-    <div className="divide-y overflow-hidden rounded-lg border bg-card">
+    <div className="divide-y overflow-hidden rounded-lg bg-card shadow-card">
       {HORIZONS.map((h) => {
         const stations = stationsOf(h);
         const help = HORIZON_HELP[h];
@@ -26,15 +26,11 @@ export function HorizonLadder() {
               <p className="font-heading text-sm font-semibold text-foreground">
                 {HORIZON_LABEL[h]}
               </p>
-              <p className="text-[13.5px] leading-relaxed text-muted-foreground">{help.blurb}</p>
-              <dl className="grid gap-x-3 gap-y-0.5 text-[13px] text-muted-foreground sm:grid-cols-[auto_minmax(0,1fr)]">
-                <dt className="font-mono text-[10.5px] uppercase tracking-wider sm:pt-[3px]">
-                  Epics
-                </dt>
+              <p className="text-sm leading-relaxed text-muted-foreground">{help.blurb}</p>
+              <dl className="grid gap-x-3 gap-y-0.5 text-xs text-muted-foreground sm:grid-cols-[auto_minmax(0,1fr)]">
+                <dt className="font-mono text-meta uppercase tracking-wider sm:pt-[3px]">Epics</dt>
                 <dd>{help.epicArt}</dd>
-                <dt className="font-mono text-[10.5px] uppercase tracking-wider sm:pt-[3px]">
-                  Budget
-                </dt>
+                <dt className="font-mono text-meta uppercase tracking-wider sm:pt-[3px]">Budget</dt>
                 <dd>{help.budgetFokus}</dd>
               </dl>
             </div>
@@ -42,7 +38,7 @@ export function HorizonLadder() {
               {stations.map((st) => (
                 <span
                   key={st}
-                  className="rounded border bg-muted/60 px-2 py-1 font-mono text-[11px] tabular-nums text-muted-foreground"
+                  className="rounded-sm border bg-muted/60 px-2 py-1 font-mono text-meta tabular-nums text-muted-foreground"
                 >
                   {st}
                 </span>

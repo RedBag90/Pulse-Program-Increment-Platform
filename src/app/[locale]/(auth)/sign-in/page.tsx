@@ -40,16 +40,16 @@ export default function SignInPage() {
       </p>
 
       {process.env.NODE_ENV === "development" && (
-        <div className="mt-8 rounded-lg border border-dashed border-amber-400 bg-amber-50 p-4 text-sm">
-          <p className="font-semibold text-amber-800">🧪 Demo accounts — one per role</p>
-          <p className="mb-3 text-xs text-amber-700">
+        <div className="mt-8 rounded-lg border border-dashed border-warning/50 bg-warning-surface p-4 text-sm">
+          <p className="font-semibold text-warning">🧪 Demo accounts — one per role</p>
+          <p className="mb-3 text-xs text-warning">
             Password for all: <span className="font-mono">{TEST_PASSWORD}</span>
           </p>
           <div className="space-y-1.5">
             {TEST_USERS.map((u) => (
               <div key={u.email} className="flex items-center justify-between gap-4">
                 <span className="font-mono text-xs text-foreground">{u.email}</span>
-                <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">
+                <span className="shrink-0 rounded-sm bg-warning-surface px-1.5 py-0.5 text-xs text-warning">
                   {u.role}
                 </span>
               </div>

@@ -29,7 +29,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 const SELECT_CLASS =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 interface ValueStream {
   id: string;
@@ -109,7 +109,12 @@ export function CreateSolutionDialog({ open, onOpenChange, solution }: CreateSol
 
             <div className="space-y-1.5">
               <Label htmlFor="sol-desc">Beschreibung</Label>
-              <Textarea id="sol-desc" name="description" rows={2} defaultValue={solution?.description ?? ""} />
+              <Textarea
+                id="sol-desc"
+                name="description"
+                rows={2}
+                defaultValue={solution?.description ?? ""}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -145,9 +150,7 @@ export function CreateSolutionDialog({ open, onOpenChange, solution }: CreateSol
                   disabled={!vsId || arts.loading}
                   className={SELECT_CLASS}
                 >
-                  <option value="">
-                    {!vsId ? "Zuerst Value Stream…" : "— kein ART —"}
-                  </option>
+                  <option value="">{!vsId ? "Zuerst Value Stream…" : "— kein ART —"}</option>
                   {artOptions.map((art) => (
                     <option key={art.id} value={art.id}>
                       {art.name}

@@ -3,7 +3,7 @@
 import { useActionState, startTransition } from "react";
 import { ClipboardList, MoreHorizontal, ShieldAlert } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { STATUS_DOT, STATUS_LABELS } from "@/components/detail/initiative-labels";
+import { STATUS_DOT, STATUS_LABELS, WSJF_TIER_CLASS } from "@/components/detail/initiative-labels";
 import {
   deleteFeatureAction,
   setFeaturePiAction,
@@ -27,13 +27,6 @@ const STATUS_FUNNEL_DOT: Record<string, string> = {
   approved: "bg-blue-400",
   in_progress: "bg-primary",
   completed: "bg-emerald-500",
-};
-
-const TIER_BADGE: Record<WsjfTier, string> = {
-  high: "bg-emerald-100 text-emerald-700",
-  medium: "bg-amber-100 text-amber-700",
-  low: "bg-muted text-muted-foreground",
-  none: "bg-muted text-muted-foreground/70",
 };
 
 const TIER_LABEL: Record<WsjfTier, string> = {
@@ -80,7 +73,9 @@ export function FeatureListRowComponent({
   }
 
   function moveToBacklog() {
-    startTransition(() => move(setFeaturePiFormData({ featureIds: [row.id], piId: "", artId: row.artId })));
+    startTransition(() =>
+      move(setFeaturePiFormData({ featureIds: [row.id], piId: "", artId: row.artId })),
+    );
   }
 
   const lastError = deleteState.error ?? moveState.error;
@@ -93,7 +88,7 @@ export function FeatureListRowComponent({
             type="checkbox"
             checked={selected}
             onChange={() => onToggleSelect?.(row.id)}
-            className="size-4 rounded border-border"
+            className="size-4 rounded-sm border-border"
             aria-label={`${row.title} auswählen`}
           />
         </td>
@@ -115,7 +110,7 @@ export function FeatureListRowComponent({
               {row.title}
             </Link>
             {compact && (
-              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+              <p className="mt-0.5 truncate text-meta text-muted-foreground">
                 {row.epic?.title ?? "ohne Epic"} · {row.pi?.name ?? "Backlog"}
               </p>
             )}
@@ -160,7 +155,7 @@ export function FeatureListRowComponent({
       {!compact && (
         <td className="py-2 pr-3 text-right">
           <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] tabular-nums ${TIER_BADGE[row.wsjfTier]}`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-meta tabular-nums ${WSJF_TIER_CLASS[row.wsjfTier]}`}
           >
             {TIER_LABEL[row.wsjfTier]}
             <span className="text-foreground/80">{pctFromWsjf(row.wsjfComputed)}</span>
@@ -223,7 +218,7 @@ export function FeatureListRowComponent({
             </Popover>
           </div>
           {lastError && (
-            <p role="alert" className="mt-1 text-[10px] text-destructive">
+            <p role="alert" className="mt-1 text-label text-destructive">
               {lastError}
             </p>
           )}
@@ -241,7 +236,7 @@ function RowBadges({ row }: { row: FeatureListRow }) {
     <span className="flex shrink-0 items-center gap-1">
       {showBlocked && (
         <span
-          className="inline-flex size-5 items-center justify-center rounded bg-red-100 text-red-700"
+          className="inline-flex size-5 items-center justify-center rounded-sm bg-destructive-surface text-destructive"
           title="Blockiert durch andere Features"
         >
           <ShieldAlert className="size-3" />
@@ -249,7 +244,7 @@ function RowBadges({ row }: { row: FeatureListRow }) {
       )}
       {showNoAc && (
         <span
-          className="inline-flex size-5 items-center justify-center rounded bg-amber-100 text-amber-700"
+          className="inline-flex size-5 items-center justify-center rounded-sm bg-warning-surface text-warning"
           title="Noch keine Akzeptanzkriterien"
         >
           <ClipboardList className="size-3" />

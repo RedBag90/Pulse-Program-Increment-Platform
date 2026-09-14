@@ -103,8 +103,8 @@ export function EpicRealizedTile({ kpis, frozenAt = null }: Props) {
   return (
     <section className="space-y-3 rounded-lg border bg-gradient-to-br from-emerald-50/40 to-card p-4">
       <header className="flex items-baseline gap-2">
-        <TrendingUp className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <TrendingUp className="h-4 w-4 shrink-0 text-success" aria-hidden />
+        <h3 className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Realisierter Mehrwert
         </h3>
       </header>
@@ -143,11 +143,11 @@ function BucketRow({
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5 text-meta font-medium text-muted-foreground">
           {label}
           {frozen && (
             <span
-              className="inline-flex items-center gap-1 text-[10px]"
+              className="inline-flex items-center gap-1 text-label"
               title="Die Umsetzung ist abgenommen (L4.2) — die gelieferte Menge steht fest."
             >
               <Lock className="h-3 w-3" aria-hidden />
@@ -155,12 +155,12 @@ function BucketRow({
             </span>
           )}
         </span>
-        <span className="text-[10px] text-muted-foreground">
+        <span className="text-label text-muted-foreground">
           {evaluated} von {valued} KPIs gemessen
         </span>
       </div>
       <div className="mt-1 flex items-baseline gap-3">
-        <p className="text-2xl font-semibold tabular-nums text-emerald-700">
+        <p className="text-2xl font-semibold tabular-nums text-success">
           {formatCompactEUR(realized)}
           {suffix && <span className="text-sm font-normal text-muted-foreground">{suffix}</span>}
         </p>
@@ -178,7 +178,7 @@ function BucketRow({
               style={{ width: `${Math.round(ratio * 100)}%` }}
             />
           </div>
-          <p className="mt-1 text-[10px] text-muted-foreground">
+          <p className="mt-1 text-label text-muted-foreground">
             {Math.round(ratio * 100)} % des möglichen Mehrwerts auf Basis der KPI-Messung
           </p>
         </div>
@@ -187,12 +187,12 @@ function BucketRow({
         // Ohne Schnappschuss misst sich der Plan an sich selbst — die Abweichung
         // wäre zwangsläufig null. Das ist etwas anderes als „keine Abweichung"
         // und muss unterscheidbar bleiben.
-        <p className="mt-2 text-[10px] text-amber-700 dark:text-amber-300">
+        <p className="mt-2 text-label text-warning">
           Kein Plan-Bezug — festgehalten wird er mit der Freigabe des Business Case (L2 → L3.1).
         </p>
       )}
       {hasPlan && hasDelta && (
-        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
+        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-label text-muted-foreground">
           <dt>Menge (Zielerreichung)</dt>
           <dd className="text-right tabular-nums">
             <Delta value={quantityDelta} suffix={suffix} />
@@ -212,7 +212,7 @@ function Delta({ value, suffix }: { value: number; suffix?: string | undefined }
   if (Math.round(value) === 0) return <span>—</span>;
   const over = value > 0;
   return (
-    <span className={over ? "text-emerald-700" : "text-amber-700"}>
+    <span className={over ? "text-success" : "text-warning"}>
       {over ? "+" : "−"}
       {formatCompactEUR(Math.abs(value))}
       {suffix}

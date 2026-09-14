@@ -16,7 +16,7 @@ import {
 export function ModuleMap() {
   return (
     <div className="space-y-3">
-      <div className="divide-y overflow-hidden rounded-lg border bg-card">
+      <div className="divide-y overflow-hidden rounded-lg bg-card shadow-card">
         {MODULE_KEYS.map((k) => {
           const def = MODULES[k];
           const needs = MODULE_PREREQUISITES[k];
@@ -28,15 +28,13 @@ export function ModuleMap() {
               <div className="space-y-1">
                 <p className="font-heading text-sm font-semibold text-foreground">
                   {def.label}{" "}
-                  <span className="font-mono text-[11px] font-normal text-muted-foreground">
-                    {k}
-                  </span>
+                  <span className="font-mono text-meta font-normal text-muted-foreground">{k}</span>
                 </p>
-                <p className="text-[13px] leading-relaxed text-muted-foreground">
+                <p className="text-xs leading-relaxed text-muted-foreground">
                   {def.segments.map((s) => `/${s}`).join(" · ")}
                 </p>
               </div>
-              <p className="font-mono text-[11px] text-muted-foreground sm:text-right">
+              <p className="font-mono text-meta text-muted-foreground sm:text-right">
                 {needs.length === 0 ? (
                   <span className="text-muted-foreground/60">ohne Voraussetzung</span>
                 ) : (
@@ -47,10 +45,10 @@ export function ModuleMap() {
           );
         })}
       </div>
-      <p className="max-w-[var(--reading-max-w)] text-[13px] leading-relaxed text-muted-foreground">
+      <p className="max-w-[var(--reading-max-w)] text-xs leading-relaxed text-muted-foreground">
         Ausserhalb jeder Schranke stehen nur{" "}
         {CORE_SEGMENTS.map((s) => (
-          <code key={s} className="mr-1 rounded bg-muted px-1 py-0.5 font-mono text-[11.5px]">
+          <code key={s} className="mr-1 rounded-sm bg-muted px-1 py-0.5 font-mono text-xs">
             /{s}
           </code>
         ))}

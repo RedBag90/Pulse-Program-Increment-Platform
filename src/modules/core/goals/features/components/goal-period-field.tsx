@@ -5,7 +5,7 @@ import { PeriodPicker } from "@/modules/core/goals/features/components/period-pi
 import { ToggleGroup } from "@/components/ui/toggle-group";
 
 const INPUT =
-  "h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50";
+  "h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50";
 
 /**
  * Umsetzungszeitraum-Feld im Editor: Umschalter **Raster** (kanonischer Bucket
@@ -44,7 +44,7 @@ export function GoalPeriodField({
         value={mode}
         onChange={setMode}
         ariaLabel="Zeitraum-Modus"
-        className="bg-card text-[11px]"
+        className="bg-card text-meta"
         options={[
           { id: "bucket", label: "Raster" },
           { id: "range", label: "Individuell" },
@@ -65,7 +65,7 @@ export function GoalPeriodField({
           <input type="hidden" name="period" value="" />
           <div className="grid grid-cols-2 gap-2">
             <label className="block space-y-1">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="text-label font-medium uppercase tracking-[0.1em] text-muted-foreground">
                 Start
               </span>
               <input
@@ -78,7 +78,7 @@ export function GoalPeriodField({
               />
             </label>
             <label className="block space-y-1">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="text-label font-medium uppercase tracking-[0.1em] text-muted-foreground">
                 Ende
               </span>
               <input

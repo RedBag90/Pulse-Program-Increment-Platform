@@ -23,14 +23,14 @@ export function HelpRequestsSection({
 
   return (
     <section className="space-y-2">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <h2 className="text-sm font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         Unterstützung angefragt
       </h2>
       <ul className="mt-2 space-y-2">
         {tasks.map((t) => (
           <li
             key={t.epicId}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card px-4 py-3"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-card shadow-card px-4 py-3"
           >
             <div className="text-sm">
               <span className="font-medium">🆘 {t.title}</span> braucht Unterstützung
@@ -46,7 +46,7 @@ export function HelpRequestsSection({
             </div>
             <Link
               href={`/portfolio/epics/${t.epicId}`}
-              className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
               Zum Epic →
             </Link>

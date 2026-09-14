@@ -87,7 +87,7 @@ export function PeriodPicker({
   }
 
   const cell =
-    "rounded-md border px-2 py-1.5 text-sm hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50";
+    "rounded-md border px-2 py-1.5 text-sm hover:bg-muted focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50";
   const cellActive = "border-primary bg-primary/10 text-foreground";
 
   return (
@@ -99,12 +99,12 @@ export function PeriodPicker({
         disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-2 text-left text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+        className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-2 text-left text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
       >
         {value ? (
           <span className="flex items-baseline gap-2">
             <span className="font-medium">{goalPeriodLabel(value)}</span>
-            <span className="text-[11px] text-muted-foreground">{goalPeriodDateLabel(value)}</span>
+            <span className="text-meta text-muted-foreground">{goalPeriodDateLabel(value)}</span>
           </span>
         ) : (
           <span className="text-muted-foreground">{placeholder}</span>
@@ -146,7 +146,7 @@ export function PeriodPicker({
             className={`${cell} w-full text-left ${isActive("year", null) ? cellActive : ""}`}
           >
             <span className="font-medium">Ganzjahr FY{String(viewYear).slice(2)}</span>
-            <span className="ml-2 text-[11px] text-muted-foreground">Jan – Dez</span>
+            <span className="ml-2 text-meta text-muted-foreground">Jan – Dez</span>
           </button>
 
           <div className="grid grid-cols-2 gap-1.5">

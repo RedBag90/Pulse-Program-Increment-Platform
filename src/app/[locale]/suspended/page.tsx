@@ -26,7 +26,7 @@ export default async function SuspendedPage({ params }: { params: Promise<{ loca
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-6">
-      <div className="w-full max-w-md space-y-6 rounded-xl border bg-card p-8 text-center shadow-sm">
+      <div className="w-full max-w-md space-y-6 rounded-lg bg-card shadow-card p-8 text-center shadow-sm">
         <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-destructive/10">
           <ShieldAlert className="size-6 text-destructive" aria-hidden />
         </div>

@@ -94,7 +94,7 @@ export function GoalScopeFilterBar({
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2.5 shadow-xs">
+    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-card shadow-card p-2.5 shadow-xs">
       <PeriodMultiSelect
         selected={periodSel}
         onToggle={handlers("period", periodSel).onToggle}

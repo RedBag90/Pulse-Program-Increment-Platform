@@ -83,7 +83,7 @@ export function InitiativeActivitySidebar({
           aria-label="Aktivität filtern"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <option value="all">Alles anzeigen</option>
           {categories.map((c) => (
@@ -114,7 +114,7 @@ export function InitiativeActivitySidebar({
                     {actor && <span className="font-medium text-foreground">{actor}</span>}{" "}
                     <span className="text-muted-foreground">{actionLabel(e.action)}</span>
                     {e.detail && (
-                      <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                      <span className="ml-1 rounded-sm bg-muted px-1.5 py-0.5 text-meta text-muted-foreground">
                         {e.detail}
                       </span>
                     )}

@@ -64,39 +64,39 @@ export default async function AuditLogPage({ searchParams }: Props) {
           name="actor"
           defaultValue={params.actor}
           placeholder="Actor user ID"
-          className="rounded border border-gray-300 px-3 py-1.5 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-64 rounded-md border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
         <input
           name="action"
           defaultValue={params.action}
           placeholder="Action (e.g. initiative.created)"
-          className="rounded border border-gray-300 px-3 py-1.5 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-64 rounded-md border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
         <input
           name="resourceType"
           defaultValue={params.resourceType}
           placeholder="Resource type"
-          className="rounded border border-gray-300 px-3 py-1.5 w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-48 rounded-md border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
         <input
           name="from"
           type="date"
           defaultValue={params.from}
-          className="rounded border border-gray-300 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="rounded-md border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
         <input
           name="to"
           type="date"
           defaultValue={params.to}
-          className="rounded border border-gray-300 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="rounded-md border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
         <button
           type="submit"
-          className="rounded bg-gray-800 px-4 py-1.5 text-white hover:bg-gray-700"
+          className="rounded-md bg-primary px-4 py-1.5 text-primary-foreground hover:bg-primary/90"
         >
           Filter
         </button>
-        <a href="?" className="rounded border px-4 py-1.5 hover:bg-muted/50">
+        <a href="?" className="rounded-md border px-4 py-1.5 hover:bg-muted/50">
           Clear
         </a>
       </form>

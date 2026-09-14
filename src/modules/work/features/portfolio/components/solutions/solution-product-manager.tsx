@@ -38,7 +38,7 @@ export function SolutionProductManager({
   }
 
   return (
-    <section className="rounded-lg border bg-card p-4">
+    <section className="rounded-lg bg-card p-4 shadow-card">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         Produkt-Manager
       </h2>
@@ -63,7 +63,7 @@ export function SolutionProductManager({
           {productManagerId ? (
             userLabel(productManagerId, userLabels)
           ) : (
-            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-800">
+            <span className="inline-flex items-center rounded-full bg-warning-surface px-2 py-0.5 text-meta text-warning">
               Nicht zugewiesen
             </span>
           )}

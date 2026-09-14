@@ -30,7 +30,7 @@ export function WikiHub({ guides, roles }: { guides: readonly Guide[]; roles: re
 
   if (rows.length === 0) {
     return (
-      <p className="max-w-[var(--reading-max-w)] text-[15px] text-muted-foreground">
+      <p className="max-w-[var(--reading-max-w)] text-prose text-muted-foreground">
         Für die freigeschalteten Module gibt es noch keine Anleitungen.
       </p>
     );
@@ -39,7 +39,7 @@ export function WikiHub({ guides, roles }: { guides: readonly Guide[]; roles: re
   return (
     <div className="space-y-8">
       {mine.length > 0 && (
-        <p className="max-w-[var(--reading-max-w)] text-[15px] text-muted-foreground">
+        <p className="max-w-[var(--reading-max-w)] text-prose text-muted-foreground">
           {mine.length === guides.length ? "Alle" : `${mine.length} von ${guides.length}`}{" "}
           {mine.length === 1 ? "Anleitung hat" : "Anleitungen haben"} eine Perspektive für deine
           Rolle — sie {mine.length === 1 ? "ist" : "sind"} unten markiert.
@@ -65,10 +65,10 @@ export function WikiHub({ guides, roles }: { guides: readonly Guide[]; roles: re
                   className="absolute bottom-[-2.75rem] left-[6px] top-[19px] w-px bg-border"
                 />
               )}
-              <h2 className="font-heading text-[15px] font-semibold">
+              <h2 className="font-heading text-prose font-semibold">
                 {CADENCE_LABEL[row.cadence]}
               </h2>
-              <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+              <p className="mt-0.5 font-mono text-label uppercase tracking-[0.12em] text-muted-foreground">
                 {CADENCE_HINT[row.cadence]}
               </p>
             </div>
@@ -89,18 +89,18 @@ function GuideTile({ guide, roles }: { guide: Guide; roles: readonly Role[] }) {
   return (
     <Link
       href={`/wiki/${guide.slug}`}
-      className="block rounded-lg border bg-card px-3.5 py-3 transition-colors hover:border-foreground/25"
+      className="block rounded-lg bg-card shadow-card px-3.5 py-3 transition-colors hover:border-foreground/25"
     >
-      <h3 className="font-heading text-[14.5px] font-semibold leading-snug">{guide.title}</h3>
-      <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{guide.teaser}</p>
+      <h3 className="font-heading text-sm font-semibold leading-snug">{guide.title}</h3>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{guide.teaser}</p>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {guide.perspectives.map((p) => (
           <span
             key={p.label}
             className={
               isOwnPerspective(p, roles)
-                ? "rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider text-primary"
-                : "rounded bg-muted px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider text-muted-foreground"
+                ? "rounded-sm bg-primary/10 px-1.5 py-0.5 font-mono text-label uppercase tracking-[0.1em] text-primary"
+                : "rounded-sm bg-muted px-1.5 py-0.5 font-mono text-label uppercase tracking-[0.1em] text-muted-foreground"
             }
           >
             {p.label}

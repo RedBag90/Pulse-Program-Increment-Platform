@@ -95,7 +95,7 @@ export function PiDialog({ open, onOpenChange, timelineId, initial }: Props) {
           {initial?.id && <input type="hidden" name="id" value={initial.id} />}
 
           {isActiveOrDone && (
-            <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900">
+            <div className="rounded-md border border-warning/40 bg-warning-surface p-2.5 text-xs text-warning">
               Dieses PI ist{" "}
               <strong>{initial?.status === "active" ? "aktiv" : "abgeschlossen"}</strong>. Start-
               und End-Datum sind gesperrt; nur der Name kann geändert werden.

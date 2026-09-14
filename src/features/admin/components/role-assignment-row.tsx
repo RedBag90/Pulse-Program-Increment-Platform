@@ -55,7 +55,7 @@ export function RoleAssignmentRow({
   const artLabels = lookupNames(assignment.artIds, valueStreams, "art");
 
   return (
-    <div className="space-y-2 rounded-md border bg-card p-3">
+    <div className="space-y-2 rounded-md border bg-background p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">{ROLE_LABELS[assignment.role]}</p>
@@ -97,7 +97,7 @@ export function RoleAssignmentRow({
 
 function ScopeChip({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px]">
+    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-meta">
       <span className="text-muted-foreground">{label}:</span>
       <span className="font-medium">{children}</span>
     </span>

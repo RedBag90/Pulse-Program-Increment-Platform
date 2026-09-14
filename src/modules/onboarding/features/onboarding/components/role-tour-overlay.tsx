@@ -191,7 +191,7 @@ export function RoleTourOverlay({ role, steps, onFinish }: Props) {
         aria-live="polite"
         aria-label={`Tour-Schritt ${index + 1} von ${steps.length}: ${step.title}`}
         tabIndex={-1}
-        className="absolute rounded-lg border bg-card p-4 shadow-lg outline-none"
+        className="absolute rounded-lg bg-card p-4 shadow-lg outline-none ring-1 ring-foreground/10"
         style={{ top: placement.top, left: placement.left, width: placement.width }}
       >
         <p className="text-xs font-medium tabular-nums text-muted-foreground">

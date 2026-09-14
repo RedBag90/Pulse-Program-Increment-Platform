@@ -26,10 +26,10 @@ import { CandidateWorksheet } from "@/modules/budgeting/features/components/peri
 import type { PbListEntry } from "@/modules/budgeting/server/views/period-detail";
 
 const input =
-  "rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+  "rounded-md border border-input bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 const btn =
-  "rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50";
-const btnGhost = "rounded border px-2 py-1 text-xs text-muted-foreground hover:text-foreground";
+  "rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50";
+const btnGhost = "rounded-md border px-2 py-1 text-xs text-muted-foreground hover:text-foreground";
 const EUR = (n: number) => `${n.toLocaleString("de-DE")} €`;
 const day = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 
@@ -48,7 +48,7 @@ export function PeriodSetupTab({ model }: { model: PeriodDetailModel }) {
   const staffedGroups = model.groups.filter((g) => g.members.length > 0).length;
 
   return (
-    <ol className="divide-y rounded-lg border bg-card">
+    <ol className="divide-y rounded-lg bg-card shadow-card">
       <Step
         n={1}
         title="Rahmen"
@@ -119,7 +119,7 @@ function Step({
   return (
     <li className="grid grid-cols-[28px_1fr] gap-x-3 p-4">
       <span
-        className={`mt-0.5 grid size-6 place-items-center rounded-full text-[11px] font-bold ${
+        className={`mt-0.5 grid size-6 place-items-center rounded-full text-meta font-bold ${
           done
             ? "bg-emerald-500 text-white"
             : "border-[1.5px] border-dashed border-border text-muted-foreground"
@@ -175,7 +175,7 @@ function Frame({ model, draft }: { model: PeriodDetailModel; draft: boolean }) {
           <button type="submit" disabled={pending} className={btn}>
             {pending ? "…" : "Rahmen speichern"}
           </button>
-          {state.error && <span className="text-xs text-red-600">{state.error}</span>}
+          {state.error && <span className="text-xs text-destructive">{state.error}</span>}
         </form>
       )}
     </div>
@@ -221,8 +221,8 @@ function StartRound({
       <button type="submit" disabled={pending || blocked !== null} className={btn}>
         {pending ? "…" : "Runde starten"}
       </button>
-      {blocked && <span className="text-xs text-amber-700 dark:text-amber-300">{blocked}</span>}
-      {state.error && <span className="text-xs text-red-600">{state.error}</span>}
+      {blocked && <span className="text-xs text-warning dark:text-amber-300">{blocked}</span>}
+      {state.error && <span className="text-xs text-destructive">{state.error}</span>}
     </form>
   );
 }
@@ -249,7 +249,7 @@ function PbList({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
           draft && model.canManage && c.kind === "epic" ? (
             <form action={removeAction}>
               <input type="hidden" name="id" value={c.id} />
-              <button type="submit" className={`${btnGhost} text-red-600`}>
+              <button type="submit" className={`${btnGhost} text-destructive`}>
                 entfernen
               </button>
             </form>
@@ -258,7 +258,7 @@ function PbList({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
         empty="Noch nichts auf der PB-Liste."
       />
 
-      <p className="mt-2 flex flex-wrap items-baseline gap-x-3 text-[11px] text-muted-foreground">
+      <p className="mt-2 flex flex-wrap items-baseline gap-x-3 text-meta text-muted-foreground">
         <span>
           Σ Anfragen{" "}
           <span className="font-medium tabular-nums text-foreground">
@@ -295,7 +295,7 @@ function PbList({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
           <button type="submit" className={btnGhost}>
             + auf die PB-Liste
           </button>
-          {addState.error && <span className="text-xs text-red-600">{addState.error}</span>}
+          {addState.error && <span className="text-xs text-destructive">{addState.error}</span>}
           {model.artEpicsFilteredOut > 0 && (
             <p className="w-full text-xs text-muted-foreground">
               {model.artEpicsFilteredOut} vorgemerkte Epics stehen nicht zur Wahl: sie liegen unter
@@ -326,7 +326,7 @@ function Participants({ model, draft }: { model: PeriodDetailModel; draft: boole
             {draft && model.canManage && (
               <form action={removeAction} className="inline">
                 <input type="hidden" name="id" value={p.id} />
-                <button type="submit" className="text-red-600 hover:text-red-700">
+                <button type="submit" className="text-destructive hover:text-destructive/80">
                   ×
                 </button>
               </form>
@@ -356,7 +356,7 @@ function Participants({ model, draft }: { model: PeriodDetailModel; draft: boole
           <button type="submit" className={btnGhost}>
             + Beteiligte
           </button>
-          {addState.error && <span className="text-xs text-red-600">{addState.error}</span>}
+          {addState.error && <span className="text-xs text-destructive">{addState.error}</span>}
         </form>
       )}
     </div>
@@ -383,7 +383,7 @@ function Groups({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
           <button type="submit" className={btn}>
             Gruppe hinzufügen
           </button>
-          {addState.error && <span className="text-xs text-red-600">{addState.error}</span>}
+          {addState.error && <span className="text-xs text-destructive">{addState.error}</span>}
         </form>
       )}
     </div>
@@ -457,7 +457,7 @@ function GroupCard({
         {draft && model.canManage && (
           <form action={delAction}>
             <input type="hidden" name="id" value={group.id} />
-            <button type="submit" className={`${btnGhost} text-red-600`}>
+            <button type="submit" className={`${btnGhost} text-destructive`}>
               Gruppe entfernen
             </button>
           </form>
@@ -492,16 +492,16 @@ function GroupCard({
             <span>
               {m.label}
               {group.spokespersonId === m.userId && (
-                <span className="ml-1 rounded bg-violet-100 px-1 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                <span className="ml-1 rounded-sm bg-violet-100 px-1 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
                   Sprecher
                 </span>
               )}
-              {m.hasRead && <span className="ml-1 text-emerald-600">✓ gelesen</span>}
+              {m.hasRead && <span className="ml-1 text-success">✓ gelesen</span>}
             </span>
             {draft && model.canManage && (
               <form action={delMemberAction}>
                 <input type="hidden" name="id" value={m.id} />
-                <button type="submit" className={`${btnGhost} text-red-600`}>
+                <button type="submit" className={`${btnGhost} text-destructive`}>
                   ×
                 </button>
               </form>
@@ -531,7 +531,9 @@ function GroupCard({
           <button type="submit" className={btnGhost}>
             + Mitglied
           </button>
-          {memberState.error && <span className="text-xs text-red-600">{memberState.error}</span>}
+          {memberState.error && (
+            <span className="text-xs text-destructive">{memberState.error}</span>
+          )}
         </form>
       )}
     </div>

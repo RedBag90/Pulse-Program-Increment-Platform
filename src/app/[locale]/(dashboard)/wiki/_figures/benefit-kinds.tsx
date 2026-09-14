@@ -21,19 +21,19 @@ const EFFECT: Record<(typeof BENEFIT_KINDS)[number], string> = {
 export function BenefitKinds() {
   const fallback = benefitKindOrDefault(null);
   return (
-    <div className="divide-y overflow-hidden rounded-lg border bg-card">
+    <div className="divide-y overflow-hidden rounded-lg bg-card shadow-card">
       {BENEFIT_KINDS.map((k) => (
         <div key={k} className="space-y-1 p-4">
-          <p className="text-[14px] font-medium text-foreground">
+          <p className="text-sm font-medium text-foreground">
             {BENEFIT_KIND_LABELS[k]}{" "}
-            <code className="font-mono text-[11px] font-normal text-muted-foreground">{k}</code>
+            <code className="font-mono text-meta font-normal text-muted-foreground">{k}</code>
             {k === fallback && (
-              <span className="ml-2 rounded border bg-muted px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider text-muted-foreground">
+              <span className="ml-2 rounded-sm border bg-muted px-1.5 py-0.5 font-mono text-label uppercase tracking-[0.1em] text-muted-foreground">
                 Vorgabe
               </span>
             )}
           </p>
-          <p className="max-w-[var(--reading-max-w)] text-[13.5px] leading-relaxed text-muted-foreground">
+          <p className="max-w-[var(--reading-max-w)] text-sm leading-relaxed text-muted-foreground">
             {EFFECT[k]}
           </p>
         </div>

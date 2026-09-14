@@ -14,7 +14,7 @@ export default async function AcceptInvitePage({ params }: Props) {
     return (
       <main className="p-8 max-w-md mx-auto">
         <h1 className="text-xl font-semibold mb-4">Invalid invitation</h1>
-        <p className="text-red-600 text-sm">
+        <p className="text-sm text-destructive">
           This invitation link is invalid or has expired. Please ask your admin to send a new one.
         </p>
       </main>

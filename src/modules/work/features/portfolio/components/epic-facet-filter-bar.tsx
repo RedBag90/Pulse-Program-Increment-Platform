@@ -15,7 +15,7 @@ import {
 export type FlagFilter = "all" | "steering" | "budgeting";
 
 export const FACET_SELECT_CLASS =
-  "h-8 rounded-md border border-input bg-card px-2 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "h-8 rounded-md border border-input bg-background px-2 text-xs shadow-xs focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 interface Props {
   query: string;

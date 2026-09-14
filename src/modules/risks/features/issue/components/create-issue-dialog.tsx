@@ -24,7 +24,7 @@ import { RISK_CATEGORIES } from "@/modules/risks/domain/risk-category";
 import { LEVEL_LABELS, CATEGORY_LABELS } from "@/modules/risks/features/risk/components/labels";
 
 const SELECT_CLASS =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 export interface CreateIssueDialogProps {
   /** Controlled mode (global "+" menu). Omit to render a self-triggering button. */
@@ -103,12 +103,22 @@ export function CreateIssueDialog({
               <Label>
                 Titel <span className="text-destructive">*</span>
               </Label>
-              <Input name="title" required maxLength={300} placeholder="Kurzbeschreibung des Issues" />
+              <Input
+                name="title"
+                required
+                maxLength={300}
+                placeholder="Kurzbeschreibung des Issues"
+              />
             </div>
 
             <div className="space-y-1.5">
               <Label>Beschreibung</Label>
-              <Textarea name="description" rows={3} maxLength={5000} placeholder="Kontext, Auswirkung, Details" />
+              <Textarea
+                name="description"
+                rows={3}
+                maxLength={5000}
+                placeholder="Kontext, Auswirkung, Details"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">

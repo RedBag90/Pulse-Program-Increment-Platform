@@ -88,7 +88,7 @@ interface Props {
 
 /** Native-Select im Look der `Input`-Primitive (kein Select-Primitive im Kit). */
 const selectCls =
-  "h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
 function fmt(n: number | null): string {
   return n === null ? "—" : n.toLocaleString("de-DE");
@@ -160,7 +160,7 @@ function KpiItem({
     .map((m) => m.value);
 
   return (
-    <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+    <div className="rounded-lg bg-card p-4 shadow-card">
       {/* Kopf: Name + Benefit-Badge + Bearbeiten */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -199,7 +199,7 @@ function KpiItem({
       <div className="mt-2 flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <TileBar ratio={ratio} />
-          <p className="mt-1 text-[10px] text-muted-foreground">
+          <p className="mt-1 text-label text-muted-foreground">
             Baseline {fmt(kpi.baseline)} → Ziel {fmt(kpi.target)}
             {ratio != null && ` · ${Math.round(ratio * 100)} % erreicht`}
             {kpi.valuePerUnit != null && ` · ${fmtEur(kpi.valuePerUnit)}/Einheit`}
@@ -420,7 +420,7 @@ function LinkOutcome({
 
   return (
     <div className="mt-3 border-t pt-2">
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-label text-muted-foreground">
         <dt>Plan (bei Freigabe)</dt>
         <dd className="text-right tabular-nums">
           {formatMetricValue(o.planned, goalSpec)}
@@ -463,7 +463,7 @@ function LinkOutcome({
         )}
       </dl>
       {!hasPlan && (
-        <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">
+        <p className="mt-1 text-label text-warning">
           Kein Plan-Bezug — festgehalten wird er mit der Freigabe des Business Case (L2 → L3.1). Bis
           dahin ist jede Änderung des Faktors sofort auch der Plan.
         </p>
@@ -530,13 +530,13 @@ function LinkedGoalRow({
   const kpiUnit = link.kpiUnit || chosen?.unit || "KPI-Einheit";
 
   return (
-    <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+    <div className="rounded-lg bg-card p-4 shadow-card">
       {/* Kopf: Ziel-Titel + Bearbeiten */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-medium">{link.goalTitle}</p>
           {link.goalUnit && (
-            <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
               Ziel-Einheit: {link.goalUnit}
             </p>
           )}
@@ -567,7 +567,7 @@ function LinkedGoalRow({
         )}
       </div>
 
-      <p className="mt-1 text-[10px] text-muted-foreground">
+      <p className="mt-1 text-label text-muted-foreground">
         Ziel-KPI: {link.goalMetricName ? `${link.goalMetricName} · ` : ""}
         {hasGoalMetric ? (
           <>

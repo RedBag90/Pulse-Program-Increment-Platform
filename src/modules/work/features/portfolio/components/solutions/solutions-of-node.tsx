@@ -30,7 +30,7 @@ export function SolutionsOfNode({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
+    <div className="overflow-x-auto rounded-lg bg-card shadow-card">
       <table className="w-full border-collapse text-sm">
         <thead className="bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
           <tr className="border-b">

@@ -11,7 +11,7 @@ import { STICKY_THEAD } from "@/components/ui/table-chrome";
 export const HEAD_ACCENT = "#60a5fa";
 
 /** Outer container around the `<table>`. */
-export const TREE_CONTAINER = "overflow-x-auto rounded-xl border bg-card shadow-sm";
+export const TREE_CONTAINER = "overflow-x-auto rounded-lg bg-card shadow-card";
 
 /** `<thead>` chrome — sticky, muted, uppercase. Shared token, see table-chrome. */
 export const TREE_THEAD = STICKY_THEAD;
@@ -26,7 +26,7 @@ export const TREE_TD = "px-3 py-1.5 align-middle";
 export const TREE_ROW = "group align-middle hover:bg-muted/40";
 
 /** Contribution/rollup badge ("trägt 67 %" look). */
-export const TREE_BADGE = "text-[11px] uppercase tracking-wider text-muted-foreground";
+export const TREE_BADGE = "text-label uppercase tracking-[0.1em] text-muted-foreground";
 
 /**
  * Compose the row `boxShadow`: a left accent rail for head rows, plus an optional
@@ -67,7 +67,7 @@ export function TreeIndent({ depth }: { depth: number }) {
 export function TreeChevron({ open, hasChildren }: { open: boolean; hasChildren: boolean }) {
   if (!hasChildren) return <span className="w-5 shrink-0" aria-hidden />;
   return (
-    <span className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground">
+    <span className="grid size-5 shrink-0 place-items-center rounded-sm text-muted-foreground">
       <ChevronRight className={`size-3.5 transition-transform ${open ? "rotate-90" : ""}`} />
     </span>
   );

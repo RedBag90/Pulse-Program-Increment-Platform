@@ -21,7 +21,7 @@ export function MyTasksFeaturesSection({ rows, canEdit, showWsjf, compact }: Pro
   return (
     <section className="space-y-2">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Features
         </h2>
         <span className="text-xs text-muted-foreground">{rows.length}</span>

@@ -84,7 +84,7 @@ export function RelatedWorkSearch({
         onFocus={() => setOpen(true)}
         disabled={disabled}
         placeholder="Epic, Feature oder PI suchen…"
-        className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+        className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
       />
       {open && (loading || results.length > 0) && (
         <ul className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover text-sm shadow-md">
@@ -103,7 +103,7 @@ export function RelatedWorkSearch({
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-muted"
               >
                 <span className="min-w-0 flex-1 truncate">{r.name}</span>
-                <span className="shrink-0 rounded bg-muted px-1 text-[10px] uppercase text-muted-foreground">
+                <span className="shrink-0 rounded-sm bg-muted px-1 text-label uppercase text-muted-foreground">
                   {TYPE_LABEL[r.type]}
                 </span>
               </button>

@@ -33,7 +33,7 @@ export function StageGateLifecycleHelp({ className }: { className?: string }) {
 
         {/* A · Voraussetzungen je Wechsel */}
         <section className="space-y-1.5">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <h4 className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Voraussetzungen je Wechsel
           </h4>
           <p className="text-muted-foreground">
@@ -43,9 +43,9 @@ export function StageGateLifecycleHelp({ className }: { className?: string }) {
             {GATE_CRITERIA_DOC.map((g) => (
               <li
                 key={`${g.stageFrom}-${g.stageTo}`}
-                className="flex items-start gap-2 rounded border bg-muted/20 px-2 py-1.5"
+                className="flex items-start gap-2 rounded-md border bg-muted/20 px-2 py-1.5"
               >
-                <span className="mt-0.5 inline-flex shrink-0 items-center gap-0.5 rounded bg-background px-1.5 py-0.5 font-mono text-[10px] font-medium">
+                <span className="mt-0.5 inline-flex shrink-0 items-center gap-0.5 rounded-sm bg-background px-1.5 py-0.5 font-mono text-label font-medium">
                   {gateStepNumber(g.stageFrom)}
                   <ArrowRight className="size-2.5" />
                   {gateStepNumber(g.stageTo)}
@@ -71,7 +71,7 @@ export function StageGateLifecycleHelp({ className }: { className?: string }) {
 
         {/* B · Sub-Stages */}
         <section className="space-y-1.5">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <h4 className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Sub-Stage-Derivation
           </h4>
           <p className="text-muted-foreground">
@@ -92,9 +92,7 @@ export function StageGateLifecycleHelp({ className }: { className?: string }) {
                   <td className="py-1 font-mono">{r.gate}</td>
                   <td className="py-1 font-mono">{r.key}</td>
                   <td className="py-1">{r.label}</td>
-                  <td className="py-1 font-mono text-[10px] text-muted-foreground">
-                    {r.condition}
-                  </td>
+                  <td className="py-1 font-mono text-label text-muted-foreground">{r.condition}</td>
                 </tr>
               ))}
             </tbody>

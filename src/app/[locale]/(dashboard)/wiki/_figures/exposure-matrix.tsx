@@ -43,15 +43,15 @@ export function ExposureMatrix() {
   const rows = [...RISK_LEVELS].reverse();
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto rounded-lg border bg-card p-3">
-        <table className="min-w-[420px] border-separate border-spacing-1 text-center text-[12.5px]">
+      <div className="overflow-x-auto rounded-lg bg-card shadow-card p-3">
+        <table className="min-w-[420px] border-separate border-spacing-1 text-center text-xs">
           <thead>
             <tr>
               <th className="w-28" />
               {RISK_LEVELS.map((i) => (
                 <th
                   key={i}
-                  className="px-1 pb-1 font-mono text-[9.5px] font-normal uppercase tracking-wider text-muted-foreground"
+                  className="px-1 pb-1 font-mono text-label font-normal uppercase tracking-[0.1em] text-muted-foreground"
                 >
                   {LEVEL_LABEL[i]}
                 </th>
@@ -61,7 +61,7 @@ export function ExposureMatrix() {
           <tbody>
             {rows.map((p) => (
               <tr key={p}>
-                <th className="pr-2 text-right font-mono text-[9.5px] font-normal uppercase tracking-wider text-muted-foreground">
+                <th className="pr-2 text-right font-mono text-label font-normal uppercase tracking-[0.1em] text-muted-foreground">
                   {LEVEL_LABEL[p]}
                 </th>
                 {RISK_LEVELS.map((i) => {
@@ -69,7 +69,7 @@ export function ExposureMatrix() {
                   return (
                     <td
                       key={i}
-                      className={`rounded px-2 py-2 font-medium tabular-nums ${BAND_TINT[e.band]}`}
+                      className={`rounded-sm px-2 py-2 font-medium tabular-nums ${BAND_TINT[e.band]}`}
                       title={BAND_LABEL[e.band]}
                     >
                       {e.score}
@@ -81,8 +81,8 @@ export function ExposureMatrix() {
           </tbody>
         </table>
       </div>
-      <p className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
-        <span className="font-mono text-[10.5px] uppercase tracking-wider">Bänder</span>
+      <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span className="font-mono text-meta uppercase tracking-wider">Bänder</span>
         {BAND_THRESHOLDS.map((t) => (
           <span key={t.band} className="inline-flex items-center gap-1.5">
             <span aria-hidden className={`inline-block size-2.5 rounded-sm ${BAND_TINT[t.band]}`} />

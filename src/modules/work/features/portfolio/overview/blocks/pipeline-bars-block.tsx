@@ -37,7 +37,7 @@ export function PipelineBarsBlock({ data }: { data: PortfolioOverview }) {
               <span className="font-mono text-xs tabular-nums">
                 {count}
                 {over && limit !== null && (
-                  <span className="ml-1 text-[10px] text-amber-700">Limit {limit} ⚠</span>
+                  <span className="ml-1 text-label text-warning">Limit {limit} ⚠</span>
                 )}
               </span>
             </li>

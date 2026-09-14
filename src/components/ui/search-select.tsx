@@ -131,7 +131,7 @@ export function SearchSelect({
         aria-controls={open ? listId : undefined}
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-2 rounded-md border border-input bg-card py-1.5 pl-2.5 pr-2 text-left text-sm shadow-xs hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        className="flex w-full items-center justify-between gap-2 rounded-md border border-input bg-background py-1.5 pl-2.5 pr-2 text-left text-sm shadow-xs hover:bg-muted/40 focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
       >
         <span className={cn("truncate", !selected && "text-muted-foreground")}>
           {selected?.label ?? placeholder}
@@ -157,7 +157,7 @@ export function SearchSelect({
               placeholder={searchPlaceholder}
               aria-label={searchPlaceholder}
               aria-controls={listId}
-              className="w-full rounded-md border border-input bg-background py-1 pl-7 pr-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-md border border-input bg-background py-1 pl-7 pr-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             />
           </div>
 

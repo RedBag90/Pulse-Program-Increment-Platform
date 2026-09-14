@@ -44,7 +44,7 @@ export function SteeringTableBlock({ data }: { data: PortfolioOverview }) {
             : "Keine Initiative für das nächste Steering-Meeting markiert."}
         </p>
       ) : (
-        <div className="max-h-96 overflow-auto rounded-lg border bg-card">
+        <div className="max-h-96 overflow-auto rounded-lg bg-card shadow-card">
           <table className="w-full border-collapse text-xs">
             <thead className={STICKY_THEAD}>
               <tr>

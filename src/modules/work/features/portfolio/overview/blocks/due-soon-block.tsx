@@ -88,8 +88,8 @@ export function DueSoonBlock({
                     {it.title}
                   </Link>
                   <span
-                    className={`shrink-0 text-[10px] tabular-nums ${
-                      it.overdue ? "font-medium text-rose-600" : "text-muted-foreground"
+                    className={`shrink-0 text-label tabular-nums ${
+                      it.overdue ? "font-medium text-destructive" : "text-muted-foreground"
                     }`}
                   >
                     {shortDate(it.dateIso)} · {relative(it.daysUntil)}
@@ -123,7 +123,7 @@ export function DueSoonBlock({
               )}`}
             >
               <span className="min-w-0 flex-1 truncate text-xs font-medium">{r.name}</span>
-              <span className="shrink-0 font-mono text-[10px] tabular-nums">
+              <span className="shrink-0 font-mono text-label tabular-nums">
                 {r.overdue > 0 ? (
                   <span className="font-semibold text-rose-600 dark:text-rose-400">
                     {r.overdue} überfällig

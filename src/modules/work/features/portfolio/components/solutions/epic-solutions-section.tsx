@@ -115,7 +115,7 @@ export function EpicSolutionsSection({
         })}
       </ul>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state.success && <p className="text-sm text-emerald-700">Zuordnung gespeichert.</p>}
+      {state.success && <p className="text-sm text-success">Zuordnung gespeichert.</p>}
       {canEdit && (
         <Button size="sm" onClick={save} disabled={pending}>
           {pending ? "Speichern…" : "Zuordnung speichern"}

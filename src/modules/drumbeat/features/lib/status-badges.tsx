@@ -35,6 +35,19 @@ export const FEATURE_STATUS_DOT: Record<FeatureStatus, string> = {
   cancelled: "bg-slate-400",
 };
 
+/**
+ * Lane-Tint des Boards je Status — dieselbe Achse, eine Stufe blasser als das
+ * Badge. Stand vorher als rohe Palette **ohne** `dark:`-Partner im Board; im
+ * Dunkelmodus waren die Spalten fast weiß.
+ */
+export const FEATURE_STATUS_LANE: Record<FeatureStatus, string> = {
+  approved: "bg-indigo-50 dark:bg-indigo-950/30",
+  in_progress: "bg-amber-50 dark:bg-amber-950/30",
+  blocked: "bg-red-50 dark:bg-red-950/30",
+  completed: "bg-emerald-50 dark:bg-emerald-950/30",
+  cancelled: "bg-slate-50 dark:bg-slate-900/40",
+};
+
 /** Farb-Token je Dependency-Typ (SSOT). */
 export const DEPENDENCY_TYPE_CLASS: Record<DependencyType, string> = {
   blocks: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300",

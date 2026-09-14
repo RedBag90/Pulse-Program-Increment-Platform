@@ -47,7 +47,7 @@ export function PeriodMultiSelect({
         aria-pressed={on}
         onClick={() => onToggle(key)}
         className={cn(
-          "rounded-md border px-2 py-1.5 text-sm hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "rounded-md border px-2 py-1.5 text-sm hover:bg-muted focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
           on && "border-primary bg-primary/10 text-foreground",
           className,
         )}
@@ -61,13 +61,13 @@ export function PeriodMultiSelect({
     <Popover>
       <PopoverTrigger
         className={cn(
-          "inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 text-xs font-medium shadow-xs hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "inline-flex h-9 items-center gap-1.5 rounded-md border bg-background px-3 text-xs font-medium shadow-xs hover:bg-muted/50 focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
           count > 0 ? "border-primary/40 text-foreground" : "text-muted-foreground",
         )}
       >
-        <span className="text-[11px] uppercase tracking-wide">Zeitraum</span>
+        <span className="text-meta uppercase tracking-wide">Zeitraum</span>
         {count > 0 ? (
-          <span className="grid min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-semibold tabular-nums text-primary-foreground">
+          <span className="grid min-w-4 place-items-center rounded-full bg-primary px-1 text-label font-semibold tabular-nums text-primary-foreground">
             {count}
           </span>
         ) : (

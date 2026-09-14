@@ -22,7 +22,7 @@ export function UserListRow({ user, selected, onSelect }: Props) {
     <button
       type="button"
       onClick={() => onSelect(user.id)}
-      className={`group w-full rounded-md border bg-card p-3 text-left transition-colors hover:bg-muted/50 ${
+      className={`group w-full rounded-md border bg-background p-3 text-left transition-colors hover:bg-muted/50 ${
         selected ? "border-primary ring-1 ring-primary" : ""
       }`}
       aria-current={selected ? "true" : undefined}

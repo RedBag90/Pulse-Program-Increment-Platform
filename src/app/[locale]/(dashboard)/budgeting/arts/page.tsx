@@ -88,7 +88,7 @@ export default async function ArtBudgetsPage({
       </nav>
 
       {rows.length === 0 ? (
-        <p className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground">
+        <p className="rounded-lg bg-card shadow-card px-4 py-3 text-sm text-muted-foreground">
           Für dieses Halbjahr ist Ihnen kein ART-Budget zugänglich.
         </p>
       ) : (

@@ -59,7 +59,7 @@ interface Props {
 }
 
 const INPUT =
-  "rounded-md border border-input bg-background px-2 py-1 text-sm shadow-xs focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60";
+  "rounded-md border border-input bg-background px-2 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60";
 
 /** ISO datetime/date → de-DE display, or em dash. */
 function fmt(iso: string | null | undefined): string {
@@ -85,7 +85,7 @@ function VarianceBadge({ estimate, actual }: { estimate: string; actual: string 
   const label = diff === 0 ? "pünktlich" : late ? `+${diff} T` : `${-diff} T früher`;
   return (
     <span
-      className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+      className={`shrink-0 rounded-full px-1.5 py-0.5 text-label font-medium ${
         late
           ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200"
           : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
@@ -297,14 +297,14 @@ export function EpicTimelineTab({
   /** „7 Tage" · „läuft seit 12.6. · Tag 3" · „noch nicht begonnen". */
   function Dauer({ span }: { span: LifecycleSpan }) {
     if (span.days == null) {
-      return <span className="text-[11px] text-muted-foreground/70">noch nicht begonnen</span>;
+      return <span className="text-meta text-muted-foreground/70">noch nicht begonnen</span>;
     }
     const label = span.running
       ? `läuft seit ${fmt(span.from?.toISOString() ?? null)} · Tag ${span.days}`
       : `${span.days} ${span.days === 1 ? "Tag" : "Tage"}`;
     return (
       <span
-        className={`text-[11px] tabular-nums ${span.running ? "font-medium text-primary" : "text-muted-foreground/70"}`}
+        className={`text-meta tabular-nums ${span.running ? "font-medium text-primary" : "text-muted-foreground/70"}`}
       >
         {label}
       </span>
@@ -313,7 +313,7 @@ export function EpicTimelineTab({
 
   return (
     <div className="space-y-6" data-tour="epic-timeline-tab">
-      <section className="space-y-2 rounded-lg border bg-card p-3.5">
+      <section className="space-y-2 rounded-lg bg-card p-3.5 shadow-card">
         <SectionLabel>Reifegrad-Wechsel</SectionLabel>
         <GateHistoryList history={gateHistory} userLabels={userLabels} />
       </section>
@@ -337,7 +337,7 @@ export function EpicTimelineTab({
               className="w-[2.5rem] shrink-0 pt-4 text-right"
               title={STAGE_GATE_LABELS[g.level] ?? g.level}
             >
-              <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
+              <span className="text-meta font-semibold tabular-nums text-muted-foreground">
                 {g.level}
               </span>
             </div>
@@ -382,7 +382,7 @@ export function EpicTimelineTab({
                         }`}
                       />
                       <div
-                        className={`grid grid-cols-1 gap-2 rounded-lg border-2 bg-card py-3 pl-11 pr-4 sm:grid-cols-[minmax(0,1fr)_9rem_9rem] sm:items-center ${
+                        className={`grid grid-cols-1 gap-2 rounded-lg bg-card py-3 pl-11 pr-4 shadow-card sm:grid-cols-[minmax(0,1fr)_9rem_9rem] sm:items-center ${
                           isNext
                             ? "border-primary bg-primary/5"
                             : isDone
@@ -411,7 +411,7 @@ export function EpicTimelineTab({
                             </p>
                           )}
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            <span className="mr-1.5 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                            <span className="mr-1.5 rounded-sm bg-muted px-1.5 py-0.5 text-label font-semibold uppercase tracking-[0.1em]">
                               {soft ? "Meilenstein" : "Gate"}
                             </span>
                             {gate.approver}

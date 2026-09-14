@@ -41,7 +41,7 @@ export function Sheets({ model }: { model: SheetModel }) {
         <button
           type="button"
           onClick={() => window.print()}
-          className="rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800"
+          className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
           Drucken
         </button>

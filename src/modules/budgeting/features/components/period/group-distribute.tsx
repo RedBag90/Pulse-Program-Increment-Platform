@@ -15,9 +15,9 @@ import { CandidateWorksheet } from "@/modules/budgeting/features/components/peri
 
 const EUR = (n: number) => `${n.toLocaleString("de-DE")} €`;
 const input =
-  "w-32 rounded border border-gray-300 px-2 py-1 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60";
+  "w-32 rounded-md border border-input bg-background px-2 py-1 text-right text-sm tabular-nums focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60";
 const btn =
-  "rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50";
+  "rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50";
 
 /**
  * Selbst-Verteilung einer Gruppe: freie €-Beträge über alle PB-Listen-Kandidaten
@@ -77,13 +77,13 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border bg-card p-4">
+      <div className="rounded-lg bg-card shadow-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
           <span className="font-semibold">{model.groupName} · Budget verteilen</span>
           {model.deadline && (
             <span className="text-xs text-muted-foreground">
               Deadline: {model.deadline.toLocaleDateString("de-DE")}
-              {model.deadlinePassed && <span className="ml-1 text-red-600">· verstrichen</span>}
+              {model.deadlinePassed && <span className="ml-1 text-destructive">· verstrichen</span>}
             </span>
           )}
         </div>
@@ -93,7 +93,7 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
           <Stat
             label="Rest"
             value={EUR(remaining)}
-            className={over ? "text-red-600" : "text-emerald-600"}
+            className={over ? "text-destructive" : "text-success"}
           />
         </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
@@ -165,9 +165,9 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
         empty="Noch keine Kandidaten — die Runde ist nicht gestartet."
       />
       {over && (
-        <p className="text-sm text-red-600">Die Summe überschreitet den verteilbaren Topf.</p>
+        <p className="text-sm text-destructive">Die Summe überschreitet den verteilbaren Topf.</p>
       )}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       {model.canEdit && (
         <div className="flex items-center gap-2">
@@ -179,7 +179,7 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
               type="button"
               onClick={submit}
               disabled={pending || over}
-              className="rounded bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
+              className="rounded-md bg-success px-3 py-1.5 text-sm font-medium text-background hover:bg-success/90 disabled:opacity-50"
             >
               Einreichen
             </button>

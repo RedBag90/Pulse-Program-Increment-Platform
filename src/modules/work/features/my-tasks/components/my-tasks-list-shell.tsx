@@ -181,7 +181,7 @@ export function MyTasksListShell({ model, showWsjf, embedded = false, notices }:
       />
 
       {filteredEpics.length === 0 && filteredFeatures.length === 0 && (
-        <div className="rounded-2xl border bg-card p-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg bg-card shadow-card p-8 text-center text-sm text-muted-foreground">
           Keine Tasks im aktuellen Filter.
         </div>
       )}

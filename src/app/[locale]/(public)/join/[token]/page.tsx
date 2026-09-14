@@ -12,7 +12,7 @@ export default async function JoinByTokenPage({ params }: { params: Promise<{ to
 
   if (!target) {
     return (
-      <div className="rounded-lg border bg-card p-6 text-center">
+      <div className="rounded-lg bg-card p-6 text-center shadow-card">
         <h1 className="text-lg font-semibold">Link ungültig</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Dieser Einladungslink ist ungültig oder wurde deaktiviert.

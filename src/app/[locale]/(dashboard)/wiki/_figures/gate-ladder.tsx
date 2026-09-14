@@ -11,14 +11,14 @@ import { GATE_STEPS, GATE_STEP_LABELS, gateStepNumber } from "@/modules/work/dom
  */
 export function GateLadder() {
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
+    <div className="overflow-x-auto rounded-lg bg-card shadow-card">
       <ol className="flex min-w-[640px] divide-x">
         {GATE_STEPS.map((g) => (
           <li key={g} className="flex-1 px-2.5 py-3 text-center">
-            <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">
+            <p className="font-mono text-meta uppercase tracking-[0.1em] text-muted-foreground">
               {gateStepNumber(g)}
             </p>
-            <p className="mt-1 text-[12.5px] leading-snug text-foreground">
+            <p className="mt-1 text-xs leading-snug text-foreground">
               {GATE_STEP_LABELS[g].replace(/^L[0-9.]+\s/, "")}
             </p>
           </li>

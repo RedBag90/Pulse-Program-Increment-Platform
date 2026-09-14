@@ -18,6 +18,7 @@ import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { EPIC_TYPES, HORIZONS } from "@/modules/work/domain/portfolio-guardrails";
 import { matchesQuery } from "@/modules/work/lib/row-filter";
+import { Page, PageHeader } from "@/components/layout";
 
 interface Props {
   model: EpicsListModel;
@@ -154,20 +155,21 @@ export function EpicsListShell({ model, canEdit, canSelect, tenantId }: Props) {
   );
 
   return (
-    <div className="space-y-4 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">Epics</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Das Portfolio-Backlog — Stage Gates, Ökonomie und Freigabe-Status auf einen Blick.
-          </p>
-        </div>
-        {canEdit && (
-          <CreateEpicDialog
-            valueStreams={model.valueStreamOptions.map((v) => ({ id: v.id, name: v.name }))}
-          />
-        )}
-      </header>
+    // `Page` und `PageHeader` statt eigener `p-6`-Huelle und eigener `h1`:
+    // damit kommen Seitenrand und vertikaler Rhythmus aus den Layout-Tokens
+    // (`docs/design-tokens.md`) und nicht aus vier Klassen an dieser Stelle.
+    <Page>
+      <PageHeader
+        title="Epics"
+        subtitle="Das Portfolio-Backlog — Stage Gates, Ökonomie und Freigabe-Status auf einen Blick."
+        {...(canEdit && {
+          actions: (
+            <CreateEpicDialog
+              valueStreams={model.valueStreamOptions.map((v) => ({ id: v.id, name: v.name }))}
+            />
+          ),
+        })}
+      />
 
       <EpicsFunnelBar
         counts={model.funnelCounts}
@@ -211,7 +213,7 @@ export function EpicsListShell({ model, canEdit, canSelect, tenantId }: Props) {
       />
 
       {canSelect && <EpicsBulkActionBar selectedRows={selectedRows} onClear={clearSelected} />}
-    </div>
+    </Page>
   );
 }
 

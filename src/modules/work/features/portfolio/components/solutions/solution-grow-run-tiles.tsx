@@ -25,7 +25,7 @@ export function SolutionGrowRunTiles({
 
   return (
     <section className="grid gap-4 md:grid-cols-3">
-      <div className="rounded-lg border bg-card p-4">
+      <div className="rounded-lg bg-card p-4 shadow-card">
         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Grow · aktive Primär-Epics
         </div>
@@ -35,7 +35,7 @@ export function SolutionGrowRunTiles({
         <div className="text-xs text-muted-foreground">Σ Umsetzungskosten (Stage &lt; L5)</div>
       </div>
 
-      <div className="rounded-lg border bg-card p-4">
+      <div className="rounded-lg bg-card p-4 shadow-card">
         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Run · Betrieb p.a.
         </div>
@@ -49,7 +49,7 @@ export function SolutionGrowRunTiles({
         </div>
       </div>
 
-      <div className="rounded-lg border bg-card p-4">
+      <div className="rounded-lg bg-card p-4 shadow-card">
         <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           <span>Grow : Run</span>
           {run != null && (

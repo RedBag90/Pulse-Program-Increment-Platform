@@ -74,7 +74,7 @@ export function LinkList({
           {items.map((it) => (
             <li
               key={it.key}
-              className="flex items-center gap-2 rounded-md border bg-card px-2 py-1.5 text-xs"
+              className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5 text-xs"
             >
               <div className="min-w-0 flex-1">
                 {it.href ? (
@@ -85,7 +85,7 @@ export function LinkList({
                   <span className="block truncate font-medium">{it.label}</span>
                 )}
                 {it.subtitle && (
-                  <p className="truncate text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <p className="truncate text-label uppercase tracking-[0.1em] text-muted-foreground">
                     {it.subtitle}
                   </p>
                 )}
@@ -97,7 +97,7 @@ export function LinkList({
                   onClick={() => onRemove(it.key)}
                   disabled={removePending}
                   aria-label={it.removeLabel}
-                  className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  className="grid size-5 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
                 >
                   ✕
                 </button>

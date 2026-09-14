@@ -46,7 +46,7 @@ function Ring({ value, status }: { value: number; status: string | null }) {
         x="17"
         y="20.5"
         textAnchor="middle"
-        className="fill-foreground font-mono text-[9px] font-semibold"
+        className="fill-foreground font-mono text-label font-semibold"
       >
         {Math.round(value * 100)}
       </text>
@@ -78,7 +78,7 @@ function GoalCard({
     <div>
       <div
         className={cn(
-          "flex items-center gap-3 rounded-xl border bg-card p-2.5 shadow-sm transition-shadow hover:shadow-md",
+          "flex items-center gap-3 rounded-lg bg-card shadow-card p-2.5 shadow-sm transition-shadow hover:shadow-md",
           depth === 0 && "border-l-4",
         )}
         style={depth === 0 ? { borderLeftColor: goalStatusColor(node.status) } : undefined}
@@ -89,7 +89,7 @@ function GoalCard({
             onClick={() => onToggle(node.id)}
             aria-expanded={isOpen}
             aria-label={isOpen ? "Einklappen" : "Ausklappen"}
-            className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="grid size-5 shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <ChevronDown className={cn("size-4 transition-transform", !isOpen && "-rotate-90")} />
           </button>
@@ -103,7 +103,7 @@ function GoalCard({
           className="min-w-0 flex-1 hover:underline"
         >
           <div className="truncate text-sm font-medium">{node.title}</div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-meta text-muted-foreground">
             <GoalStatusPill status={node.status} />
             {tf && <span>{goalTimeframeLabel(tf)}</span>}
             {hasKids && (
@@ -116,7 +116,7 @@ function GoalCard({
         {owner && (
           <span
             title={owner}
-            className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary"
+            className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 text-label font-semibold text-primary"
           >
             {goalInitials(owner)}
           </span>
@@ -171,7 +171,7 @@ export function StrategyAlignmentView({
 
   if (themes.length === 0) {
     return (
-      <div className="grid h-56 place-items-center rounded-xl border border-dashed bg-card text-sm text-muted-foreground">
+      <div className="grid h-56 place-items-center rounded-lg border border-dashed bg-card text-sm text-muted-foreground">
         Noch keine Ziele im Scope.
       </div>
     );

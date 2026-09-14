@@ -41,7 +41,7 @@ export function Sidebar({ userEmail, visibleHrefs }: SidebarProps) {
         {groups.map((group, groupIdx) => (
           <div key={group.labelKey}>
             {groupIdx > 0 && <Separator className="my-3 bg-sidebar-border" />}
-            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">
+            <p className="px-3 mb-1.5 text-label font-semibold uppercase tracking-[0.1em] text-sidebar-foreground/40">
               {t(group.labelKey)}
             </p>
             <div className="space-y-0.5">

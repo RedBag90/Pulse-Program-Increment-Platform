@@ -20,6 +20,7 @@ import {
   type BoardMatrix,
 } from "@/modules/drumbeat/domain/board-matrix";
 import { FEATURE_STATUS_LABELS } from "@/modules/drumbeat/domain/status";
+import { FEATURE_STATUS_LANE } from "@/modules/drumbeat/features/lib/status-badges";
 import { MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -77,11 +78,19 @@ interface LaneDef {
 }
 
 const LANES: ReadonlyArray<LaneDef> = [
-  // Lane-Tint spiegelt den kanonischen Status-Hue (wie FEATURE_STATUS_DOT / Badges).
-  { value: "approved", label: FEATURE_STATUS_LABELS.approved, color: "bg-indigo-50" },
-  { value: "in_progress", label: FEATURE_STATUS_LABELS.in_progress, color: "bg-amber-50" },
-  { value: "blocked", label: FEATURE_STATUS_LABELS.blocked, color: "bg-red-50" },
-  { value: "completed", label: FEATURE_STATUS_LABELS.completed, color: "bg-emerald-50" },
+  // Lane-Tint kommt aus der Status-Registry — nicht mehr als Kopie hier.
+  { value: "approved", label: FEATURE_STATUS_LABELS.approved, color: FEATURE_STATUS_LANE.approved },
+  {
+    value: "in_progress",
+    label: FEATURE_STATUS_LABELS.in_progress,
+    color: FEATURE_STATUS_LANE.in_progress,
+  },
+  { value: "blocked", label: FEATURE_STATUS_LABELS.blocked, color: FEATURE_STATUS_LANE.blocked },
+  {
+    value: "completed",
+    label: FEATURE_STATUS_LABELS.completed,
+    color: FEATURE_STATUS_LANE.completed,
+  },
 ];
 
 const HIGHLIGHT_DROP = ["ring-2", "ring-primary/60"];
@@ -254,7 +263,7 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
             >
               <div className="flex items-baseline justify-between gap-2">
                 <span>{p.name}</span>
-                <span className="text-[10px] text-muted-foreground">{p.featureCount}</span>
+                <span className="text-label text-muted-foreground">{p.featureCount}</span>
               </div>
             </div>
           );
@@ -357,8 +366,8 @@ function LaneRow({
             className={`min-h-20 space-y-1.5 rounded-md p-1.5 transition-shadow ${lane.color}`}
           >
             {cell.length === 0 ? (
-              <div className="grid h-16 place-items-center rounded border border-dashed border-border/40">
-                <span className="text-[10px] text-muted-foreground/50">leer</span>
+              <div className="grid h-16 place-items-center rounded-md border border-dashed border-border/40">
+                <span className="text-label text-muted-foreground/50">leer</span>
               </div>
             ) : (
               cell.map((f) => (
@@ -397,7 +406,7 @@ function FeatureMoveMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={`${feature.title} verschieben`}
-        className="absolute right-1 top-1 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/card:opacity-100"
+        className="absolute right-1 top-1 rounded-sm p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 group-hover/card:opacity-100"
       >
         <MoreVertical className="size-3.5" />
       </DropdownMenuTrigger>

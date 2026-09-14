@@ -83,7 +83,7 @@ export function ProjectMappingForm({
               onChange={(e) => handleChange(art.id, e.target.value)}
               placeholder={placeholder}
               maxLength={80}
-              className={`w-48 rounded-md border border-input bg-card px-3 py-1.5 text-sm font-mono shadow-xs focus:outline-none focus:ring-2 focus:ring-ring ${
+              className={`w-48 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-mono shadow-xs focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 ${
                 uppercase ? "uppercase" : ""
               }`}
             />
@@ -94,7 +94,7 @@ export function ProjectMappingForm({
         <Button type="button" size="sm" disabled={pending} onClick={handleSave}>
           {pending ? "Speichert…" : "Mappings speichern"}
         </Button>
-        {saved && <span className="text-xs text-emerald-700">Gespeichert.</span>}
+        {saved && <span className="text-xs text-success">Gespeichert.</span>}
         {error && (
           <span role="alert" className="text-xs text-destructive">
             {error}

@@ -34,7 +34,7 @@ import {
 import { LEVEL_LABELS, CATEGORY_LABELS } from "@/modules/risks/features/risk/components/labels";
 
 const SELECT =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 const initial: ActionState = {};
 
@@ -338,7 +338,7 @@ function MitigationSection({ issue, canEdit }: { issue: IssueListRow; canEdit: b
         {issue.mitigations.map((m) => (
           <li
             key={m.id}
-            className="flex items-start justify-between gap-2 rounded border px-2 py-1 text-sm"
+            className="flex items-start justify-between gap-2 rounded-md border px-2 py-1 text-sm"
           >
             <span>{m.description}</span>
             {canEdit && (
@@ -389,7 +389,7 @@ function LinkSection({
   return (
     <Section title="Verknüpftes Arbeitselement">
       {issue.initiative ? (
-        <div className="flex items-center justify-between gap-2 rounded border px-2 py-1 text-sm">
+        <div className="flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-sm">
           <span>
             {issue.initiative.title}
             <span className="ml-1 text-xs text-muted-foreground">

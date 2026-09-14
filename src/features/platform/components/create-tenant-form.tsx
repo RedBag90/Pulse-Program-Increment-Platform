@@ -36,7 +36,7 @@ export function CreateTenantForm() {
   }
 
   return (
-    <form action={action} className="space-y-3 rounded-lg border bg-card p-4">
+    <form action={action} className="space-y-3 rounded-lg bg-card shadow-card p-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Neue Organisation anlegen</h3>
         <button
@@ -59,7 +59,7 @@ export function CreateTenantForm() {
             required
             minLength={2}
             placeholder="Acme GmbH"
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
         </div>
         <div>
@@ -70,7 +70,7 @@ export function CreateTenantForm() {
             id="ct-region"
             name="region"
             defaultValue="eu"
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <option value="eu">EU</option>
             <option value="us">US</option>
@@ -89,7 +89,7 @@ export function CreateTenantForm() {
           type="email"
           required
           placeholder="admin@acme.de"
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
         <p className="mt-1 text-xs text-muted-foreground">
           Existiert der Account, wird die Rolle direkt vergeben — sonst eine Einladung versendet.

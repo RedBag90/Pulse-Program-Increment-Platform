@@ -63,7 +63,7 @@ export function GoalTreePicker({
           type="button"
           onClick={() => onChange("")}
           className={cn(
-            "flex w-full items-center rounded px-2 py-1 text-left text-sm hover:bg-muted",
+            "flex w-full items-center rounded-md px-2 py-1 text-left text-sm hover:bg-muted",
             value === "" && "bg-primary/10 font-medium",
           )}
         >
@@ -87,7 +87,7 @@ export function GoalTreePicker({
         ))}
       </div>
       {selectedName && (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-meta text-muted-foreground">
           Gewählt: <span className="font-medium text-foreground">{selectedName}</span>
         </p>
       )}
@@ -121,7 +121,7 @@ function PickerRows({
             onClick={() => toggle(node.id)}
             aria-expanded={isOpen}
             aria-label={isOpen ? "Einklappen" : "Ausklappen"}
-            className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="grid size-5 shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <ChevronRight className={cn("size-3.5 transition-transform", isOpen && "rotate-90")} />
           </button>
@@ -132,7 +132,7 @@ function PickerRows({
           type="button"
           onClick={() => onChange(node.id)}
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-2 rounded px-1.5 py-1 text-left text-sm hover:bg-muted",
+            "flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm hover:bg-muted",
             value === node.id && "bg-primary/10 font-medium",
           )}
         >

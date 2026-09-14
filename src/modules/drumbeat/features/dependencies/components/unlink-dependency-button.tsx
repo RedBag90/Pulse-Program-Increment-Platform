@@ -20,7 +20,7 @@ export function UnlinkDependencyButton({ fromId, toId, type, artId }: Props) {
       <input type="hidden" name="toId" value={toId} />
       <input type="hidden" name="type" value={type} />
       <input type="hidden" name="artId" value={artId} />
-      {state.error && <span className="text-[10px] text-destructive">{state.error}</span>}
+      {state.error && <span className="text-label text-destructive">{state.error}</span>}
       <button
         type="submit"
         disabled={isPending}

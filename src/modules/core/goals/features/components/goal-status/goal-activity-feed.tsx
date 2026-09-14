@@ -61,7 +61,7 @@ export function GoalActivityFeed({ target, id, activity, userLabels, canComment 
 
   return (
     <section className="space-y-3">
-      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 className="text-sm font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         Aktivität
       </h3>
 
@@ -72,7 +72,7 @@ export function GoalActivityFeed({ target, id, activity, userLabels, canComment 
             onChange={(e) => setBody(e.target.value)}
             rows={2}
             placeholder="Frage stellen oder Kommentar hinterlassen…"
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
           <div className="flex items-center justify-between">
             {state.error && <span className="text-xs text-destructive">{state.error}</span>}
@@ -106,7 +106,7 @@ export function GoalActivityFeed({ target, id, activity, userLabels, canComment 
                   {who && <span className="font-medium text-foreground">{who}</span>}{" "}
                   <span className="text-muted-foreground">{actionLabel(e.action)}</span>
                   {detail && (
-                    <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                    <span className="ml-1 rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                       {detail}
                     </span>
                   )}

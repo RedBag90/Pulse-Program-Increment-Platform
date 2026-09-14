@@ -106,7 +106,10 @@ function AddMemberForm({ tenantId }: { tenantId: string }) {
   }, [state, router]);
 
   return (
-    <form action={action} className="flex flex-wrap items-end gap-2 rounded-lg border bg-card p-3">
+    <form
+      action={action}
+      className="flex flex-wrap items-end gap-2 rounded-lg bg-card shadow-card p-3"
+    >
       <input type="hidden" name="tenantId" value={tenantId} />
       <div className="min-w-48 flex-1">
         <label htmlFor="am-email" className="mb-1 block text-xs font-medium">
@@ -118,7 +121,7 @@ function AddMemberForm({ tenantId }: { tenantId: string }) {
           type="email"
           required
           placeholder="kolleg:in@firma.de"
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>
       <div>
@@ -129,7 +132,7 @@ function AddMemberForm({ tenantId }: { tenantId: string }) {
           id="am-role"
           name="role"
           defaultValue={ROLES.TENANT_ADMIN}
-          className="rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           {(Object.values(ROLES) as Role[])
             .filter((r) => r !== ROLES.PLATFORM_ADMIN)

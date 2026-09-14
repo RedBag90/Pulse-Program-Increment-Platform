@@ -119,9 +119,9 @@ export function StrategyNetworkView({ themes, userLabels = {} }: Props) {
           onClick={() => setOffTrackOnly((v) => !v)}
           aria-pressed={offTrackOnly}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors",
+            "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-meta font-medium transition-colors",
             offTrackOnly
-              ? "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-200"
+              ? "border-amber-300 bg-warning-surface text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-200"
               : "bg-card text-muted-foreground hover:bg-muted",
           )}
         >
@@ -131,23 +131,23 @@ export function StrategyNetworkView({ themes, userLabels = {} }: Props) {
           <button
             type="button"
             onClick={collapseAll}
-            className="rounded-md border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
+            className="rounded-md border bg-background px-2.5 py-1 text-meta font-medium text-muted-foreground hover:bg-muted"
           >
             Alle einklappen
           </button>
           <button
             type="button"
             onClick={expandAll}
-            className="rounded-md border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
+            className="rounded-md border bg-background px-2.5 py-1 text-meta font-medium text-muted-foreground hover:bg-muted"
           >
             Alle ausklappen
           </button>
         </div>
       </div>
       {offTrackOnly && nodes.length === 0 && (
-        <p className="text-[11px] text-muted-foreground">Keine off-track-Ziele.</p>
+        <p className="text-meta text-muted-foreground">Keine off-track-Ziele.</p>
       )}
-      <div className="h-[680px] overflow-hidden rounded-lg border bg-card">
+      <div className="h-[680px] overflow-hidden rounded-lg bg-card shadow-card">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -202,10 +202,10 @@ function StrategyNode({ data }: NodeProps) {
             open();
           }
         }}
-        className={`flex h-full w-full cursor-pointer flex-col gap-1.5 rounded-xl p-3 text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-ring ${tierStyle[d.tier]}`}
+        className={`flex h-full w-full cursor-pointer flex-col gap-1.5 rounded-lg p-3 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 ${tierStyle[d.tier]}`}
         style={d.tier === "theme" ? { borderLeftColor: d.accent } : undefined}
       >
-        <header className="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <header className="flex items-center justify-between gap-2 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           <span className="flex items-center gap-1">
             {d.hasChildren && (
               <button
@@ -216,7 +216,7 @@ function StrategyNode({ data }: NodeProps) {
                   e.stopPropagation();
                   d.onToggle(d.goalId);
                 }}
-                className="grid size-4 place-items-center rounded border text-[10px] leading-none hover:bg-muted"
+                className="grid size-4 place-items-center rounded-sm border text-label leading-none hover:bg-muted"
               >
                 {d.collapsed ? "▸" : "▾"}
               </button>
@@ -226,7 +226,7 @@ function StrategyNode({ data }: NodeProps) {
           <span className="flex items-center gap-1">
             {d.collapsed && d.descendantCount > 0 && (
               <span
-                className="rounded-full bg-primary/15 px-1 py-0.5 text-[9px] font-semibold text-primary"
+                className="rounded-full bg-primary/15 px-1 py-0.5 text-label font-semibold text-primary"
                 title={`${d.descendantCount} verborgene Nachfahren`}
               >
                 +{d.descendantCount}
@@ -234,7 +234,7 @@ function StrategyNode({ data }: NodeProps) {
             )}
             {d.atRisk && (
               <span
-                className="rounded-full bg-amber-100 px-1 py-0.5 text-[9px] font-semibold text-amber-800"
+                className="rounded-full bg-warning-surface px-1 py-0.5 text-label font-semibold text-warning"
                 title="Run-Rate < 70 % vom Planned"
               >
                 ⚠
@@ -242,12 +242,12 @@ function StrategyNode({ data }: NodeProps) {
             )}
           </span>
         </header>
-        <p className="line-clamp-2 text-[12px] font-semibold leading-tight">{d.title}</p>
+        <p className="line-clamp-2 text-xs font-semibold leading-tight">{d.title}</p>
         <div>
           <GoalStatusPill status={d.status} />
         </div>
         <ProgressBar value={d.progress} />
-        <footer className="mt-auto flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+        <footer className="mt-auto flex items-center justify-between gap-2 text-label text-muted-foreground">
           <span className="truncate">
             {d.subgoalCount > 0 && `${d.subgoalCount} subgoal${d.subgoalCount === 1 ? "" : "s"}`}
             {d.subgoalCount > 0 && d.periodLabel && " · "}
@@ -255,7 +255,7 @@ function StrategyNode({ data }: NodeProps) {
           </span>
           {d.ownerInitial && (
             <span
-              className="grid size-5 shrink-0 place-items-center rounded-full bg-primary/15 text-[10px] font-semibold text-primary"
+              className="grid size-5 shrink-0 place-items-center rounded-full bg-primary/15 text-label font-semibold text-primary"
               title={d.ownerLabel || "Owner"}
             >
               {d.ownerInitial}
@@ -284,7 +284,7 @@ function ProgressBar({ value }: { value: number }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+      <span className="w-9 shrink-0 text-right text-meta tabular-nums text-muted-foreground">
         {pct} %
       </span>
     </div>

@@ -78,7 +78,7 @@ export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) 
 
   return (
     <div className="space-y-6">
-      <section className="space-y-3 rounded-lg border bg-card p-4">
+      <section className="space-y-3 rounded-lg bg-card p-4 shadow-card">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Timeline</p>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <h2 className="font-heading text-lg font-medium">{timeline.name}</h2>
@@ -95,7 +95,7 @@ export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) 
         {canManage && <EditTimelineForm timelineId={timeline.id} name={timeline.name} />}
       </section>
 
-      <section className="space-y-3 rounded-lg border bg-card p-4">
+      <section className="space-y-3 rounded-lg bg-card p-4 shadow-card">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <h2 className="font-heading text-sm font-medium">Program Increments</h2>
           {canManage && (
@@ -134,7 +134,7 @@ export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) 
               return (
                 <li
                   key={pi.id}
-                  className="flex items-center gap-3 rounded-md border bg-card px-3 py-1.5 text-sm"
+                  className="flex items-center gap-3 rounded-md bg-card px-3 py-1.5 text-sm shadow-card"
                 >
                   <Calendar className="size-3.5 text-muted-foreground" />
                   <span className="flex-1 font-medium">{pi.name}</span>
@@ -142,11 +142,11 @@ export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) 
                     {pi.startDate} → {pi.endDate}
                   </span>
                   <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-meta ${
                       pi.status === "active"
                         ? "bg-primary/10 text-primary"
                         : pi.status === "completed"
-                          ? "bg-emerald-50 text-emerald-700"
+                          ? "bg-success-surface text-success"
                           : "bg-muted text-muted-foreground"
                     }`}
                   >
@@ -173,7 +173,7 @@ export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) 
         )}
       </section>
 
-      <section className="space-y-3 rounded-lg border bg-card p-4">
+      <section className="space-y-3 rounded-lg bg-card p-4 shadow-card">
         <h2 className="font-heading text-sm font-medium">Kalender</h2>
         <TimelineCalendar
           pis={timeline.pis}
@@ -200,7 +200,7 @@ export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) 
         />
       )}
 
-      <section className="space-y-3 rounded-lg border bg-card p-4">
+      <section className="space-y-3 rounded-lg bg-card p-4 shadow-card">
         <h2 className="font-heading text-sm font-medium">Verknüpfte ARTs</h2>
         {timeline.subscribedArts.length === 0 ? (
           <p className="text-sm text-muted-foreground">
@@ -211,7 +211,7 @@ export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) 
             {timeline.subscribedArts.map((art) => (
               <li
                 key={art.id}
-                className="flex items-center gap-2 rounded-md border bg-card px-3 py-1.5"
+                className="flex items-center gap-2 rounded-md bg-card px-3 py-1.5 shadow-card"
               >
                 <Link
                   href={nodeHref("art", art.id)}
@@ -231,7 +231,7 @@ export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) 
       </section>
 
       {canManage && timeline.unassignedArts.length > 0 && (
-        <section className="space-y-3 rounded-lg border bg-card p-4">
+        <section className="space-y-3 rounded-lg bg-card p-4 shadow-card">
           <h2 className="font-heading text-sm font-medium">ART hinzufügen</h2>
           <JoinArtToTimelineControl
             timelineId={timeline.id}

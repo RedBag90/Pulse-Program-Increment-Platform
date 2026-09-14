@@ -125,14 +125,14 @@ function RoleDetailPane({ role, canManage }: { role: RoleView; canManage: boolea
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border bg-card p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg bg-card shadow-card p-4">
         <div>
           <h2 className="text-lg font-semibold">{role.label}</h2>
           <p className="text-xs text-muted-foreground">
             {role.grantedCount} Capabilities aktiv · Default-Bundle: {role.defaultCount}
           </p>
           {hasDiff && (
-            <p className="mt-1 text-xs text-amber-700">
+            <p className="mt-1 text-xs text-warning">
               Δ vs. Default: +{role.diffFromDefault.added} hinzugefügt · −
               {role.diffFromDefault.removed} entzogen · {role.diffFromDefault.scopeChanged} Scope
               geändert
@@ -157,8 +157,8 @@ function RoleDetailPane({ role, canManage }: { role: RoleView; canManage: boolea
           const rows = role.capabilities.filter((c) => domain.actions.includes(c.action));
           if (rows.length === 0) return null;
           return (
-            <div key={domain.key} className="overflow-hidden rounded-lg border bg-card">
-              <div className="border-b bg-muted/40 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div key={domain.key} className="overflow-hidden rounded-lg bg-card shadow-card">
+              <div className="border-b bg-muted/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                 {domain.label}
               </div>
               <ul className="divide-y">
@@ -227,24 +227,26 @@ function CapabilityRow({ role, row, canManage }: CapabilityRowProps) {
           checked={row.granted}
           disabled={!canManage || pending}
           onChange={(e) => (e.target.checked ? grant(scopeDraft) : revoke())}
-          className="size-4 rounded border-border"
+          className="size-4 rounded-sm border-border"
         />
-        <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">{row.action}</code>
+        <code className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-meta">{row.action}</code>
         {isAdded && (
-          <span className="rounded-full bg-emerald-100 px-1.5 text-[10px] text-emerald-700">+</span>
+          <span className="rounded-full bg-success-surface px-1.5 text-label text-success">+</span>
         )}
         {isRemoved && (
-          <span className="rounded-full bg-red-100 px-1.5 text-[10px] text-red-700">−</span>
+          <span className="rounded-full bg-destructive-surface px-1.5 text-label text-destructive">
+            −
+          </span>
         )}
         {isDirty && (
-          <span className="rounded-full bg-amber-100 px-1.5 text-[10px] text-amber-700">
+          <span className="rounded-full bg-warning-surface px-1.5 text-label text-warning">
             Δ scope
           </span>
         )}
       </label>
 
       {row.isDefault && (
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-meta text-muted-foreground">
           Default: {SCOPE_LABELS[row.defaultScope ?? "global"]}
         </span>
       )}
@@ -258,7 +260,7 @@ function CapabilityRow({ role, row, canManage }: CapabilityRowProps) {
             if (row.granted) grant(v);
           }}
           disabled={!canManage || pending}
-          className="rounded-md border border-input bg-card px-2 py-1 text-xs"
+          className="rounded-md border border-input bg-background px-2 py-1 text-xs"
         >
           {SCOPE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -267,7 +269,7 @@ function CapabilityRow({ role, row, canManage }: CapabilityRowProps) {
           ))}
         </select>
         {setState.success && (
-          <CheckCircle2 className="size-3.5 text-emerald-600" aria-label="Gespeichert" />
+          <CheckCircle2 className="size-3.5 text-success" aria-label="Gespeichert" />
         )}
       </div>
 

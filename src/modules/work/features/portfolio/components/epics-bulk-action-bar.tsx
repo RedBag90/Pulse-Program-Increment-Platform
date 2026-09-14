@@ -32,7 +32,10 @@ export function EpicsBulkActionBar({ selectedRows, onClear }: Props) {
 
   return (
     <div className="pointer-events-none sticky bottom-4 z-30 flex justify-center px-4">
-      <div className="pointer-events-auto flex w-full max-w-3xl items-center gap-3 rounded-full border bg-card px-4 py-2 shadow-lg">
+      {/* Schwebende Flaeche: `shadow-lg` (seit ADR-0021 getokent, vorher Tailwinds
+          hartes Schwarz) plus die Haarlinie als Ring — dasselbe Idiom wie
+          `Popover` und `DropdownMenu`, statt eines Rahmens. */}
+      <div className="pointer-events-auto flex w-full max-w-3xl items-center gap-3 rounded-full bg-card px-4 py-2 shadow-lg ring-1 ring-foreground/10">
         <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground tabular-nums">
           {selectedRows.length} ausgewählt
         </span>

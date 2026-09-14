@@ -28,7 +28,7 @@ export function inline(text: string): ReactNode[] {
       out.push(
         <code
           key={k++}
-          className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em] text-foreground"
+          className="rounded-sm bg-muted px-1 py-0.5 font-mono text-code text-foreground"
         >
           {m[2]}
         </code>,

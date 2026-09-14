@@ -140,7 +140,7 @@ export function GuardrailTargetsForm({ targets }: Props) {
               max={365}
               onChange={(v) => setEngagement("responseDays", v)}
             />
-            <p className="pt-1 text-[11px] text-muted-foreground">keine Summenregel</p>
+            <p className="pt-1 text-meta text-muted-foreground">keine Summenregel</p>
           </fieldset>
 
           <fieldset className="space-y-2 rounded-md border p-3">
@@ -155,13 +155,13 @@ export function GuardrailTargetsForm({ targets }: Props) {
               max={100_000_000}
               onChange={setThreshold}
             />
-            <p className="pt-1 text-[11px] text-muted-foreground">
+            <p className="pt-1 text-meta text-muted-foreground">
               Ab dieser Größe entscheidet das Portfolio. Darunter finanziert der ART.
             </p>
           </fieldset>
         </div>
         {!validation.ok && (
-          <p role="alert" className="text-sm text-amber-700">
+          <p role="alert" className="text-sm text-warning">
             {validation.reason}
           </p>
         )}
@@ -171,7 +171,7 @@ export function GuardrailTargetsForm({ targets }: Props) {
           </p>
         )}
         {state.success && (
-          <p role="status" className="text-sm text-emerald-700">
+          <p role="status" className="text-sm text-success">
             Targets gespeichert.
           </p>
         )}
@@ -188,7 +188,7 @@ function SumHint({ sum }: { sum: number }) {
   const ok = Math.abs(sum - 100) <= 0.5;
   return (
     <p
-      className={`pt-1 font-mono text-[11px] tabular-nums ${
+      className={`pt-1 font-mono text-meta tabular-nums ${
         ok ? "text-muted-foreground" : "text-amber-700 dark:text-amber-400"
       }`}
     >

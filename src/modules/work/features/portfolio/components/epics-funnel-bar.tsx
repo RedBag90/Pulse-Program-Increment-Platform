@@ -16,22 +16,34 @@ interface Props {
   onGateChange: (gate: StageGate | null) => void;
 }
 
+/**
+ * **Ein Farbton, steigende Dichte** — statt eines Regenbogens über die
+ * Stufennummer.
+ *
+ * Bis September 2026 war L1 Amber, L2 Blau, L3 Indigo, L5 Emerald. Das liest
+ * sich wie eine Kategorie („blau ist etwas anderes als grün"), gemeint ist
+ * aber eine **Reihenfolge**: je weiter rechts, desto reifer das Vorhaben. Eine
+ * Sättigungsleiter auf `--primary` sagt genau das — und sie trägt in beiden
+ * Themen, weil sie aus einem Token kommt statt aus acht Palettenwerten
+ * (ADR-0021).
+ */
 const SEGMENT_BG: Record<StageGate, string> = {
-  L0: "bg-muted/40",
-  L1: "bg-amber-50",
-  L2: "bg-blue-50",
-  L3: "bg-indigo-50",
-  L4: "bg-primary/10",
-  L5: "bg-emerald-50",
+  L0: "bg-primary/[0.04]",
+  L1: "bg-primary/[0.07]",
+  L2: "bg-primary/10",
+  L3: "bg-primary/[0.14]",
+  L4: "bg-primary/[0.18]",
+  L5: "bg-primary/[0.22]",
 };
 
+/** Ausgewählt ist ausgewählt — die Stufe steht schon in der Beschriftung. */
 const SEGMENT_ACTIVE: Record<StageGate, string> = {
-  L0: "bg-muted-foreground/30 text-foreground",
-  L1: "bg-amber-200 text-amber-900",
-  L2: "bg-blue-200 text-blue-900",
-  L3: "bg-indigo-200 text-indigo-900",
+  L0: "bg-primary text-primary-foreground",
+  L1: "bg-primary text-primary-foreground",
+  L2: "bg-primary text-primary-foreground",
+  L3: "bg-primary text-primary-foreground",
   L4: "bg-primary text-primary-foreground",
-  L5: "bg-emerald-200 text-emerald-900",
+  L5: "bg-primary text-primary-foreground",
 };
 
 /**
@@ -77,7 +89,7 @@ export function EpicsFunnelBar({ counts, subStageCounts, activeGate, onGateChang
                 title={STAGE_GATE_LABELS[gate] ?? gate}
               >
                 <span className="truncate">{STAGE_GATE_LABELS[gate] ?? gate}</span>
-                <span className="shrink-0 rounded-full bg-background/60 px-1.5 text-[10px] tabular-nums">
+                <span className="shrink-0 rounded-full bg-background/60 px-1.5 text-label tabular-nums">
                   {count}
                 </span>
               </button>
@@ -87,7 +99,7 @@ export function EpicsFunnelBar({ counts, subStageCounts, activeGate, onGateChang
                     <span
                       key={s}
                       title={`${s} ${SUB_STAGE_LABELS[s]}`}
-                      className="flex flex-1 items-center justify-between gap-1 rounded bg-background/40 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                      className="flex flex-1 items-center justify-between gap-1 rounded-md bg-background/40 px-1.5 py-0.5 text-label text-muted-foreground"
                     >
                       <span className="truncate">{s}</span>
                       <span className="tabular-nums">{subStageCounts[s] ?? 0}</span>

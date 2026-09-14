@@ -97,14 +97,14 @@ function Option({
       type="button"
       onClick={() => onPick(status)}
       aria-pressed={active}
-      className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted ${
+      className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted ${
         active ? "bg-muted font-medium" : ""
       }`}
     >
       <span aria-hidden className={`size-1.5 rounded-full ${DOT_CLS[GOAL_STATUS_TIER[status]]}`} />
       {GOAL_STATUS_LABELS[status]}
       {suggested && (
-        <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
+        <span className="ml-auto text-label uppercase tracking-[0.1em] text-muted-foreground">
           Vorschlag
         </span>
       )}

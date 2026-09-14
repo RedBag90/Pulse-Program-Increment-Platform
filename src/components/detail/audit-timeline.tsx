@@ -41,7 +41,7 @@ export function AuditTimeline({ events }: { events: AuditTimelineItem[] }) {
     return <p className="text-sm text-muted-foreground">Keine Historie.</p>;
   }
   return (
-    <ul className="divide-y rounded border">
+    <ul className="divide-y rounded-lg border">
       {events.map((e) => (
         <li key={e.id} className="flex items-center gap-3 px-3 py-2 text-sm">
           <span className="font-medium">{actionLabel(e.action)}</span>

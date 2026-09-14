@@ -134,7 +134,7 @@ export function PortfolioFilterBar({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2.5 shadow-xs">
+    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-card p-2.5 shadow-card">
       <MultiSelectFilter
         label="Wertstrom"
         sections={vsSections}

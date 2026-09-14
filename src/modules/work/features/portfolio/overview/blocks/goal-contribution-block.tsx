@@ -66,7 +66,7 @@ function ValueCell({ values, emphasis }: { values: UnitValue[]; emphasis: Emphas
     return <span className="text-muted-foreground">—</span>;
   }
   const cls = (which: ContributionMode) =>
-    emphasis === which ? "font-medium" : "text-[10px] text-muted-foreground";
+    emphasis === which ? "font-medium" : "text-label text-muted-foreground";
   return (
     <div className="space-y-0.5 tabular-nums">
       {values.map((v, i) => (
@@ -151,7 +151,7 @@ function StreamCell({ row }: { row: ContributionRow }) {
     <div className="min-w-0">
       <div className="truncate text-muted-foreground">{row.valueStreamName ?? "—"}</div>
       {row.solution && (
-        <div className="truncate text-[10px] text-muted-foreground/80">{row.solution.name}</div>
+        <div className="truncate text-label text-muted-foreground/80">{row.solution.name}</div>
       )}
     </div>
   );
@@ -175,12 +175,12 @@ function SolutionRow({
     <tr className="border-b last:border-0">
       <td className={`px-3 py-2 font-medium ${tone}`}>
         {rollup.group.name}
-        <span className="ml-2 font-mono text-[10px] font-normal opacity-80">
+        <span className="ml-2 font-mono text-label font-normal opacity-80">
           {rollup.group.count} zusammengefasst
         </span>
       </td>
       <td className={`px-3 py-2 ${tone}`} />
-      <td className={`px-3 py-2 text-[10px] ${tone}`}>{classFilter.hiddenLabel}</td>
+      <td className={`px-3 py-2 text-label ${tone}`}>{classFilter.hiddenLabel}</td>
       <td className={`px-3 py-2 text-right ${tone}`}>
         <ValueCell values={rollup.recurring} emphasis={emphasis} />
       </td>
@@ -300,7 +300,7 @@ export function GoalContributionBlock({
       <div className="flex items-center justify-between gap-2">
         <SectionLabel>Epic-Beitrag zu Kopf-Zielen</SectionLabel>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
             sortiert nach
           </span>
           <ToggleGroup
@@ -308,7 +308,7 @@ export function GoalContributionBlock({
             options={options}
             onChange={pick}
             ariaLabel="Sortierung"
-            className="bg-card text-[11px]"
+            className="bg-card text-meta"
           />
           {sorted.length + rollups.length > 0 && (
             <span className="font-mono text-xs tabular-nums text-muted-foreground">
@@ -326,7 +326,7 @@ export function GoalContributionBlock({
           </Link>
         </p>
       ) : (
-        <div className="max-h-96 overflow-y-auto rounded-lg border bg-card">
+        <div className="max-h-96 overflow-y-auto rounded-lg bg-card shadow-card">
           <table className="w-full border-collapse text-xs">
             <thead className={STICKY_THEAD}>
               <tr>
@@ -386,7 +386,7 @@ export function GoalContributionBlock({
                 <tr className="border-y bg-muted/40">
                   <th
                     colSpan={6}
-                    className="px-3 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                    className="px-3 py-1.5 text-left text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground"
                   >
                     <span className="flex items-center gap-2">
                       <span

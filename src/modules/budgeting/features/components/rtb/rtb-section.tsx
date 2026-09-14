@@ -21,10 +21,10 @@ import {
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 
 const input =
-  "rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+  "rounded-md border border-input bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 const btn =
-  "rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50";
-const btnGhost = "rounded border px-2 py-1 text-xs text-muted-foreground hover:text-foreground";
+  "rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50";
+const btnGhost = "rounded-md border px-2 py-1 text-xs text-muted-foreground hover:text-foreground";
 const EUR = (n: number) => `${Math.round(n).toLocaleString("de-DE")} €`;
 
 export interface RtbItem {
@@ -201,7 +201,7 @@ function RtbGroupTable({
   return (
     <div className="space-y-1.5">
       <div className="flex flex-wrap items-baseline gap-2">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className="text-meta font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           {title}
         </h3>
         <span className="text-xs text-muted-foreground">
@@ -214,7 +214,7 @@ function RtbGroupTable({
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b bg-surface-frame text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+            <tr className="border-b bg-surface-frame text-left text-meta uppercase tracking-[0.1em] text-muted-foreground">
               <th className="px-3 py-2">Position</th>
               {secondCol && <th className="px-3 py-2">{secondCol}</th>}
               <th className="px-3 py-2">Periode</th>
@@ -407,7 +407,7 @@ function RowEditor({
         />
       </div>
 
-      {state.error && <p className="text-xs text-red-600">{state.error}</p>}
+      {state.error && <p className="text-xs text-destructive">{state.error}</p>}
     </div>
   );
 }
@@ -530,7 +530,7 @@ function AddForm({
         </button>
       </div>
 
-      {state.error && <p className="text-xs text-red-600">{state.error}</p>}
+      {state.error && <p className="text-xs text-destructive">{state.error}</p>}
     </form>
   );
 }

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Inbox } from "lucide-react";
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
+import { STICKY_THEAD } from "@/components/ui/table-chrome";
+import { EmptyState } from "@/components/ui/empty-state";
 import { EpicListRowComponent } from "@/modules/work/features/portfolio/components/epic-list-row";
 import type { EpicListRow } from "@/modules/work/server/views/portfolio-epics-list";
 
@@ -49,9 +51,11 @@ export function EpicsListTable({
 }: Props) {
   if (rows.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-        Keine Epics gefunden — Filter anpassen oder neues Epic anlegen.
-      </div>
+      <EmptyState
+        icon={<Inbox className="size-6" />}
+        title="Keine Epics gefunden"
+        body="Für diese Filter gibt es nichts zu zeigen. Passe die Auswahl an — oder lege ein neues Epic an."
+      />
     );
   }
 
@@ -60,17 +64,20 @@ export function EpicsListTable({
     showSelection && rows.length > 0 && rows.every((r) => selectedIds!.has(r.id));
 
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
-      <table className="w-full border-collapse text-sm">
-        <thead className="bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
-          <tr className="border-b">
+    // Karte ueber Elevation (ADR-0021) statt `border`, und `min-w`, damit die
+    // acht Spalten waagerecht scrollen statt sich zu quetschen. Der Kopf klebt:
+    // bei 176 Epics im Bestand war er sonst nach drei Zeilen weg.
+    <div className="overflow-x-auto rounded-lg bg-card shadow-card">
+      <table className="w-full min-w-[56rem] border-collapse text-sm">
+        <thead className={STICKY_THEAD}>
+          <tr>
             {showSelection && (
               <th className="w-8 py-2 pl-3 pr-2">
                 <input
                   type="checkbox"
                   checked={allVisibleSelected}
                   onChange={() => onToggleSelectAll?.(rows.map((r) => r.id))}
-                  className="size-4 rounded border-border"
+                  className="size-4 rounded-sm border-border"
                   aria-label="Alle sichtbaren auswählen"
                 />
               </th>
@@ -161,10 +168,10 @@ function StageGroupedBody({
                   ) : (
                     <ChevronRight className="size-4 text-muted-foreground" />
                   )}
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                     {STAGE_GATE_LABELS[gate] ?? gate}
                   </span>
-                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-meta font-medium tabular-nums text-muted-foreground">
                     {gateRows.length}
                   </span>
                 </button>
@@ -172,7 +179,7 @@ function StageGroupedBody({
             </tr>
             {isOpen && gateRows.length === 0 && (
               <tr className="border-b">
-                <td colSpan={colCount} className="py-2 pl-9 text-xs text-muted-foreground">
+                <td colSpan={colCount} className="py-2 pl-9 text-meta text-muted-foreground">
                   Keine Epics in diesem Gate
                 </td>
               </tr>
@@ -183,7 +190,7 @@ function StageGroupedBody({
                   key={r.id}
                   row={r}
                   canEdit={canEdit}
-                    stageGatesEnabled={stageGatesEnabled}
+                  stageGatesEnabled={stageGatesEnabled}
                   selected={selectedIds ? selectedIds.has(r.id) : null}
                   {...(onToggleSelect ? { onToggleSelect } : {})}
                   compact={compact}

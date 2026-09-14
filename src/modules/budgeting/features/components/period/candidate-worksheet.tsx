@@ -128,7 +128,7 @@ export function CandidateWorksheet<T extends GroupableCandidate>({
                     >
                       {section.label}
                     </span>
-                    <span className="text-[11px] font-normal normal-case text-muted-foreground">
+                    <span className="text-meta font-normal normal-case text-muted-foreground">
                       {rows.length} {section.kind === "run" ? "Positionen" : "Epics"}
                     </span>
                     {progress && (
@@ -157,13 +157,13 @@ export function CandidateWorksheet<T extends GroupableCandidate>({
                   <Fragment key={sol.name}>
                     {sol.heading && (
                       <tr className="border-b border-dashed">
-                        <td className="py-1 pl-9 pr-3 text-[11px] text-muted-foreground">
+                        <td className="py-1 pl-9 pr-3 text-meta text-muted-foreground">
                           {sol.name}
                         </td>
                         {columns.map((c) => (
                           <td
                             key={c.key}
-                            className="px-3 py-1 text-right text-[11px] tabular-nums text-muted-foreground"
+                            className="px-3 py-1 text-right text-meta tabular-nums text-muted-foreground"
                           >
                             {formatEUR(sum(sol.items, c))}
                           </td>

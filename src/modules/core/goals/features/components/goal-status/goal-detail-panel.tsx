@@ -194,7 +194,7 @@ export function GoalDetailPanel({
       {composerStatus && canEdit && (
         <div className="space-y-3 rounded-lg border bg-muted/10 p-3">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            <p className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
               Status-Update · <GoalStatusPill status={composerStatus} />
             </p>
             <button
@@ -207,19 +207,19 @@ export function GoalDetailPanel({
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <label className="block">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
                 Datum des Punkts
               </span>
               <input
                 type="date"
                 value={composerDate}
                 onChange={(e) => setComposerDate(e.target.value)}
-                className="mt-1 h-9 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="mt-1 h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               />
             </label>
             {isManualValue && (
               <label className="block">
-                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                <span className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
                   Aktueller Wert
                 </span>
                 <input
@@ -227,11 +227,11 @@ export function GoalDetailPanel({
                   step="any"
                   value={composerValue}
                   onChange={(e) => setComposerValue(e.target.value)}
-                  className="mt-1 h-9 w-32 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="mt-1 h-9 w-32 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 />
               </label>
             )}
-            <p className="pb-2 text-[11px] text-muted-foreground">
+            <p className="pb-2 text-meta text-muted-foreground">
               {isManualValue
                 ? "Der eingetragene Ist-Wert wird am gewählten Datum als farbiger Punkt eingefroren."
                 : "Der aktuelle Ist-Wert wird am gewählten Datum als farbiger Punkt eingefroren."}
@@ -249,7 +249,7 @@ export function GoalDetailPanel({
                       )
                     }
                     placeholder="Titel (z. B. Zusammenfassung)"
-                    className="h-8 flex-1 rounded border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                   />
                   {sections.length > 1 && (
                     <button
@@ -271,7 +271,7 @@ export function GoalDetailPanel({
                   }
                   rows={2}
                   placeholder="Text…"
-                  className="w-full rounded border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 />
               </div>
             ))}
@@ -307,14 +307,14 @@ export function GoalDetailPanel({
           value={currentValueLabel || "—"}
           {...(currentValueHint ? { hint: currentValueHint } : {})}
         />
-        <div className="rounded-xl border bg-card p-3.5 shadow-sm">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="rounded-lg bg-card shadow-card p-3.5 shadow-sm">
+          <p className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
             Letzter Status
           </p>
           <div className="mt-1.5">
             <GoalStatusPill status={status} />
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="mt-1 text-meta text-muted-foreground">
             {latestStatusAt ? relTime(latestStatusAt) : "kein Check-in"}
           </p>
         </div>
@@ -324,7 +324,7 @@ export function GoalDetailPanel({
       {(isManualValue || chartData.length > 0) && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
               Fortschritt
             </p>
             {isManualValue && canEdit && !progressOpen && (
@@ -341,7 +341,7 @@ export function GoalDetailPanel({
           {progressOpen && (
             <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/10 p-3">
               <label className="block">
-                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                <span className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
                   Aktueller Wert{unitSuffix ? ` (${unitSuffix.trim()})` : ""}
                 </span>
                 <input
@@ -349,19 +349,19 @@ export function GoalDetailPanel({
                   step="any"
                   value={progressValue}
                   onChange={(e) => setProgressValue(e.target.value)}
-                  className="mt-1 h-9 w-36 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="mt-1 h-9 w-36 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                   autoFocus
                 />
               </label>
               <label className="block">
-                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                <span className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
                   Datum
                 </span>
                 <input
                   type="date"
                   value={progressDate}
                   onChange={(e) => setProgressDate(e.target.value)}
-                  className="mt-1 h-9 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="mt-1 h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 />
               </label>
               <div className="flex items-center gap-2">
@@ -402,9 +402,9 @@ export function GoalDetailPanel({
       {!detail && (
         <div className="space-y-3" aria-hidden>
           <div className="h-40 w-full animate-pulse rounded-lg bg-muted" />
-          <div className="h-3.5 w-28 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-full animate-pulse rounded bg-muted" />
-          <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
+          <div className="h-3.5 w-28 animate-pulse rounded-sm bg-muted" />
+          <div className="h-3 w-full animate-pulse rounded-sm bg-muted" />
+          <div className="h-3 w-2/3 animate-pulse rounded-sm bg-muted" />
         </div>
       )}
 
@@ -434,14 +434,14 @@ function Card({
   accent?: boolean;
 }) {
   return (
-    <div className="rounded-xl border bg-card p-3.5 shadow-sm">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-lg bg-card shadow-card p-3.5 shadow-sm">
+      <p className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
         {label}
       </p>
       <p className={`mt-1 text-xl font-semibold tabular-nums ${accent ? "text-primary" : ""}`}>
         {value}
       </p>
-      {hint && <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>}
+      {hint && <p className="mt-0.5 text-meta text-muted-foreground">{hint}</p>}
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { EpicListRow } from "@/modules/work/server/views/portfolio-epics-list";
+import { STAGE_DOT } from "@/components/detail/initiative-labels";
 import type { RagTier } from "@/modules/work/domain/transformation-delta";
 
 interface Props {
@@ -26,20 +27,23 @@ interface Props {
   compact: boolean;
 }
 
-const STAGE_DOT: Record<string, string> = {
-  L0: "bg-muted-foreground/40",
-  L1: "bg-amber-400",
-  L2: "bg-blue-400",
-  L3: "bg-indigo-400",
-  L4: "bg-primary",
-  L5: "bg-emerald-500",
-};
+/**
+ * Die Reifegrad-Punkte kamen bis September 2026 aus einer **wortgleichen
+ * lokalen Kopie** von `STAGE_DOT` in `initiative-labels.ts` — die vierte
+ * `*_DOT`-Tabelle im Repo. Eine Quelle.
+ */
 
+/**
+ * Die Ampel des KPI-Balkens. Vorher vier rohe Palettenwerte; jetzt die
+ * semantischen Rollen aus ADR-0021, die in beiden Themen definiert sind.
+ * `done` und `green` teilen sich die Rolle — der Unterschied lag nur in einer
+ * Sättigungsstufe und trug keine Aussage.
+ */
 const KPI_BAR: Record<RagTier, string> = {
-  green: "bg-emerald-500",
-  amber: "bg-amber-500",
-  red: "bg-red-500",
-  done: "bg-emerald-600",
+  green: "bg-success",
+  amber: "bg-warning",
+  red: "bg-destructive",
+  done: "bg-success",
 };
 
 function pct(n: number): string {
@@ -118,7 +122,7 @@ export function EpicListRowComponent({
             type="checkbox"
             checked={selected}
             onChange={() => onToggleSelect?.(row.id)}
-            className="size-4 rounded border-border"
+            className="size-4 rounded-sm border-border"
             aria-label={`${row.title} auswählen`}
           />
         </td>
@@ -137,7 +141,7 @@ export function EpicListRowComponent({
           />
           {row.subStage && (
             <span
-              className="shrink-0 rounded bg-muted px-1 text-[10px] font-medium tabular-nums text-muted-foreground"
+              className="shrink-0 rounded-md bg-muted px-1 text-label font-medium tabular-nums text-muted-foreground"
               title={SUB_STAGE_LABELS[row.subStage]}
             >
               {row.subStage}
@@ -152,7 +156,7 @@ export function EpicListRowComponent({
               {row.title}
             </Link>
             {compact && (
-              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+              <p className="mt-0.5 truncate text-meta text-muted-foreground">
                 {row.ownerLabel ?? "ohne Owner"} · {row.valueStream?.name ?? "ohne Wertstrom"}
                 {row.economics.implementationCost != null
                   ? ` · ${money(row.economics.implementationCost)}`
@@ -192,7 +196,7 @@ export function EpicListRowComponent({
           {row.economics.recurringBenefitYear != null ? (
             <>
               {money(row.economics.recurringBenefitYear)}
-              <span className="text-[10px] text-muted-foreground/60">/Jahr</span>
+              <span className="text-label text-muted-foreground/60">/Jahr</span>
             </>
           ) : (
             "—"
@@ -210,12 +214,12 @@ export function EpicListRowComponent({
                   style={{ width: pct(row.kpiProgress) }}
                 />
               </div>
-              <span className="text-[11px] tabular-nums text-muted-foreground">
+              <span className="text-meta tabular-nums text-muted-foreground">
                 {pct(row.kpiProgress)}
               </span>
             </div>
           ) : (
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-meta text-muted-foreground">
               {row.kpiCount === 0 ? "keine KPIs" : "—"}
             </span>
           )}
@@ -260,7 +264,7 @@ export function EpicListRowComponent({
                           onClick={() => toggleFlag("steering")}
                           className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-muted/50"
                         >
-                          <AlertTriangle className="size-3.5 text-amber-600" />
+                          <AlertTriangle className="size-3.5 text-warning" />
                           {row.needsSteeringAttention
                             ? "Steering-Markierung aufheben"
                             : "Für Steering markieren"}
@@ -272,7 +276,7 @@ export function EpicListRowComponent({
                           onClick={() => toggleFlag("budgeting")}
                           className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-muted/50"
                         >
-                          <Coins className="size-3.5 text-blue-600" />
+                          <Coins className="size-3.5 text-info" />
                           {row.stagedForBudgeting
                             ? "Aus Budget-Vorbereitung entfernen"
                             : "Für Budget vorbereiten"}
@@ -295,7 +299,7 @@ export function EpicListRowComponent({
             </Popover>
           </div>
           {lastError && (
-            <p role="alert" className="mt-1 text-[10px] text-destructive">
+            <p role="alert" className="mt-1 text-label text-destructive">
               {lastError}
             </p>
           )}
@@ -317,7 +321,7 @@ function GovernanceBadges({ row }: { row: EpicListRow }) {
           echten Spalte und zeigt, dass ein Wechsel auf Abnahme wartet. */}
       {gateRequest && (
         <span
-          className="inline-flex h-5 items-center gap-0.5 rounded bg-primary/10 px-1.5 text-[10px] font-medium tabular-nums text-primary"
+          className="inline-flex h-5 items-center gap-0.5 rounded-md bg-primary/10 px-1.5 text-label font-medium tabular-nums text-primary"
           title={`Wechsel nach ${gateStepNumber(gateRequest.toGate)} beantragt — ${gateRequest.pendingCount} von ${gateRequest.totalCount} Abnahmen offen`}
         >
           <ArrowUp className="size-3" />
@@ -329,7 +333,7 @@ function GovernanceBadges({ row }: { row: EpicListRow }) {
       )}
       {showSteering && (
         <span
-          className="inline-flex size-5 items-center justify-center rounded bg-amber-100 text-amber-700"
+          className="inline-flex size-5 items-center justify-center rounded-md bg-warning-surface text-warning"
           title="Für Steering markiert"
         >
           <AlertTriangle className="size-3" />
@@ -337,7 +341,7 @@ function GovernanceBadges({ row }: { row: EpicListRow }) {
       )}
       {showBudget && (
         <span
-          className="inline-flex size-5 items-center justify-center rounded bg-blue-100 text-blue-700"
+          className="inline-flex size-5 items-center justify-center rounded-md bg-info-surface text-info"
           title="Für Budget vorbereitet"
         >
           <Coins className="size-3" />
@@ -345,7 +349,7 @@ function GovernanceBadges({ row }: { row: EpicListRow }) {
       )}
       {showApprovals && (
         <span
-          className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-100 px-1 text-[10px] font-medium text-indigo-700"
+          className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/10 px-1 text-label font-medium tabular-nums text-primary"
           title={`${row.pendingApprovalsCount} offene Freigaben`}
         >
           {row.pendingApprovalsCount}

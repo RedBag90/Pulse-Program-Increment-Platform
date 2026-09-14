@@ -44,7 +44,7 @@ export function FeaturePiSelect({ featureId, artId, currentPiId, pis }: Props) {
         value={value}
         onChange={(e) => handleChange(e.target.value)}
         disabled={isPending}
-        className="rounded-md border px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        className="rounded-md border px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
       >
         <option value="">Backlog</option>
         {pis.map((pi) => (
@@ -53,7 +53,7 @@ export function FeaturePiSelect({ featureId, artId, currentPiId, pis }: Props) {
           </option>
         ))}
       </select>
-      {error && <p className="text-[10px] text-destructive">{error}</p>}
+      {error && <p className="text-label text-destructive">{error}</p>}
     </div>
   );
 }

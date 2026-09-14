@@ -1,6 +1,7 @@
 import { LinkDependencyDialog } from "@/modules/drumbeat/features/dependencies/components/link-dependency-dialog";
 import { UnlinkDependencyButton } from "@/modules/drumbeat/features/dependencies/components/unlink-dependency-button";
 import { DEPENDENCY_TYPE_LABELS } from "@/modules/drumbeat/domain/status";
+import { DEPENDENCY_TYPE_CLASS } from "@/modules/drumbeat/features/lib/status-badges";
 import type { DependencyEdge } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 
 export type { DependencyEdge };
@@ -20,13 +21,6 @@ interface Props {
   /** Abgeleiteter fruehester Start. Optional — nur gerendert, wenn Blocker existieren. */
   blockerSummary?: { earliest: Date | null; unscheduledBlockers: string[] };
 }
-
-// Typ-Labels aus dem Registry (SSOT) — kein zweites inline-Vokabular mehr.
-const TYPE_CLASS: Record<DependencyEdge["type"], string> = {
-  blocks: "bg-red-100 text-red-700",
-  depends_on: "bg-amber-100 text-amber-700",
-  relates_to: "bg-muted text-muted-foreground",
-};
 
 /**
  * Dependencies-Tab des Feature-Details. Zeigt ein- und ausgehende
@@ -62,7 +56,7 @@ export function FeatureDependenciesTab({
         </div>
       )}
 
-      <section className="rounded-lg border bg-card p-6">
+      <section className="rounded-lg bg-card p-6 shadow-card">
         <header className="mb-3 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-medium">Ausgehende Dependencies</h2>
@@ -84,7 +78,7 @@ export function FeatureDependenciesTab({
         />
       </section>
 
-      <section className="rounded-lg border bg-card p-6">
+      <section className="rounded-lg bg-card p-6 shadow-card">
         <header className="mb-3">
           <h2 className="text-lg font-medium">Eingehende Dependencies</h2>
           <p className="text-sm text-muted-foreground">
@@ -134,7 +128,9 @@ function EdgeList({
           className="flex items-center justify-between gap-3 rounded-md border bg-muted/20 px-3 py-2"
         >
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className={`rounded-full px-2 py-0.5 text-[11px] ${TYPE_CLASS[edge.type]}`}>
+            <span
+              className={`rounded-full px-2 py-0.5 text-meta ${DEPENDENCY_TYPE_CLASS[edge.type]}`}
+            >
               {DEPENDENCY_TYPE_LABELS[edge.type]}
             </span>
             <span>{edge.other.title}</span>

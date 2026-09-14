@@ -75,7 +75,7 @@ export function FeatureStatusSelect({ featureId, status, label, size = "sm", dis
       disabled={disabled || pending}
       onChange={(e) => change(e.target.value)}
       title={error ?? undefined}
-      className={`rounded border bg-background disabled:opacity-50 ${SIZE[size]} ${
+      className={`rounded-md border bg-background disabled:opacity-50 ${SIZE[size]} ${
         error ? "border-destructive" : "border-input"
       }`}
     >

@@ -29,23 +29,23 @@ const TAB_LABEL: Record<string, string> = {
 
 export function PeriodPhases() {
   return (
-    <ol className="divide-y overflow-hidden rounded-lg border bg-card">
+    <ol className="divide-y overflow-hidden rounded-lg bg-card shadow-card">
       {FRESH.map((p, i) => (
         <li key={p.key} className="grid gap-1 p-4 sm:grid-cols-[minmax(0,1fr)_auto]">
           <div className="space-y-0.5">
-            <p className="text-[14px] font-medium text-foreground">
-              <span className="mr-2 font-mono text-[11px] tabular-nums text-muted-foreground">
+            <p className="text-sm font-medium text-foreground">
+              <span className="mr-2 font-mono text-meta tabular-nums text-muted-foreground">
                 {i + 1}
               </span>
               {p.label}
             </p>
             {p.blockedBy && (
-              <p className="max-w-[var(--reading-max-w)] pl-6 text-[13px] leading-relaxed text-muted-foreground">
+              <p className="max-w-[var(--reading-max-w)] pl-6 text-xs leading-relaxed text-muted-foreground">
                 {p.blockedBy}
               </p>
             )}
           </div>
-          <p className="pl-6 font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground sm:pl-0 sm:text-right">
+          <p className="pl-6 font-mono text-meta uppercase tracking-[0.1em] text-muted-foreground sm:pl-0 sm:text-right">
             {TAB_LABEL[p.tab] ?? p.tab}
           </p>
         </li>

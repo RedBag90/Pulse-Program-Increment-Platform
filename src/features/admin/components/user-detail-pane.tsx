@@ -20,7 +20,7 @@ interface Props {
 }
 
 const SELECT_CLASS =
-  "h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-xs focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 /**
  * Right-pane editor for the selected user. Three cards:
@@ -42,8 +42,8 @@ export function UserDetailPane({ user, valueStreams, canManage, canErase }: Prop
   return (
     <div className="space-y-6">
       {/* Header card */}
-      <section className="space-y-3 rounded-lg border bg-card p-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Benutzer</p>
+      <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
+        <p className="text-xs uppercase tracking-[0.1em] text-muted-foreground">Benutzer</p>
         <div className="flex items-center gap-3">
           <span
             className="inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground"
@@ -53,7 +53,7 @@ export function UserDetailPane({ user, valueStreams, canManage, canErase }: Prop
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-base font-medium">{user.email ?? user.label}</p>
-            <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{user.id}</p>
+            <p className="mt-0.5 font-mono text-meta text-muted-foreground">{user.id}</p>
           </div>
           <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
             {user.roleCount} {user.roleCount === 1 ? "Rolle" : "Rollen"}
@@ -62,7 +62,7 @@ export function UserDetailPane({ user, valueStreams, canManage, canErase }: Prop
       </section>
 
       {/* Roles card */}
-      <section className="space-y-3 rounded-lg border bg-card p-4">
+      <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
         <div className="flex items-center justify-between">
           <h2 className="font-heading text-sm font-medium">Rollen</h2>
           {canManage && !draftVisible && (
@@ -105,7 +105,7 @@ export function UserDetailPane({ user, valueStreams, canManage, canErase }: Prop
 
       {/* GDPR card */}
       {canErase && (
-        <section className="space-y-3 rounded-lg border bg-card p-4">
+        <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
           <h2 className="font-heading text-sm font-medium">Datenschutz (DSGVO)</h2>
           <p className="text-xs text-muted-foreground">
             Exportiere alles, was Pulse über diese Nutzer:in speichert, oder lösche das Konto
@@ -160,7 +160,7 @@ function AddRoleDraft({
   }
 
   return (
-    <form action={action} className="space-y-3 rounded-md border bg-card p-3">
+    <form action={action} className="space-y-3 rounded-md border bg-background p-3">
       <input type="hidden" name="targetUserId" value={targetUserId} />
 
       <div className="space-y-1.5">

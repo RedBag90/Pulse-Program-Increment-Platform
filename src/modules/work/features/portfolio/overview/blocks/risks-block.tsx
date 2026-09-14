@@ -50,7 +50,7 @@ export function RisksBlock({ data }: { data: PortfolioOverview }) {
           {risks.map((r) => (
             <li key={r.id} className="flex items-start gap-2">
               <span
-                className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                className={`mt-0.5 shrink-0 rounded-sm px-1.5 py-0.5 text-label font-medium uppercase tracking-[0.1em] ${
                   r.band ? BAND_BADGE[r.band] : "bg-muted text-muted-foreground"
                 }`}
                 title={r.band ? `Exposure: ${BAND_LABEL[r.band]} (${r.score})` : "Ungescored"}
@@ -66,13 +66,13 @@ export function RisksBlock({ data }: { data: PortfolioOverview }) {
                   >
                     {r.title}
                   </Link>
-                  <span className="flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground">
+                  <span className="flex shrink-0 items-center gap-1 text-label text-muted-foreground">
                     <span className={`size-1.5 rounded-full ${ROAM_DOT[r.roamStatus]}`} />
                     {ROAM_LABELS[r.roamStatus]}
                   </span>
                 </div>
                 {r.epic && (
-                  <p className="truncate text-[10px] text-muted-foreground">
+                  <p className="truncate text-label text-muted-foreground">
                     Epic:{" "}
                     <Link
                       href={`/portfolio/epics/${r.epic.id}`}

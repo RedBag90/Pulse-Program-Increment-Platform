@@ -51,14 +51,14 @@ export function MyTasksFilterBar(props: Props) {
         value={localQuery}
         onChange={(e) => setLocalQuery(e.target.value)}
         placeholder="Suche Titel · Parent-Epic …"
-        className="rounded-md border border-input bg-card px-3 py-1.5 text-sm"
+        className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
       />
       <select
         value={props.level ?? ""}
         onChange={(e) =>
           props.onLevelChange(e.target.value === "" ? null : (e.target.value as TaskLevel))
         }
-        className="rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+        className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
       >
         <option value="">Alle Levels</option>
         {props.options.levelOptions.map((l) => (
@@ -70,7 +70,7 @@ export function MyTasksFilterBar(props: Props) {
       <select
         value={props.valueStreamId ?? ""}
         onChange={(e) => props.onValueStreamChange(e.target.value || null)}
-        className="rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+        className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
       >
         <option value="">Alle Wertströme</option>
         {props.options.valueStreamOptions.map((v) => (
@@ -82,7 +82,7 @@ export function MyTasksFilterBar(props: Props) {
       <select
         value={props.artId ?? ""}
         onChange={(e) => props.onArtChange(e.target.value || null)}
-        className="rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+        className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
       >
         <option value="">Alle ARTs</option>
         {props.options.artOptions.map((a) => (
@@ -94,7 +94,7 @@ export function MyTasksFilterBar(props: Props) {
       <select
         value={props.epicId ?? ""}
         onChange={(e) => props.onEpicChange(e.target.value || null)}
-        className="rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+        className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
       >
         <option value="">Alle Parent-Epics</option>
         {props.options.parentEpicOptions.map((e) => (
@@ -106,7 +106,7 @@ export function MyTasksFilterBar(props: Props) {
       <select
         value={props.piId ?? ""}
         onChange={(e) => props.onPiChange(e.target.value || null)}
-        className="rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+        className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
       >
         <option value="">Alle PIs</option>
         <option value="backlog">— Backlog</option>

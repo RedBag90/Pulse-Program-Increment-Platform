@@ -83,7 +83,7 @@ function JiraDetailBlocks({
       </HeaderCard>
 
       {detail.connected && (
-        <section className="space-y-3 rounded-lg border bg-card p-4">
+        <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
           <h2 className="font-heading text-sm font-medium">ART → Jira-Projekt</h2>
           <ProjectMappingForm
             arts={arts}
@@ -133,7 +133,7 @@ function AdoDetailBlocks({
       </HeaderCard>
 
       {detail.connected && (
-        <section className="space-y-3 rounded-lg border bg-card p-4">
+        <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
           <h2 className="font-heading text-sm font-medium">ART → Azure-DevOps-Projekt</h2>
           <ProjectMappingForm
             arts={arts}
@@ -171,14 +171,14 @@ function HeaderCard({
   children?: React.ReactNode;
 }) {
   return (
-    <section className="space-y-3 rounded-lg border bg-card p-4">
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">Integration</p>
+    <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
+      <p className="text-xs uppercase tracking-[0.1em] text-muted-foreground">Integration</p>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h2 className="font-heading text-base font-medium">{name}</h2>
         <div className="flex items-center gap-2">
           <span
-            className={`rounded-full px-2 py-0.5 text-[11px] ${
-              connected ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
+            className={`rounded-full px-2 py-0.5 text-meta ${
+              connected ? "bg-success-surface text-success" : "bg-muted text-muted-foreground"
             }`}
           >
             {connected ? "verbunden" : "getrennt"}
@@ -205,11 +205,11 @@ function WebhookCard({ url, helpText }: { url: string; helpText: string }) {
   }
 
   return (
-    <section className="space-y-3 rounded-lg border bg-card p-4">
+    <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
       <h2 className="font-heading text-sm font-medium">Webhook-URL</h2>
       <p className="text-xs text-muted-foreground">{helpText}</p>
       <div className="flex items-center gap-2">
-        <code className="block flex-1 break-all rounded border border-input bg-muted/30 px-3 py-2 text-[11px] font-mono">
+        <code className="block flex-1 break-all rounded-md border border-input bg-muted/30 px-3 py-2 text-meta font-mono">
           {url}
         </code>
         <Button type="button" size="sm" variant="outline" onClick={copy}>

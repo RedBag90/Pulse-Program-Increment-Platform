@@ -188,7 +188,7 @@ export function StructureNav({ rows, kindCounts, availableKinds, canCreateVs }: 
         type="button"
         onClick={() => setDrawerOpen((v) => !v)}
         aria-expanded={drawerOpen}
-        className="flex w-full items-center justify-between rounded-md border bg-card px-3 py-2 text-sm font-medium lg:hidden"
+        className="flex w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm font-medium lg:hidden"
       >
         Struktur durchsuchen
         <ChevronDown
@@ -198,9 +198,9 @@ export function StructureNav({ rows, kindCounts, availableKinds, canCreateVs }: 
       </button>
 
       <div className={cn("space-y-2", drawerOpen ? "block" : "hidden", "lg:block")}>
-        <div className="rounded-lg border bg-card p-2">
+        <div className="rounded-lg bg-card shadow-card p-2">
           <div className="mb-2 flex items-center justify-between gap-2 border-b px-1 pb-2">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            <span className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
               Organisation
             </span>
             {canCreateVs && <CreateValueStreamDialog compact />}
@@ -306,7 +306,7 @@ function NavRow({
       <span className="sr-only">{KIND_LABEL[row.kind]}</span>
       {row.gaps.length > 0 && (
         <span
-          className="ml-auto shrink-0 rounded-full bg-amber-100 px-1.5 text-[10px] font-medium text-amber-800"
+          className="ml-auto shrink-0 rounded-full bg-warning-surface px-1.5 text-label font-medium text-warning"
           title={row.gaps.join(", ")}
         >
           {row.gaps.length}
@@ -317,8 +317,8 @@ function NavRow({
   );
 
   const className = cn(
-    "flex w-full items-center gap-2 rounded-md py-1 pr-2 text-[13px] leading-tight transition-colors",
-    "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+    "flex w-full items-center gap-2 rounded-md py-1 pr-2 text-xs leading-tight transition-colors",
+    "hover:bg-muted focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
     selected ? "bg-primary/10 font-medium text-primary" : "text-foreground",
   );
   // 8px Grundabstand, je Ebene 14px — die Einrückung trägt die Hierarchie.
@@ -331,7 +331,7 @@ function NavRow({
           type="button"
           onClick={onToggle}
           aria-label={expanded ? `${row.label} einklappen` : `${row.label} ausklappen`}
-          className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+          className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
           tabIndex={-1}
         >
           {expanded ? (
@@ -390,7 +390,7 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors",
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-meta transition-colors",
         active
           ? "border-primary bg-primary/10 text-primary"
           : "border-input text-muted-foreground hover:bg-muted",

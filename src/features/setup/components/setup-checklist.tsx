@@ -121,7 +121,7 @@ function MilestoneCard({
     >
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold">{milestone.name}</h2>
-        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium tabular-nums">
+        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-label font-medium tabular-nums">
           {completed} / {total}
         </span>
       </div>
@@ -159,7 +159,7 @@ function MilestoneCard({
                   checked={isDone}
                   onChange={() => onToggle(check.id)}
                   disabled={!canEdit}
-                  className="mt-0.5 size-4 shrink-0 rounded border-input accent-primary disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-0.5 size-4 shrink-0 rounded-sm border-input accent-primary disabled:cursor-not-allowed disabled:opacity-60"
                 />
                 <span className={isDone ? "text-muted-foreground line-through" : ""}>
                   {check.label}

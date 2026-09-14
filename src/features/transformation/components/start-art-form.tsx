@@ -21,7 +21,7 @@ interface Props {
 }
 
 const SELECT =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 /**
  * Guided „ART starten"-Flow. Legt ART (+ optional RTE) unter einem Wertstrom an.
@@ -67,7 +67,7 @@ export function StartArtForm({ valueStreams, rteUsers, canManage }: Props) {
   if (state.created) {
     return (
       <div className="space-y-2">
-        <p role="status" className="flex items-center gap-2 text-sm text-emerald-700">
+        <p role="status" className="flex items-center gap-2 text-sm text-success">
           ART gestartet.
           {state.created.href && (
             <Link

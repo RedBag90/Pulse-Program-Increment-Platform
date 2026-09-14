@@ -27,7 +27,7 @@ export default async function DependenciesOverviewPage() {
   if (artIds.length === 0) {
     return (
       <Page>
-        <div className="mx-auto max-w-2xl rounded-2xl border bg-card p-8 text-center shadow-sm">
+        <div className="mx-auto max-w-2xl rounded-lg bg-card shadow-card p-8 text-center shadow-sm">
           <p className="text-sm text-muted-foreground">
             Keine ARTs im Zugriff. Bitte einen Admin um Scope-Zuweisung.
           </p>

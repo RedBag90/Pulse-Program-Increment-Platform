@@ -87,7 +87,7 @@ export function Topbar({
           {/* Locale switcher */}
           <DropdownMenu>
             <DropdownMenuTrigger
-              className="inline-flex size-8 items-center justify-center rounded-md text-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex size-8 items-center justify-center rounded-md text-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               aria-label={t("language")}
             >
               <Globe className="size-4" />

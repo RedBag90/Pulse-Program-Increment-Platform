@@ -1,5 +1,5 @@
 const STYLES: Record<string, { label: string; cls: string }> = {
-  active: { label: "Aktiv", cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+  active: { label: "Aktiv", cls: "bg-emerald-500/10 text-success dark:text-emerald-400" },
   suspended: { label: "Gesperrt", cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
   archived: { label: "Archiviert", cls: "bg-muted text-muted-foreground" },
 };

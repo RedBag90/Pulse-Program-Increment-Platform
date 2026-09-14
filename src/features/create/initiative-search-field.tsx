@@ -114,7 +114,7 @@ export function InitiativeSearchField({
                       setQuery("");
                     }}
                   >
-                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs">
+                    <span className="shrink-0 rounded-sm bg-muted px-1.5 py-0.5 text-xs">
                       {LEVEL_LABELS[hit.level] ?? `L${hit.level}`}
                     </span>
                     <span className="truncate">{hit.title}</span>

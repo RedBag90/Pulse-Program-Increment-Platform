@@ -156,3 +156,23 @@ export function userLabel(id: string | null | undefined, labels: Record<string, 
   if (!id) return "—";
   return labels[id] ?? `${id.slice(0, 8)}…`;
 }
+
+/**
+ * Farb-Token je WSJF-Rang.
+ *
+ * Lag zweimal kopiert in den Aufrufern — `feature-list-row` (work) und
+ * `feature-overview-tab` (drumbeat) — beide ohne `dark:`-Partner, mit leicht
+ * verschiedenen Werten. Hier, in der geteilten Schicht, kann **beide** Seiten
+ * lesen, ohne die Modulgrenze aus ADR-0013 zu verletzen.
+ *
+ * Der Schlüssel deckt beide Namen für „kein Rang" ab: `none` (Listenzeile) und
+ * `unscored` (Detailansicht). Die rohe Palette trägt hier vollständige
+ * `dark:`-Paare und eine Achse — der von ADR-0021 ausdrücklich erlaubte Fall.
+ */
+export const WSJF_TIER_CLASS: Record<"high" | "medium" | "low" | "none" | "unscored", string> = {
+  high: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+  medium: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+  low: "bg-muted text-muted-foreground",
+  none: "bg-muted text-muted-foreground/70",
+  unscored: "bg-muted text-muted-foreground",
+};

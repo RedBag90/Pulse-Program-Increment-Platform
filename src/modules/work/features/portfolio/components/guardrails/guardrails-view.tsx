@@ -86,7 +86,7 @@ export function GuardrailsView({
             options={VIEW_OPTIONS}
             onChange={setView}
             ariaLabel="Sicht"
-            className="bg-card text-[11px]"
+            className="bg-card text-meta"
           />
         }
       />

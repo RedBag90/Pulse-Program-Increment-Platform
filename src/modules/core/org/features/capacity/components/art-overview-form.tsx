@@ -57,7 +57,7 @@ export function ArtOverviewForm({ id, name, description, rteId, rteUsers, userLa
           emptyLabel="— Niemand —"
         />
         {rteUsers.length === 0 && (
-          <p className="text-xs text-amber-700">Keine Nutzer mit RTE-Rolle im Mandanten.</p>
+          <p className="text-xs text-warning">Keine Nutzer mit RTE-Rolle im Mandanten.</p>
         )}
       </div>
 
@@ -67,7 +67,7 @@ export function ArtOverviewForm({ id, name, description, rteId, rteUsers, userLa
         </p>
       )}
       {state.success && (
-        <p role="status" className="text-sm text-emerald-600">
+        <p role="status" className="text-sm text-success">
           Gespeichert.
         </p>
       )}

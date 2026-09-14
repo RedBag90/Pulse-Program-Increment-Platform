@@ -17,11 +17,11 @@ import {
  */
 
 const PRIMARY =
-  "rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50";
+  "rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50";
 const OUTLINE =
-  "rounded border border-input px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50";
+  "rounded-md border border-input px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50";
 const DANGER =
-  "rounded border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50";
+  "rounded-md border border-destructive/40 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive-surface disabled:opacity-50";
 
 function makeForm(entries: Record<string, string>): FormData {
   const fd = new FormData();
@@ -85,7 +85,7 @@ export function FeatureDeliveryControls({ featureId, status, piAssigned, parentE
   if (reasonOpen) {
     const ok = reason.trim().length > 0;
     return (
-      <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50/40 p-3 text-sm">
+      <div className="space-y-2 rounded-md border border-warning/40 bg-warning-surface/60 p-3 text-sm">
         <p className="font-medium">{reasonOpen.label} — bitte begründen</p>
         <textarea
           value={reason}
@@ -93,7 +93,7 @@ export function FeatureDeliveryControls({ featureId, status, piAssigned, parentE
           rows={3}
           maxLength={2000}
           placeholder="Begründung (erforderlich)"
-          className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+          className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
         />
         <div className="flex justify-end gap-2">
           <button
@@ -119,7 +119,7 @@ export function FeatureDeliveryControls({ featureId, status, piAssigned, parentE
           </button>
         </div>
         {statusState.error && (
-          <p role="alert" className="text-xs text-red-600">
+          <p role="alert" className="text-xs text-destructive">
             {statusState.error}
           </p>
         )}
@@ -213,7 +213,7 @@ export function FeatureDeliveryControls({ featureId, status, piAssigned, parentE
         ))}
       </div>
       {visibleError && (
-        <p role="alert" className="text-xs text-red-600">
+        <p role="alert" className="text-xs text-destructive">
           {visibleError}
         </p>
       )}

@@ -32,9 +32,9 @@ interface Props {
 const ROW_HEIGHT = 36;
 
 const STATUS_COLOR: Record<string, string> = {
-  planned: "bg-slate-200 text-slate-900 border-slate-300",
-  active: "bg-blue-200 text-blue-900 border-blue-400",
-  completed: "bg-emerald-200 text-emerald-900 border-emerald-400",
+  planned: "border-border bg-muted text-foreground",
+  active: "border-info/40 bg-info-surface text-info",
+  completed: "border-success/40 bg-success-surface text-success",
 };
 const STATUS_DOT: Record<string, string> = {
   planned: "bg-slate-500",
@@ -170,7 +170,7 @@ export function TimelineCalendar({ pis, canEdit, onEmptyDayClick, onPiClick }: P
   return (
     <div
       ref={containerRef}
-      className="overflow-x-auto rounded-md border bg-card"
+      className="overflow-x-auto rounded-lg bg-card shadow-card"
       onPointerMove={onPointerMove}
     >
       <div
@@ -203,7 +203,10 @@ export function TimelineCalendar({ pis, canEdit, onEmptyDayClick, onPiClick }: P
             const isDragging = drag?.piId === pi.id;
             const start = isDragging ? drag.curStart : parseIsoDay(pi.startDate);
             const end = isDragging ? drag.curEnd : parseIsoDay(pi.endDate);
-            const { leftPx, widthPx } = timelineBarMetrics({ startDate: start, endDate: end }, axis);
+            const { leftPx, widthPx } = timelineBarMetrics(
+              { startDate: start, endDate: end },
+              axis,
+            );
             const top = 28 + idx * ROW_HEIGHT + 4;
             const conflict = conflictIds.has(pi.id);
             const lockable = pi.status === "planned" && canEdit;

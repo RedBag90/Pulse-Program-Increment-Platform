@@ -25,7 +25,7 @@ interface EpicEditFormProps {
 }
 
 const SELECT_CLASS =
-  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
+  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50";
 
 /**
  * Beschreibungs-Formular des Overview-Tabs: Titel, Description sowie die
@@ -62,7 +62,7 @@ export function EpicEditForm({
           name="title"
           defaultValue={currentTitle}
           required
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>
 
@@ -127,7 +127,7 @@ export function EpicEditForm({
       </div>
 
       {vsChanged && (
-        <p className="text-xs text-amber-700">
+        <p className="text-xs text-warning">
           Hinweis: Beim Wertstrom-Wechsel wird eine Primär-Solution, die nicht zum neuen Wertstrom
           gehört, vom Epic gelöst.
         </p>
@@ -142,7 +142,7 @@ export function EpicEditForm({
           name="description"
           defaultValue={currentDescription}
           rows={5}
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>
 

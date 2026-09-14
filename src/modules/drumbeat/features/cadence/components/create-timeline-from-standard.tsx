@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import type { PiStandard } from "@/modules/drumbeat/features/cadence/components/pi-standards-manager";
 
 const SELECT_CLASS =
-  "h-8 rounded-md border border-input bg-transparent px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "h-8 rounded-md border border-input bg-transparent px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 /**
  * Bootstrap: spawns a new Timeline named after the chosen PI standard and

@@ -20,14 +20,14 @@ export function IntegrationListRow({ item, selected, onSelect }: Props) {
     <button
       type="button"
       onClick={() => onSelect(item.kind)}
-      className={`group w-full rounded-md border bg-card p-3 text-left transition-colors hover:bg-muted/50 ${
+      className={`group w-full rounded-md border bg-background p-3 text-left transition-colors hover:bg-muted/50 ${
         selected ? "border-primary ring-1 ring-primary" : ""
       }`}
       aria-current={selected ? "true" : undefined}
     >
       <div className="flex items-start gap-3">
         <span
-          className={`inline-flex size-9 shrink-0 items-center justify-center rounded text-sm font-bold text-white ${bg}`}
+          className={`inline-flex size-9 shrink-0 items-center justify-center rounded-sm text-sm font-bold text-white ${bg}`}
           aria-hidden
         >
           {initial}
@@ -37,15 +37,15 @@ export function IntegrationListRow({ item, selected, onSelect }: Props) {
           <p className="mt-0.5 truncate text-xs text-muted-foreground">{item.subtitle}</p>
         </div>
         <span
-          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${
-            item.connected ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
+          className={`shrink-0 rounded-full px-2 py-0.5 text-meta ${
+            item.connected ? "bg-success-surface text-success" : "bg-muted text-muted-foreground"
           }`}
         >
           {item.connected ? "verbunden" : "getrennt"}
         </span>
       </div>
       {item.connected && (
-        <p className="mt-2 text-[11px] text-muted-foreground">
+        <p className="mt-2 text-meta text-muted-foreground">
           {item.mappingCount === 0
             ? "Keine Mappings"
             : `${item.mappingCount} Mapping${item.mappingCount === 1 ? "" : "s"}`}

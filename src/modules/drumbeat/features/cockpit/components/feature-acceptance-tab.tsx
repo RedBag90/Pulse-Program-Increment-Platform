@@ -30,7 +30,7 @@ export function FeatureAcceptanceTab({ featureId, artId, initialCriteria, canEdi
 
   if (!artId) {
     return (
-      <section className="rounded-lg border bg-card p-6">
+      <section className="rounded-lg bg-card p-6 shadow-card">
         <p className="text-sm text-muted-foreground">
           Feature ohne ART-Zuordnung — Acceptance Criteria sind aktuell nicht editierbar.
         </p>
@@ -39,7 +39,7 @@ export function FeatureAcceptanceTab({ featureId, artId, initialCriteria, canEdi
   }
 
   return (
-    <section className="rounded-lg border bg-card p-6">
+    <section className="rounded-lg bg-card p-6 shadow-card">
       <h2 className="text-lg font-medium">Acceptance Criteria</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Eine Zeile = ein Kriterium. Leere Zeilen werden verworfen.
@@ -58,7 +58,7 @@ export function FeatureAcceptanceTab({ featureId, artId, initialCriteria, canEdi
           placeholder={
             "z. B.\n- Nutzer:in kann das Feature unter dem Settings-Menü aktivieren\n- Bei aktivem Feature werden Erinnerungen automatisch verschickt"
           }
-          className="w-full rounded-md border border-input bg-card px-3 py-2 font-mono text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm shadow-xs focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
         />
 
         {state.error && (
@@ -67,7 +67,7 @@ export function FeatureAcceptanceTab({ featureId, artId, initialCriteria, canEdi
           </p>
         )}
         {state.success && (
-          <p role="status" className="inline-flex items-center gap-1.5 text-sm text-emerald-700">
+          <p role="status" className="inline-flex items-center gap-1.5 text-sm text-success">
             <CheckCircle2 className="size-4" /> Acceptance Criteria gespeichert.
           </p>
         )}

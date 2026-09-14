@@ -180,7 +180,7 @@ function applyFilters(rows: readonly FeatureOverviewRow[], s: ListState): Featur
 // Ansicht
 // ---------------------------------------------------------------------------
 
-const SELECT_CLASS = "rounded-md border border-input bg-card px-2 py-1.5 text-sm";
+const SELECT_CLASS = "rounded-md border border-input bg-background px-2 py-1.5 text-sm";
 
 export interface FeaturesListViewProps {
   model: FeaturesOverviewModel;
@@ -271,7 +271,7 @@ export function FeaturesListView({
           value={state.query}
           onChange={(e) => push({ q: e.target.value || null })}
           placeholder="Suche Titel · Epic · ART …"
-          className="min-w-[12rem] flex-1 rounded-md border border-input bg-card px-3 py-1.5 text-sm"
+          className="min-w-[12rem] flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
         />
         {show.has("valueStream") && (
           <select
@@ -375,7 +375,7 @@ export function FeaturesListView({
       {/* `overflow-hidden` schnitt breite Tabellen ab, statt sie scrollen zu
           lassen; der Kopf war eine fuenfte Fassung von `STICKY_THEAD` und klebte
           nicht. Vorbild ist `tree-table-style.tsx` im Issues-Reiter. */}
-      <div className="overflow-x-auto rounded-xl bg-card ring-1 ring-foreground/10">
+      <div className="overflow-x-auto rounded-lg bg-card shadow-card">
         <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className={`${STICKY_THEAD} text-left`}>
@@ -481,7 +481,7 @@ function FeatureTableRow({
             )}
             {row.isBlocked && (
               <span
-                className={`inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium ${STATUS_BADGE.blocked}`}
+                className={`inline-flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-label font-medium ${STATUS_BADGE.blocked}`}
                 title="Ziel einer Blocker-Abhängigkeit"
               >
                 <OctagonX className="size-3" aria-hidden />
@@ -539,7 +539,7 @@ function FeatureTableRow({
               renderStatus(row)
             ) : statusKey != null ? (
               <span
-                className={`inline-block rounded px-1.5 py-0.5 font-medium ${STATUS_BADGE[statusKey] ?? "bg-muted text-muted-foreground"}`}
+                className={`inline-block rounded-sm px-1.5 py-0.5 font-medium ${STATUS_BADGE[statusKey] ?? "bg-muted text-muted-foreground"}`}
               >
                 {STATUS_LABELS[statusKey]}
               </span>

@@ -55,14 +55,14 @@ export function UserNav({ email, placement = "sidebar", isPlatformAdmin = false 
       <DropdownMenuTrigger
         className={
           topbar
-            ? "flex items-center rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            ? "flex items-center rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
             : "flex items-center gap-2.5 w-full rounded-md px-2 py-1.5 text-sm hover:bg-sidebar-accent transition-colors text-left disabled:opacity-50"
         }
         disabled={isPending}
         aria-label={topbar ? email : undefined}
       >
         <Avatar className="size-7 shrink-0">
-          <AvatarFallback className="text-[10px] font-semibold bg-primary text-primary-foreground">
+          <AvatarFallback className="text-label font-semibold bg-primary text-primary-foreground">
             {getInitials(email)}
           </AvatarFallback>
         </Avatar>

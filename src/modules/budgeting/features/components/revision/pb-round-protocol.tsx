@@ -19,7 +19,7 @@ const OUTCOME_LABEL: Record<string, string> = {
  */
 export function PbRoundProtocol({ round }: { round: PbRoundSnapshot }) {
   return (
-    <section className="space-y-3 rounded-lg border bg-card p-4">
+    <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold">PB-Runde · Protokoll</h2>
         <div className="flex gap-4 text-xs text-muted-foreground">
@@ -78,7 +78,7 @@ export function PbRoundProtocol({ round }: { round: PbRoundSnapshot }) {
 
       {round.groups.some((g) => g.reportOut) && (
         <div className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Report-outs
           </h3>
           <div className="grid gap-2 sm:grid-cols-2">

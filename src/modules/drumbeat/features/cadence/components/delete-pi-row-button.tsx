@@ -40,7 +40,7 @@ export function DeletePiRowButton({ piId, piName, disabled }: Props) {
       >
         <Trash2 className="size-3.5" />
       </button>
-      {state?.error && <span className="text-[10px] text-destructive">{state.error}</span>}
+      {state?.error && <span className="text-label text-destructive">{state.error}</span>}
     </span>
   );
 }

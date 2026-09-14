@@ -217,13 +217,13 @@ function QuickAddForm({
           id="quick-add-type"
           value={featureType}
           onChange={(e) => setFeatureType(e.target.value as "feature" | "enabler")}
-          className="flex h-8 w-full rounded-md border border-input bg-card px-2 text-xs"
+          className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
         >
           <option value="feature">Feature</option>
           <option value="enabler">Enabler</option>
         </select>
       </div>
-      <p className="text-[10px] text-muted-foreground">
+      <p className="text-label text-muted-foreground">
         WSJF wird auf 3/3/3/3 vorbelegt — verfeinerst du im Detail-Tab.
       </p>
       <div className="flex justify-end gap-1.5 pt-1">
@@ -337,7 +337,7 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
               id={`edit-type-${node.id}`}
               value={featureType}
               onChange={(e) => setFeatureType(e.target.value as "feature" | "enabler" | "")}
-              className="flex h-8 w-full rounded-md border border-input bg-card px-2 text-xs"
+              className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
             >
               <option value="">— ungesetzt</option>
               <option value="feature">Feature</option>
@@ -396,18 +396,18 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
       <button
         type="button"
         onClick={openSlideOver}
-        className="block w-full rounded-lg border border-border bg-card p-3 text-left text-xs no-underline shadow-sm transition-colors hover:bg-muted/40"
+        className="block w-full rounded-lg bg-card p-3 text-left text-xs no-underline shadow-card transition-colors hover:bg-muted/40"
       >
         <div className="mb-1.5 flex items-center gap-1.5">
           <span
             className={`size-2 shrink-0 rounded-full ${STATUS_DOT[node.status] ?? "bg-muted-foreground/40"}`}
             aria-hidden
           />
-          <span className="line-clamp-2 flex-1 text-[13px] font-medium leading-tight text-foreground">
+          <span className="line-clamp-2 flex-1 text-xs font-medium leading-tight text-foreground">
             {node.title}
           </span>
         </div>
-        <div className="flex items-center gap-1.5 text-[10px]">
+        <div className="flex items-center gap-1.5 text-label">
           <span
             className={`rounded-full px-1.5 py-0.5 ${isEnabler ? "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300" : "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"}`}
           >
@@ -544,7 +544,7 @@ const InsertableEdge = memo(function InsertableEdge(props: EdgeProps) {
                 <button
                   type="button"
                   aria-label="Abhängigkeitstyp ändern"
-                  className="rounded bg-card px-1 text-[10px] transition-colors hover:bg-muted"
+                  className="rounded-sm bg-card px-1 text-label transition-colors hover:bg-muted"
                   style={{ color: EDGE_COLOR[type] }}
                 >
                   {label}
@@ -552,7 +552,7 @@ const InsertableEdge = memo(function InsertableEdge(props: EdgeProps) {
               </EdgeTypePopover>
             ) : (
               <span
-                className="rounded bg-card px-1 text-[10px]"
+                className="rounded-sm bg-card px-1 text-label"
                 style={{ color: EDGE_COLOR[type] }}
               >
                 {label}
@@ -598,15 +598,15 @@ const GhostNode = memo(function GhostNode({ data }: NodeProps) {
       <button
         type="button"
         onClick={openSlideOver}
-        className="block w-full rounded-lg border border-dashed border-muted-foreground/40 bg-card/60 p-3 text-left text-xs no-underline opacity-70 shadow-sm transition-colors hover:bg-muted/40 hover:opacity-100"
+        className="block w-full rounded-lg border border-dashed border-muted-foreground/40 bg-card/60 p-3 text-left text-xs no-underline opacity-70 transition-colors hover:bg-muted/40 hover:opacity-100"
       >
         <div className="mb-1.5 flex items-center gap-1.5">
           <span className="size-2 shrink-0 rounded-full bg-muted-foreground/40" aria-hidden />
-          <span className="line-clamp-2 flex-1 text-[13px] font-medium leading-tight text-muted-foreground">
+          <span className="line-clamp-2 flex-1 text-xs font-medium leading-tight text-muted-foreground">
             {node.title}
           </span>
         </div>
-        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-label text-muted-foreground">
           <span className="rounded-full bg-muted px-1.5 py-0.5">
             {node.role === "predecessor" ? "Predecessor extern" : "Successor extern"}
           </span>
@@ -627,7 +627,7 @@ const PiHeaderNode = memo(function PiHeaderNode({ data }: NodeProps) {
   const node = data as unknown as { label: string };
   return (
     <div
-      className="rounded-md bg-muted/60 px-3 py-1 text-center text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+      className="rounded-md bg-muted/60 px-3 py-1 text-center text-meta font-medium uppercase tracking-wider text-muted-foreground"
       style={{ width: NODE_WIDTH }}
     >
       {node.label}
@@ -695,7 +695,7 @@ function ExportButton({ epicTitle }: { epicTitle: string }) {
       onClick={onExport}
       title="Netzplan als PNG exportieren"
       aria-label="Netzplan exportieren"
-      className="flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] shadow-sm transition hover:bg-muted"
+      className="flex items-center gap-1 rounded-md bg-card px-2 py-1 text-meta shadow-card transition hover:bg-muted"
     >
       <Download className="size-3.5" />
       <span>Export PNG</span>
@@ -1263,7 +1263,7 @@ export function BreakdownNetworkView({
       )}
       {/* Vorher starr `h-[480px]`: auf schmalem Fenster teilten sich die
           Werkzeugzeilen und die Leinwand den Schirm etwa haelftig. */}
-      <div className="h-[26rem] rounded-xl bg-muted/30 ring-1 ring-foreground/10 sm:h-[32rem] lg:h-[36rem]">
+      <div className="h-[26rem] rounded-lg bg-muted/30 shadow-card sm:h-[32rem] lg:h-[36rem]">
         <BreakdownInteractionContext.Provider value={interactionCtx}>
           <ReactFlow
             nodes={displayNodes}

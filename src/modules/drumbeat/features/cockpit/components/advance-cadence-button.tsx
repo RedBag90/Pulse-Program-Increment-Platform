@@ -41,9 +41,7 @@ export function AdvanceCadenceButton({ piId, artId }: { piId: string; artId: str
   if (confirming) {
     return (
       <span className="flex shrink-0 items-center gap-1.5">
-        <span className="text-[11px] text-muted-foreground">
-          Abschließen &amp; nächstes öffnen?
-        </span>
+        <span className="text-meta text-muted-foreground">Abschließen &amp; nächstes öffnen?</span>
         <Button type="button" size="sm" disabled={pending} onClick={advance}>
           {pending ? "…" : "Fortschreiben"}
         </Button>

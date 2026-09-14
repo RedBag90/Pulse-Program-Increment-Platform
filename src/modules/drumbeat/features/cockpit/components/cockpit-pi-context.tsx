@@ -56,7 +56,7 @@ export function CockpitPiContext({
       <div className="flex items-center gap-2">
         <span className="text-sm font-semibold">{pi.name}</span>
         <span
-          className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badgeClass}`}
+          className={`inline-block rounded-full px-2.5 py-0.5 text-meta font-medium ${badgeClass}`}
         >
           {pi.status}
         </span>

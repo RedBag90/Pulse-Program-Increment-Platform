@@ -96,7 +96,7 @@ export function EpicTower({
             options={MODE_OPTIONS}
             onChange={setMode}
             ariaLabel="Turm-Achse"
-            className="bg-card text-[11px]"
+            className="bg-card text-meta"
           />
         </CardAction>
       </CardHeader>
@@ -113,7 +113,7 @@ export function EpicTower({
                     href={`/portfolio/epics/${e.id}`}
                     title={`${e.title} — ${STAGE_GATE_LABELS[e.stageGate] ?? e.stageGate}`}
                     aria-label={e.title}
-                    className={`size-2.5 rounded-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    className={`size-2.5 rounded-[2px] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
                       e.needsSteeringAttention
                         ? "ring-1 ring-destructive ring-offset-1 ring-offset-card"
                         : ""
@@ -122,10 +122,8 @@ export function EpicTower({
                   />
                 ))}
               </div>
-              <span className="font-mono text-[11px] text-muted-foreground">
-                {col.epics.length}
-              </span>
-              <span className="text-center text-[10px] leading-tight text-muted-foreground">
+              <span className="font-mono text-meta text-muted-foreground">{col.epics.length}</span>
+              <span className="text-center text-label leading-tight text-muted-foreground">
                 {col.top}
                 <br />
                 {col.bottom}
@@ -134,7 +132,7 @@ export function EpicTower({
           ))}
         </div>
 
-        <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-[10px] text-muted-foreground">
+        <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-label text-muted-foreground">
           {(["h3", "h2", "h1", "h0"] as const).map((h) => (
             <Legend key={h} color={HORIZON_HEX[h]} label={HORIZON_LABEL[h]} />
           ))}

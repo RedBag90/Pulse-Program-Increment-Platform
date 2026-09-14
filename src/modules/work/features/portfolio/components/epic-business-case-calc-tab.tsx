@@ -61,7 +61,7 @@ function GateBadge({ gate }: { gate: string }) {
   const single = !gate.includes("→");
   return (
     <span
-      className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${GATE_CLASS[gate] ?? "bg-muted text-muted-foreground"}`}
+      className={`rounded-sm px-1.5 py-0.5 text-meta font-medium ${GATE_CLASS[gate] ?? "bg-muted text-muted-foreground"}`}
       title={single ? (STAGE_GATE_LABELS[gate] ?? gate) : gate}
     >
       {gate}
@@ -157,11 +157,11 @@ export function EpicBusinessCaseCalcTab({ rows, months, summary, dayMonth }: Pro
       <div className="flex flex-wrap items-center justify-between gap-2">
         <SectionLabel>Wirtschaftlichkeit über die Zeit</SectionLabel>
         {summary.hasAllocation ? (
-          <span className="rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+          <span className="rounded-full border border-success/40 bg-success-surface px-2 py-0.5 text-meta font-medium text-success">
             Budget freigegeben — die Kurve rechnet mit der Allocation
           </span>
         ) : (
-          <span className="rounded-full border border-dashed border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+          <span className="rounded-full border border-dashed border-warning/40 bg-warning-surface px-2 py-0.5 text-meta font-medium text-warning">
             Kosten veranschlagt — die Kurve rechnet mit den Kostenscheiben
           </span>
         )}
@@ -196,7 +196,7 @@ export function EpicBusinessCaseCalcTab({ rows, months, summary, dayMonth }: Pro
         </StatStrip>
       </div>
 
-      <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+      <div className="rounded-lg bg-card p-4 shadow-card">
         <SectionLabel>Kosten, Nutzen und Break-even — kumuliert</SectionLabel>
         <BreakEvenChart
           points={chartPoints}
@@ -204,7 +204,7 @@ export function EpicBusinessCaseCalcTab({ rows, months, summary, dayMonth }: Pro
         />
       </div>
 
-      <div className="max-h-[70vh] overflow-auto rounded-xl bg-card ring-1 ring-foreground/10">
+      <div className="max-h-[70vh] overflow-auto rounded-lg bg-card shadow-card">
         <table className="w-full min-w-[640px] border-collapse text-xs tabular-nums">
           <thead className={STICKY_THEAD}>
             <tr className="text-left text-muted-foreground">
@@ -288,7 +288,7 @@ export function EpicBusinessCaseCalcTab({ rows, months, summary, dayMonth }: Pro
         </table>
       </div>
 
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-meta text-muted-foreground">
         ⓘ Das App-Modell rechnet intern monatlich — die Tageswerte sind der tagesgenaue Analog
         (Monats-Summe = Monatswert der App). „Ist" bis heute, danach Forecast (kursiv); die
         Benefit-Velocity füllt in der Zukunft auf die Zielrate auf. Ein Monat lädt seine Tage beim
@@ -332,7 +332,7 @@ function YearGroup({
           <button type="button" onClick={onToggle} className="flex items-center gap-1.5">
             {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
             {year}
-            {forecast && <span className="text-[10px] text-muted-foreground">(Forecast)</span>}
+            {forecast && <span className="text-label text-muted-foreground">(Forecast)</span>}
           </button>
         </td>
         <td className="px-3 py-1.5">

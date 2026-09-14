@@ -68,7 +68,7 @@ export function BusinessCaseEditor({
   return (
     <div className="space-y-6">
       {readOnly && lockReason && (
-        <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+        <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning-surface p-3 text-sm text-warning">
           <Lock className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{lockReason}</span>
         </div>
@@ -131,7 +131,7 @@ export function BusinessCaseEditor({
                 value={current.leadingIndicators ?? ""}
               />
               {kpiNames.length === 0 ? (
-                <p className="rounded border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
+                <p className="rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
                   Noch keine KPI erfasst — pflege sie im Reiter „KPI &amp; Nutzenkalkulation“.
                 </p>
               ) : (
@@ -181,7 +181,7 @@ export function BusinessCaseEditor({
           </div>
 
           {/* Implementation cost — 6-month demand calculation */}
-          <section className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+          <section className="rounded-lg bg-card p-4 shadow-card">
             <div className="grid gap-4 lg:grid-cols-3">
               <div className="space-y-3 lg:col-span-2">
                 <div>
@@ -238,7 +238,7 @@ export function BusinessCaseEditor({
                 </div>
               </div>
 
-              <aside className="self-start rounded-xl bg-muted/30 p-3 text-sm ring-1 ring-foreground/10">
+              <aside className="self-start rounded-lg bg-muted/30 p-3 text-sm shadow-card">
                 <div className="flex items-start gap-2">
                   <Lightbulb className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
                   <div className="space-y-2">
@@ -260,7 +260,7 @@ export function BusinessCaseEditor({
 
           {/* Nutzen: zwei Kacheln (einmalig / wiederkehrend), je Effekt in Top-Ziel-Einheit
               + Explorer-Baum, der die Kaskade Ebene für Ebene bis zu den KPIs aufschlüsselt. */}
-          <section className="space-y-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+          <section className="space-y-4 rounded-lg bg-card p-4 shadow-card">
             <div>
               <SectionLabel>Nutzen</SectionLabel>
               <p className="text-xs text-muted-foreground">
@@ -324,7 +324,7 @@ export function BusinessCaseEditor({
           {/* Es gab einmal einen Reiter „Freigaben"; seit dem Umbau laufen sie
               ueber die Reifegrad-Karte und „Meine Tasks". Der alte Verweis
               zeigte ins Leere. */}
-          <div className="rounded border border-dashed bg-muted/30 p-3 text-sm text-muted-foreground">
+          <div className="rounded-md border border-dashed bg-muted/30 p-3 text-sm text-muted-foreground">
             Freigaben laufen über die{" "}
             <span className="font-medium text-foreground">Reifegrad-Karte</span> oben auf dieser
             Seite und erscheinen bei den Abnehmern unter{" "}
@@ -356,7 +356,7 @@ export function BusinessCaseEditor({
       </form>
 
       {history.length > 0 && (
-        <details className="rounded-xl bg-muted/50 p-3 ring-1 ring-foreground/10">
+        <details className="rounded-lg bg-muted/50 p-3 shadow-card">
           <summary className="cursor-pointer text-sm font-medium text-foreground/80">
             Versionshistorie ({history.length})
           </summary>
@@ -400,7 +400,7 @@ function EffectTile({
     });
 
   return (
-    <div className="space-y-3 rounded-xl bg-muted/10 p-3 ring-1 ring-foreground/10">
+    <div className="space-y-3 rounded-lg bg-muted/10 p-3 shadow-card">
       <SectionLabel>{title}</SectionLabel>
       {roots.length === 0 ? (
         <div className="flex items-start gap-2 text-xs text-muted-foreground">
@@ -485,7 +485,7 @@ function CascadeRows({
                 <button
                   type="button"
                   onClick={() => toggle(path)}
-                  className="flex size-4 shrink-0 items-center justify-center rounded hover:bg-muted"
+                  className="flex size-4 shrink-0 items-center justify-center rounded-sm hover:bg-muted"
                   aria-label={isCollapsed ? "Aufklappen" : "Zuklappen"}
                 >
                   <ChevronRight

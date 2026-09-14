@@ -73,7 +73,7 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
         <div className="grid min-w-[960px] grid-cols-[180px_repeat(6,minmax(140px,1fr))] gap-2">
           {/* Kopfzeile: Stage-Gate-Spalten + WIP */}
           <div className="flex items-end">
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
               Budget · {cycleLabel(data.budgetCycleKey)}
             </span>
           </div>
@@ -90,14 +90,14 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
               >
                 <span
                   className={cn(
-                    "flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide",
+                    "flex items-center gap-1.5 text-label font-semibold uppercase tracking-[0.1em]",
                     work ? "text-foreground" : "text-muted-foreground",
                   )}
                 >
                   {work && <span className="size-1.5 rounded-full bg-primary/70" />}
                   {STAGE_SHORT[gate]}
                 </span>
-                <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+                <span className="font-mono text-label tabular-nums text-muted-foreground">
                   {data.epicsByColumn[gate].length}
                 </span>
               </div>
@@ -144,13 +144,13 @@ function HorizonBudget({ budget }: { budget: HorizonBudgetFigures }) {
         {formatCompactEUR(budget.budgetiert)}
       </p>
       <p
-        className="text-[10px] tabular-nums text-muted-foreground"
+        className="text-label tabular-nums text-muted-foreground"
         title="Davon in Umsetzung (Implementing / L4)"
       >
         ▸ Umsetzung {formatCompactEUR(budget.umsetzung)}
       </p>
       <p
-        className="text-[10px] tabular-nums text-muted-foreground"
+        className="text-label tabular-nums text-muted-foreground"
         title="Davon umgesetzt (Done / L5)"
       >
         ✓ umgesetzt {formatCompactEUR(budget.umgesetzt)}
@@ -228,7 +228,7 @@ function KanbanCell({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-1 w-full text-center text-[10px] text-muted-foreground hover:text-foreground"
+          className="mt-1 w-full text-center text-label text-muted-foreground hover:text-foreground"
         >
           {expanded ? "weniger" : `+ ${visible.length - CELL_LIMIT} weitere`}
         </button>
@@ -246,7 +246,7 @@ function SolutionCard({ rollup, cls }: { rollup: SolutionRollup; cls: EpicClass 
   const body = (
     <>
       <span className="truncate font-medium leading-snug">{rollup.name}</span>
-      <span className="ml-auto shrink-0 font-mono text-[10px] tabular-nums">{rollup.count}</span>
+      <span className="ml-auto shrink-0 font-mono text-label tabular-nums">{rollup.count}</span>
     </>
   );
   return (
@@ -294,7 +294,7 @@ function KanbanCard({ epic }: { epic: OverviewEpicCard }) {
         </Link>
       </div>
       {epic.valueStream && (
-        <p className="truncate text-[10px] text-muted-foreground">{epic.valueStream.name}</p>
+        <p className="truncate text-label text-muted-foreground">{epic.valueStream.name}</p>
       )}
     </li>
   );

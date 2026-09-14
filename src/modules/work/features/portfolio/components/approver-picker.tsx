@@ -57,10 +57,10 @@ export function MultiUserSelect({
                   <button
                     type="button"
                     onClick={() => onToggle(u.userId)}
-                    className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs hover:bg-muted"
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs hover:bg-muted"
                   >
                     <span
-                      className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border ${
+                      className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border ${
                         checked
                           ? "border-primary bg-primary text-primary-foreground"
                           : "border-input"
@@ -114,7 +114,10 @@ export function GatePartyPicker({
       <SectionLabel>Abnahme durch</SectionLabel>
       <div className="grid gap-2 sm:grid-cols-2">
         {staffing.roles.map(({ role, label }) => (
-          <div key={role} className="flex items-center gap-2 rounded-md border bg-card px-3 py-2">
+          <div
+            key={role}
+            className="flex items-center gap-2 rounded-lg bg-card px-3 py-2 shadow-card"
+          >
             <span className="w-28 shrink-0 text-xs font-medium">{label}</span>
             <MultiUserSelect
               options={approvers}
@@ -125,7 +128,7 @@ export function GatePartyPicker({
           </div>
         ))}
       </div>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-meta text-muted-foreground">
         Die gewählten Personen nehmen den Wechsel ab — ihre Zustimmung ist die Freigabe des Business
         Case. Parteien ohne Person bleiben unbesetzt.
       </p>

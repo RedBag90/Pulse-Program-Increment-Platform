@@ -66,7 +66,7 @@ export function TenantSwitcher({ tenants, activeTenantId }: Props) {
     <DropdownMenu>
       <DropdownMenuTrigger
         disabled={isPending}
-        className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors hover:bg-muted focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
         aria-label="Bereich wechseln"
       >
         <ActiveIcon className="size-3" aria-hidden />
@@ -75,7 +75,7 @@ export function TenantSwitcher({ tenants, activeTenantId }: Props) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
         <DropdownMenuGroup>
-          <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <DropdownMenuLabel className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Bereich wechseln
           </DropdownMenuLabel>
         </DropdownMenuGroup>

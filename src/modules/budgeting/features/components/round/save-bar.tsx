@@ -23,7 +23,7 @@ export function SaveBar({ count, detail, pending, error, onSave, onDiscard }: Pr
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center px-4">
-      <div className="pointer-events-auto flex w-full max-w-3xl items-center gap-4 rounded-2xl border bg-card px-4 py-3 shadow-lg">
+      <div className="pointer-events-auto flex w-full max-w-3xl items-center gap-4 rounded-lg bg-card px-4 py-3 shadow-lg ring-1 ring-foreground/10">
         <span
           className="size-2 shrink-0 rounded-full bg-primary ring-4 ring-primary/15"
           aria-hidden

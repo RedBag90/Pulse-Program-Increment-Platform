@@ -311,12 +311,12 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
               Ausklappen
             </ToolbarButton>
           </div>
-          <label className="inline-flex items-center gap-1.5 rounded-md border bg-card px-2 py-1">
-            <span className="text-[11px] font-medium text-muted-foreground">Sortieren</span>
+          <label className="inline-flex items-center gap-1.5 rounded-md border bg-background px-2 py-1">
+            <span className="text-meta font-medium text-muted-foreground">Sortieren</span>
             <select
               value={sortKey}
               onChange={(e) => setSortKey(e.target.value as SortKey)}
-              className="bg-transparent text-xs font-medium focus:outline-none"
+              className="bg-transparent text-xs font-medium focus-visible:outline-none"
               aria-label="Sortierkriterium"
             >
               <option value="manual">Manuell</option>
@@ -331,7 +331,7 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
               disabled={sortKey === "manual"}
               aria-label={sortDir === "asc" ? "Aufsteigend" : "Absteigend"}
               title={sortDir === "asc" ? "Aufsteigend" : "Absteigend"}
-              className="grid size-5 place-items-center rounded text-muted-foreground hover:text-foreground disabled:opacity-40"
+              className="grid size-5 place-items-center rounded-sm text-muted-foreground hover:text-foreground disabled:opacity-40"
             >
               {sortDir === "asc" ? (
                 <ArrowUp className="h-3.5 w-3.5" aria-hidden />
@@ -347,7 +347,7 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
             className={cn(
               "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
               offTrackOnly
-                ? "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-200"
+                ? "border-amber-300 bg-warning-surface text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-200"
                 : "bg-card text-muted-foreground hover:bg-muted",
             )}
           >
@@ -361,19 +361,19 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
                 setSortDir("desc");
                 setOffTrackOnly(false);
               }}
-              className="inline-flex items-center rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:underline"
+              className="inline-flex items-center rounded-md px-2 py-1 text-meta font-medium text-muted-foreground hover:text-foreground hover:underline"
             >
               Zurücksetzen
             </button>
           )}
           {offTrackOnly && visibleThemes.length === 0 && (
-            <span className="text-[11px] text-muted-foreground">Keine off-track-Ziele.</span>
+            <span className="text-meta text-muted-foreground">Keine off-track-Ziele.</span>
           )}
         </div>
         {canEdit && <NewLink entity="theme">+ Ziel</NewLink>}
       </div>
       {canEdit && (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-meta text-muted-foreground">
           Klick öffnet den Editor · Zeile ziehen:{" "}
           {reorderable
             ? "oben/unten = umsortieren, Mitte = unterordnen."
@@ -394,7 +394,7 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
             drag.onDropOn(null, "inside");
           }}
           className={cn(
-            "rounded-md border border-dashed px-3 py-1.5 text-center text-[11px] text-muted-foreground transition-colors",
+            "rounded-md border border-dashed px-3 py-1.5 text-center text-meta text-muted-foreground transition-colors",
             overTop && "border-primary bg-primary/10 text-foreground",
           )}
         >
@@ -404,7 +404,7 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
       <div
         ref={containerRef}
         data-tour="goals-table"
-        className="overflow-x-auto rounded-xl border bg-card shadow-sm"
+        className="overflow-x-auto rounded-lg bg-card shadow-card shadow-sm"
       >
         <table className="w-full text-sm">
           <thead className={STICKY_THEAD}>
@@ -627,7 +627,7 @@ const Row = memo(function Row({
               onClick={() => toggle(node.id)}
               aria-expanded={!isCollapsed}
               aria-label={isCollapsed ? "Ausklappen" : "Einklappen"}
-              className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="grid size-5 shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <ChevronRight
                 className={cn("h-3.5 w-3.5 transition-transform", !isCollapsed && "rotate-90")}
@@ -645,7 +645,7 @@ const Row = memo(function Row({
             <span className="truncate text-sm font-medium">{title}</span>
             {drift && (
               <span
-                className="shrink-0 rounded-full bg-amber-100 px-1 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
+                className="shrink-0 rounded-full bg-warning-surface px-1 py-0.5 text-label font-semibold text-warning dark:bg-amber-500/20 dark:text-amber-300"
                 title="Run-Rate < 70 % vom Planned"
               >
                 ⚠
@@ -664,14 +664,14 @@ const Row = memo(function Row({
                   </Badge>
                 ))}
                 {node.valueStreams.length > 2 && (
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-label text-muted-foreground">
                     +{node.valueStreams.length - 2}
                   </span>
                 )}
               </span>
             )}
             {subtitle && (
-              <span className="shrink-0 text-[11px] uppercase tracking-wider text-muted-foreground">
+              <span className="shrink-0 text-meta uppercase tracking-[0.1em] text-muted-foreground">
                 {subtitle}
               </span>
             )}
@@ -685,7 +685,7 @@ const Row = memo(function Row({
         <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <GoalStatusPill status={statusValue} />
           {checkinAt && (
-            <span className="text-[11px] text-muted-foreground">{relativeGoalTime(checkinAt)}</span>
+            <span className="text-meta text-muted-foreground">{relativeGoalTime(checkinAt)}</span>
           )}
         </span>
       </Td>
@@ -706,12 +706,12 @@ const Row = memo(function Row({
 });
 
 function OwnerAvatar({ label, head }: { label: string | null; head?: boolean }) {
-  if (!label) return <span className="text-[11px] text-muted-foreground/50">—</span>;
+  if (!label) return <span className="text-meta text-muted-foreground/50">—</span>;
   const initials = goalInitials(label);
   return (
     <Avatar size="sm" title={label}>
       <AvatarFallback
-        className={cn("text-[10px] font-medium", head && "bg-primary/10 text-primary")}
+        className={cn("text-label font-medium", head && "bg-primary/10 text-primary")}
       >
         {initials}
       </AvatarFallback>
@@ -734,7 +734,7 @@ function RowActions({
         <Link
           href={addChildHref as never}
           scroll={false}
-          className="grid size-8 place-items-center rounded-md border bg-card text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="grid size-8 place-items-center rounded-md border bg-background text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           title="Unterziel hinzufügen"
           aria-label="Unterziel hinzufügen"
         >
@@ -744,7 +744,7 @@ function RowActions({
       <Link
         href={editHref as never}
         scroll={false}
-        className="grid size-8 place-items-center rounded-md border bg-card hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="grid size-8 place-items-center rounded-md border bg-background hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         title="Bearbeiten"
         aria-label="Bearbeiten"
       >
@@ -760,7 +760,7 @@ function NewLink({ entity, children }: { entity: "theme"; children: React.ReactN
     <Link
       href={goalHref(sp, { entity, new: "1", id: null, parent: null }) as never}
       scroll={false}
-      className="inline-flex items-center gap-1 rounded-md border border-dashed bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+      className="inline-flex items-center gap-1 rounded-md border border-dashed bg-card px-2.5 py-1 text-meta font-medium text-muted-foreground hover:bg-muted/40 hover:text-foreground"
     >
       <Plus className="h-3 w-3" aria-hidden />
       {children}
@@ -798,7 +798,7 @@ function ProgressBar({ value }: { value: number }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="w-9 shrink-0 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
+      <span className="w-9 shrink-0 text-right font-mono text-meta tabular-nums text-muted-foreground">
         {pct}%
       </span>
     </div>
@@ -808,11 +808,11 @@ function ProgressBar({ value }: { value: number }) {
 /** €-Ratio einzeilig realized/planned; Details im Tooltip. */
 function TrioBadge({ trio }: { trio: RollupTrio }) {
   if (trio.planned === 0 && trio.realized === 0) {
-    return <span className="text-[11px] text-muted-foreground/50">—</span>;
+    return <span className="text-meta text-muted-foreground/50">—</span>;
   }
   return (
     <span
-      className="whitespace-nowrap font-mono text-[11px] tabular-nums"
+      className="whitespace-nowrap font-mono text-meta tabular-nums"
       title={`Planned €${eur(trio.planned)} · Realized €${eur(trio.realized)} · Run-Rate €${eur(trio.runRate)}`}
     >
       €{compact(trio.realized)}

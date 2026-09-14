@@ -39,7 +39,7 @@ export function MoneySheetView({ themes, hasPortfolio = true }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-meta text-muted-foreground">
           Top-down pro Ziel aggregiert. Bottom-up je Epic siehst du im{" "}
           <Link href={"/portfolio/dashboard" as never} className="text-primary hover:underline">
             Portfolio-Dashboard
@@ -59,9 +59,9 @@ export function MoneySheetView({ themes, hasPortfolio = true }: Props) {
           })}
         />
       </div>
-      <div className="overflow-x-auto rounded-lg border bg-card">
+      <div className="overflow-x-auto rounded-lg bg-card shadow-card">
         <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
+          <thead className="bg-muted/40 text-label uppercase tracking-[0.1em] text-muted-foreground">
             <tr>
               <Th>Ziel</Th>
               <Th>Periode</Th>
@@ -114,7 +114,7 @@ function Row({ theme }: { theme: GoalNode }) {
         </Link>
       </Td>
       <Td>
-        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+        <span className="text-meta uppercase tracking-[0.1em] text-muted-foreground">
           {goalNodeTimeframeLabel(theme)}
         </span>
       </Td>
@@ -124,13 +124,13 @@ function Row({ theme }: { theme: GoalNode }) {
       <Td align="right">
         {atRisk ? (
           <span
-            className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"
+            className="rounded-full bg-warning-surface px-1.5 py-0.5 text-label font-semibold text-warning"
             title="Run-Rate < 70 % vom Planned"
           >
             ⚠
           </span>
         ) : (
-          <span className="text-[10px] text-emerald-600">✓</span>
+          <span className="text-label text-success">✓</span>
         )}
       </Td>
     </tr>

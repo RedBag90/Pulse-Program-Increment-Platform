@@ -54,7 +54,7 @@ export function GoalSetupStepper({
     });
 
   return (
-    <div className="space-y-3 rounded-lg border bg-card p-3.5 shadow-xs">
+    <div className="space-y-3 rounded-lg bg-card shadow-card p-3.5 shadow-xs">
       <div className="flex items-center justify-between">
         <SectionLabel>Fortschritt</SectionLabel>
         <button
@@ -88,14 +88,14 @@ export function GoalSetupStepper({
                 <StatusIcon status={step.status} />
                 <span className="text-xs font-medium">{step.label}</span>
               </div>
-              <p className="text-[11px] leading-snug">{step.description}</p>
+              <p className="text-meta leading-snug">{step.description}</p>
 
               {isCurrent && href && (
                 <div className="mt-1 border-t border-primary/20 pt-1.5">
                   <Link
                     href={href}
                     scroll={false}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-input bg-card px-2.5 py-1 text-xs font-medium shadow-xs transition-colors hover:bg-muted/50"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium shadow-xs transition-colors hover:bg-muted/50"
                   >
                     {step.ctaKind === "create" && <Plus className="size-3.5" />}
                     {step.ctaLabel}

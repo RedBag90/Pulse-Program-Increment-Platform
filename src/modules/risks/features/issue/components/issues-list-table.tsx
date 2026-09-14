@@ -184,7 +184,7 @@ function ReparentMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={`${row.title} verschieben`}
-        className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/row:opacity-100"
+        className="rounded-sm p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 group-hover/row:opacity-100"
       >
         <MoreVertical className="size-3.5" />
       </DropdownMenuTrigger>
@@ -227,7 +227,7 @@ function RollupBadges({ row }: { row: IssueListRow }) {
   const r = row.rollup;
   if (!r) return null;
   return (
-    <span className="ml-2 inline-flex items-center gap-2 text-[11px] text-muted-foreground">
+    <span className="ml-2 inline-flex items-center gap-2 text-meta text-muted-foreground">
       <span className="inline-flex items-center gap-1">
         {ROAM_STATUSES.filter((s) => r.roamCounts[s] > 0).map((s) => (
           <span key={s} className="inline-flex items-center gap-0.5">
@@ -288,7 +288,7 @@ function Row({
           openDrawer();
         }
       }}
-      className={`group/row ${TREE_ROW} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${dropInsideRing(
+      className={`group/row ${TREE_ROW} cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset ${dropInsideRing(
         !!drop?.isOver,
       )} ${row.isOverdue ? "bg-red-50/50 dark:bg-red-950/20" : ""}`}
       style={{ boxShadow: rowShadow({ head: depth === 0 }) }}
@@ -315,7 +315,7 @@ function Row({
                 onToggle(row.id);
               }}
               onKeyDown={(e) => e.stopPropagation()}
-              className="mr-1 shrink-0 rounded px-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="mr-1 shrink-0 rounded-sm px-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               {collapsed ? "▸" : "▾"}
             </button>
@@ -324,7 +324,7 @@ function Row({
             {row.title}
           </span>
           {row.displayNumber && (
-            <span className="ml-1.5 shrink-0 text-[11px] tabular-nums text-muted-foreground">
+            <span className="ml-1.5 shrink-0 text-meta tabular-nums text-muted-foreground">
               {row.displayNumber}
             </span>
           )}

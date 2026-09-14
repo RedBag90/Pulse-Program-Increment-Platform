@@ -61,13 +61,13 @@ export function MultiSelectFilter({
       <PopoverTrigger
         disabled={disabled}
         className={cn(
-          "inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 text-xs font-medium shadow-xs hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+          "inline-flex h-9 items-center gap-1.5 rounded-md border bg-background px-3 text-xs font-medium shadow-xs hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50",
           count > 0 ? "border-primary/40 text-foreground" : "text-muted-foreground",
         )}
       >
-        <span className="text-[11px] uppercase tracking-wide">{label}</span>
+        <span className="text-label font-semibold uppercase tracking-[0.1em]">{label}</span>
         {count > 0 ? (
-          <span className="grid min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-semibold tabular-nums text-primary-foreground">
+          <span className="grid min-w-4 place-items-center rounded-full bg-primary px-1 text-label font-semibold tabular-nums text-primary-foreground">
             {count}
           </span>
         ) : (
@@ -87,7 +87,7 @@ export function MultiSelectFilter({
               onChange={(e) => setQ(e.target.value)}
               placeholder="Suchen…"
               aria-label={`${label} durchsuchen`}
-              className="h-7 w-full rounded-md border border-input bg-transparent pl-7 pr-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-7 w-full rounded-md border border-input bg-transparent pl-7 pr-2 text-xs focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             />
           </div>
         )}
@@ -102,14 +102,14 @@ export function MultiSelectFilter({
               >
                 {section.heading && (
                   <div className="flex items-center justify-between px-2 pb-1 pt-1.5">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                    <span className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                       {section.heading}
                     </span>
                     {onToggleSection && values.length > 0 && (
                       <button
                         type="button"
                         onClick={() => onToggleSection(values, !allOn)}
-                        className="text-[11px] font-medium text-primary hover:underline"
+                        className="text-meta font-medium text-primary hover:underline"
                       >
                         {allOn ? "keine" : "alle"}
                       </button>
@@ -132,7 +132,7 @@ export function MultiSelectFilter({
                       >
                         <span
                           className={cn(
-                            "grid size-4 shrink-0 place-items-center rounded border",
+                            "grid size-4 shrink-0 place-items-center rounded-sm border",
                             on
                               ? "border-primary bg-primary text-primary-foreground"
                               : "border-input",

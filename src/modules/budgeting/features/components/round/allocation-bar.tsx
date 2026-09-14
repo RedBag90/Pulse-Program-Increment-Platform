@@ -25,7 +25,7 @@ export function AllocationBar({ allocated, budget }: Props) {
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between gap-2 text-[10px] font-medium text-muted-foreground">
+      <div className="flex items-center justify-between gap-2 text-label font-medium text-muted-foreground">
         <span className="tabular-nums">
           {formatCompactEUR(allocated)} / {formatCompactEUR(budget)}
         </span>

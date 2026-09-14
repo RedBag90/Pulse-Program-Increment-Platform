@@ -44,7 +44,7 @@ export function MoneyExportButton({ rows }: Props) {
       type="button"
       onClick={download}
       disabled={rows.length === 0}
-      className="rounded-md border bg-card px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
+      className="rounded-md border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
     >
       CSV exportieren
     </button>

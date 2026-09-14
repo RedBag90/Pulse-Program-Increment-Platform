@@ -50,7 +50,7 @@ function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
         }
       }}
       title={canDrag ? "Drag fuer PI/Status-Wechsel" : "Lese-Modus"}
-      className={`group relative flex flex-col gap-1 overflow-hidden rounded-md border bg-card p-2 pl-2.5 text-left shadow-sm transition-shadow hover:shadow-md ${
+      className={`group relative flex flex-col gap-1 overflow-hidden rounded-md bg-card p-2 pl-2.5 text-left shadow-card transition-shadow hover:shadow-md ${
         feature.hasBlocker ? "border-amber-300" : "border-border"
       } ${canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
     >
@@ -60,13 +60,13 @@ function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
         className={`absolute inset-y-0 left-0 w-1 ${FEATURE_STATUS_DOT[feature.status]}`}
       />
       <p className="line-clamp-2 text-xs font-medium leading-snug">{feature.title}</p>
-      <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+      <div className="flex items-center justify-between gap-2 text-label text-muted-foreground">
         <div className="flex min-w-0 items-center gap-1.5">
           {feature.ownerName && (
             <span
               title={feature.ownerName}
               aria-label={`Owner: ${feature.ownerName}`}
-              className="flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-foreground/70"
+              className="flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-label font-semibold text-foreground/70"
             >
               {initials(feature.ownerName)}
             </span>
@@ -76,12 +76,12 @@ function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
         {feature.wsjfComputed != null && (
           <WsjfBadge
             value={feature.wsjfComputed}
-            className="shrink-0 px-1 py-0 text-[10px] font-medium"
+            className="shrink-0 px-1 py-0 text-label font-medium"
           />
         )}
       </div>
       {feature.hasBlocker && feature.blockerHint && (
-        <p className="line-clamp-1 text-[10px] text-amber-700">
+        <p className="line-clamp-1 text-label text-warning">
           ⚠ blockt durch <span className="font-medium">{feature.blockerHint}</span>
         </p>
       )}

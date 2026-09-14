@@ -18,7 +18,7 @@ export function RequestTenantForm() {
 
   if (state.success) {
     return (
-      <div className="rounded-lg border bg-card p-6 text-center">
+      <div className="rounded-lg bg-card shadow-card p-6 text-center">
         <p className="text-sm font-medium">Antrag übermittelt.</p>
         <p className="mt-2 text-xs text-muted-foreground">
           Wir melden uns per E-Mail, sobald dein Bereich freigeschaltet ist.
@@ -39,7 +39,7 @@ export function RequestTenantForm() {
           required
           minLength={2}
           placeholder="Acme GmbH"
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>
       <div>
@@ -52,7 +52,7 @@ export function RequestTenantForm() {
           type="email"
           required
           placeholder="du@firma.de"
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>
       <div>
@@ -64,7 +64,7 @@ export function RequestTenantForm() {
           name="note"
           rows={3}
           placeholder="Kurz zum Kontext…"
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>
 

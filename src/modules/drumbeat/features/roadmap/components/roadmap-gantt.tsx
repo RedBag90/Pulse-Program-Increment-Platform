@@ -202,14 +202,14 @@ export function RoadmapGantt({
         >
           <div
             className="sticky left-0 z-10 flex shrink-0 items-center justify-between gap-2
-              bg-gradient-to-b from-muted/60 to-muted/40 px-3 py-1.5 text-[11px] font-medium
+              bg-gradient-to-b from-muted/60 to-muted/40 px-3 py-1.5 text-meta font-medium
               text-muted-foreground"
             style={{ width: LABEL_W }}
           >
             <span>Eintrag</span>
             {dependencies !== undefined && (
               <span
-                className="text-[10px] font-normal text-muted-foreground/80"
+                className="text-label font-normal text-muted-foreground/80"
                 title="Dependencies im aktuellen Scope"
               >
                 {renderableDeps.length === 0 && offScopeCount === 0
@@ -222,7 +222,7 @@ export function RoadmapGantt({
             {axis.months.map((m) => (
               <div
                 key={m.key}
-                className="shrink-0 border-l px-1.5 py-1.5 text-center text-[10px] font-medium
+                className="shrink-0 border-l px-1.5 py-1.5 text-center text-label font-medium
                   uppercase tracking-wide text-muted-foreground"
                 style={{ width: MONTH_PX }}
               >
@@ -233,7 +233,7 @@ export function RoadmapGantt({
             {todayPct !== null && (
               <div
                 className="pointer-events-none absolute top-1/2 z-10 -translate-y-1/2 rounded-full
-                  bg-rose-500 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide
+                  bg-rose-500 px-1.5 py-0.5 text-label font-semibold uppercase tracking-[0.1em]
                   text-white shadow-sm"
                 style={{ left: `calc(${todayPct}% + 4px)` }}
                 title={`Heute · ${todayLabel}`}
@@ -255,7 +255,7 @@ export function RoadmapGantt({
                   style={{ minHeight: ROW_H }}
                 >
                   <div
-                    className="sticky left-0 z-10 flex items-center bg-muted/30 px-3 text-[10px]
+                    className="sticky left-0 z-10 flex items-center bg-muted/30 px-3 text-label
                       font-semibold uppercase tracking-wide text-muted-foreground"
                     style={{ width: LABEL_W }}
                   >
@@ -289,7 +289,7 @@ export function RoadmapGantt({
                   {row.href ? (
                     <Link
                       href={row.href}
-                      className={`line-clamp-1 text-[13px] hover:underline ${
+                      className={`line-clamp-1 text-xs hover:underline ${
                         isEpic ? "font-semibold text-foreground" : "font-medium text-foreground/90"
                       }`}
                       title={row.label}
@@ -298,9 +298,7 @@ export function RoadmapGantt({
                     </Link>
                   ) : (
                     <span
-                      className={`line-clamp-1 text-[13px] ${
-                        isEpic ? "font-semibold" : "font-medium"
-                      }`}
+                      className={`line-clamp-1 text-xs ${isEpic ? "font-semibold" : "font-medium"}`}
                       title={row.label}
                     >
                       {row.label}
@@ -308,7 +306,7 @@ export function RoadmapGantt({
                   )}
                   {row.sublabel && (
                     <p
-                      className="line-clamp-1 text-[9px] text-muted-foreground/70"
+                      className="line-clamp-1 text-label text-muted-foreground/70"
                       title={row.sublabel}
                     >
                       {row.sublabel}
@@ -398,7 +396,7 @@ export function RoadmapGantt({
                         onAddDependencyFrom(row.id, e.clientX, e.clientY);
                       }}
                       className="absolute top-1/2 z-10 -translate-y-1/2 rounded-full border
-                        border-background bg-primary text-[10px] font-bold leading-none text-primary-foreground
+                        border-background bg-primary text-label font-bold leading-none text-primary-foreground
                         opacity-0 shadow transition-opacity group-hover:opacity-100"
                       style={{
                         left: `calc(${bar.leftPct + bar.widthPct}% + 4px)`,
@@ -506,7 +504,7 @@ function OffScopeMarker({ side, pct, deps, featureLabel }: OffScopeMarkerProps) 
   const dominantType = deps[0]!.type;
   return (
     <span
-      className="pointer-events-auto absolute top-1/2 -translate-y-1/2 cursor-help text-[9px]
+      className="pointer-events-auto absolute top-1/2 -translate-y-1/2 cursor-help text-label
         font-semibold leading-none"
       style={{
         left: side === "left" ? `calc(${pct}% - 8px)` : `calc(${pct}% - 2px)`,

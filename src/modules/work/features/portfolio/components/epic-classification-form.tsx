@@ -91,7 +91,7 @@ export function EpicClassificationForm({
         <div>
           <label
             htmlFor="epic-type-select"
-            className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+            className="mb-1.5 block text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground"
           >
             Epic-Typ
           </label>
@@ -101,7 +101,7 @@ export function EpicClassificationForm({
               value={epicType ?? ""}
               disabled={busy}
               onChange={(e) => update("epicType", e.target.value)}
-              className="w-full rounded-lg border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
             >
               <option value="">— ungesetzt</option>
               {EPIC_TYPES.map((t) => (
@@ -121,7 +121,7 @@ export function EpicClassificationForm({
         <div>
           <label
             htmlFor="epic-horizon-select"
-            className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+            className="mb-1.5 block text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground"
           >
             Horizont
           </label>
@@ -131,7 +131,7 @@ export function EpicClassificationForm({
               value={ownHorizon ?? ""}
               disabled={busy}
               onChange={(e) => update("investmentHorizon", e.target.value)}
-              className="w-full rounded-lg border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
             >
               {/* Leerer Wert = wieder ableiten. Ohne Solution heisst das „ohne". */}
               <option value="">

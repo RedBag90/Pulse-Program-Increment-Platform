@@ -26,8 +26,13 @@ export function Page({ children, variant = "default", className }: Props) {
   return (
     <div
       className={cn(
-        "mx-auto flex w-full flex-col gap-6",
-        variant === "default" && "px-6 py-8 md:px-8",
+        // Die Tokens statt ihrer Tailwind-Entsprechungen: `docs/design-tokens.md`
+        // beschrieb sie als verbindlich, gelesen wurde bis September 2026 aber
+        // nur `--page-max-w`. Die Werte sind dieselben (1.5rem / 2rem) — neu ist
+        // allein, dass es jetzt einen Drehpunkt gibt statt vier Klassen.
+        "mx-auto flex w-full flex-col gap-[var(--page-section-gap)]",
+        variant === "default" &&
+          "px-[var(--page-pad-x-sm)] py-[var(--page-pad-y)] md:px-[var(--page-pad-x)]",
         className,
       )}
       style={{ maxWidth: "var(--page-max-w)" }}

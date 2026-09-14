@@ -17,17 +17,12 @@ interface Props {
  * Checkbox-Spalte ist ausgeblendet; Bulk-Aktionen bleiben dem
  * `/portfolio/epics`-Surface vorbehalten.
  */
-export function MyTasksEpicsSection({
-  rows,
-  canEdit,
-  stageGatesEnabled,
-  compact,
-}: Props) {
+export function MyTasksEpicsSection({ rows, canEdit, stageGatesEnabled, compact }: Props) {
   if (rows.length === 0) return null;
   return (
     <section className="space-y-2">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Epics
         </h2>
         <span className="text-xs text-muted-foreground">{rows.length}</span>

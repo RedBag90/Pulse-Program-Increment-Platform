@@ -66,22 +66,22 @@ export function GuardrailAxes() {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {AXES.map((a) => (
-        <div key={a.no} className="space-y-2.5 rounded-lg border bg-card p-4">
+        <div key={a.no} className="space-y-2.5 rounded-lg bg-card shadow-card p-4">
           <div className="flex items-baseline gap-2">
-            <span className="font-mono text-[11px] tabular-nums text-muted-foreground">{a.no}</span>
+            <span className="font-mono text-meta tabular-nums text-muted-foreground">{a.no}</span>
             <p className="font-heading text-sm font-semibold text-foreground">{a.title}</p>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {a.fields.map((f) => (
               <span
                 key={f.label}
-                className="rounded border bg-muted/60 px-2 py-1 font-mono text-[11px] tabular-nums text-muted-foreground"
+                className="rounded-sm border bg-muted/60 px-2 py-1 font-mono text-meta tabular-nums text-muted-foreground"
               >
                 {f.label} <span className="text-foreground">{f.value}</span>
               </span>
             ))}
           </div>
-          <p className="text-[13px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {a.mix ? <span className="text-foreground">Mischung</span> : "Schwelle"} · {a.rule}
           </p>
         </div>

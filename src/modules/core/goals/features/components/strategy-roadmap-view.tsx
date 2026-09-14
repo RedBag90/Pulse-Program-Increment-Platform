@@ -31,7 +31,7 @@ import type { GoalStatusTier } from "@/modules/core/goals/domain/goal-status";
 const TIER_BAR: Record<GoalStatusTier, string> = {
   green:
     "bg-emerald-50 text-emerald-700 border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-300",
-  amber: "bg-amber-50 text-amber-700 border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-300",
+  amber: "bg-amber-50 text-warning border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-300",
   rose: "bg-rose-50 text-rose-700 border-rose-500/40 dark:bg-rose-500/15 dark:text-rose-300",
   neutral: "bg-muted text-muted-foreground border-border",
 };
@@ -90,7 +90,7 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
 
   if (themes.length === 0) {
     return (
-      <div className="grid h-56 place-items-center rounded-xl border border-dashed bg-card text-sm text-muted-foreground">
+      <div className="grid h-56 place-items-center rounded-lg border border-dashed bg-card text-sm text-muted-foreground">
         Noch keine Ziele im Scope.
       </div>
     );
@@ -104,7 +104,7 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
   }));
 
   return (
-    <div className="overflow-x-auto rounded-xl border bg-card p-3 shadow-sm">
+    <div className="overflow-x-auto rounded-lg bg-card shadow-card p-3 shadow-sm">
       <div className="relative" style={{ minWidth: LABEL_W + totalQ * 68 }}>
         {/* Kopf: Quartals-Spalten */}
         <div className="flex items-end pb-1.5">
@@ -116,7 +116,7 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
             {cols.map((c, i) => (
               <div
                 key={i}
-                className="border-l pl-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                className="border-l pl-2 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground"
               >
                 Q{c.q}
                 <span className="ml-1 text-muted-foreground/70">’{String(c.year).slice(2)}</span>
@@ -131,7 +131,7 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
             className="pointer-events-none absolute bottom-0 top-6 z-[3] w-px bg-primary"
             style={{ left: `calc(${LABEL_W}px + (100% - ${LABEL_W}px) * ${todayFrac})` }}
           >
-            <span className="absolute -top-0.5 left-1 text-[9px] font-bold uppercase tracking-wide text-primary">
+            <span className="absolute -top-0.5 left-1 text-label font-bold uppercase tracking-wide text-primary">
               heute
             </span>
           </div>
@@ -157,7 +157,7 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
                     <div
                       style={{ width: LABEL_W, paddingLeft: 8 + depth * 16 }}
                       className={cn(
-                        "flex-none truncate pr-3 text-[13px]",
+                        "flex-none truncate pr-3 text-xs",
                         depth === 0 ? "font-medium" : "text-foreground",
                       )}
                     >
@@ -169,7 +169,7 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
                         <div
                           title={`${node.title} · ${goalStatusLabel(node.status)} · ${goalTimeframeLabel(tf)}`}
                           className={cn(
-                            "absolute top-[5px] flex h-6 items-center gap-1.5 overflow-hidden rounded-lg border px-2 text-[11px] font-medium shadow-xs",
+                            "absolute top-[5px] flex h-6 items-center gap-1.5 overflow-hidden rounded-lg border px-2 text-meta font-medium shadow-xs",
                             TIER_BAR[tier],
                           )}
                           style={{ left: `${pl.left}%`, width: `${pl.width}%` }}
@@ -179,12 +179,12 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
                             style={{ backgroundColor: goalStatusColor(node.status) }}
                           />
                           {shortTag(tf)}
-                          <span className="ml-auto shrink-0 font-mono text-[10px] tabular-nums opacity-80">
+                          <span className="ml-auto shrink-0 font-mono text-label tabular-nums opacity-80">
                             {pct}%
                           </span>
                         </div>
                       ) : (
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/60">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-label text-muted-foreground/60">
                           ohne Zeitraum
                         </span>
                       )}

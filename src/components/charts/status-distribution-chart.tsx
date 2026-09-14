@@ -17,13 +17,13 @@ interface StatusDataPoint {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "hsl(var(--muted-foreground) / 0.5)",
+  draft: "color-mix(in oklab, var(--muted-foreground) 50%, transparent)",
   in_review: "oklch(0.623 0.214 259.815)",
   approved: "oklch(0.627 0.194 149.214)",
   in_progress: "var(--primary)",
   blocked: "oklch(0.637 0.237 25.331)",
   completed: "oklch(0.627 0.194 149.214)",
-  cancelled: "hsl(var(--muted-foreground) / 0.3)",
+  cancelled: "color-mix(in oklab, var(--muted-foreground) 30%, transparent)",
 };
 
 interface Props {

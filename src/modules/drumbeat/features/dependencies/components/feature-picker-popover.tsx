@@ -107,7 +107,7 @@ export function FeaturePickerPopover({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Feature suchen (Tenant-weit)…"
-        className="w-full rounded border bg-background px-2 py-1 text-sm"
+        className="w-full rounded-md border bg-background px-2 py-1 text-sm"
       />
       <div className="mt-2 max-h-64 overflow-y-auto text-sm">
         {loading && <p className="px-2 py-1 text-xs text-muted-foreground">Suche…</p>}
@@ -119,7 +119,7 @@ export function FeaturePickerPopover({
             key={h.id}
             type="button"
             onClick={() => onSelect(h.id, h.title)}
-            className="block w-full truncate rounded px-2 py-1 text-left text-xs hover:bg-muted/50"
+            className="block w-full truncate rounded-md px-2 py-1 text-left text-xs hover:bg-muted/50"
             title={h.title}
           >
             {h.title}

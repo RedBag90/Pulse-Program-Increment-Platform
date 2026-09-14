@@ -71,8 +71,8 @@ export function IntegrationsPageShell({ model, canManage, banner }: Props) {
           role={banner.kind === "error" ? "alert" : "status"}
           className={`rounded-md border px-3 py-2 text-sm ${
             banner.kind === "error"
-              ? "border-red-200 bg-red-50 text-red-800"
-              : "border-emerald-200 bg-emerald-50 text-emerald-800"
+              ? "border-destructive/30 bg-destructive-surface text-destructive"
+              : "border-success/30 bg-success-surface text-success"
           }`}
         >
           {banner.message}

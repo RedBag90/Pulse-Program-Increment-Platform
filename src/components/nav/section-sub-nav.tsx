@@ -51,7 +51,7 @@ export function SectionSubNav({ tabs, sectionRoot, ariaLabel }: Props) {
             className={cn(
               "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
               active
-                ? "border-blue-600 text-blue-700"
+                ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300",
             )}
           >

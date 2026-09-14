@@ -12,7 +12,7 @@ import { closeDistributionAction } from "@/modules/budgeting/features/actions/fi
 import { formatEUR } from "@/lib/formatting";
 
 const btn =
-  "rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50";
+  "rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50";
 
 /**
  * Reiter „Verteilung": wer hat abgegeben, wer noch nicht, und was jede Gruppe
@@ -58,7 +58,7 @@ export function PeriodDistributionTab({
             </span>{" "}
             <span className="text-muted-foreground">Gruppen haben abgegeben</span>
             {model.deadlinePassed && (
-              <span className="ml-1 text-amber-600">· Deadline verstrichen</span>
+              <span className="ml-1 text-warning">· Deadline verstrichen</span>
             )}
           </span>
           <span className="text-xs text-muted-foreground">
@@ -109,7 +109,7 @@ export function PeriodDistributionTab({
                 )}
                 <Link
                   href={`${basePath}/distribute/${g.id}`}
-                  className="rounded border px-2 py-1 text-xs font-medium hover:bg-muted"
+                  className="rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted"
                 >
                   öffnen →
                 </Link>
@@ -120,7 +120,7 @@ export function PeriodDistributionTab({
       )}
 
       <section className="space-y-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Vorschläge je Gruppe
         </h3>
         <CandidateWorksheet
@@ -149,12 +149,12 @@ export function PeriodDistributionTab({
           title={(c) => <span className="truncate">{c.title}</span>}
           empty="Noch keine Kandidaten — die Runde ist nicht gestartet."
         />
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-meta text-muted-foreground">
           Die Zwischensummen je Gruppenspalte zeigen, welcher Wertstrom einer Gruppe wichtiger war.
         </p>
       </section>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       {model.canFinalize && running && (
         <div className="flex flex-wrap items-center gap-3 border-t pt-4">

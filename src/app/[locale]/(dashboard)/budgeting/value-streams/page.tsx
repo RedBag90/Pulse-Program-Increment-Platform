@@ -34,7 +34,7 @@ export default async function BudgetingValueStreamsPage() {
       />
 
       {valueStreams.length === 0 ? (
-        <p className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground">
+        <p className="rounded-lg bg-card shadow-card px-4 py-3 text-sm text-muted-foreground">
           Noch keine Wertströme.
         </p>
       ) : (

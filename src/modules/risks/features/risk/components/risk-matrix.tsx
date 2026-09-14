@@ -127,7 +127,7 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
     // `getBoundingClientRect`, damit ein horizontaler Scroll automatisch drinsteckt.
     <div
       ref={containerRef}
-      className="relative space-y-3 rounded-lg border bg-card p-4"
+      className="relative space-y-3 rounded-lg bg-card p-4 shadow-card"
       data-tour="risk-matrix"
     >
       <div className="overflow-x-auto">
@@ -143,7 +143,7 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
             {RISK_LEVELS.map((impact) => (
               <div
                 key={`x-${impact}`}
-                className="pb-0.5 text-center font-mono text-[10px] leading-tight text-muted-foreground"
+                className="pb-0.5 text-center font-mono text-label leading-tight text-muted-foreground"
               >
                 {LEVEL_LABELS[impact]}
               </div>
@@ -151,7 +151,7 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
 
             {rows.map((probability) => (
               <Fragment key={`row-${probability}`}>
-                <div className="flex items-center justify-end pr-1.5 font-mono text-[10px] text-muted-foreground">
+                <div className="flex items-center justify-end pr-1.5 font-mono text-label text-muted-foreground">
                   {LEVEL_LABELS[probability]}
                 </div>
                 {RISK_LEVELS.map((impact) => {
@@ -176,7 +176,7 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
                       }`}
                     >
                       {count > 0 && (
-                        <span className="absolute left-1 top-0.5 text-[10px] font-semibold text-foreground/50">
+                        <span className="absolute left-1 top-0.5 text-label font-semibold text-foreground/50">
                           {count}
                         </span>
                       )}
@@ -207,7 +207,7 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
                             onMouseLeave={() => setHovered(null)}
                             onFocus={() => setHovered(p.riskId)}
                             onBlur={() => setHovered(null)}
-                            className={`size-2.5 shrink-0 cursor-pointer rounded-full ring-1 ring-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/70 ${
+                            className={`size-2.5 shrink-0 cursor-pointer rounded-full ring-1 ring-white/80 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
                               isHover ? "ring-2 ring-foreground/70" : ""
                             }`}
                             style={{ backgroundColor: ROAM_HEX[normalizeRoamStatus(p.roamStatus)] }}
@@ -245,7 +245,7 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
 
       {plots.length === 0 && <p className="text-sm text-muted-foreground">{emptyLabel}</p>}
 
-      <p className="font-mono text-[11px] text-muted-foreground">
+      <p className="font-mono text-meta text-muted-foreground">
         ● aktuell · Hover zeigt Details + gestrichelte Linie zur Ausgangsposition · Zelle =
         Exposure-Band-Farbe
       </p>

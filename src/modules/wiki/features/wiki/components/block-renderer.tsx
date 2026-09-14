@@ -37,14 +37,14 @@ function BlockView({
   switch (block.kind) {
     case "paragraph":
       return (
-        <p className="max-w-[var(--reading-max-w)] text-[15px] leading-relaxed text-muted-foreground">
+        <p className="max-w-[var(--reading-max-w)] text-prose leading-relaxed text-muted-foreground">
           {inline(block.text)}
         </p>
       );
 
     case "list": {
       const cls =
-        "max-w-[var(--reading-max-w)] space-y-1.5 pl-5 text-[15px] leading-relaxed text-muted-foreground";
+        "max-w-[var(--reading-max-w)] space-y-1.5 pl-5 text-prose leading-relaxed text-muted-foreground";
       const items = block.items.map((t, i) => <li key={i}>{inline(t)}</li>);
       return block.ordered ? (
         <ol className={`list-decimal ${cls}`}>{items}</ol>
@@ -55,14 +55,14 @@ function BlockView({
 
     case "note":
       return (
-        <p className="max-w-[var(--reading-max-w)] rounded-r border-l-2 border-amber-500/70 bg-amber-500/10 px-4 py-2.5 text-[15px] leading-relaxed text-amber-900 dark:text-amber-200">
+        <p className="max-w-[var(--reading-max-w)] rounded-r border-l-2 border-amber-500/70 bg-amber-500/10 px-4 py-2.5 text-prose leading-relaxed text-amber-900 dark:text-amber-200">
           {inline(block.text)}
         </p>
       );
 
     case "aside":
       return (
-        <p className="max-w-[var(--reading-max-w)] rounded-r border-l-2 border-border bg-muted/40 px-4 py-2.5 text-[15px] leading-relaxed text-muted-foreground">
+        <p className="max-w-[var(--reading-max-w)] rounded-r border-l-2 border-border bg-muted/40 px-4 py-2.5 text-prose leading-relaxed text-muted-foreground">
           {inline(block.text)}
         </p>
       );
@@ -76,7 +76,7 @@ function BlockView({
 
     case "code":
       return (
-        <pre className="overflow-x-auto rounded-lg border bg-muted/40 p-4 font-mono text-[12.5px] leading-relaxed text-muted-foreground">
+        <pre className="overflow-x-auto rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed text-muted-foreground">
           {block.text}
         </pre>
       );
@@ -84,14 +84,14 @@ function BlockView({
     case "table":
       return (
         <figure className="space-y-2">
-          <div className="overflow-x-auto rounded-lg border bg-card">
+          <div className="overflow-x-auto rounded-lg bg-card shadow-card">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr>
                   {block.head.map((h, i) => (
                     <th
                       key={i}
-                      className="whitespace-nowrap border-b px-4 py-2.5 text-left font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground"
+                      className="whitespace-nowrap border-b px-4 py-2.5 text-left font-mono text-meta uppercase tracking-[0.1em] text-muted-foreground"
                     >
                       {h}
                     </th>
@@ -115,7 +115,7 @@ function BlockView({
             </table>
           </div>
           {block.caption && (
-            <figcaption className="max-w-[var(--reading-max-w)] text-[13.5px] text-muted-foreground">
+            <figcaption className="max-w-[var(--reading-max-w)] text-sm text-muted-foreground">
               {inline(block.caption)}
             </figcaption>
           )}
@@ -131,7 +131,7 @@ function BlockView({
         <figure className="space-y-2">
           {el}
           {block.caption && (
-            <figcaption className="max-w-[var(--reading-max-w)] text-[13.5px] text-muted-foreground">
+            <figcaption className="max-w-[var(--reading-max-w)] text-sm text-muted-foreground">
               {inline(block.caption)}
             </figcaption>
           )}

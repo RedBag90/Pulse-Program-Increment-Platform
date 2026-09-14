@@ -39,7 +39,7 @@ export function ViewSwitcher({ current }: { current: OverviewView }) {
             onClick={() => setView(v.key)}
             aria-pressed={active}
             className={cn(
-              "rounded px-2.5 py-1 transition-colors",
+              "rounded-md px-2.5 py-1 transition-colors",
               active
                 ? "bg-background font-medium text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
