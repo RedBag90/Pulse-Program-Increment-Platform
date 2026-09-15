@@ -165,7 +165,7 @@ describe("epicBenefitFromKpis", () => {
 });
 
 /**
- * Der Reiter „KPI & Nutzenkalkulation" zeigt je KPI eine Zahl, Rechen-Reiter
+ * Der Reiter „KPI & Nutzen" zeigt je KPI eine Zahl, Rechen-Reiter
  * und Overview zeigen deren Summe. Bis September 2026 kamen die beiden aus
  * **zwei** Funktionen: `kpiPlannedAtTarget` (ohne Annualisierung) und
  * `kpiPlanned` (mit). Bei `recurring`/`monthly` standen damit 20.000 € und

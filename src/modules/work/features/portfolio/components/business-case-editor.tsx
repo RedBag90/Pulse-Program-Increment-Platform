@@ -128,7 +128,7 @@ export function BusinessCaseEditor({
                   href={`/portfolio/epics/${epicId}?tab=kpis` as never}
                   className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                 >
-                  In „KPI &amp; Nutzenkalkulation“ pflegen <ArrowRight className="size-3" />
+                  In „KPI &amp; Nutzen“ pflegen <ArrowRight className="size-3" />
                 </Link>
               </div>
               {/* Bestandswert mitsenden, damit der Full-Replace-Save den
@@ -141,7 +141,7 @@ export function BusinessCaseEditor({
               />
               {kpiNames.length === 0 ? (
                 <p className="rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
-                  Noch keine KPI erfasst — pflege sie im Reiter „KPI &amp; Nutzenkalkulation“.
+                  Noch keine KPI erfasst — pflege sie im Reiter „KPI &amp; Nutzen“.
                 </p>
               ) : (
                 <ul className="flex flex-wrap gap-1.5">
@@ -427,9 +427,9 @@ function EffectTile({
           <Lightbulb className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
           <div className="space-y-2">
             <p className="leading-snug">
-              Kein {title.toLowerCase()} — verknüpfe im Reiter „KPI &amp; Nutzenkalkulation“ ein
-              Ziel (Erfolgs-KPI) und pflege die Einheiten-Umrechnung je Ziel-Ebene, damit die
-              Kaskade bis zum Top-Ziel rechnet.
+              Kein {title.toLowerCase()} — verknüpfe im Reiter „KPI &amp; Nutzen“ ein Ziel
+              (Erfolgs-KPI) und pflege die Einheiten-Umrechnung je Ziel-Ebene, damit die Kaskade bis
+              zum Top-Ziel rechnet.
             </p>
             <Link
               href={`/portfolio/epics/${epicId}?tab=kpis` as never}

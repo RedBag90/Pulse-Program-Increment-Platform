@@ -127,10 +127,21 @@ export function EntityDetailShell({
           data-tour="entity-tab-rail"
           className="w-full shrink-0 border-b bg-surface-frame p-2 lg:w-48 lg:border-b-0 lg:border-r lg:p-3"
         >
-          <ul className="flex gap-1 overflow-x-auto lg:block lg:space-y-0.5">
+          {/* `overflow-x-auto` gilt nur waagerecht: in der senkrechten Schiene
+              beschnitte der Scrollbereich sonst den Fokus-Ring, und ein zu
+              langer Name verschwände in einem Bereich, den niemand als
+              scrollbar erkennt. */}
+          <ul className="flex gap-1 overflow-x-auto lg:block lg:space-y-0.5 lg:overflow-x-visible">
             {tabs.map((tab) => {
               const active = tab.key === activeTab;
-              const cls = `block w-full whitespace-nowrap text-left rounded-md px-3 py-1.5 text-sm transition-colors lg:rounded-l-none lg:rounded-r-md lg:border-l-2 ${
+              // `lg:truncate` statt `truncate`: unterhalb von `lg` sind die
+              // Reiter Flex-Elemente, und ein `overflow-hidden` setzte dort
+              // ihr `min-width: auto` auf 0 — sie quetschten sich zu
+              // Auslassungspunkten zusammen, statt die Leiste scrollen zu
+              // lassen. Ab `lg` ist die Schiene ~141 px breit; dort ist ein
+              // „…" die ehrliche Notbremse. Die Namen selbst hält der Wächter
+              // in `entity-detail-shell-tabs.test.tsx` kurz genug.
+              const cls = `block w-full whitespace-nowrap text-left rounded-md px-3 py-1.5 text-sm transition-colors lg:truncate lg:rounded-l-none lg:rounded-r-md lg:border-l-2 ${
                 active
                   ? "bg-primary/10 font-medium text-primary lg:border-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground lg:border-transparent"
@@ -142,6 +153,7 @@ export function EntityDetailShell({
                       type="button"
                       onClick={() => onTabChange(tab.key)}
                       aria-current={active ? "page" : undefined}
+                      title={tab.label}
                       className={cls}
                     >
                       {tab.label}
@@ -150,6 +162,7 @@ export function EntityDetailShell({
                     <Link
                       href={`${basePath}?tab=${tab.key}${tabSuffix}`}
                       aria-current={active ? "page" : undefined}
+                      title={tab.label}
                       className={cls}
                     >
                       {tab.label}

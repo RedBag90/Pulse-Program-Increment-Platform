@@ -70,7 +70,7 @@ function GateBadge({ gate }: { gate: string }) {
 }
 
 /**
- * „Business case calculation" — Wirtschaftlichkeit ueber die Zeit.
+ * „BC calculation" — Wirtschaftlichkeit ueber die Zeit.
  *
  * Drei Dinge unterscheiden diese Fassung von der vorigen:
  *

@@ -405,7 +405,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
 
         {activeTab === "timeline" && (
           <section>
-            <h2 className="mb-4 font-heading text-lg font-medium">Reifegrad-Phasen und Timeline</h2>
+            <h2 className="mb-4 font-heading text-lg font-medium">Reifegrad-Timeline</h2>
             <EpicTimelineTab
               epicId={epic.id}
               createdAt={epic.createdAt.toISOString()}

@@ -142,7 +142,7 @@ Die dritte Frage ist der eigentliche Akt. Der Meilenstein heißt
 **„Erstsichtung"**, und die Fläche beschreibt ihn in einem Satz: _Der VMO sichtet
 das Epic und benennt den Epic Owner._
 
-Die Steuerung sitzt im Reiter **„Reifegrad-Phasen und Timeline"**, aufklappbar am
+Die Steuerung sitzt im Reiter **„Reifegrad-Timeline"**, aufklappbar am
 Meilenstein Erstsichtung, unter der Überschrift **„Epic Owner"**: ein Personen-
 Picker und die Schaltfläche **„Owner zuweisen"**. Ist niemand benannt, steht dort
 „Nicht zugewiesen".

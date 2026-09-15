@@ -587,7 +587,7 @@ export function allocatedCostByMonth(
 /**
  * Maps the Epic's slices/benefits onto the axis as monthly cost/benefit flows.
  * Thin wrapper over the shared per-Epic core `epicFlows` (`./epic-flows`) — the
- * single source of truth shared with the Epic „Business case calculation"-Tab.
+ * single source of truth shared with the Epic „BC calculation"-Tab.
  * The funding flag is irrelevant here (the aggregator stamps it separately), so
  * it is passed as `false` and the `hasAllocation` result dropped.
  */

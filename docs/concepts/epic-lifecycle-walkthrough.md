@@ -71,7 +71,7 @@ es als Epic an und verknüpfe es mit dem Ziel — über die KPI-Kette rechnet Pu
 später aus, wie viel mein Epic zu diesem Ziel beiträgt.
 
 Das Epic steht damit auf **L0 · Idee** im Funnel. Der Zeitstrahl im Reiter
-_Reifegrad-Phasen und Timeline_ bekommt seinen ersten Eintrag: Funnel Entry.
+_Reifegrad-Timeline_ bekommt seinen ersten Eintrag: Funnel Entry.
 
 Ich werde als Owner eingetragen — damit gehört mir die Konkretisierung. Im
 Reiter _Hypothese_ schreibe ich die Benefit-Hypothese: erwarteter Nutzen, die
@@ -101,7 +101,7 @@ Case in Arbeit" — einen Sub-Stage-Split gibt es hier nicht.
 
 Jetzt die eigentliche Arbeit. Im Reiter _Deliverables_ schneide ich die
 Endprodukte als Features. Im Reiter _Dependencies_ hänge ich die Abhängigkeiten
-dran. Im Reiter _KPI & Nutzenkalkulation_ definiere ich die KPIs: Baseline,
+dran. Im Reiter _KPI & Nutzen_ definiere ich die KPIs: Baseline,
 Ziel, Einheit — und zusammen mit Finance den Wert je Einheit und die Nutzenart,
 einmalig oder laufend. Daraus rechnet Pulse den Nutzenbeitrag. Die Baseline ist
 ein Feld, das ich hier setze, kein Akt zu einem späteren Zeitpunkt.

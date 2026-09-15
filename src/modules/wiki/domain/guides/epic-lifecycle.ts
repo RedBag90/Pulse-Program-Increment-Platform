@@ -90,7 +90,7 @@ export const EPIC_LIFECYCLE: Guide = {
             },
             {
               kind: "paragraph",
-              text: "Das Epic steht damit auf **L0 · Idee** im Funnel. Der Zeitstrahl im Reiter _Reifegrad-Phasen und Timeline_ bekommt seinen ersten Eintrag.",
+              text: "Das Epic steht damit auf **L0 · Idee** im Funnel. Der Zeitstrahl im Reiter _Reifegrad-Timeline_ bekommt seinen ersten Eintrag.",
             },
           ],
         },
@@ -151,7 +151,7 @@ export const EPIC_LIFECYCLE: Guide = {
               items: [
                 "_Deliverables_ — ich schneide die Endprodukte als Features.",
                 "_Dependencies_ — ich hänge die Abhängigkeiten dran.",
-                "_KPI & Nutzenkalkulation_ — Baseline, Ziel, Einheit; zusammen mit Finance der Wert je Einheit und die Nutzenart, einmalig oder laufend.",
+                "_KPI & Nutzen_ — Baseline, Ziel, Einheit; zusammen mit Finance der Wert je Einheit und die Nutzenart, einmalig oder laufend.",
                 "_Issues_ — was mir gefährlich werden kann, bewertet über Eintritt × Auswirkung.",
               ],
             },

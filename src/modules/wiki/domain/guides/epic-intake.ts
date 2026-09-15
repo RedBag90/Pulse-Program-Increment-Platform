@@ -148,7 +148,7 @@ export const EPIC_INTAKE: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Die Steuerung sitzt im Reiter **Reifegrad-Phasen und Timeline**, aufklappbar am Meilenstein _Erstsichtung_, unter der Überschrift **Epic Owner**: ein Personen-Picker und die Schaltfläche **Owner zuweisen**. Ist niemand benannt, steht dort „Nicht zugewiesen“.",
+              text: "Die Steuerung sitzt im Reiter **Reifegrad-Timeline**, aufklappbar am Meilenstein _Erstsichtung_, unter der Überschrift **Epic Owner**: ein Personen-Picker und die Schaltfläche **Owner zuweisen**. Ist niemand benannt, steht dort „Nicht zugewiesen“.",
             },
             {
               kind: "note",

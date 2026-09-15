@@ -22,7 +22,7 @@ interface Props {
  *
  * The Soll-Fenster is derived from the owner's Reifegrad-Plan: the Implementation
  * phase estimates L4.1 (Umsetzung gestartet) → L4.2 (Umsetzung fertig). It's
- * written by `saveTimeline` from the "Reifegrad-Phasen und Timeline" tab, so it
+ * written by `saveTimeline` from the "Reifegrad-Timeline" tab, so it
  * stays in lock-step with the plan. To change it, the owner edits those dates.
  */
 export function EpicPlannedWindowForm({ epicId, plannedStartAt, plannedEndAt, derived }: Props) {

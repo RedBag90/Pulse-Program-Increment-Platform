@@ -105,7 +105,7 @@ export function resolveImplementationWindow(
  * „Umsetzung gestartet"), end = L4.2 (`implementation`, „Umsetzung fertig").
  *
  * This is the single source for `Initiative.plannedStartAt/plannedEndAt` — the
- * owner sets it in the "Reifegrad-Phasen und Timeline" tab. Endpoints are `null`
+ * owner sets it in the "Reifegrad-Timeline" tab. Endpoints are `null`
  * when the respective estimate is unset. An inverted pair (start > end) yields
  * BOTH `null`, so downstream consumers that assume `start <= end` never see a
  * corrupt window.

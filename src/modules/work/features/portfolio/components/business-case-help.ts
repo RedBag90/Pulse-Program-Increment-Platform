@@ -37,7 +37,7 @@ type TextField = {
 /**
  * `leadingIndicators` ist ausgenommen: das Feld wird nicht mehr getippt. Es
  * zeigt die Namen der erfassten KPIs und verweist zum Pflegen in den Reiter
- * „KPI & Nutzenkalkulation" — eine Ausfüllhilfe hätte dort keinen Adressaten.
+ * „KPI & Nutzen" — eine Ausfüllhilfe hätte dort keinen Adressaten.
  */
 export type HelpedBusinessCaseField = Exclude<TextField, "leadingIndicators">;
 

@@ -2,7 +2,7 @@
  * Geteilter **Ökonomie-Kern je Epic** — die eine Quelle der Wahrheit für die
  * Kosten-/Benefit-/Forecast-Flüsse eines Epics auf einer gegebenen Monatsachse.
  * Sowohl das Portfolio-Dashboard (aggregiert monatlich über das Portfolio) als
- * auch der Epic-Tab „Business case calculation" (unterteilt die Monatswahrheit
+ * auch der Epic-Tab „BC calculation" (unterteilt die Monatswahrheit
  * tagesweise) rufen `epicFlows` auf, damit beide **nie divergieren**.
  *
  * Modell:
