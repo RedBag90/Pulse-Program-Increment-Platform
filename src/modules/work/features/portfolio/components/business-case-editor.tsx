@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useActionState, useState } from "react";
 import { Lock, Lightbulb, ArrowRight, ChevronRight, AlertTriangle } from "lucide-react";
 import { saveBusinessCaseAction } from "@/modules/work/features/portfolio/actions/business-case";
@@ -7,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { SectionLabel } from "@/components/ui/section-label";
+import { InfoHint } from "@/components/ui/info-hint";
 import { Link } from "@/i18n/navigation";
 import {
   costSliceLabel,
@@ -18,6 +20,10 @@ import {
   buildCascadeTree,
   type CascadeTreeNode,
 } from "@/modules/work/features/portfolio/lib/cascade-tree";
+import {
+  BUSINESS_CASE_FIELD_HELP,
+  type HelpedBusinessCaseField,
+} from "@/modules/work/features/portfolio/components/business-case-help";
 
 interface BusinessCaseEditorProps {
   epicId: string;
@@ -78,38 +84,41 @@ export function BusinessCaseEditor({
 
         <fieldset disabled={readOnly} className="space-y-6 border-0 p-0 m-0 min-w-0">
           <div>
-            <label htmlFor="bc-stakeholders" className="block text-sm font-medium mb-1">
+            <FieldLabel htmlFor="bc-stakeholders" field="keyStakeholders">
               Key Stakeholders
-            </label>
+            </FieldLabel>
             <Input
               id="bc-stakeholders"
               name="keyStakeholders"
               defaultValue={current.keyStakeholders}
+              placeholder={BUSINESS_CASE_FIELD_HELP.keyStakeholders.placeholder}
             />
           </div>
 
           <div>
-            <label htmlFor="bc-description" className="block text-sm font-medium mb-1">
+            <FieldLabel htmlFor="bc-description" field="initiativeDescription">
               Initiative Description
-            </label>
+            </FieldLabel>
             <Textarea
               id="bc-description"
               name="initiativeDescription"
               rows={4}
               defaultValue={current.initiativeDescription}
+              placeholder={BUSINESS_CASE_FIELD_HELP.initiativeDescription.placeholder}
             />
           </div>
 
           <div className="grid gap-4 @md:grid-cols-2">
             <div>
-              <label htmlFor="bc-outcome" className="block text-sm font-medium mb-1">
+              <FieldLabel htmlFor="bc-outcome" field="businessOutcomeHypothesis">
                 Business Outcome Hypothesis
-              </label>
+              </FieldLabel>
               <Textarea
                 id="bc-outcome"
                 name="businessOutcomeHypothesis"
                 rows={4}
                 defaultValue={current.businessOutcomeHypothesis}
+                placeholder={BUSINESS_CASE_FIELD_HELP.businessOutcomeHypothesis.placeholder}
               />
             </div>
             <div>
@@ -151,31 +160,39 @@ export function BusinessCaseEditor({
 
           <div className="grid gap-4 @lg:grid-cols-3">
             <div>
-              <label htmlFor="bc-inscope" className="block text-sm font-medium mb-1">
+              <FieldLabel htmlFor="bc-inscope" field="inScope">
                 In Scope
-              </label>
-              <Textarea id="bc-inscope" name="inScope" rows={3} defaultValue={current.inScope} />
+              </FieldLabel>
+              <Textarea
+                id="bc-inscope"
+                name="inScope"
+                rows={3}
+                defaultValue={current.inScope}
+                placeholder={BUSINESS_CASE_FIELD_HELP.inScope.placeholder}
+              />
             </div>
             <div>
-              <label htmlFor="bc-outscope" className="block text-sm font-medium mb-1">
+              <FieldLabel htmlFor="bc-outscope" field="outOfScope">
                 Out of Scope
-              </label>
+              </FieldLabel>
               <Textarea
                 id="bc-outscope"
                 name="outOfScope"
                 rows={3}
                 defaultValue={current.outOfScope}
+                placeholder={BUSINESS_CASE_FIELD_HELP.outOfScope.placeholder}
               />
             </div>
             <div>
-              <label htmlFor="bc-believe" className="block text-sm font-medium mb-1">
+              <FieldLabel htmlFor="bc-believe" field="whatYouNeedToBelieve">
                 What you need to believe in
-              </label>
+              </FieldLabel>
               <Textarea
                 id="bc-believe"
                 name="whatYouNeedToBelieve"
                 rows={3}
                 defaultValue={current.whatYouNeedToBelieve}
+                placeholder={BUSINESS_CASE_FIELD_HELP.whatYouNeedToBelieve.placeholder}
               />
             </div>
           </div>
@@ -286,38 +303,41 @@ export function BusinessCaseEditor({
           </section>
 
           <div>
-            <label htmlFor="bc-customers" className="block text-sm font-medium mb-1">
+            <FieldLabel htmlFor="bc-customers" field="customersAffected">
               Which internal and/or external customers are affected, and how?
-            </label>
+            </FieldLabel>
             <Textarea
               id="bc-customers"
               name="customersAffected"
               rows={3}
               defaultValue={current.customersAffected}
+              placeholder={BUSINESS_CASE_FIELD_HELP.customersAffected.placeholder}
             />
           </div>
 
           <div>
-            <label htmlFor="bc-impact" className="block text-sm font-medium mb-1">
+            <FieldLabel htmlFor="bc-impact" field="impactOnSolutions">
               What is the potential impact on solutions, programs and services?
-            </label>
+            </FieldLabel>
             <Textarea
               id="bc-impact"
               name="impactOnSolutions"
               rows={3}
               defaultValue={current.impactOnSolutions}
+              placeholder={BUSINESS_CASE_FIELD_HELP.impactOnSolutions.placeholder}
             />
           </div>
 
           <div>
-            <label htmlFor="bc-summary" className="block text-sm font-medium mb-1">
+            <FieldLabel htmlFor="bc-summary" field="analysisSummary">
               Analysis Summary
-            </label>
+            </FieldLabel>
             <Textarea
               id="bc-summary"
               name="analysisSummary"
               rows={4}
               defaultValue={current.analysisSummary}
+              placeholder={BUSINESS_CASE_FIELD_HELP.analysisSummary.placeholder}
             />
           </div>
 
@@ -522,5 +542,31 @@ function CascadeRows({
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * Beschriftung eines Business-Case-Feldes samt ⓘ.
+ *
+ * Die Frage kommt aus `BUSINESS_CASE_FIELD_HELP`, damit Beschriftung und
+ * Erklärung nicht an zwei Orten gepflegt werden — und damit der Compiler
+ * meckert, wenn ein Feld ohne Erklärung dazukommt.
+ */
+function FieldLabel({
+  htmlFor,
+  field,
+  children,
+}: {
+  htmlFor: string;
+  field: HelpedBusinessCaseField;
+  children: ReactNode;
+}) {
+  return (
+    <div className="mb-1 flex items-center gap-1.5">
+      <label htmlFor={htmlFor} className="block text-sm font-medium">
+        {children}
+      </label>
+      <InfoHint text={BUSINESS_CASE_FIELD_HELP[field].question} />
+    </div>
   );
 }

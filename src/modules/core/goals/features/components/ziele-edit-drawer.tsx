@@ -7,7 +7,7 @@ import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ToggleGroup } from "@/components/ui/toggle-group";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { InfoHint } from "@/components/ui/info-hint";
 import {
   Dialog,
   DialogContent,
@@ -1358,23 +1358,6 @@ function Field({
       </span>
       {children}
     </label>
-  );
-}
-
-/** Kleines ⓘ mit Erklärungs-Tooltip für Fachbegriffe (klick fokussiert nur das Feld). */
-function InfoHint({ text }: { text: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        type="button"
-        aria-label="Erklärung"
-        onClick={(e) => e.preventDefault()}
-        className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border text-label font-normal normal-case leading-none text-muted-foreground hover:border-foreground hover:text-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        i
-      </TooltipTrigger>
-      <TooltipContent>{text}</TooltipContent>
-    </Tooltip>
   );
 }
 
