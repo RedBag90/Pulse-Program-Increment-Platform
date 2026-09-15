@@ -255,6 +255,7 @@ function initialFacts(input: GateHistoryInput): EpicGateFacts {
     implementationCompletedAt: null,
     approvedAt: null,
     impactRecognizedAt: null,
+    budgetingEnabled: true,
     multiPartyApproval: input.multiPartyApproval ?? true,
   };
 }

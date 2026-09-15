@@ -176,8 +176,10 @@ export function buildEpicsListModel(input: {
   valueStreams: readonly { id: string; name: string }[];
   userLabels: Readonly<Record<string, string>>;
   stageGatesEnabled: boolean;
+  /** Budget-Modul an? Aus ⇒ der L3-Hinweis darf nicht ins Budgeting verweisen. */
+  budgetingEnabled: boolean;
 }): EpicsListModel {
-  const { epics, valueStreams, userLabels, stageGatesEnabled } = input;
+  const { epics, valueStreams, userLabels, stageGatesEnabled, budgetingEnabled } = input;
 
   const rows: EpicListRow[] = epics.map((e) => {
     const kpiProgress = meanKpiProgress(e.kpis);
@@ -205,6 +207,7 @@ export function buildEpicsListModel(input: {
       ),
       hasBusinessCase: businessCaseHasContent(parseBusinessCase(e.businessCase).current),
       budgetAllocated: false,
+      budgetingEnabled,
       impactRecognizedAt: null,
       childFeatureStats,
     });

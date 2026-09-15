@@ -198,6 +198,31 @@ aus einer Unterschrift. Drei Konsequenzen:
 Bestandsdaten wandern per `prisma/scripts/2026-08-30-stage-gate-l2-to-l3-recut.ts`:
 Epics auf L2 mit `businessCaseApprovedAt` stehen danach auf L3 (= L3.1).
 
+### Nachtrag (2026-09-15): das Kriterium gilt nur, wo es ein Budget gibt
+
+`budget_allocated` traegt seit jeher `blocking: true`. Ohne das **Budget-Modul**
+war der Schritt damit unerreichbar: es gibt keine Zuteilung, die das Kriterium
+erfuellen koennte, und `planGateRequest` laesst genau einen Schritt zu — jedes
+Epic solcher Mandanten blieb fuer immer auf L3.1, samt allem, was darauf
+aufbaut (Portfolio-Dashboard und Horizont-Trichter rechnen ab L3.2).
+
+Das Kriterium kennt deshalb jetzt das Modul (`applies` an der Regel,
+`budgetingEnabled` an den Fakten). Ist Budgeting aus, faellt es **ganz aus der
+Liste** — nicht als „erfuellt", denn ein Haekchen an „Budget ist alloziert"
+waere eine Falschaussage.
+
+**Das weicht Festlegung 1 nicht auf, es schaerft sie.** Der ADR verlangt, dass
+die Investitionsentscheidung aus einer _Unterschrift_ entsteht und nicht als
+Nebenwirkung einer Zahl. Das Kriterium ist die **Vorbedingung**, nicht die
+Entscheidung. Wo es keine Zahl gibt, bleibt genau das uebrig, was hier gewollt
+ist: der Antrag und die Abnahme durch VMO und Finance, unveraendert mit
+`quorum: "all"` und ohne Ad-hoc-Abnehmer.
+
+Offen und bewusst nicht mitgeloest: der Gate-Pfad liest `budgetAllocation`
+**direkt** statt ueber den Port, den ADR-0013 vorschreibt
+(`stage-gate-transition.ts`). Die Entitlement-Naht liegt deshalb neben dem
+Port, nicht in ihm.
+
 ### Nachtrag (2026-08-30): das L4.2-Kriterium ist beratend
 
 „Alle Child-Features sind abgeschlossen" blockierte den L4.2-Antrag. Das stellte

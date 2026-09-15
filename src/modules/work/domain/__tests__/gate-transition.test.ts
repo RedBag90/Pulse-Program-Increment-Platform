@@ -42,6 +42,7 @@ function facts(step: GateStep, over: Partial<EpicGateFacts> = {}): EpicGateFacts
     solutionHorizon: null,
     investmentHorizon: null,
     multiPartyApproval: true,
+    budgetingEnabled: true,
     // Die zweiten Schritte materialisieren sich in ihrem jeweiligen Stempel.
     ...(step === "L3.2" ? { approvedAt: CONFIRMED } : {}),
     ...(step === "L4.2" ? { implementationCompletedAt: CONFIRMED } : {}),
@@ -553,5 +554,40 @@ describe("Rundlauf: vorrücken → zurückstufen → erneut vorrücken", () => {
     const again = stampsForAdvance({ ...readyFor("L3.2"), approvedAt: null }, "L3.2", FINANCE, NOW);
     expect(again.approvedAt).toEqual(NOW);
     expect(again.approvedBy).toBe(FINANCE);
+  });
+});
+
+/**
+ * **Der Antrag auf L3.2 ohne Budget-Modul.**
+ *
+ * Vorher war er unmöglich: `budget_allocated` blockiert, es gibt ohne Modul
+ * keine Zuteilung, und von L3.1 führt nur dieser eine Schritt weiter. Jede
+ * Reifegrad-Leiter endete für solche Mandanten bei L3.1 — und mit ihr das
+ * Portfolio-Dashboard und der Horizont-Trichter, die beide ab L3.2 rechnen.
+ */
+describe("planGateRequest — L3.2 ohne Budget-Modul", () => {
+  const ohneModul = facts("L3.1", {
+    businessCaseApprovedAt: EARLIER,
+    budgetAllocationSum: 0,
+    budgetingEnabled: false,
+  });
+
+  it("gelingt ohne jede Zuteilung", () => {
+    const r = request("L3.2", { facts: ohneModul });
+    expect(r.ok).toBe(true);
+  });
+
+  it("scheitert mit Modul weiterhin — die Zusicherung bleibt, wo es Geld gibt", () => {
+    const mitModul = { ...ohneModul, budgetingEnabled: true };
+    const r = request("L3.2", { facts: mitModul });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(JSON.stringify(r.error)).toContain("Budget ist alloziert");
+  });
+
+  it("ändert nichts an der Abnahme: VMO und Finance zeichnen weiter", () => {
+    const r = request("L3.2", { facts: ohneModul });
+    expect(r.ok).toBe(true);
+    // Der Schritt bleibt ein Antrag mit Abnehmern — er wird nicht sofort gesetzt.
+    if (r.ok) expect(r.value.approvers.length).toBeGreaterThan(0);
   });
 });

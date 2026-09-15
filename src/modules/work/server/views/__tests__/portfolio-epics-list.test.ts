@@ -44,6 +44,7 @@ describe("buildEpicsListModel", () => {
       valueStreams: [],
       userLabels: {},
       stageGatesEnabled: true,
+      budgetingEnabled: true,
     });
     expect(m.funnelCounts).toEqual({ L0: 1, L1: 0, L2: 1, L3: 0, L4: 0, L5: 0 });
   });
@@ -68,6 +69,7 @@ describe("buildEpicsListModel", () => {
       valueStreams: [],
       userLabels: {},
       stageGatesEnabled: true,
+      budgetingEnabled: true,
     });
     const withBc = m.rows.find((r) => r.id === "with-bc")!;
     expect(withBc.economics).toEqual({
@@ -103,6 +105,7 @@ describe("buildEpicsListModel", () => {
       valueStreams: [],
       userLabels: {},
       stageGatesEnabled: true,
+      budgetingEnabled: true,
     });
     // 10×1000 = 10000 p.M. → 120000 p.a.
     expect(m.rows[0]!.economics.recurringBenefitYear).toBe(120000);
@@ -120,6 +123,7 @@ describe("buildEpicsListModel", () => {
       valueStreams: [],
       userLabels: {},
       stageGatesEnabled: true,
+      budgetingEnabled: true,
     });
     const mid = m.rows.find((r) => r.id === "kpi-mid")!;
     expect(mid.kpiProgress).toBeCloseTo(0.4, 5);
@@ -146,6 +150,7 @@ describe("buildEpicsListModel", () => {
       valueStreams: [],
       userLabels: {},
       stageGatesEnabled: true,
+      budgetingEnabled: true,
     });
     expect(m.rows.find((r) => r.id === "e")!.pendingApprovalsCount).toBe(2);
     expect(m.rows.find((r) => r.id === "ohne")!.pendingApprovalsCount).toBe(0);
@@ -161,6 +166,7 @@ describe("buildEpicsListModel", () => {
       valueStreams: [],
       userLabels: { u1: "Alice" },
       stageGatesEnabled: true,
+      budgetingEnabled: true,
     });
     expect(m.rows[0]!.ownerLabel).toBe("Alice");
     expect(m.rows[1]!.ownerLabel).toBeNull(); // missing label → null, not the raw id
@@ -173,6 +179,7 @@ describe("buildEpicsListModel", () => {
       valueStreams: [],
       userLabels: {},
       stageGatesEnabled: true,
+      budgetingEnabled: true,
     });
     const l0 = m.rows.find((r) => r.id === "l0")!;
     expect(l0.nextStep?.title).toMatch(/Benefit Hypothese/i);
@@ -189,6 +196,7 @@ describe("buildEpicsListModel", () => {
       valueStreams: [],
       userLabels: {},
       stageGatesEnabled: true,
+      budgetingEnabled: true,
     });
     expect(m.rows[0]!.status).toBe("draft");
     expect(m.rows[0]!.stageGate).toBe("L2");
@@ -204,6 +212,7 @@ describe("buildEpicsListModel", () => {
       valueStreams: [{ id: "vs1", name: "Retail" }],
       userLabels: { u1: "Alice", u2: "Bob" },
       stageGatesEnabled: true,
+      budgetingEnabled: true,
     });
     expect(m.ownerOptions.map((o) => o.id).sort()).toEqual(["u1", "u2"]);
     expect(m.statusOptions.sort()).toEqual(["draft", "in_review"]);

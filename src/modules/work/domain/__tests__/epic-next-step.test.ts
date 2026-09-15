@@ -9,6 +9,7 @@ const base = (over: Partial<EpicNextStepInput> = {}): EpicNextStepInput => ({
   hasHypothesis: false,
   hasBusinessCase: false,
   budgetAllocated: false,
+  budgetingEnabled: true,
   impactRecognizedAt: null,
   childFeatureStats: { total: 0, completed: 0 },
   ...over,
@@ -132,5 +133,23 @@ describe("epicNextStep", () => {
       base({ stageGate: "L4", subStage: "L4.2", impactRecognizedAt: new Date() }),
     );
     expect(step).toBeNull();
+  });
+});
+
+describe("epicNextStep — L3.1 ohne Budget-Modul", () => {
+  it("verweist nicht mehr ins Budgeting, sondern auf die Abnahme", () => {
+    const step = epicNextStep(
+      base({ stageGate: "L3", subStage: "L3.1", budgetAllocated: false, budgetingEnabled: false }),
+    );
+    expect(step?.title).toBe("Investition abnehmen lassen");
+    expect(step?.cta).toEqual({ kind: "gate-request", to: "L3.2" });
+    expect(JSON.stringify(step)).not.toContain("/budgeting");
+  });
+
+  it("rät mit Modul weiterhin, erst Budget zu allozieren", () => {
+    const step = epicNextStep(
+      base({ stageGate: "L3", subStage: "L3.1", budgetAllocated: false, budgetingEnabled: true }),
+    );
+    expect(step?.title).toBe("Budget allozieren");
   });
 });

@@ -118,6 +118,7 @@ export default async function EpicsPage() {
     valueStreams,
     userLabels,
     stageGatesEnabled: practices.stageGates,
+    budgetingEnabled: principal.enabledModules.includes("budgeting"),
   });
 
   return (

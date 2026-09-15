@@ -145,6 +145,7 @@ export default async function MyTasksPage() {
     valueStreams,
     userLabels,
     stageGatesEnabled: practices.stageGates,
+    budgetingEnabled: principal.enabledModules.includes("budgeting"),
   });
 
   // 4) Feature-Anteil: per-ART würde zu viele Roundtrips kosten — wir laden

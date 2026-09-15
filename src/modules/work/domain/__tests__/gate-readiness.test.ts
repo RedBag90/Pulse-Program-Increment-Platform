@@ -29,6 +29,7 @@ function facts(stageGate: StageGate, over: Partial<EpicGateFacts> = {}): EpicGat
     solutionHorizon: null,
     investmentHorizon: null,
     multiPartyApproval: true,
+    budgetingEnabled: true,
     ...over,
   };
 }
@@ -115,6 +116,35 @@ describe("gateReadiness — L3 (Investitionsentscheidung)", () => {
   it("ein Budget von exakt 0 zählt nicht als alloziert", () => {
     const f = facts("L3", { budgetAllocationSum: 0 });
     expect(gateReadiness(f, "L3.2").ready).toBe(false);
+  });
+
+  /**
+   * **Ohne Budget-Modul ist die Reifegrad-Leiter sonst zu Ende.**
+   *
+   * Es gibt dann keine Zuteilung, die das Kriterium erfüllen könnte, und
+   * `planGateRequest` lässt genau einen Schritt zu — jedes Epic blieb also für
+   * immer auf L3.1. Das Kriterium ist die Vorbedingung der
+   * Investitionsentscheidung, nicht die Entscheidung: wo es keine Zahl gibt,
+   * bleibt die Unterschrift von VMO und Finance, und die ist es, die ADR-0018
+   * verlangt.
+   */
+  it("ohne Budget-Modul entfällt das Kriterium — der Schritt ruht auf der Abnahme", () => {
+    const f = facts("L3", { budgetingEnabled: false, budgetAllocationSum: 0 });
+    expect(gateReadiness(f, "L3.2").ready).toBe(true);
+  });
+
+  it("zeigt das Kriterium dann gar nicht — ein Häkchen daran wäre gelogen", () => {
+    const f = facts("L3", { budgetingEnabled: false });
+    expect(gateReadiness(f, "L3.2").criteria).toEqual([]);
+    expect(readinessBlockReason(gateReadiness(f, "L3.2"))).toBeNull();
+  });
+
+  it("lässt die anderen Schritte unberührt — nur L3.2 kennt das Modul", () => {
+    const ohne = facts("L2", { budgetingEnabled: false });
+    const mit = facts("L2", { budgetingEnabled: true });
+    expect(gateReadiness(ohne, "L3.1").criteria.map((c) => c.key)).toEqual(
+      gateReadiness(mit, "L3.1").criteria.map((c) => c.key),
+    );
   });
 });
 

@@ -58,6 +58,17 @@ import { loadAuthorizedEpic } from "@/modules/work/server/services/epic-access";
 // Audit-Zeile teilen mussten.
 // ---------------------------------------------------------------------------
 
+/**
+ * Ist das Budget-Modul für den Handelnden freigeschaltet?
+ *
+ * Eine Zeile, aber die Naht, an der das L3.2-Kriterium hängt: ohne das Modul
+ * gibt es keine Zuteilung, die es erfüllen könnte, und die Leiter endete
+ * vorher bei L3.1.
+ */
+function budgetingEnabledFor(ctx: RequestContext): boolean {
+  return ctx.principal.enabledModules.includes("budgeting");
+}
+
 /** Summiert das persistierte Perioden-Budget-JSON (`{ "YYYY-H1": n, … }`). */
 function sumAllocations(allocations: Prisma.JsonValue | null | undefined): number {
   if (!allocations || typeof allocations !== "object" || Array.isArray(allocations)) return 0;
@@ -88,6 +99,14 @@ export async function loadEpicGateFacts(
   tx: Prisma.TransactionClient,
   tenantId: string,
   epicId: string,
+  /**
+   * Ist das Budget-Modul freigeschaltet? Aus ⇒ es gibt keine Zuteilung, die das
+   * L3.2-Kriterium prüfen könnte; der Schritt ruht dann auf der Unterschrift.
+   * Die Summe wird in dem Fall **nicht gelesen**, sondern 0: eine Zahl aus
+   * einer Tabelle, die es für diesen Mandanten fachlich nicht gibt, soll gar
+   * nicht erst durch das Modell reisen.
+   */
+  budgetingEnabled: boolean,
 ): Promise<EpicGateFacts | null> {
   const row = await tx.initiative.findFirst({
     where: { id: epicId, tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
@@ -135,7 +154,8 @@ export async function loadEpicGateFacts(
     ),
     hasBusinessCaseContent: businessCaseHasContent(parseBusinessCase(row.businessCase).current),
     businessCaseApprovedAt: row.businessCaseApprovedAt,
-    budgetAllocationSum: sumAllocations(row.budgetAllocation?.allocations),
+    budgetAllocationSum: budgetingEnabled ? sumAllocations(row.budgetAllocation?.allocations) : 0,
+    budgetingEnabled,
     childFeatureStats: { total, started, completed },
     selectedForDetailingAt: row.selectedForDetailingAt,
     selectedForAnalyzingAt: row.selectedForAnalyzingAt,
@@ -421,7 +441,12 @@ export async function requestGateTransition(
       });
       if (isErr(loaded)) return loaded;
 
-      const facts = await loadEpicGateFacts(tx, mctx.tenantId, input.epicId);
+      const facts = await loadEpicGateFacts(
+        tx,
+        mctx.tenantId,
+        input.epicId,
+        budgetingEnabledFor(ctx),
+      );
       if (!facts) {
         return err({ kind: "not_found" as const, resourceType: "Epic", id: input.epicId });
       }
@@ -606,7 +631,12 @@ export async function decideGateTransition(
       });
     }
 
-    const facts = await loadEpicGateFacts(tx, mctx.tenantId, transition.initiativeId);
+    const facts = await loadEpicGateFacts(
+      tx,
+      mctx.tenantId,
+      transition.initiativeId,
+      budgetingEnabledFor(ctx),
+    );
     if (!facts) {
       return err({
         kind: "not_found" as const,
@@ -806,7 +836,12 @@ export async function revertStageGate(
     });
     if (isErr(loaded)) return loaded;
 
-    const facts = await loadEpicGateFacts(tx, mctx.tenantId, input.epicId);
+    const facts = await loadEpicGateFacts(
+      tx,
+      mctx.tenantId,
+      input.epicId,
+      budgetingEnabledFor(ctx),
+    );
     if (!facts) {
       return err({ kind: "not_found" as const, resourceType: "Epic", id: input.epicId });
     }
@@ -1131,8 +1166,14 @@ export async function loadGateReadiness(
   tenantId: string,
   epicId: string,
   to: GateStep,
+  budgetingEnabled: boolean,
 ) {
-  const facts = await loadEpicGateFacts(db as Prisma.TransactionClient, tenantId, epicId);
+  const facts = await loadEpicGateFacts(
+    db as Prisma.TransactionClient,
+    tenantId,
+    epicId,
+    budgetingEnabled,
+  );
   return facts ? gateReadiness(facts, to) : null;
 }
 

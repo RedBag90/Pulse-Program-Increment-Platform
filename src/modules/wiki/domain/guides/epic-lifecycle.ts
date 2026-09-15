@@ -386,6 +386,10 @@ export const EPIC_LIFECYCLE: Guide = {
               kind: "paragraph",
               text: "Für ein einzelnes Epic zählt nur das Ergebnis. **Das schiebt es nicht weiter** — es erfüllt das blockierende Kriterium für → L3.2, mehr nicht. Die Investitionsentscheidung ist der Antrag plus meine und Finance’ Abnahme.",
             },
+            {
+              kind: "note",
+              text: "**Ohne das Budget-Modul entfällt dieses Kriterium.** Dann gibt es keine Zuteilung, die es erfüllen könnte, und der Schritt L3.1 → L3.2 ruht allein auf der Abnahme durch VMO und Finance. Das ist kein Schlupfloch, sondern die Regel in Reinform: die Investitionsentscheidung soll aus einer **Unterschrift** entstehen und nicht aus einer Zahl — das Budget ist ihre Vorbedingung, nicht sie selbst.",
+            },
           ],
         },
         {

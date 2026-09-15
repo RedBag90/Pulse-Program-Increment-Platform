@@ -656,6 +656,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     hasHypothesis: benefitHypothesisHasContent(benefitHypothesis.current),
     hasBusinessCase: businessCaseHasContent(businessCase.current),
     budgetAllocated,
+    budgetingEnabled: enabled.budgeting,
     impactRecognizedAt: epic.impactRecognizedAt,
     childFeatureStats: childStats,
   });
@@ -797,7 +798,9 @@ export async function loadEpicDetailInputs(
       : Promise.resolve(null),
     getOpenGateTransition(db, principal.tenantId, epic.id),
     listGateTransitions(db, principal.tenantId, epic.id),
-    to ? loadGateReadiness(db, principal.tenantId, epic.id, to) : Promise.resolve(null),
+    to
+      ? loadGateReadiness(db, principal.tenantId, epic.id, to, enabled.budgeting)
+      : Promise.resolve(null),
   ]);
 
   const gate = buildGateSlice({

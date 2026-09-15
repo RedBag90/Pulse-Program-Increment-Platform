@@ -57,6 +57,7 @@ describe("GATE_CRITERIA_DOC", () => {
       solutionHorizon: null,
       investmentHorizon: null,
       multiPartyApproval: true,
+      budgetingEnabled: true,
     };
     const doc = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L3.1");
     const evaluated = gateReadiness(facts, "L3.1");

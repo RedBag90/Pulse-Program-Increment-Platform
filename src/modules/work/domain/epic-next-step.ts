@@ -43,6 +43,12 @@ export interface EpicNextStepInput {
   hasBusinessCase: boolean;
   /** Wurde Budget alloziert (Σ Allokationen > 0)? */
   budgetAllocated: boolean;
+  /**
+   * Ist das Budget-Modul freigeschaltet? Aus ⇒ es gibt nichts zu allozieren,
+   * und der Rat „Budget allozieren" verwiese auf eine gesperrte Fläche. Der
+   * Schritt L3.2 ruht dann allein auf der Abnahme.
+   */
+  budgetingEnabled: boolean;
   /** Wurde Impact bestätigt? Falls ja: L5-Endstand. */
   impactRecognizedAt: Date | null;
   childFeatureStats: { total: number; completed: number };
@@ -61,6 +67,7 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
     hasHypothesis,
     hasBusinessCase,
     budgetAllocated,
+    budgetingEnabled,
     impactRecognizedAt,
     childFeatureStats,
   } = input;
@@ -128,10 +135,14 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
     // Zwei Stationen: erst Budget holen und die Investition abnehmen lassen
     // (L3.2), dann die Umsetzung starten.
     if (subStage === "L3.1") {
-      return budgetAllocated
+      // Ohne Budget-Modul gibt es keine Vorbedingung mehr: der Schritt hängt
+      // allein an der Unterschrift von VMO und Finance.
+      return budgetAllocated || !budgetingEnabled
         ? {
             title: "Investition abnehmen lassen",
-            hint: "Budget ist alloziert. Beantrage den Schritt auf L3.2 — damit ist die Investitionsentscheidung namentlich abgenommen.",
+            hint: budgetingEnabled
+              ? "Budget ist alloziert. Beantrage den Schritt auf L3.2 — damit ist die Investitionsentscheidung namentlich abgenommen."
+              : "Beantrage den Schritt auf L3.2 — damit ist die Investitionsentscheidung namentlich abgenommen, von VMO und Finance.",
             cta: { kind: "gate-request", to: "L3.2" },
           }
         : {

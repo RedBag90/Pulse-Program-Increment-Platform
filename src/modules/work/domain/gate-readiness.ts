@@ -83,6 +83,18 @@ export interface EpicGateFacts {
    * aus ⇒ der VMO allein (siehe `resolveGatePolicy`).
    */
   multiPartyApproval: boolean;
+
+  /**
+   * Ist das **Budget-Modul** freigeschaltet?
+   *
+   * Ohne das Modul gibt es keine Zuteilung, die ein Kriterium prüfen könnte —
+   * und damit war der Schritt L3.1 → L3.2 unerreichbar: kein Epic kam je über
+   * L3.1 hinaus. Das Kriterium ist die **Vorbedingung** der
+   * Investitionsentscheidung, nicht die Entscheidung selbst; wo es keine Zahl
+   * gibt, bleibt die Unterschrift von VMO und Finance, und die ist es, die
+   * ADR-0018 verlangt.
+   */
+  budgetingEnabled: boolean;
 }
 
 /** Ein ausgewertetes Kriterium: was verlangt wird, und ob es erfüllt ist. */
@@ -139,6 +151,14 @@ export interface CriterionRule {
   help: string;
   satisfied: (facts: EpicGateFacts) => boolean;
   blocking: boolean;
+  /**
+   * Wann dieses Kriterium überhaupt zur Sache gehört. Fehlt es, gilt es immer.
+   *
+   * Ein nicht zutreffendes Kriterium wird **herausgefiltert**, nicht als
+   * erfüllt gezeigt: ein Häkchen an „Budget ist alloziert" wäre eine
+   * Falschaussage, ein Kreuz, das nie grün wird, eine Sackgasse.
+   */
+  applies?: (facts: EpicGateFacts) => boolean;
 }
 
 /**
@@ -235,6 +255,9 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
         "Die Zuteilung erfolgt in den Budgeting-Zeiträumen.",
       satisfied: (f) => f.budgetAllocationSum > 0,
       blocking: true,
+      // Nur dort, wo es ein Budget gibt. Ohne das Modul trägt den Schritt die
+      // Unterschrift allein — siehe `budgetingEnabled` an den Fakten.
+      applies: (f) => f.budgetingEnabled,
     },
   ],
   L4: [
@@ -304,7 +327,7 @@ export function previousGate(from: GateStep): GateStep | null {
  * `planGateRequest`, nicht diese Funktion.
  */
 export function gateReadiness(facts: EpicGateFacts, to: GateStep): GateReadiness {
-  const rules = GATE_CRITERIA[to] ?? [];
+  const rules = (GATE_CRITERIA[to] ?? []).filter((rule) => rule.applies?.(facts) ?? true);
   const criteria = rules.map((rule) => ({
     key: rule.key,
     label: rule.label(facts),
