@@ -38,6 +38,7 @@ export function OverviewMissionControl({ data }: { data: PortfolioOverview }) {
         items={data.funnelItems}
         cycleKey={data.budgetCycleKey}
         horizonTargets={data.horizonTargets}
+        budgetingEnabled={data.budgetingEnabled}
       />
 
       <CompactKanban data={data} />

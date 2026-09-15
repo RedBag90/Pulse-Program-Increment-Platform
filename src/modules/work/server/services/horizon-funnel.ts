@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@/generated/prisma";
-import { InitiativeLevel, type TenantId } from "@/modules/core/kernel/domain/types";
+import { InitiativeLevel, type TenantId, type StageGate } from "@/modules/core/kernel/domain/types";
+import { carriesDeliveryLoad, currentGateStep } from "@/modules/work/domain/stage-gate";
 import { isHorizon, type Horizon } from "@/modules/work/domain/portfolio-guardrails";
 import { isInvestmentMode } from "@/modules/work/domain/solution";
 import { resolveEpicHorizon } from "@/modules/work/domain/epic-horizon";
@@ -61,6 +62,44 @@ export function funnelCode(name: string, valueStreamName: string | null): string
   return initials ? `${initials} · ${tail}` : tail;
 }
 
+/**
+ * Die Epic-Fakten, die das Zählen braucht — rein, damit die Regel prüfbar ist
+ * und nicht in einer Datenbankabfrage verschwindet.
+ */
+export interface CountableEpic {
+  primarySolutionId: string | null;
+  stageGate: string;
+  approvedAt: Date | null;
+  implementationCompletedAt: Date | null;
+}
+
+/**
+ * **Wie viele Epics tragen dieses Produkt gerade?**
+ *
+ * Gezählt wird das Lieferfenster L3.2–L4.2 (`carriesDeliveryLoad`): vom
+ * Budget-Beschluss bis zur abgenommenen Umsetzung. Alles davor ist noch nicht
+ * beschlossen, alles danach (L5) liefert nichts mehr — ein Produkt soll
+ * zeigen, woran gearbeitet wird, nicht was es je geliefert hat.
+ */
+export function countDeliveryLoad(epics: readonly CountableEpic[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const e of epics) {
+    if (e.primarySolutionId == null) continue;
+    if (!carriesDeliveryLoad(stepOf(e))) continue;
+    out.set(e.primarySolutionId, (out.get(e.primarySolutionId) ?? 0) + 1);
+  }
+  return out;
+}
+
+/** Der Schritt eines Epics — `stage_gate` allein kennt keine Unterstufen. */
+function stepOf(e: Pick<CountableEpic, "stageGate" | "approvedAt" | "implementationCompletedAt">) {
+  return currentGateStep({
+    stageGate: e.stageGate as StageGate,
+    approvedAt: e.approvedAt,
+    implementationCompletedAt: e.implementationCompletedAt,
+  });
+}
+
 export interface HorizonFunnelPorts {
   /** Betrieb je Solution-Id, Ask einer Halbjahres-Kachel. */
   runBySolution: Record<string, number>;
@@ -72,6 +111,13 @@ export interface HorizonFunnelPorts {
   artAllocations: Record<string, number>;
   /** Die Einordnung je Epic — sie wählt den Topf (`chooseAllocation`). */
   epicClasses: Map<string, { epicClass: "portfolio" | "art" | null }>;
+  /**
+   * Ist das Budget-Modul an? Aus ⇒ es gibt kein Geld, und die Zeichnung misst
+   * stattdessen die laufenden Epics. Dann entscheidet **nicht** mehr die
+   * Zuteilung, welches produktlose Epic als Punkt erscheint, sondern dasselbe
+   * Lieferfenster, das auch die Produktgröße trägt.
+   */
+  budgetingEnabled: boolean;
 }
 
 export async function loadHorizonFunnelItems(
@@ -80,6 +126,7 @@ export async function loadHorizonFunnelItems(
   ports: HorizonFunnelPorts,
 ): Promise<FunnelItem[]> {
   const { runBySolution, unassignedRun, cycleAllocations, artAllocations, epicClasses } = ports;
+  const { budgetingEnabled } = ports;
 
   /** Ein Euro, ein Topf — die Klasse wählt, ein leerer Topf tritt zurück. */
   const investOf = (epicId: string): number =>
@@ -112,6 +159,10 @@ export async function loadHorizonFunnelItems(
         primarySolutionId: true,
         primarySolution: { select: { horizon: true } },
         valueStream: { select: { name: true } },
+        // Der Schritt: `stage_gate` allein trennt L3.1/L3.2 und L4.1/L4.2 nicht.
+        stageGate: true,
+        approvedAt: true,
+        implementationCompletedAt: true,
       },
     }),
   ]);
@@ -127,6 +178,8 @@ export async function loadHorizonFunnelItems(
     );
   }
 
+  const loadBySolution = countDeliveryLoad(epics);
+
   const items: FunnelItem[] = solutions.map((s) => ({
     id: s.id,
     kind: "solution" as const,
@@ -136,6 +189,7 @@ export async function loadHorizonFunnelItems(
     mode: isInvestmentMode(s.investmentMode) ? s.investmentMode : null,
     invest: investBySolution.get(s.id) ?? 0,
     run: runBySolution[s.id] ?? 0,
+    count: loadBySolution.get(s.id) ?? 0,
   }));
 
   for (const e of epics) {
@@ -145,7 +199,12 @@ export async function loadHorizonFunnelItems(
     // selbst ist die genauere Auskunft und braucht keine zweite Bedingung, die
     // danebenliegen kann.
     const invest = investOf(e.id);
-    if (invest <= 0) continue;
+    // Mit Budget-Modul entscheidet das Geld: eine Zuteilung ist die genauere
+    // Auskunft als „ab L3.2" und braucht keine zweite Bedingung daneben. Ohne
+    // Modul gibt es kein Geld — dann entscheidet dasselbe Lieferfenster, das
+    // auch die Produktgröße trägt. Ohne diese Grenze würde jede L0-Idee zum
+    // Punkt und die Zeichnung überflutet.
+    if (budgetingEnabled ? invest <= 0 : !carriesDeliveryLoad(stepOf(e))) continue;
     items.push({
       id: e.id,
       kind: "epic",
@@ -160,6 +219,9 @@ export async function loadHorizonFunnelItems(
       mode: null,
       invest,
       run: 0,
+      // Ein Epic ist genau ein Epic — es wiegt eins für die Bandöffnung,
+      // gezeichnet wird es als Punkt fester Größe.
+      count: 1,
     });
   }
 
@@ -172,6 +234,8 @@ export async function loadHorizonFunnelItems(
       kind: "run",
       code: funnelCode("Betrieb", vs.valueStreamName),
       name: `Wertstromübergreifender Betrieb — ${vs.valueStreamName ?? "ohne Wertstrom"}`,
+      // Betrieb ist kein Vorhaben — im Zählmodus wiegt und misst er nichts.
+      count: 0,
       horizon: null,
       mode: null,
       invest: 0,

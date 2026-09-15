@@ -13,6 +13,10 @@ import {
   hasBudgetDecision,
   BUDGET_DECISION_GATE,
   GATES_AFTER_BUDGET_DECISION,
+  carriesDeliveryLoad,
+  DELIVERY_LOAD_FIRST_STEP,
+  DELIVERY_LOAD_LAST_STEP,
+  type GateStep,
 } from "@/modules/work/domain/stage-gate";
 
 describe("STAGE_GATES", () => {
@@ -178,5 +182,33 @@ describe("hasBudgetDecision — ab wann ein Epic ins Portfolio-Dashboard zählt"
     expect(BUDGET_DECISION_GATE).toBe("L3");
     expect(GATES_AFTER_BUDGET_DECISION).toEqual(["L4", "L5"]);
     expect(GATES_AFTER_BUDGET_DECISION).not.toContain(BUDGET_DECISION_GATE);
+  });
+});
+
+/**
+ * **Das Lieferfenster L3.2–L4.2.**
+ *
+ * Es misst die Produktgröße im Horizont-Trichter, wenn es kein Geld gibt. Die
+ * beiden Ränder sind die eigentliche Aussage: davor ist nichts beschlossen,
+ * danach (L5) wird nichts mehr geliefert — ein Produkt soll zeigen, woran
+ * gearbeitet wird, nicht was es je geliefert hat.
+ */
+describe("carriesDeliveryLoad — das Lieferfenster", () => {
+  it("liegt zwischen L3.2 und L4.2", () => {
+    expect(DELIVERY_LOAD_FIRST_STEP).toBe("L3.2");
+    expect(DELIVERY_LOAD_LAST_STEP).toBe("L4.2");
+  });
+
+  it("gilt genau für L3.2, L4.1 und L4.2", () => {
+    // `L4` ist der gespeicherte Wert des Schritts, der als L4.1 angezeigt wird.
+    const drin: GateStep[] = ["L3.2", "L4", "L4.2"];
+    for (const step of GATE_STEPS) {
+      expect(carriesDeliveryLoad(step), `Schritt ${step}`).toBe(drin.includes(step));
+    }
+  });
+
+  it("schließt L3.1 unten und L5 oben aus — beide Ränder sind Aussagen", () => {
+    expect(carriesDeliveryLoad("L3.1")).toBe(false);
+    expect(carriesDeliveryLoad("L5")).toBe(false);
   });
 });

@@ -55,6 +55,14 @@ export interface FunnelItem {
   invest: number;
   /** Betrieb: der Ask **einer** Halbjahres-Kachel. Bei Epics immer 0. */
   run: number;
+  /**
+   * Epics im Lieferfenster (L3.2–L4.2). Beim Produkt die Zahl seiner
+   * Primär-Epics, beim produktlosen Epic `1`.
+   *
+   * Trägt die Zeichnung, wenn es **kein Geld gibt** (Budget-Modul aus): dann
+   * misst die Größe eines Produkts, wie viel gerade an ihm gearbeitet wird.
+   */
+  count: number;
 }
 
 export interface PlacedItem extends FunnelItem {
@@ -178,6 +186,11 @@ export interface FunnelGeometry {
   maxSize: number;
   /** Symbolgröße ohne gebundenes Geld. */
   emptySize: number;
+  /**
+   * Die feste Kantenlänge eines Epic-Punkts im Zählmodus. Etwas größer als
+   * `emptySize`, damit ein laufendes Epic nicht wie ein leeres Produkt aussieht.
+   */
+  epicDotSize: number;
   padding: number;
   gap: number;
   /** Höhe der zweizeiligen Beschriftung unter jedem Symbol. */
@@ -233,6 +246,7 @@ export const DEFAULT_GEOMETRY: FunnelGeometry = {
   minHalf: 40,
   maxSize: 34,
   emptySize: 10,
+  epicDotSize: 13,
   padding: 14,
   gap: 12,
   labelHeight: 26,
@@ -272,7 +286,32 @@ export function clipCode(code: string, max: number): string {
   return `${cut}…`;
 }
 
+/**
+ * **Was die Zeichnung misst.**
+ *
+ * `"money"` ist die Vorgabe und das gewachsene Verhalten: Fläche und Öffnung
+ * folgen dem gebundenen Geld. `"count"` greift, wenn das Budget-Modul aus ist
+ * — dann gibt es kein Geld, und ohne einen zweiten Maßstab zerfiele die Karte
+ * zu lauter gleich großen leeren Umrissen.
+ */
+export type FunnelSizing = "money" | "count";
+
+export interface FunnelOptions {
+  sizing?: FunnelSizing;
+}
+
 const totalOf = (i: FunnelItem) => i.invest + i.run;
+
+/**
+ * Das Gewicht eines Symbols für **Öffnung und Reihenfolge**.
+ *
+ * Im Zählmodus wiegt ein Produkt so viel wie seine Epics und ein produktloses
+ * Epic eins — die Öffnung misst dann „wie viele Vorhaben liegen in diesem
+ * Horizont". Das ist etwas anderes als die **Größe** des Symbols: ein Epic
+ * bleibt ein Punkt fester Größe, wiegt für die Öffnung aber mit.
+ */
+const weightOf = (i: FunnelItem, sizing: FunnelSizing): number =>
+  sizing === "count" ? i.count : totalOf(i);
 
 /**
  * Die Fünferleiter kommt aus der Domäne
@@ -289,9 +328,11 @@ export { STATIONS, stationsOf, type Station };
  */
 const isExtracting = (i: FunnelItem) => i.mode === "extracting";
 
-/** Die Reihenfolge in einer Station: nach Geld absteigend, dann stabil nach Id. */
-function orderWithin(items: FunnelItem[]): FunnelItem[] {
-  return [...items].sort((a, b) => totalOf(b) - totalOf(a) || a.id.localeCompare(b.id));
+/** Die Reihenfolge in einer Station: nach Gewicht absteigend, dann stabil nach Id. */
+function orderWithin(items: FunnelItem[], sizing: FunnelSizing): FunnelItem[] {
+  return [...items].sort(
+    (a, b) => weightOf(b, sizing) - weightOf(a, sizing) || a.id.localeCompare(b.id),
+  );
 }
 
 interface Boxed {
@@ -302,13 +343,30 @@ interface Boxed {
   h: number;
 }
 
-function boxOf(item: FunnelItem, maxTotal: number, maxCode: number, g: FunnelGeometry): Boxed {
-  const total = totalOf(item);
-  // Fläche ∝ Geld ⇒ Kantenlänge ∝ √Geld.
+function boxOf(
+  item: FunnelItem,
+  maxTotal: number,
+  maxCode: number,
+  g: FunnelGeometry,
+  sizing: FunnelSizing,
+): Boxed {
+  // Ohne Geld misst ein **Produkt** seine laufenden Epics. Ein **Epic** misst
+  // gar nichts mehr: es ist ein Punkt fester Größe. „Ein Epic" ist keine
+  // Menge, die sich mit einer anderen vergleichen ließe — jeder Versuch, es
+  // doch zu skalieren, behauptete einen Unterschied, den es nicht gibt.
+  if (sizing === "count" && item.kind === "epic") {
+    return boxed(item, g.epicDotSize, maxCode, g);
+  }
+  const total = sizing === "count" ? item.count : totalOf(item);
+  // Fläche ∝ Menge ⇒ Kantenlänge ∝ √Menge.
   const size =
     total <= 0
       ? g.emptySize
       : g.emptySize + (g.maxSize - g.emptySize) * Math.sqrt(total / maxTotal);
+  return boxed(item, size, maxCode, g);
+}
+
+function boxed(item: FunnelItem, size: number, maxCode: number, g: FunnelGeometry): Boxed {
   const label = clipCode(item.code, maxCode);
   return {
     item,
@@ -365,8 +423,10 @@ export function layoutFunnel(
   geometry: FunnelGeometry = DEFAULT_GEOMETRY,
   maxCodeLength: number = CODE_STEPS[0],
   horizonTargets: HorizonTargets | null = null,
+  options: FunnelOptions = {},
 ): FunnelLayout {
   const g = geometry;
+  const sizing: FunnelSizing = options.sizing ?? "money";
   const homelessItems = items.filter((i) => i.horizon == null);
   const placedItems = items.filter((i) => i.horizon != null);
 
@@ -378,11 +438,14 @@ export function layoutFunnel(
   // während die Ist-Kurve flach durchläuft, misst an dieser Stelle nichts.
   const stationOfItem = (i: FunnelItem): Station =>
     i.horizon === "h1" ? (isExtracting(i) ? "h1.2" : "h1.1") : (i.horizon as Station);
+  // Das Gewicht je Station: im Geld-Modus die Summe der Beträge, im Zählmodus
+  // die Summe der laufenden Epics. Die Variable heisst weiter `money`, weil
+  // sie an einem Dutzend Stellen so gelesen wird — der Modus steht daneben.
   const money = Object.fromEntries(STATIONS.map((st) => [st, 0])) as Record<Station, number>;
-  for (const i of placedItems) money[stationOfItem(i)] += totalOf(i);
+  for (const i of placedItems) money[stationOfItem(i)] += weightOf(i, sizing);
   const richest = Math.max(...Object.values(money), 1);
   const bandMoney = (h: Horizon) => stationsOf(h).reduce((sum, st) => sum + money[st], 0);
-  const maxTotal = Math.max(...items.map(totalOf), 1);
+  const maxTotal = Math.max(...items.map((i) => weightOf(i, sizing)), 1);
 
   // 2 · Die Kästen je **Station**. Die Öffnung folgt erst, wenn feststeht, wie
   //     die Kästen liegen — sie muss ihren eigenen Inhalt fassen.
@@ -393,7 +456,7 @@ export function layoutFunnel(
       const own = h === "h1" ? inBand.filter((i) => isExtracting(i) === (st === "h1.2")) : inBand;
       boxesByStation.set(
         st,
-        orderWithin(own).map((i) => boxOf(i, maxTotal, maxCodeLength, g)),
+        orderWithin(own, sizing).map((i) => boxOf(i, maxTotal, maxCodeLength, g, sizing)),
       );
     }
   }
@@ -602,9 +665,9 @@ export function layoutFunnel(
   const homeless: PlacedItem[] = [];
   let hx = g.padding;
   for (const item of [...homelessItems].sort(
-    (a, b) => totalOf(b) - totalOf(a) || a.id.localeCompare(b.id),
+    (a, b) => weightOf(b, sizing) - weightOf(a, sizing) || a.id.localeCompare(b.id),
   )) {
-    const b = boxOf(item, maxTotal, maxCodeLength, g);
+    const b = boxOf(item, maxTotal, maxCodeLength, g, sizing);
     homeless.push({
       ...item,
       total: totalOf(item),
@@ -663,12 +726,13 @@ export function fitFunnel(
   geometry: FunnelGeometry = DEFAULT_GEOMETRY,
   minZoom = 0.8,
   horizonTargets: HorizonTargets | null = null,
+  options: FunnelOptions = {},
 ): FunnelLayout {
   const g = { ...geometry, targetWidth };
-  let last = layoutFunnel(items, g, CODE_STEPS[CODE_STEPS.length - 1]!, horizonTargets);
+  let last = layoutFunnel(items, g, CODE_STEPS[CODE_STEPS.length - 1]!, horizonTargets, options);
   // `CODE_STEPS` ist absteigend: die erste brauchbare Stufe ist die längste.
   for (const max of CODE_STEPS) {
-    const layout = layoutFunnel(items, g, max, horizonTargets);
+    const layout = layoutFunnel(items, g, max, horizonTargets, options);
     if (layout.maxHalf <= g.maxHalf && targetWidth / layout.width >= minZoom) return layout;
     last = layout;
   }

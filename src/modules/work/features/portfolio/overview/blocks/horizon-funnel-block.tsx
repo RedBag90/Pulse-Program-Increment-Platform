@@ -227,12 +227,40 @@ const moneyOf = (item: PlacedItem) =>
     ? `${amountOf(item.total)} · davon Betrieb ${amountOf(item.run)}`
     : amountOf(item.total);
 
-function Symbol({ item, withLabel }: { item: PlacedItem; withLabel: boolean }) {
+/**
+ * **Was ein Symbol beziffert** — je nach Modus Geld oder laufende Epics.
+ *
+ * Ohne Budget-Modul darf hier kein Betrag mehr stehen: die Zahl wäre überall
+ * null, und die Karte behauptete eine Aussage, die sie nicht hat.
+ */
+const countOf = (n: number) => (n === 1 ? "1 Epic" : `${n} Epics`);
+
+const measureOf = (item: PlacedItem, budgetingEnabled: boolean) =>
+  budgetingEnabled ? moneyOf(item) : countOf(item.count);
+
+const bandMeasureOf = (value: number, minimal: boolean, budgetingEnabled: boolean) =>
+  budgetingEnabled
+    ? minimal
+      ? "kein Geld · Mindestöffnung"
+      : formatScaledEUR(value)
+    : minimal
+      ? "nichts in Umsetzung"
+      : countOf(value);
+
+function Symbol({
+  item,
+  withLabel,
+  budgetingEnabled,
+}: {
+  item: PlacedItem;
+  withLabel: boolean;
+  budgetingEnabled: boolean;
+}) {
   const base = item.horizon ? HORIZON_HEX[item.horizon] : HORIZON_NONE_HEX;
   return (
-    <Link href={hrefOf(item)} aria-label={`${item.name}: ${moneyOf(item)}`}>
+    <Link href={hrefOf(item)} aria-label={`${item.name}: ${measureOf(item, budgetingEnabled)}`}>
       <g className="cursor-pointer [&:hover>g]:opacity-80">
-        <title>{`${item.name} — ${moneyOf(item)}`}</title>
+        <title>{`${item.name} — ${measureOf(item, budgetingEnabled)}`}</title>
         {item.kind !== "epic" ? (
           <Cube item={item} />
         ) : (
@@ -269,7 +297,7 @@ function Symbol({ item, withLabel }: { item: PlacedItem; withLabel: boolean }) {
               fontSize={10}
               className="fill-muted-foreground"
             >
-              {amountOf(item.total)}
+              {budgetingEnabled ? amountOf(item.total) : countOf(item.count)}
             </text>
           </>
         )}
@@ -284,6 +312,13 @@ interface FunnelProps {
   cycleKey: string | null;
   /** Soll-Verteilung (Guardrail) — `null` = keine Vergleichslinie. */
   horizonTargets: HorizonTargets | null;
+  /**
+   * Budget-Modul an? Aus ⇒ es gibt kein Geld zu messen. Dann misst die
+   * Zeichnung die **laufenden Epics** (L3.2–L4.2), und jede Beschriftung, die
+   * von Geld spricht, muss schweigen — sonst behauptet die Karte etwas, das
+   * sie nicht zeigt.
+   */
+  budgetingEnabled: boolean;
 }
 
 /**
@@ -291,7 +326,12 @@ interface FunnelProps {
  * unbedingt laufen: ein früher Rücksprung mitten zwischen Hooks wäre ein
  * Regelbruch, kein Stilfehler.
  */
-export function HorizonFunnelBlock({ items, cycleKey, horizonTargets }: FunnelProps) {
+export function HorizonFunnelBlock({
+  items,
+  cycleKey,
+  horizonTargets,
+  budgetingEnabled,
+}: FunnelProps) {
   if (items.length === 0) {
     return (
       <Card className="space-y-2 p-4">
@@ -303,10 +343,17 @@ export function HorizonFunnelBlock({ items, cycleKey, horizonTargets }: FunnelPr
       </Card>
     );
   }
-  return <FunnelCard items={items} cycleKey={cycleKey} horizonTargets={horizonTargets} />;
+  return (
+    <FunnelCard
+      items={items}
+      cycleKey={cycleKey}
+      horizonTargets={horizonTargets}
+      budgetingEnabled={budgetingEnabled}
+    />
+  );
 }
 
-function FunnelCard({ items, cycleKey, horizonTargets }: FunnelProps) {
+function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: FunnelProps) {
   const [wrapRef, measured] = useMeasuredWidth();
 
   const layout = useMemo(
@@ -317,8 +364,9 @@ function FunnelCard({ items, cycleKey, horizonTargets }: FunnelProps) {
         undefined,
         undefined,
         horizonTargets,
+        { sizing: budgetingEnabled ? "money" : "count" },
       ),
-    [items, measured, horizonTargets],
+    [items, measured, horizonTargets, budgetingEnabled],
   );
   const { bands, profile } = layout;
   const split = layout.h1;
@@ -366,13 +414,20 @@ function FunnelCard({ items, cycleKey, horizonTargets }: FunnelProps) {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <SectionLabel>Produkte im Investitionshorizont</SectionLabel>
         <p className="text-xs text-muted-foreground">
-          {items.filter((i) => i.kind === "solution").length} Produkte · {formatScaledEUR(total)}{" "}
-          gebunden{cycleKey ? ` im Zyklus ${halfYearLabel(cycleKey)}` : ""} · Größe und Öffnung sind
-          Invest + Betrieb dieses Halbjahrs
+          {items.filter((i) => i.kind === "solution").length} Produkte ·{" "}
+          {budgetingEnabled ? (
+            <>
+              {formatScaledEUR(total)} gebunden
+              {cycleKey ? ` im Zyklus ${halfYearLabel(cycleKey)}` : ""} · Größe und Öffnung sind
+              Invest + Betrieb dieses Halbjahrs
+            </>
+          ) : (
+            <>Größe und Öffnung sind Epics in Umsetzung (L3.2–L4.2)</>
+          )}
         </p>
       </div>
 
-      {cycleKey == null ? (
+      {!budgetingEnabled ? null : cycleKey == null ? (
         <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
           Es gilt gerade kein Budget-Rahmen — die Kachel, deren Zeitraum jetzt läuft, ist noch in
           Ausarbeitung. Gezeigt sind nur die Betriebskosten.
@@ -403,7 +458,9 @@ function FunnelCard({ items, cycleKey, horizonTargets }: FunnelProps) {
           viewBox={`0 0 ${layout.width} ${height}`}
           className="h-auto w-full"
           role="img"
-          aria-label="Horizont-Trichter: Produkte nach Investitionshorizont, Größe nach gebundenem Geld"
+          aria-label={`Horizont-Trichter: Produkte nach Investitionshorizont, Größe nach ${
+            budgetingEnabled ? "gebundenem Geld" : "Epics in Umsetzung"
+          }`}
         >
           {bands.map((b) => (
             <g key={b.horizon}>
@@ -434,7 +491,7 @@ function FunnelCard({ items, cycleKey, horizonTargets }: FunnelProps) {
                 fontSize={10.5}
                 className="fill-muted-foreground"
               >
-                {b.minimal ? "kein Geld · Mindestöffnung" : formatScaledEUR(b.money)}
+                {bandMeasureOf(b.money, b.minimal, budgetingEnabled)}
                 {b.enlarged && !b.minimal ? " · dicht belegt" : ""}
               </text>
               {/* Je Station ein Fuss, mittig unter ihrem **Plateau**. Die
@@ -571,7 +628,7 @@ function FunnelCard({ items, cycleKey, horizonTargets }: FunnelProps) {
                     fontSize={10}
                     className="fill-muted-foreground"
                   >
-                    {amountOf(money)}
+                    {budgetingEnabled ? amountOf(money) : countOf(money)}
                   </text>
                 </g>
               ))}
@@ -579,7 +636,12 @@ function FunnelCard({ items, cycleKey, horizonTargets }: FunnelProps) {
           )}
 
           {layout.items.map((i) => (
-            <Symbol key={i.id} item={i} withLabel={withLabels} />
+            <Symbol
+              key={i.id}
+              item={i}
+              withLabel={withLabels}
+              budgetingEnabled={budgetingEnabled}
+            />
           ))}
 
           {/* Der Streifen: was keinen Horizont hat, zählt in keinem Band mit. */}
@@ -630,6 +692,7 @@ function FunnelCard({ items, cycleKey, horizonTargets }: FunnelProps) {
                     },
                   }}
                   withLabel={withLabels}
+                  budgetingEnabled={budgetingEnabled}
                 />
               ))}
             </g>
@@ -653,11 +716,23 @@ function FunnelCard({ items, cycleKey, horizonTargets }: FunnelProps) {
         </li>
         <li className="flex items-center gap-1.5">
           <span className="inline-block size-2 rounded-full border border-dashed border-muted-foreground/70" />
-          kein Geld im Zyklus
+          {budgetingEnabled ? "kein Geld im Zyklus" : "nichts in Umsetzung"}
         </li>
-        <li>Größe = gebundenes Geld</li>
-        <li>dunkler Sockel = Betriebsanteil</li>
-        <li>Kurvenabstand = Geld des Horizonts</li>
+        {budgetingEnabled ? (
+          <>
+            <li>Größe = gebundenes Geld</li>
+            <li>dunkler Sockel = Betriebsanteil</li>
+            <li>Kurvenabstand = Geld des Horizonts</li>
+          </>
+        ) : (
+          <>
+            {/* Der Sockel entfällt von selbst: ohne Budget-Modul gibt es keinen
+                Betrieb, den er zeigen könnte. */}
+            <li>Größe = Epics in Umsetzung</li>
+            <li>Punkt = ein Epic ohne Produkt</li>
+            <li>Kurvenabstand = Epics des Horizonts</li>
+          </>
+        )}
         {layout.targetProfile != null && (
           <li className="flex items-center gap-1.5">
             <span className="inline-block h-px w-4 border-t border-dashed border-muted-foreground" />
@@ -673,7 +748,8 @@ function FunnelCard({ items, cycleKey, horizonTargets }: FunnelProps) {
           {[...layout.items, ...layout.homeless].map((i) => (
             <li key={i.id}>
               <Link href={hrefOf(i)} className="hover:text-foreground hover:underline">
-                <span className="font-medium text-foreground">{i.name}</span> {amountOf(i.total)}
+                <span className="font-medium text-foreground">{i.name}</span>{" "}
+                {budgetingEnabled ? amountOf(i.total) : countOf(i.count)}
               </Link>
             </li>
           ))}

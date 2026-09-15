@@ -19,6 +19,7 @@ const sol = (
   run = 0,
   mode: "investing" | "extracting" | null = null,
   code = id.toUpperCase(),
+  count = 0,
 ): FunnelItem => ({
   id,
   kind: "solution",
@@ -28,6 +29,7 @@ const sol = (
   mode,
   invest,
   run,
+  count,
 });
 
 /** Die gemessene Lage aus Pulse Demo Corp. */
@@ -691,5 +693,79 @@ describe("findCollisions", () => {
     });
     expect(findCollisions([box(0), box(10)])).toHaveLength(1);
     expect(findCollisions([box(0), box(30)])).toEqual([]);
+  });
+});
+
+/**
+ * **Ohne Budget-Modul misst die Zeichnung die laufenden Epics.**
+ *
+ * Vorher fiel sie in diesem Fall zu lauter gleich großen leeren Umrissen
+ * zusammen — und behauptete in ihrer Beschriftung weiter, die Größe sei Geld.
+ * Produktlose Epics verschwanden ganz, weil ein Filter `invest <= 0`
+ * aussortierte, was ohne Modul auf jedes Epic zutrifft.
+ */
+describe("layoutFunnel — Zählmodus (Budget-Modul aus)", () => {
+  const COUNT = { sizing: "count" as const };
+
+  /** Ein Produkt mit `count` laufenden Epics und ohne jedes Geld. */
+  const prod = (id: string, horizon: Horizon | null, count: number): FunnelItem => ({
+    ...sol(id, horizon, 0),
+    count,
+  });
+
+  const dot = (id: string, horizon: Horizon | null): FunnelItem => ({
+    ...sol(id, horizon, 0),
+    kind: "epic",
+    count: 1,
+  });
+
+  it("macht die Fläche ∝ Epic-Zahl: doppelte Kante = vierfache Zahl", () => {
+    const { items } = layoutFunnel(
+      [prod("a", "h1", 16), prod("b", "h1", 4)],
+      undefined,
+      undefined,
+      null,
+      COUNT,
+    );
+    const span = (id: string) => items.find((i) => i.id === id)!.size - DEFAULT_GEOMETRY.emptySize;
+    expect(span("a") / span("b")).toBeCloseTo(2, 5);
+  });
+
+  it("zeichnet jedes Epic gleich groß — ein Epic ist keine Menge", () => {
+    const { items } = layoutFunnel(
+      [prod("gross", "h1", 20), dot("e1", "h1"), dot("e2", "h2"), dot("e3", "h3")],
+      undefined,
+      undefined,
+      null,
+      COUNT,
+    );
+    const dots = items.filter((i) => i.kind === "epic");
+    expect(dots).toHaveLength(3);
+    for (const d of dots) expect(d.size).toBe(DEFAULT_GEOMETRY.epicDotSize);
+  });
+
+  it("öffnet die Bänder nach der Zahl der Epics, nicht nach Geld", () => {
+    // h1 traegt 9 Epics, h3 eines — die Oeffnung muss das widerspiegeln.
+    const l = layoutFunnel(
+      [prod("viel", "h1", 9), dot("wenig", "h3")],
+      undefined,
+      undefined,
+      null,
+      COUNT,
+    );
+    const half = (h: Horizon) => l.bands.find((b) => b.horizon === h)!.half;
+    expect(half("h1")).toBeGreaterThan(half("h3"));
+  });
+
+  it("gibt einem Produkt ohne laufende Epics das Mindestmaß", () => {
+    const { items } = layoutFunnel([prod("still", "h2", 0)], undefined, undefined, null, COUNT);
+    expect(items[0]!.size).toBe(DEFAULT_GEOMETRY.emptySize);
+  });
+
+  it("lässt den Geld-Modus unberührt — er bleibt die Vorgabe", () => {
+    const money = [sol("a", "h1", 1_000_000), sol("b", "h1", 250_000)];
+    expect(layoutFunnel(money).items.map((i) => i.size)).toEqual(
+      layoutFunnel(money, undefined, undefined, null, {}).items.map((i) => i.size),
+    );
   });
 });

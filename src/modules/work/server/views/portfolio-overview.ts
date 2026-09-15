@@ -305,6 +305,12 @@ export interface PortfolioOverview {
    */
   funnelItems: FunnelItem[];
   /**
+   * Ist das Budget-Modul an? Aus ⇒ der Horizont-Trichter hat kein Geld zu
+   * messen und zeigt stattdessen die laufenden Epics. Die Zeichnung muss das
+   * wissen, sonst behauptet ihre Beschriftung weiter Geld.
+   */
+  budgetingEnabled: boolean;
+  /**
    * Die Soll-Verteilung des Budgets über die Horizonte (Guardrail „Investment
    * by Horizon"), in Prozent — der Trichter zeichnet sie als gestrichelte
    * Vergleichslinie. Sie gilt für das **gesamte** Portfolio-Budget,
@@ -426,6 +432,12 @@ export interface PortfolioOverviewInputs {
   epicClasses: Map<string, EpicClassInfo> | null;
   /** Produkte und produktlose Epics mit gebundenem Geld — der Horizont-Trichter. */
   funnelItems: FunnelItem[];
+  /**
+   * Ist das Budget-Modul an? Aus ⇒ der Horizont-Trichter hat kein Geld zu
+   * messen und zeigt stattdessen die laufenden Epics. Die Zeichnung muss das
+   * wissen, sonst behauptet ihre Beschriftung weiter Geld.
+   */
+  budgetingEnabled: boolean;
   /** Gewählte Klassen aus dem Filter (leer = keine Einschränkung). */
   selectedClasses: string[];
   /** Pinned "today" — server passes `new Date()`, tests pass a fixed instant. */
@@ -488,6 +500,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     epicClasses,
     selectedClasses,
     funnelItems,
+    budgetingEnabled,
     horizonTargets,
     now,
   } = inputs;
@@ -844,6 +857,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     blockedEpics,
     steeringEpics,
     funnelItems,
+    budgetingEnabled,
     horizonTargets,
     goals,
     goalsOnTrack,
@@ -936,6 +950,8 @@ export async function loadPortfolioOverviewInputs(
   getSolutionRunCosts: SolutionRunCostPort,
   getArtAllocations: ArtAllocationPort,
   filter: PortfolioFilter = EMPTY_PORTFOLIO_FILTER,
+  /** Nachgestellt mit Vorgabe, damit vorhandene Aufrufer unberührt bleiben. */
+  budgetingEnabled = true,
 ): Promise<PortfolioOverviewInputs> {
   const [
     epics,
@@ -1025,6 +1041,7 @@ export async function loadPortfolioOverviewInputs(
     cycleAllocations,
     artAllocations,
     epicClasses,
+    budgetingEnabled,
   });
 
   return {
@@ -1044,6 +1061,7 @@ export async function loadPortfolioOverviewInputs(
     epicClasses,
     selectedClasses: filter.epicClasses,
     funnelItems,
+    budgetingEnabled,
     /**
      * **Welche Ziele gelten, wenn gefiltert ist.** Genau ein Wertstrom gewaehlt
      * → dessen Zeile; keiner oder mehrere → der Tenant-Default. Eine Linie kann
@@ -1071,6 +1089,8 @@ export async function loadPortfolioOverview(
   getSolutionRunCosts: SolutionRunCostPort,
   getArtAllocations: ArtAllocationPort,
   filter: PortfolioFilter = EMPTY_PORTFOLIO_FILTER,
+  /** Nachgestellt mit Vorgabe, damit vorhandene Aufrufer unberührt bleiben. */
+  budgetingEnabled = true,
 ): Promise<PortfolioOverview> {
   return buildPortfolioOverviewModel(
     await loadPortfolioOverviewInputs(
@@ -1081,6 +1101,7 @@ export async function loadPortfolioOverview(
       getSolutionRunCosts,
       getArtAllocations,
       filter,
+      budgetingEnabled,
     ),
   );
 }

@@ -180,6 +180,35 @@ export const GATES_AFTER_BUDGET_DECISION: readonly StageGate[] = STAGE_GATES.fil
   (g) => STAGE_GATES.indexOf(g) > STAGE_GATES.indexOf(BUDGET_DECISION_GATE),
 );
 
+/**
+ * **Das Lieferfenster: L3.2 → L4.2.**
+ *
+ * Vom Budget-Beschluss bis zur abgenommenen Umsetzung — die Spanne, in der an
+ * einem Epic tatsächlich gearbeitet wird. Der Horizont-Trichter misst damit die
+ * Größe eines Produkts, wenn das Budget-Modul aus ist: nicht wie viel Geld
+ * gebunden ist, sondern wie viele Vorhaben gerade laufen.
+ *
+ * **L5 gehört nicht dazu.** Ein Produkt soll zeigen, woran gearbeitet wird,
+ * nicht was es je geliefert hat — sonst wüchse es mit der Zeit, ohne dass
+ * etwas geschieht.
+ *
+ * Drei Schwellen, drei Bedeutungen, leicht zu verwechseln:
+ * `FIRST_FUNDABLE_STEP` (Budgeting, L3.1) = darf Geld halten ·
+ * `BUDGET_DECIDED_STEP` (L3.2, nach oben offen) = hat Geld bekommen ·
+ * **dieses Fenster** (L3.2–L4.2, geschlossen) = trägt gerade Arbeit.
+ */
+export const DELIVERY_LOAD_FIRST_STEP: GateStep = "L3.2";
+export const DELIVERY_LOAD_LAST_STEP: GateStep = "L4.2";
+
+/** Liegt der Schritt im Lieferfenster (L3.2 bis einschließlich L4.2)? */
+export function carriesDeliveryLoad(step: GateStep): boolean {
+  const i = GATE_STEPS.indexOf(step);
+  return (
+    i >= GATE_STEPS.indexOf(DELIVERY_LOAD_FIRST_STEP) &&
+    i <= GATE_STEPS.indexOf(DELIVERY_LOAD_LAST_STEP)
+  );
+}
+
 export function currentGateStep(epic: {
   stageGate: StageGate;
   approvedAt: Date | null;

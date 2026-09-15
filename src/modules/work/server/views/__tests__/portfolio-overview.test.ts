@@ -91,6 +91,7 @@ function baseInputs(): PortfolioOverviewInputs {
     budgetCycleKey: "2026-H1",
     epicClasses: null,
     funnelItems: [],
+    budgetingEnabled: true,
     horizonTargets: null,
     selectedClasses: [],
     activePis: [],

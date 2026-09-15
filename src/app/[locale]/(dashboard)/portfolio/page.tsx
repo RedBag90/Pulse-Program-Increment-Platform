@@ -236,6 +236,9 @@ export default async function PortfolioPage({ searchParams }: Props) {
     async (cycleKey) =>
       budgetingEnabled ? artEpicCycleAllocations(db, principal.tenantId, cycleKey) : {},
     filter,
+    // Ohne das Modul gibt es kein Geld zu messen: der Horizont-Trichter misst
+    // dann die laufenden Epics statt lauter leerer Umrisse zu zeigen.
+    budgetingEnabled,
   );
 
   return (
