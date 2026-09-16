@@ -5,6 +5,11 @@ import type { Guide } from "@/modules/wiki/domain/guide";
  * `docs/concepts/portfolio-setup-walkthrough.md`, dort zusaetzlich mit den
  * Nachschlagepunkten im Code. Diese Datei ist die Fassung fuers Produkt: ohne
  * Dateipfade, dafuer mit Sprungzielen.
+ *
+ * **Bewusst ohne `module`.** Kopfziel, Wertstroeme, ARTs und Solutions sind
+ * Core; der Aufbau gehoert damit jedem Mandanten. Solange Solutions an `work`
+ * hingen, war das eine Unschaerfe — die Anleitung beschrieb eine Flaeche, die
+ * nicht jeder Leser hatte. Seit ADR-0022 stimmt es.
  */
 export const PORTFOLIO_SETUP: Guide = {
   slug: "ein-portfolio-entsteht",

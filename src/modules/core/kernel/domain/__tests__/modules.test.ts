@@ -29,13 +29,23 @@ describe("moduleForPath", () => {
     expect(moduleForPath("/de/issues")).toBe("risks");
   });
 
-  // Der Baum ist `core` — die beiden Flächen darin gehören oberen Modulen.
-  // Ohne die Unterpfad-Ausnahmen ließe der Route-Guard sie überall durch.
+  /**
+   * Der Baum ist `core`. **Eine** Fläche darin gehört einem oberen Modul — die
+   * PI-Kadenz; ohne die Unterpfad-Ausnahme ließe der Route-Guard sie überall
+   * durch.
+   *
+   * Solutions standen bis ADR-0022 daneben und folgen jetzt ihrem Segment: eine
+   * Solution gehört neben den Wertstrom, an dem sie hängt. Beide Schreibweisen
+   * stehen hier — die **Einzahl** war nie geprüft, obwohl sie einen eigenen
+   * Eintrag in `PATH_OVERRIDES` hatte und damit eigenständig brechen konnte.
+   */
   it("Unterpfade unter /structure folgen ihrem eigenen Modul", () => {
     expect(moduleForPath("/structure")).toBe("core");
     expect(moduleForPath("/de/structure/art/abc")).toBe("core");
-    expect(moduleForPath("/structure/solutions")).toBe("work");
-    expect(moduleForPath("/de/structure/solutions/abc")).toBe("work");
+    expect(moduleForPath("/structure/solutions")).toBe("core");
+    expect(moduleForPath("/de/structure/solutions/abc")).toBe("core");
+    expect(moduleForPath("/structure/solution/abc")).toBe("core");
+    expect(moduleForPath("/de/structure/solution/abc")).toBe("core");
     expect(moduleForPath("/structure/timelines")).toBe("drumbeat");
     expect(moduleForPath("/en/structure/timelines")).toBe("drumbeat");
   });

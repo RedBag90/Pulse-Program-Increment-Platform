@@ -3,8 +3,8 @@
 import { useActionState, useState, startTransition } from "react";
 import { Star, Link2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { setEpicSolutionsAction } from "@/modules/work/features/portfolio/actions/solution";
-import { HorizonBadge } from "@/modules/work/features/portfolio/components/horizon-badge";
+import { setEpicSolutionsAction } from "@/modules/work/features/portfolio/actions/epic-solutions";
+import { HorizonBadge } from "@/modules/core/org/features/solution/components/horizon-badge";
 import { Button } from "@/components/ui/button";
 
 export interface EpicSolutionOption {

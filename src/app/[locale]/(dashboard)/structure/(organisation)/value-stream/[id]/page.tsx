@@ -31,8 +31,9 @@ import {
 } from "@/modules/work/server/views/value-stream-capacity-mix";
 import { ValueStreamGuardrailsSection } from "@/modules/work/features/portfolio/components/value-stream-guardrails-section";
 import { getTenantPractices } from "@/server/services/target-model";
-import { SolutionsOfNode } from "@/modules/work/features/portfolio/components/solutions/solutions-of-node";
-import { loadSolutionsList } from "@/modules/work/server/views/solutions-list";
+import { SolutionsOfNode } from "@/modules/core/org/features/solution/components/solutions-of-node";
+import { loadSolutionsList } from "@/modules/core/org/server/views/solutions-list";
+import { loadSolutionGrow } from "@/modules/work/server/views/solution-grow";
 import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
 
 /**
@@ -146,7 +147,12 @@ export default async function ValueStreamNodePage({ params, searchParams }: Prop
         <GuardrailsTab db={db} principal={principal} vsId={vs.id} inScope={inScope} />
       )}
       {activeTab === "solutions" && (
-        <SolutionsTab db={db} tenantId={principal.tenantId} valueStreamId={vs.id} />
+        <SolutionsTab
+          db={db}
+          tenantId={principal.tenantId}
+          valueStreamId={vs.id}
+          workEnabled={principal.enabledModules.includes("work")}
+        />
       )}
       {activeTab === "history" && <HistoryTab db={db} tenantId={principal.tenantId} id={vs.id} />}
     </EntityDetailShell>
@@ -267,11 +273,25 @@ async function GuardrailsTab({ db, principal, vsId, inScope }: any) {
   );
 }
 
-async function SolutionsTab({ db, tenantId, valueStreamId }: any) {
+/**
+ * Die Solutions eines Knotens. Der Reiter selbst ist **Core** (ADR-0022) — die
+ * Grow-Spalte daneben ist Work und wird nur mit dem Modul geladen. Vorher hing
+ * der ganze Reiter allein an `inScope`, einer Berechtigungspruefung: ein Mandant
+ * ohne Work sah dort Grow-Summen aus Epics, die er gar nicht fuehren darf.
+ */
+async function SolutionsTab({ db, tenantId, valueStreamId, workEnabled }: any) {
   const rows = await loadSolutionsList(db, tenantId, { valueStreamId });
+  const growById = workEnabled
+    ? await loadSolutionGrow(
+        db,
+        tenantId,
+        rows.map((r: { id: string }) => r.id),
+      )
+    : undefined;
   return (
     <SolutionsOfNode
       rows={rows}
+      growById={growById}
       emptyText="Für diesen Wertstrom ist noch keine Solution angelegt."
     />
   );

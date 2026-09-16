@@ -5,7 +5,7 @@ import {
   HORIZON_HELP,
   isHorizon,
   type Horizon,
-} from "@/modules/work/domain/portfolio-guardrails";
+} from "@/modules/core/org/domain/horizon";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 

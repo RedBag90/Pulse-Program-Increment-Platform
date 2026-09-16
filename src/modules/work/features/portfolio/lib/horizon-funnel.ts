@@ -6,7 +6,7 @@ import {
   type Horizon,
   type Station,
 } from "@/modules/work/domain/portfolio-guardrails";
-import type { InvestmentMode } from "@/modules/work/domain/solution";
+import type { InvestmentMode } from "@/modules/core/org/domain/solution";
 
 /**
  * Der **Horizont-Trichter**: welches Produkt steht in welchem Horizont, und wie

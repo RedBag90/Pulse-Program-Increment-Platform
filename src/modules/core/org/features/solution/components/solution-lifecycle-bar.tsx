@@ -1,11 +1,11 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import type { SolutionDetailModel } from "@/modules/work/server/views/solution-detail";
+import type { SolutionDetailModel } from "@/modules/core/org/server/views/solution-detail";
 import {
   setSolutionLifecycleAction,
   promoteSolutionAction,
-} from "@/modules/work/features/portfolio/actions/solution";
+} from "@/modules/core/org/features/solution/actions/solution";
 import {
   PROMOTION_CRITERIA,
   SOLUTION_STATUSES,
@@ -13,8 +13,8 @@ import {
   SOLUTION_TRANSITIONS,
   solutionStatusOf,
   solutionStatusToHorizonMode,
-} from "@/modules/work/domain/solution";
-import { HORIZON_BADGE_CLASS } from "@/modules/work/features/portfolio/components/horizon-badge";
+} from "@/modules/core/org/domain/solution";
+import { HORIZON_BADGE_CLASS } from "@/modules/core/org/features/solution/components/horizon-badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {

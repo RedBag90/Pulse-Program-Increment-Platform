@@ -7,21 +7,25 @@ import { formatCompactEUR } from "@/lib/formatting";
  *
  * Beide Zahlen sind **abgeleitet** — Run war früher ein freies Feld an der
  * Solution, das niemand budgetiert hat. Es kommt jetzt aus den
- * Run-the-Business-Positionen. Weil die dem Budgeting-Modul gehören, reicht die
- * Route den Wert herein (ADR-0013); `run === null` heißt „Modul nicht aktiv".
+ * Run-the-Business-Positionen.
+ *
+ * Und beide gehören oberen Modulen: Run dem Budgeting, Grow seit ADR-0022 dem
+ * Work-Modul. Die Route reicht sie herein (ADR-0013); `null` heißt jeweils
+ * „Modul nicht aktiv" — im Unterschied zu 0 €, was „nichts investiert" hieße.
  */
 export function SolutionGrowRunTiles({
   grow,
   run,
   runItemCount,
 }: {
-  grow: number;
+  /** Σ Umsetzungskosten aktiver Primär-Epics; `null` = Work-Modul nicht aktiv. */
+  grow: number | null;
   /** Σ p. a. der aktiven Positionen; `null` = Budgeting-Modul nicht aktiv. */
   run: number | null;
   runItemCount: number;
 }) {
-  const total = grow + (run ?? 0);
-  const growPct = total > 0 ? Math.round((grow / total) * 100) : 0;
+  const total = (grow ?? 0) + (run ?? 0);
+  const growPct = total > 0 ? Math.round(((grow ?? 0) / total) * 100) : 0;
 
   return (
     <section className="grid gap-4 md:grid-cols-3">
@@ -30,9 +34,11 @@ export function SolutionGrowRunTiles({
           Grow · aktive Primär-Epics
         </div>
         <div className="mt-1 text-2xl font-semibold tabular-nums">
-          {grow > 0 ? formatCompactEUR(grow) : "—"}
+          {grow == null ? "—" : grow > 0 ? formatCompactEUR(grow) : "—"}
         </div>
-        <div className="text-xs text-muted-foreground">Σ Umsetzungskosten (Stage &lt; L5)</div>
+        <div className="text-xs text-muted-foreground">
+          {grow == null ? "Work-Modul nicht aktiv" : "Σ Umsetzungskosten (Stage < L5)"}
+        </div>
       </div>
 
       <div className="rounded-lg bg-card p-4 shadow-card">
@@ -52,15 +58,15 @@ export function SolutionGrowRunTiles({
       <div className="rounded-lg bg-card p-4 shadow-card">
         <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           <span>Grow : Run</span>
-          {run != null && (
+          {run != null && grow != null && (
             <span className="normal-case text-muted-foreground">
               {growPct}% / {100 - growPct}%
             </span>
           )}
         </div>
-        {run == null ? (
+        {run == null || grow == null ? (
           <div className="mt-3 text-xs text-muted-foreground">
-            Ohne Betriebskosten kein Verhältnis.
+            {grow == null ? "Ohne Grow kein Verhältnis." : "Ohne Betriebskosten kein Verhältnis."}
           </div>
         ) : (
           <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-muted">

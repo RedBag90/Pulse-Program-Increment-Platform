@@ -3,7 +3,7 @@ import {
   SOLUTION_STATUS_STEP_LABEL,
   SOLUTION_TRANSITIONS,
   PROMOTION_CRITERIA,
-} from "@/modules/work/domain/solution";
+} from "@/modules/core/org/domain/solution";
 
 /**
  * Die Lebenszyklus-Leiste als Figur: fuenf Stufen, und je Stufe die Kanten, die

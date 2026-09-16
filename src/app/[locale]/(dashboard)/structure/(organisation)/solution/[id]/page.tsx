@@ -4,27 +4,38 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { hasCapability } from "@/server/auth/authorize";
 import { listAuditHistory } from "@/server/services/audit-history";
-import { loadSolutionDetail } from "@/modules/work/server/views/solution-detail";
-import { HorizonBadge } from "@/modules/work/features/portfolio/components/horizon-badge";
-import { SolutionLifecycleBar } from "@/modules/work/features/portfolio/components/solutions/solution-lifecycle-bar";
-import { SolutionGrowRunTiles } from "@/modules/work/features/portfolio/components/solutions/solution-grow-run-tiles";
+import { loadSolutionDetail } from "@/modules/core/org/server/views/solution-detail";
+import { loadSolutionEpics } from "@/modules/work/server/views/solution-grow";
+import { HorizonBadge } from "@/modules/core/org/features/solution/components/horizon-badge";
+import { SolutionLifecycleBar } from "@/modules/core/org/features/solution/components/solution-lifecycle-bar";
+import { SolutionGrowRunTiles } from "@/modules/core/org/features/solution/components/solution-grow-run-tiles";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
 import { RtbSection } from "@/modules/budgeting/features/components/rtb/rtb-section";
 import { sumRtbAnnual } from "@/modules/budgeting/domain/rtb-interval";
-import { SolutionEditButton } from "@/modules/work/features/portfolio/components/solutions/solution-edit-button";
+import { SolutionEditButton } from "@/modules/core/org/features/solution/components/solution-edit-button";
 import {
   EntityDetailShell,
   resolveTab,
   type DetailTab,
 } from "@/components/detail/entity-detail-shell";
 import { AuditTimeline } from "@/components/detail/audit-timeline";
-import { SolutionProductManager } from "@/modules/work/features/portfolio/components/solutions/solution-product-manager";
+import { SolutionProductManager } from "@/modules/core/org/features/solution/components/solution-product-manager";
 import { listTenantApprovers } from "@/modules/work/server/services/tenant-approvers";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { STAGE_SHORT } from "@/components/detail/initiative-labels";
 import { formatCompactEUR } from "@/lib/formatting";
 
-const TABS: readonly DetailTab[] = [
+const CORE_TABS: readonly DetailTab[] = [
+  { key: "overview", label: "Overview" },
+  { key: "history", label: "Verlauf" },
+];
+
+/**
+ * Der Epics-Reiter steht zwischen Overview und Verlauf — aber nur mit **Work**.
+ * Er liest Epics und Business Cases; ohne das Modul gibt es beides nicht, und
+ * ein leerer Reiter saehe aus wie ein Datenfehler (ADR-0022).
+ */
+const WORK_TABS: readonly DetailTab[] = [
   { key: "overview", label: "Overview" },
   { key: "epics", label: "Epics" },
   { key: "history", label: "Verlauf" },
@@ -48,7 +59,6 @@ interface Props {
 export default async function SolutionDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
   const { tab } = await searchParams;
-  const activeTab = resolveTab(TABS, tab);
 
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
@@ -63,6 +73,12 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
     listTenantUserLabels(db, principal.tenantId),
   ]);
   const budgetingEnabled = principal.enabledModules.includes("budgeting");
+  const workEnabled = principal.enabledModules.includes("work");
+  const TABS = workEnabled ? WORK_TABS : CORE_TABS;
+  const activeTab = resolveTab(TABS, tab);
+  // Grow und die Primaer-Epics stammen aus Work; ohne das Modul bleibt der
+  // Strukturknoten uebrig — Name, Wertstrom, ART, Horizont, Verantwortliche.
+  const workSide = workEnabled ? await loadSolutionEpics(db, principal.tenantId, model.id) : null;
   // Betriebskosten pflegt, wer den Wertstrom verantwortet — nicht, wer die
   // Solution verwaltet. **Einschließlich der Finance-Partei:** der Service lässt
   // sie durch (`assertRtbManage`), die Fläche tat es bisher nicht, und dieselbe
@@ -117,11 +133,13 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
             userLabels={userLabels}
             canManage={canManage || model.productManagerId === principal.id}
           />
-          <SolutionGrowRunTiles
-            grow={model.grow}
-            run={run}
-            runItemCount={rtbItems?.filter((i) => i.active).length ?? 0}
-          />
+          {(workSide || rtbItems) && (
+            <SolutionGrowRunTiles
+              grow={workSide?.grow ?? null}
+              run={run}
+              runItemCount={rtbItems?.filter((i) => i.active).length ?? 0}
+            />
+          )}
           {rtbItems && (
             <RtbSection
               valueStreamId={model.valueStreamId}
@@ -143,13 +161,13 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
             Produkt; das ist kein Fehler, sondern die Zusicherung, dass ein Horizont-Wechsel die
             Vergangenheit nicht umschreibt.
           </p>
-          {model.epics.length === 0 ? (
+          {(workSide?.epics.length ?? 0) === 0 ? (
             <p className="text-sm text-muted-foreground">
               Noch keine Epics dieser Solution zugeordnet.
             </p>
           ) : (
             <ul className="divide-y rounded-lg border">
-              {model.epics.map((e) => (
+              {(workSide?.epics ?? []).map((e) => (
                 <li
                   key={e.id}
                   className="flex items-center justify-between gap-3 px-3 py-2 text-sm"

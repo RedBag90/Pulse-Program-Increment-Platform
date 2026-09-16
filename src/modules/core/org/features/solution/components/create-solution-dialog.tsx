@@ -5,7 +5,7 @@ import { Plus } from "lucide-react";
 import {
   createSolutionAction,
   updateSolutionAction,
-} from "@/modules/work/features/portfolio/actions/solution";
+} from "@/modules/core/org/features/solution/actions/solution";
 import { useCreateResult } from "@/features/create/use-create-result";
 import { useEntityOptions, optionsEndpoint } from "@/features/create/use-entity-options";
 import {
@@ -13,8 +13,8 @@ import {
   SOLUTION_STATUS_LABEL,
   solutionStatusOf,
   type InvestmentMode,
-} from "@/modules/work/domain/solution";
-import { type Horizon } from "@/modules/work/domain/portfolio-guardrails";
+} from "@/modules/core/org/domain/solution";
+import { type Horizon } from "@/modules/core/org/domain/horizon";
 import type { ActionState } from "@/server/http/server-action";
 import { Button } from "@/components/ui/button";
 import {

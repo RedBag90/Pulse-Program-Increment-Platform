@@ -8,7 +8,7 @@ import {
   SOLUTION_TRANSITIONS,
   isSolutionHorizon,
   type SolutionStatus,
-} from "@/modules/work/domain/solution";
+} from "@/modules/core/org/domain/solution";
 
 describe("Solution-Status ↔ (Horizont, Modus)", () => {
   it("leitet den Status aus Horizont + Modus ab", () => {

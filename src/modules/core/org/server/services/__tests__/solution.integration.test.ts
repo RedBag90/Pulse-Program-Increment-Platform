@@ -3,7 +3,7 @@ import { db } from "@/test/setup-db";
 import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
-import { createSolution, setSolutionLifecycle } from "@/modules/work/server/services/solution";
+import { createSolution, setSolutionLifecycle } from "@/modules/core/org/server/services/solution";
 
 /**
  * **Die Leiter gilt auch ohne Oberfläche.**

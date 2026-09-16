@@ -46,7 +46,7 @@ import { BusinessCaseEditor } from "@/modules/work/features/portfolio/components
 import { EpicTimelineTab } from "@/modules/work/features/portfolio/components/epic-timeline-tab";
 import { EpicOwnerAssign } from "@/modules/work/features/portfolio/components/epic-owner-assign";
 import { EpicGateLadder } from "@/modules/work/features/portfolio/components/epic-gate-ladder";
-import { HorizonBadge } from "@/modules/work/features/portfolio/components/horizon-badge";
+import { HorizonBadge } from "@/modules/core/org/features/solution/components/horizon-badge";
 import { currentGateStep, gateStepLabel } from "@/modules/work/domain/stage-gate";
 import { EPIC_CLASS_LABELS } from "@/modules/work/domain/pb-submission";
 import { EPIC_TYPE_LABEL, isEpicType } from "@/modules/work/domain/portfolio-guardrails";

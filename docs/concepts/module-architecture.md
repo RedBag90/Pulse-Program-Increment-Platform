@@ -61,6 +61,7 @@ Core  (Kernel + Goals + Org-Struktur VS→ART→Team)      ← Fundament, immer 
 | KPI                 | Domain `kpi*`, Tabelle `Kpi`, `services/kpi`                                                                                                                                                        |
 | Goals/OKR           | `features/ziele`, Domain `goal-*`, `goals-rollup`, Views `goals-forest`/`ziele-view`, Link-Services (`goal-epic-link`, `goal-related-work`, `goal-scope-link`) + **Contribution-Port**              |
 | Org-Struktur        | Entitäten VS/ART/Team (`services/{value-stream,art,art-setup,team,structure}`, View `structure-page`), Org-Setup (`transformation/art-starten`, `operating-model`/`target-model`), `features/setup` |
+| Solution            | Strukturknoten am Wertstrom (`org/domain/{solution,horizon}`, `org/server/{services,views}/solution*`, `org/features/solution`) — Grow/Run kommen aus Work bzw. Budgeting (ADR-0022)                |
 
 ### Work (Epic-Definition/Doku/Freigabe + Feature-Breakdown + Ökonomie)
 
@@ -138,16 +139,16 @@ Modularer Monolith, ein Postgres. Grenzen werden über **Tabellen-/Spalten-Owner
 
 ## 9. Entitlement-Registry-Neuzuordnung (alt → neu)
 
-| Alt (8 Keys)  | Neu           | Anmerkung                                                                               |
-| ------------- | ------------- | --------------------------------------------------------------------------------------- |
-| `ziele`       | **core**      | Goals in Core gefaltet; Free-Basis, always-on                                           |
-| `structure`   | **core**      | Org-Struktur/Setup/`timelines`-Kadenz → Core (Kadenz-Planung ggf. Drumbeat, s. Roadmap) |
-| `admin`       | **core**      | Administration + `goal-fields` (Core/Goals)                                             |
-| `portfolio`   | **work**      | Epics/Dashboard/Review                                                                  |
-| `program`     | **drumbeat**  | Umsetzung/PI/ART/Team/Feature-Planung/Dependencies                                      |
-| `controlling` | **budgeting** | Budget/Budget-Plan/ART-Budget                                                           |
-| `roadmap`     | **drumbeat**  | Timeline-Visualisierung                                                                 |
-| `reporting`   | — (Shell)     | kein Modul; Composition-Root, je Report beim Dateneigner                                |
+| Alt (8 Keys)  | Neu           | Anmerkung                                                                                         |
+| ------------- | ------------- | ------------------------------------------------------------------------------------------------- |
+| `ziele`       | **core**      | Goals in Core gefaltet; Free-Basis, always-on                                                     |
+| `structure`   | **core**      | Org-Struktur/Setup/Solutions/`timelines`-Kadenz → Core (Kadenz-Planung ggf. Drumbeat, s. Roadmap) |
+| `admin`       | **core**      | Administration + `goal-fields` (Core/Goals)                                                       |
+| `portfolio`   | **work**      | Epics/Dashboard/Review                                                                            |
+| `program`     | **drumbeat**  | Umsetzung/PI/ART/Team/Feature-Planung/Dependencies                                                |
+| `controlling` | **budgeting** | Budget/Budget-Plan/ART-Budget                                                                     |
+| `roadmap`     | **drumbeat**  | Timeline-Visualisierung                                                                           |
+| `reporting`   | — (Shell)     | kein Modul; Composition-Root, je Report beim Dateneigner                                          |
 
 - `PERSONAL_DEFAULT_MODULES` → `core` (Goals). `MODULE_KEYS` → `[core, work, drumbeat, budgeting]` mit
   Prerequisite-Validierung (Drumbeat/Budgeting ⇒ Work).
@@ -165,6 +166,7 @@ Entitlement-Gating auf den Teilbereichen. Ziel-Verhalten:
 | KPI-Tab, „Realisierter Mehrwert"-Tile, Ziel-Badge/Links + BC-Kaskade, History/Activity                                                                                                                                       | Core/Goals | ✅ immer        |
 | Deliverables: PI-Spalten je ART (`pisByArt`), Dependencies (`breakdownDependencies`), Netzplan (`breakdownLayoutPositions`), Feature-Slide-over (`loadCockpitFeatureDetail`), Overview-Ist aus Child-PIs (`deriveIstWindow`) | Drumbeat   | ⚠️ ausblenden   |
 | Budget-Allocation (`budgetAllocation` → Funded-Window/Ökonomie), `stagedForBudgeting`                                                                                                                                        | Budgeting  | ⚠️ ausblenden   |
+| Solution-Knoten + Primär-Solution-Auswahl (Name, Horizont, Wertstrom/ART)                                                                                                                                                    | Core       | ✅ immer        |
 
 **Work-Fallbacks** (bereits vorhanden): Ökonomie/Schedule fällt ohne Funded-Window auf
 Business-Case-Forecast + Timeline-Estimates zurück (`epic-schedule`-Kette); Ist-Fenster bleibt leer. Der

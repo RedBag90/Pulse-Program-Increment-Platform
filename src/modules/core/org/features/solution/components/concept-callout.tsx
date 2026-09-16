@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Info, X } from "lucide-react";
-import { CONCEPT_HELP } from "@/modules/work/domain/portfolio-guardrails";
+import { CONCEPT_HELP } from "@/modules/core/org/domain/horizon";
 
 /**
  * Dismissbarer Erklär-Callout „Solution vs. Epic" (Helfer-Schicht). Der

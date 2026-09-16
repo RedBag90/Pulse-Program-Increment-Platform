@@ -21,7 +21,7 @@ import {
   rollUpBySolution,
   type SolutionRollup,
 } from "@/modules/work/domain/epic-class-filter";
-import { HorizonBadge } from "@/modules/work/features/portfolio/components/horizon-badge";
+import { HorizonBadge } from "@/modules/core/org/features/solution/components/horizon-badge";
 import {
   rollupCellTone,
   rollupTone,

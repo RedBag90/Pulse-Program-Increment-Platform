@@ -78,6 +78,10 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
       "kpi.bind",
       "value_stream.",
       "art.",
+      // Eine Solution ist ein Strukturknoten neben Wertstrom und ART
+      // (ADR-0022). Was an ihr Arbeit ist — die Verknuepfung zu Epics und die
+      // Grow-Summe daraus — heisst `epic.` und liegt weiter bei `work`.
+      "solution.",
       "tenant.users.manage",
       "integration.manage",
       "role.capability.manage",
@@ -97,10 +101,11 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
     // `portfolio_filter.manage` sind die persönlich gespeicherten Filter der
     // Portfolio-Übersicht — ohne Work gibt es die Fläche nicht.
     //
-    // `solution.` war bis zum Struktur-Umbau **keinem** Modul zugeordnet — die
-    // Vollständigkeits-Invariante unten war deswegen dauerhaft rot. Solutions
-    // sind Work: sie tragen den Grow-Anteil aus den Primär-Epics.
-    actions: ["epic.", "feature.", "solution.", "portfolio_filter.manage"],
+    // `solution.` stand hier bis ADR-0022, mit der Begründung „Solutions sind
+    // Work: sie tragen den Grow-Anteil aus den Primär-Epics". Der Grow-Anteil
+    // ist geblieben — er heisst jetzt `epic.` und wird über die Primär-Epics
+    // gelesen. Die Solution selbst ist Struktur und damit `core`.
+    actions: ["epic.", "feature.", "portfolio_filter.manage"],
     home: "/portfolio",
   },
   drumbeat: {
@@ -143,18 +148,18 @@ const SEGMENT_TO_MODULE: ReadonlyMap<string, ModuleKey> = new Map(
  * Unterpfade, die **nicht** dem Modul ihres ersten Segments folgen.
  *
  * Der Bereich `/structure` ist `core` — der Baum aus Wertströmen und ARTs muss
- * in jedem Mandanten erreichbar sein. Zwei Flächen darin gehören aber oberen
- * Modulen: die Solutions-Verwaltung zu **Work**, die PI-Kadenz zu **Drumbeat**.
- * Ohne diese Ausnahmen ließe der Route-Guard sie in jedem Mandanten durch —
- * eine stille Entitlement-Lücke, die man erst bemerkt, wenn jemand eine Fläche
- * bedient, für die er nicht bezahlt.
+ * in jedem Mandanten erreichbar sein. **Eine** Fläche darin gehört einem oberen
+ * Modul: die PI-Kadenz zu **Drumbeat**. Ohne die Ausnahme ließe der Route-Guard
+ * sie in jedem Mandanten durch — eine stille Entitlement-Lücke, die man erst
+ * bemerkt, wenn jemand eine Fläche bedient, für die er nicht bezahlt.
+ *
+ * Die Solutions-Verwaltung stand hier bis ADR-0022 ebenfalls. Sie folgt jetzt
+ * ihrem Segment: eine Solution gehört neben den Wertstrom, an dem sie hängt.
  *
  * Bewusst eine kurze, explizite Liste statt einer Regel: die Ausnahmen sind
  * wenige und sollen einzeln sichtbar bleiben.
  */
 const PATH_OVERRIDES: ReadonlyArray<readonly [prefix: string, module: ModuleKey]> = [
-  ["/structure/solutions", "work"],
-  ["/structure/solution", "work"],
   ["/structure/timelines", "drumbeat"],
 ];
 

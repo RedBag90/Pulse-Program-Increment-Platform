@@ -25,7 +25,7 @@ import {
   rollupTone,
 } from "@/modules/work/features/portfolio/overview/blocks/class-rollup";
 import { COLUMN_ACTIVITY } from "@/modules/work/features/portfolio/overview/column-meta";
-import { HorizonBadge } from "@/modules/work/features/portfolio/components/horizon-badge";
+import { HorizonBadge } from "@/modules/core/org/features/solution/components/horizon-badge";
 import { formatCompactEUR } from "@/lib/formatting";
 
 /** „2026-H1" → „H1 2026" für die kompakte Zyklus-Caption. */

@@ -9,7 +9,7 @@ import {
   HORIZON_LABEL,
 } from "@/modules/work/domain/portfolio-guardrails";
 import { epicHorizon, horizonEditDeniedReason } from "@/modules/work/domain/epic-horizon";
-import { HorizonBadge } from "@/modules/work/features/portfolio/components/horizon-badge";
+import { HorizonBadge } from "@/modules/core/org/features/solution/components/horizon-badge";
 
 interface Props {
   epicId: string;

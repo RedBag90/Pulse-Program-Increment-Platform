@@ -14,6 +14,7 @@
  */
 
 import { makeTypeGuard } from "@/modules/core/kernel/domain/type-guards";
+import { HORIZONS, type Horizon } from "@/modules/core/org/domain/horizon";
 
 // „solution" ist als Epic-Typ zurückgebaut (Backfill:
 // prisma/scripts/2026-08-29-epic-type-solution-to-epic.ts) — eine Solution ist
@@ -24,10 +25,21 @@ export type EpicType = (typeof EPIC_TYPES)[number];
 export const FEATURE_TYPES = ["feature", "enabler"] as const;
 export type FeatureType = (typeof FEATURE_TYPES)[number];
 
-// Vier Investitionshorizonte (Lebenszyklus der Solution), in Anzeige-/Sortier-
-// Reihenfolge: R&D oben → End-of-Life unten.
-export const HORIZONS = ["h3", "h2", "h1", "h0"] as const;
-export type Horizon = (typeof HORIZONS)[number];
+/**
+ * Der Horizont selbst steht in **Core** — die `Solution` traegt ihn, und ein Typ
+ * gehoert auf die unterste Schicht, die ihn braucht (ADR-0013). Hier wird er nur
+ * weitergereicht, damit die rund zwanzig Stellen, die ihn aus dieser Datei
+ * beziehen, unberuehrt bleiben; die Stationen und Guardrail-Ziele darunter sind
+ * Portfolio-Steuerung und damit Work.
+ */
+export {
+  HORIZONS,
+  isHorizon,
+  HORIZON_LABEL,
+  HORIZON_HELP,
+  CONCEPT_HELP,
+  type Horizon,
+} from "@/modules/core/org/domain/horizon";
 
 /**
  * **Die Fuenferleiter des Lebenszyklus.** H1 zerfaellt in Investing (H1.1) und
@@ -60,53 +72,8 @@ export const FEATURE_TYPE_LABEL: Record<FeatureType, string> = {
   enabler: "Enabler",
 };
 
-export const HORIZON_LABEL: Record<Horizon, string> = {
-  h3: "H3 · R&D",
-  h2: "H2 · Emerging",
-  h1: "H1 · Investing",
-  h0: "H0 · Decommissioning",
-};
-
-/** Erklärtexte je Horizont — Quelle für Tooltips + Legende (Helfer-Schicht). */
-export const HORIZON_HELP: Record<
-  Horizon,
-  { blurb: string; epicArt: string; budgetFokus: string }
-> = {
-  h3: {
-    blurb: "Evaluating / R&D — noch keine Solution, nur Ideen, Spikes und Prototypen.",
-    epicArt: "Exploratory Epics (Machbarkeit, Prototypen, Patente)",
-    budgetFokus: "Lernen & Validieren (reine OpEx)",
-  },
-  h2: {
-    blurb: "Emerging — eine neue Solution entsteht und wird als MVP am Markt getestet.",
-    epicArt: "Emerging Epics (MVP-Bau, Markttest)",
-    budgetFokus: "Markttest & Skalierung (fast nur Grow)",
-  },
-  h1: {
-    blurb: "Investing & Extracting — etablierte Kern-Solution, trägt den Hauptumsatz.",
-    epicArt: "Business Epics (Erweiterung) + Enabler Epics (Umbau)",
-    budgetFokus: "Ausbauen (Invest) bzw. effizient betreiben (Extract)",
-  },
-  h0: {
-    blurb: "Decommissioning — Solution am Lebensende, wird geordnet abgeschaltet.",
-    epicArt: "Decommissioning Epics (Migration, Archivierung, Shutdown)",
-    budgetFokus: "Run-Budget auf 0 senken (OpEx-Abwicklung)",
-  },
-};
-
-/** Kurze Konzept-Erklärungen für die Onboarding-Helfer. */
-export const CONCEPT_HELP = {
-  solutionVsEpic:
-    "Eine Solution ist das langlebige Produkt/System (erzeugt laufende Betriebskosten, Run). Ein Epic ist eine große, zeitlich begrenzte Veränderung an einer Solution (Grow). Die Primär-Solution bestimmt den Investitionshorizont des Epics — außer in H3: dort gibt es keine Solution, und das Vorhaben trägt seinen Horizont selbst.",
-  grow: "Grow = Σ Umsetzungskosten der laufenden Epics dieser Solution (Investition in Weiterentwicklung).",
-  run: "Run = Σ der Run-the-Business-Positionen, die dieser Solution zugerechnet sind, auf ein Jahr gerechnet (Wartung, Support, Infrastruktur). Gepflegt werden sie im Budgeting-Modul — je Position mit eigener Periode; wertstrom-übergreifende Positionen zählen in keine Solution.",
-  primarySolution:
-    "Die Primär-Solution eines Epics liefert seinen Investitionshorizont und seine Swimlane im Portfolio-Kanban — solange am Epic selbst keiner steht. Ein R&D-Vorhaben hat gar keine Solution und trägt ihn deshalb immer selbst.",
-} as const;
-
 export const isEpicType = makeTypeGuard(EPIC_TYPES);
 export const isFeatureType = makeTypeGuard(FEATURE_TYPES);
-export const isHorizon = makeTypeGuard(HORIZONS);
 
 /**
  * Klassifikation in „Business" oder „Enabler" — dient dem Capacity-

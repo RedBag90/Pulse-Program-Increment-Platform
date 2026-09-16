@@ -21,8 +21,9 @@ import { userLabel } from "@/components/detail/initiative-labels";
 import { ArtOverviewForm } from "@/modules/core/org/features/capacity/components/art-overview-form";
 import { DeleteArtButton } from "@/modules/core/org/features/art/components/delete-art-button";
 import { mayReadArtBudget } from "@/modules/budgeting/server/services/art-budget-access";
-import { SolutionsOfNode } from "@/modules/work/features/portfolio/components/solutions/solutions-of-node";
-import { loadSolutionsList } from "@/modules/work/server/views/solutions-list";
+import { SolutionsOfNode } from "@/modules/core/org/features/solution/components/solutions-of-node";
+import { loadSolutionsList } from "@/modules/core/org/server/views/solutions-list";
+import { loadSolutionGrow } from "@/modules/work/server/views/solution-grow";
 import type { ArtId } from "@/modules/core/kernel/domain/types";
 
 /**
@@ -120,7 +121,12 @@ export default async function ArtNodePage({ params, searchParams }: Props) {
         </>
       )}
       {activeTab === "solutions" && (
-        <SolutionsTab db={db} tenantId={principal.tenantId} artId={art.id} />
+        <SolutionsTab
+          db={db}
+          tenantId={principal.tenantId}
+          artId={art.id}
+          workEnabled={principal.enabledModules.includes("work")}
+        />
       )}
       {activeTab === "history" && <HistoryTab db={db} tenantId={principal.tenantId} id={art.id} />}
     </EntityDetailShell>
@@ -186,11 +192,25 @@ async function OverviewTab({ db, art, principal, canEdit }: any) {
     </div>
   );
 }
-async function SolutionsTab({ db, tenantId, artId }: any) {
+/**
+ * Die Solutions eines Knotens. Der Reiter selbst ist **Core** (ADR-0022) — die
+ * Grow-Spalte daneben ist Work und wird nur mit dem Modul geladen. Vorher hing
+ * der ganze Reiter allein an `inScope`, einer Berechtigungspruefung: ein Mandant
+ * ohne Work sah dort Grow-Summen aus Epics, die er gar nicht fuehren darf.
+ */
+async function SolutionsTab({ db, tenantId, artId, workEnabled }: any) {
   const rows = await loadSolutionsList(db, tenantId, { artId });
+  const growById = workEnabled
+    ? await loadSolutionGrow(
+        db,
+        tenantId,
+        rows.map((r: { id: string }) => r.id),
+      )
+    : undefined;
   return (
     <SolutionsOfNode
       rows={rows}
+      growById={growById}
       showArt={false}
       emptyText="Diesem ART ist noch keine Solution zugewiesen."
     />

@@ -2,7 +2,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel, type TenantId, type StageGate } from "@/modules/core/kernel/domain/types";
 import { carriesDeliveryLoad, currentGateStep } from "@/modules/work/domain/stage-gate";
 import { isHorizon, type Horizon } from "@/modules/work/domain/portfolio-guardrails";
-import { isInvestmentMode } from "@/modules/work/domain/solution";
+import { isInvestmentMode } from "@/modules/core/org/domain/solution";
 import { resolveEpicHorizon } from "@/modules/work/domain/epic-horizon";
 import type { FunnelItem } from "@/modules/work/features/portfolio/lib/horizon-funnel";
 import { chooseAllocation } from "@/modules/work/domain/epic-allocation-choice";

@@ -7,6 +7,11 @@
  * + das Transition-Gate `promoteSolution` (H2→H1, nur mit allen 4 Kriterien).
  * Löschen ist auch mit verknüpften Epics erlaubt — die Links werden gelöst und
  * die nächste verknüpfte Solution rückt als Primär nach.
+ *
+ * **Liegt seit ADR-0022 in Core.** Eine Solution ist ein Strukturknoten neben
+ * Wertstrom und ART, kein Arbeitsgegenstand. Was an ihr Arbeit ist — die
+ * Verknuepfung zu Epics und die Grow-Summe daraus — blieb in Work
+ * (`work/server/services/epic-solutions.ts`, `work/server/views/solution-grow.ts`).
  */
 
 import type { Result } from "@/modules/core/kernel/domain/errors";
@@ -16,7 +21,7 @@ import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { loadAndAuthorize } from "@/server/services/load-and-authorize";
 import { notDeleted } from "@/server/db/soft-delete";
-import { type Horizon } from "@/modules/work/domain/portfolio-guardrails";
+import { type Horizon } from "@/modules/core/org/domain/horizon";
 import {
   investmentModeForHorizon,
   isSolutionHorizon,
@@ -25,7 +30,7 @@ import {
   type InvestmentMode,
   type PromotionCriterionKey,
   PROMOTION_CRITERIA,
-} from "@/modules/work/domain/solution";
+} from "@/modules/core/org/domain/solution";
 
 /**
  * **In H3 gibt es keine Solution** (ADR-0020). Der Guard steht im Service und
@@ -42,7 +47,6 @@ function rejectResearchHorizon(horizon: Horizon) {
           "Ein R&D-Vorhaben trägt seinen Horizont am Epic; eine Solution entsteht frühestens in H2.",
       };
 }
-import { loadAuthorizedEpic } from "@/modules/work/server/services/epic-access";
 import type { Prisma } from "@/generated/prisma";
 
 export interface CreateSolutionInput {
@@ -66,88 +70,6 @@ export interface UpdateSolutionInput {
   horizon?: Horizon | undefined;
   investmentMode?: InvestmentMode | null | undefined;
   productManagerId?: string | null | undefined;
-}
-
-/**
- * Setzt die Solution-Zuordnungen eines Epics (n:m) + die Primär-Solution. Alle
- * Solutions müssen im **Value Stream des Epics** liegen; die Primär muss im Set
- * enthalten sein (bzw. `null` bei leerem Set). Ersetzt den bestehenden Satz.
- */
-export async function setEpicSolutions(
-  ctx: RequestContext,
-  input: { epicId: string; solutionIds: string[]; primarySolutionId: string | null },
-): Promise<Result<void>> {
-  const mctx = toMutationContext(ctx);
-  const { epicId } = input;
-  // Duplikate raus.
-  const solutionIds = [...new Set(input.solutionIds)];
-  let primarySolutionId = input.primarySolutionId;
-
-  return withAuditedTransaction(mctx, async (tx) => {
-    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
-      id: epicId,
-      action: "epic.update",
-      select: { id: true, valueStreamId: true },
-    });
-    if (!loaded.ok) return loaded;
-    const epic = loaded.value;
-
-    // Primär muss im Set liegen; leeres Set → keine Primär.
-    if (solutionIds.length === 0) {
-      primarySolutionId = null;
-    } else if (primarySolutionId == null || !solutionIds.includes(primarySolutionId)) {
-      // Erste als Primär, wenn keine gültige gewählt.
-      primarySolutionId = solutionIds[0]!;
-    }
-
-    if (solutionIds.length > 0) {
-      if (epic.valueStreamId == null) {
-        return err({ kind: "conflict" as const, reason: "Epic hat keinen Value Stream." });
-      }
-      const valid = await tx.solution.findMany({
-        where: {
-          id: { in: solutionIds },
-          tenantId: mctx.tenantId,
-          valueStreamId: epic.valueStreamId,
-          ...notDeleted,
-        },
-        select: { id: true },
-      });
-      if (valid.length !== solutionIds.length) {
-        return err({
-          kind: "conflict" as const,
-          reason: "Alle Solutions müssen zum Value Stream des Epics gehören.",
-        });
-      }
-    }
-
-    // Satz ersetzen: alte Links weg, neue anlegen.
-    await tx.epicSolution.deleteMany({ where: { epicId } });
-    if (solutionIds.length > 0) {
-      await tx.epicSolution.createMany({
-        data: solutionIds.map((solutionId) => ({
-          tenantId: mctx.tenantId,
-          epicId,
-          solutionId,
-          createdBy: mctx.actorId,
-        })),
-      });
-    }
-    await tx.initiative.update({
-      where: { id: epicId },
-      data: { primarySolutionId, updatedBy: mctx.actorId },
-    });
-
-    return ok({
-      result: undefined,
-      audit: {
-        action: "epic.solutions.set",
-        resourceType: "initiative",
-        resourceId: epicId,
-        changes: { solutions: { before: null, after: solutionIds.length } },
-      },
-    });
-  });
 }
 
 /** Prüft, dass ein (optionaler) ART zum Value Stream + Tenant gehört. */

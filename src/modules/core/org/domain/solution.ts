@@ -9,7 +9,7 @@
  */
 
 import { makeTypeGuard } from "@/modules/core/kernel/domain/type-guards";
-import { type Horizon } from "@/modules/work/domain/portfolio-guardrails";
+import { type Horizon } from "@/modules/core/org/domain/horizon";
 
 /** Untermodus in H1: aktiv ausbauen vs. effizient „melken". Nur in H1 gesetzt. */
 export const INVESTMENT_MODES = ["investing", "extracting"] as const;

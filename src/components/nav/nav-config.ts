@@ -92,9 +92,10 @@ export const NAV_GROUPS: NavGroup[] = [
     // „Setup" zwischen Leitfaden und Timelines, was ihrer gewachsenen Bedeutung
     // nicht mehr entsprach.
     //
-    // Solutions und Timelines gehören zu Work bzw. Drumbeat — sie werden vom
-    // Route-Guard über die Unterpfad-Ausnahmen in `moduleForPath` ausgeblendet,
-    // nicht über eine Practice.
+    // Timelines gehören zu Drumbeat — der Eintrag wird vom Route-Guard über die
+    // Unterpfad-Ausnahme in `moduleForPath` ausgeblendet, nicht über eine
+    // Practice. Solutions stand bis ADR-0022 daneben; sie gehören jetzt zu
+    // `core` und sind deshalb überall sichtbar, wo der Strukturbaum es ist.
     labelKey: "structure",
     defaultHref: "/structure",
     items: [

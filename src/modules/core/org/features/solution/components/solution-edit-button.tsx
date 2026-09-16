@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Pencil } from "lucide-react";
-import type { SolutionDetailModel } from "@/modules/work/server/views/solution-detail";
+import type { SolutionDetailModel } from "@/modules/core/org/server/views/solution-detail";
 import { CreateSolutionDialog } from "./create-solution-dialog";
 import { Button } from "@/components/ui/button";
 

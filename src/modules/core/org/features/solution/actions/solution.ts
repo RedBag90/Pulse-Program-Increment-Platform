@@ -7,13 +7,12 @@ import {
   softDeleteSolution,
   promoteSolution,
   setSolutionLifecycle,
-  setEpicSolutions,
-} from "@/modules/work/server/services/solution";
+} from "@/modules/core/org/server/services/solution";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import type { ActionState } from "@/server/http/server-action";
-import { SOLUTION_STATUSES, solutionStatusToHorizonMode } from "@/modules/work/domain/solution";
+import { SOLUTION_STATUSES, solutionStatusToHorizonMode } from "@/modules/core/org/domain/solution";
 
 export type { ActionState as SolutionActionState };
 
@@ -203,39 +202,4 @@ export const promoteSolutionAction = createServerAction({
       : e.kind === "not_found"
         ? "Nicht gefunden"
         : "Beförderung fehlgeschlagen",
-});
-
-/** Setzt die Solution-Zuordnungen eines Epics (n:m) + Primär-Solution. */
-export const setEpicSolutionsAction = createServerAction({
-  schema: z.object({
-    epicId: z.string().uuid(),
-    solutionIds: z.array(z.string().uuid()),
-    primarySolutionId: z.string().uuid().nullable(),
-  }),
-  action: "epic.update",
-  resource: tenantResource,
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      epicId: f.string("epicId"),
-      solutionIds: fd
-        .getAll("solutionIds")
-        .map((v) => String(v))
-        .filter((v) => v.length > 0),
-      primarySolutionId: f.nonEmptyString("primarySolutionId") ?? null,
-    };
-  },
-  service: (ctx, input) =>
-    setEpicSolutions(ctx, {
-      epicId: input.epicId,
-      solutionIds: input.solutionIds,
-      primarySolutionId: input.primarySolutionId,
-    }),
-  revalidate: "solution",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Nicht gefunden"
-        : "Zuordnung fehlgeschlagen",
 });

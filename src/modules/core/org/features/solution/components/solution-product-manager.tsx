@@ -3,7 +3,7 @@
 import { useActionState, startTransition } from "react";
 import { UserPicker } from "@/components/detail/user-picker";
 import { userLabel } from "@/components/detail/initiative-labels";
-import { updateSolutionAction } from "@/modules/work/features/portfolio/actions/solution";
+import { updateSolutionAction } from "@/modules/core/org/features/solution/actions/solution";
 
 /**
  * Der namentlich Verantwortliche für ein Produkt.
