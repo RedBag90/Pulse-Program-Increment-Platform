@@ -16,7 +16,19 @@
 
 import type { Prisma } from "@/generated/prisma";
 import { enumerateDefaultCapabilities } from "@/server/auth/policies";
-import { buildBudgetPlanSnapshot } from "@/modules/budgeting/domain/budget-plan-snapshot";
+import {
+  buildBudgetPlanSnapshot,
+  type ArtSnapshotInput,
+  type BudgetPlanSnapshot,
+  type FeatureSnapshotInput,
+} from "@/modules/budgeting/domain/budget-plan-snapshot";
+import {
+  snapshotFeatures,
+  snapshotArtRows,
+  assertSnapshotLoad,
+  type SeedArtFinal,
+  type SeedPiMeta,
+} from "./seed-snapshot.js";
 import {
   prisma,
   ensureTenant,
@@ -1182,52 +1194,6 @@ async function main() {
       updatedBy: ADMIN,
     })),
   });
-  // BudgetPlanRevision ×2: die des laufenden Halbjahres + eine ältere, abgelöste (Historie).
-  await prisma.budgetPlanRevision.create({
-    data: {
-      id: uid(`bprev:${PREV}`),
-      tenantId,
-      cycleKey: PREV,
-      capturedAt: addDays(now, -120),
-      capturedBy: ADMIN,
-      payload: buildSnapshotPayload({
-        cycleKey: PREV,
-        capturedAt: addDays(now, -120),
-        epics: epicIds.slice(0, 6).map((epicId, i) => ({
-          epicId,
-          title: EPIC_DEFS[i]!.title,
-          valueStreamId: vsIds[EPIC_DEFS[i]!.vs]!,
-          valueStreamName: vsNames[EPIC_DEFS[i]!.vs]!,
-          priority: i,
-          alloc: 60_000 + i * 5_000,
-        })),
-        arts: artIds.map((id, i) => ({ id, name: artNames[i]!, amount: 340_000 + i * 25_000 })),
-      }),
-    },
-  });
-  await prisma.budgetPlanRevision.create({
-    data: {
-      id: uid(`bprev:${CUR}`),
-      tenantId,
-      cycleKey: CUR,
-      capturedAt: addDays(now, -20),
-      capturedBy: ADMIN,
-      payload: buildSnapshotPayload({
-        cycleKey: CUR,
-        capturedAt: addDays(now, -20),
-        epics: epicIds.slice(0, 8).map((epicId, i) => ({
-          epicId,
-          title: EPIC_DEFS[i]!.title,
-          valueStreamId: vsIds[EPIC_DEFS[i]!.vs]!,
-          valueStreamName: vsNames[EPIC_DEFS[i]!.vs]!,
-          priority: i,
-          alloc: 80_000 + i * 6_000,
-        })),
-        arts: artIds.map((id, i) => ({ id, name: artNames[i]!, amount: 400_000 + i * 30_000 })),
-      }),
-    },
-  });
-
   // ── Phase 5b: Budgeting-Kacheln (Kachel-Modell) ───────────────────────────
   console.log("\n── Budgeting-Kacheln (Perioden)");
   const POOL = 2_000_000;
@@ -1407,6 +1373,91 @@ async function main() {
     rtbCandidates: rtbCands,
     groups: buildGroups([false, false, false], false),
   });
+
+  /**
+   * **BudgetPlanRevision ×2** — der eingefrorene Beleg des laufenden Halbjahres
+   * und der des abgeloesten.
+   *
+   * Sie stehen **hinter** den Kacheln, seit ihr ART-Block abgeleitet wird statt
+   * gesetzt zu sein: das ART-Budget ist die Summe der finalen Kachel-Betraege je
+   * ART, und die entstehen erst hier. Vorher schrieb diese Stelle
+   * `340_000 + i * 25_000` und `features: []` — eine Budgetzeile ohne Beleg ueber
+   * einer Bedarfszeile aus lauter „—".
+   */
+  const artDefs = artIds.map((id, i) => ({ id, name: artNames[i]! }));
+  /** Nur die abgeschlossene Kachel traegt finale Betraege — sie liegt auf PREV. */
+  const artFinals: SeedArtFinal[] = epicCands.map((c) => ({
+    artId: c.artId,
+    cycleKey: PREV,
+    amount: finalByRef.get(c.epicId) ?? 0,
+  }));
+  const piById = new Map<string, SeedPiMeta>(
+    [...piSpecs, ...piBSpecs].map((pi) => [
+      piIds[pi.key]!,
+      { name: pi.name, startDate: pi.start, endDate: addDays(pi.start, 69) },
+    ]),
+  );
+  const artNameById = new Map<string, string>(artIds.map((id, i) => [id, artNames[i]!]));
+  const revisions: BudgetPlanSnapshot[] = [];
+  for (const rev of [
+    /**
+     * Der abgeloeste Beleg. Er traegt bewusst nur sein eigenes Halbjahr: zu
+     * diesem Zeitpunkt war nichts darueber hinaus gewaehrt.
+     */
+    {
+      cycleKey: PREV,
+      capturedAt: addDays(now, -120),
+      take: 6,
+      pool: { [PREV]: POOL },
+      allocations: (i: number) => ({ [PREV]: 60_000 + i * 5_000 }),
+    },
+    /**
+     * Der geltende Beleg — dieselbe Karte, die auch in `BudgetAllocation` steht
+     * (laufendes Halbjahr **und** die zugesagte Folgerate). Vorher stand hier
+     * nur `{ [CUR]: … }`, und die Folgebudget-Kachel blieb auf 0 €.
+     */
+    {
+      cycleKey: CUR,
+      capturedAt: addDays(now, -20),
+      take: 8,
+      pool: { [PREV]: POOL, [CUR]: POOL },
+      allocations: (i: number) => ({ [CUR]: 80_000 + i * 6_000, [NEXT]: 60_000 + i * 4_000 }),
+    },
+  ]) {
+    const { snapshot, payload } = buildSnapshotPayload({
+      cycleKey: rev.cycleKey,
+      capturedAt: rev.capturedAt,
+      pool: rev.pool,
+      epics: epicIds.slice(0, rev.take).map((epicId, i) => ({
+        epicId,
+        title: EPIC_DEFS[i]!.title,
+        valueStreamId: vsIds[EPIC_DEFS[i]!.vs]!,
+        valueStreamName: vsNames[EPIC_DEFS[i]!.vs]!,
+        priority: i,
+        allocations: rev.allocations(i),
+      })),
+      // Der Stand zum Erfassungszeitpunkt, nicht der von heute.
+      features: snapshotFeatures(featureRows, {
+        artNameById,
+        piById,
+        asOf: rev.capturedAt,
+        cycleKey: rev.cycleKey,
+      }),
+      artRows: snapshotArtRows(artDefs, artFinals, rev.cycleKey),
+    });
+    revisions.push(snapshot);
+    await prisma.budgetPlanRevision.create({
+      data: {
+        id: uid(`bprev:${rev.cycleKey}`),
+        tenantId,
+        cycleKey: rev.cycleKey,
+        capturedAt: rev.capturedAt,
+        capturedBy: ADMIN,
+        payload,
+      },
+    });
+  }
+  assertSnapshotLoad(revisions, "Pulse Demo Corp");
 
   // ── Guardrail 3: der ART-Rahmen und seine Verteilung ──────────────────────
   //
@@ -2568,38 +2619,39 @@ function simulateSeries(
 function buildSnapshotPayload(input: {
   cycleKey: string;
   capturedAt: Date;
+  pool: Record<string, number>;
   epics: {
     epicId: string;
     title: string;
     valueStreamId: string;
     valueStreamName: string;
     priority: number;
-    alloc: number;
+    /** Die gewaehrten Raten je Halbjahr — **nicht** nur die des Zyklus. */
+    allocations: Record<string, number>;
   }[];
-  arts: { id: string; name: string; amount: number }[];
-}): Prisma.InputJsonValue {
+  artRows: readonly ArtSnapshotInput[];
+  features: readonly FeatureSnapshotInput[];
+}): { snapshot: BudgetPlanSnapshot; payload: Prisma.InputJsonValue } {
   const snapshot = buildBudgetPlanSnapshot({
     cycleKey: input.cycleKey,
     capturedAt: input.capturedAt,
-    pool: { [input.cycleKey]: 2_000_000 },
+    pool: input.pool,
     epics: input.epics.map((e) => ({
       id: e.epicId,
       title: e.title,
       valueStreamId: e.valueStreamId,
       valueStream: e.valueStreamName,
-      costSlices: [e.alloc],
-      startKey: input.cycleKey,
-      allocations: { [input.cycleKey]: e.alloc },
+      // Die Faltung liest nur `allocations` — `costSlices`/`startKey` sind der
+      // Bedarf und stehen hier nur, weil `BudgetEpicView` sie verlangt.
+      costSlices: Object.values(e.allocations),
+      startKey: Object.keys(e.allocations).sort()[0] ?? input.cycleKey,
+      allocations: e.allocations,
       priority: e.priority,
     })),
-    artRows: input.arts.map((a) => ({
-      artId: a.id,
-      name: a.name,
-      budgetByPeriod: { [input.cycleKey]: a.amount },
-    })),
-    features: [],
+    artRows: input.artRows,
+    features: input.features,
   });
-  return { version: 1, snapshot } as unknown as Prisma.InputJsonValue;
+  return { snapshot, payload: { version: 1, snapshot } as unknown as Prisma.InputJsonValue };
 }
 
 main()

@@ -39,6 +39,7 @@ import type { Prisma } from "@/generated/prisma";
 import { enumerateDefaultCapabilities } from "@/server/auth/policies";
 import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
 import { buildBudgetPlanSnapshot } from "@/modules/budgeting/domain/budget-plan-snapshot";
+import { snapshotFeatures, type SeedPiMeta } from "./seed-snapshot.js";
 import {
   prisma,
   requireTenantByName,
@@ -311,10 +312,17 @@ async function main() {
   // Drei PIs à 8 Wochen. Alle `planned` — das PI-Planning steht ja noch aus;
   // ein „active" PI ohne zugeordnete Features wäre ein Widerspruch.
   const piIds: string[] = [];
+  /** Die PI-Fenster, wie eine Budget-Revision sie braucht, um Last einzuordnen. */
+  const piById = new Map<string, SeedPiMeta>();
   for (let i = 0; i < 3; i++) {
     const id = uid(`offsite:pi:${i + 1}`);
     piIds.push(id);
     const start = addDays(PI_START, i * PI_WEEKS * 7);
+    piById.set(id, {
+      name: `PI ${i + 1}`,
+      startDate: start,
+      endDate: addDays(start, PI_WEEKS * 7 - 1),
+    });
     await prisma.programIncrement.create({
       data: {
         id,
@@ -935,20 +943,46 @@ async function main() {
           cycleKey: PERIOD_NOW,
           capturedAt: addDays(now, -12),
           pool: { [PERIOD_NOW]: BUDGET_TOTAL },
-          epics: EPICS.map((e, i) => ({
-            id: epicIds[e.slug]!,
-            title: e.title,
-            valueStreamId: vsId,
-            valueStream: "Firmen-Offsite",
-            costSlices: [e.budget],
-            startKey: PERIOD_NOW,
-            allocations: { [PERIOD_NOW]: e.budget },
-            priority: i,
-          })),
+          // Dieselbe Karte, die auch in `BudgetAllocation` steht: zwei Drittel
+          // im laufenden Halbjahr, ein Drittel im Halbjahr des Offsites. Beide
+          // wurden in derselben Runde zugesagt, also kennt der Beleg beide.
+          // Vorher stand hier der volle Betrag auf einem einzigen Halbjahr.
+          epics: EPICS.map((e, i) => {
+            const allocations = {
+              [PERIOD_NOW]: Math.round(e.budget * 0.66),
+              [PERIOD_END]: Math.round(e.budget * 0.34),
+            };
+            return {
+              id: epicIds[e.slug]!,
+              title: e.title,
+              valueStreamId: vsId,
+              valueStream: "Firmen-Offsite",
+              costSlices: Object.values(allocations),
+              startKey: PERIOD_NOW,
+              allocations,
+              priority: i,
+            };
+          }),
+          // Der eine ART traegt den ganzen Topf — hier **nicht** aus den Kacheln
+          // abgeleitet wie in den grossen Mandanten: dieser Datensatz hat keinen
+          // einzigen Epic-Kandidaten mit `artId`, eine Ableitung ergaebe 0 € und
+          // waere unwahrer als die Konstruktion selbst.
           artRows: [
             { artId, name: "Offsite-Planung", budgetByPeriod: { [PERIOD_NOW]: BUDGET_TOTAL } },
           ],
-          features: [],
+          /**
+           * Ergibt heute die leere Liste — und das ist hier **richtig**, nicht
+           * der Fehler, der in den anderen Seeds steckte: kein Feature dieses
+           * Mandanten haengt an einem PI (`piId: null` ist der Kern des
+           * Szenarios). Der Aufruf steht trotzdem, damit die Last von selbst
+           * erscheint, sobald das PI-Planning hier einmal stattfindet.
+           */
+          features: snapshotFeatures(featureRows, {
+            artNameById: new Map([[artId, "Offsite-Planung"]]),
+            piById,
+            asOf: addDays(now, -12),
+            cycleKey: PERIOD_NOW,
+          }),
         }),
       } as unknown as Prisma.InputJsonValue,
     },

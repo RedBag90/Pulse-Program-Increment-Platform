@@ -41,7 +41,20 @@
 
 import type { Prisma } from "@/generated/prisma";
 import { enumerateDefaultCapabilities } from "@/server/auth/policies";
-import { buildBudgetPlanSnapshot } from "@/modules/budgeting/domain/budget-plan-snapshot";
+import {
+  buildBudgetPlanSnapshot,
+  type ArtSnapshotInput,
+  type BudgetPlanSnapshot,
+  type FeatureSnapshotInput,
+} from "@/modules/budgeting/domain/budget-plan-snapshot";
+import { compareCycles } from "@/modules/budgeting/domain/cycle";
+import {
+  snapshotFeatures,
+  snapshotArtRows,
+  assertSnapshotLoad,
+  type SeedArtFinal,
+  type SeedPiMeta,
+} from "./seed-snapshot.js";
 import { prisma, upsertAuthUser, assignRole, wipeDomainData, uid } from "./seed-helpers.js";
 import {
   seedArtEpicAllocations,
@@ -408,6 +421,19 @@ async function main() {
         : {}),
     })),
   });
+  /**
+   * Was eine Budget-Revision von einem PI wissen muss. Das Halbjahr einer
+   * Feature-Last kommt allein aus `PI.startDate` — ohne diese Tabelle koennte
+   * der Snapshot die Features nicht einordnen, die er einfriert.
+   */
+  const piById = new Map<string, SeedPiMeta>(
+    [...piSpecs, ...piBSpecs].map((p) => [
+      piIds[p.key]!,
+      { name: p.name, startDate: p.start, endDate: addDays(p.start, 69) },
+    ]),
+  );
+  const artNameById = new Map<string, string>(artIds.map((id, i) => [id, artNames[i]!]));
+
   const activePi = piIds["pi9"]!;
   const prevPi = piIds["pi8"]!;
   const planPi = piIds["pi10"]!;
@@ -604,6 +630,42 @@ async function main() {
 
   const epicIds = Array.from({ length: EPIC_COUNT }, (_, i) => uid(`large:epic:${i}`));
   const epicVs = roundPlan.epics.map((e) => e.vs);
+  /**
+   * **Der ART eines Epics — eine Regel, eine Schreibweise.**
+   *
+   * Sie stand fuenfmal in dieser Datei, in zwei Fassungen: `i % 2` an Epic,
+   * Feature und Issue, `artInVs % 2` an Kandidat und ART-Zuteilung. Beide
+   * ergaben dasselbe, solange ein Wertstrom genau zwei Trains hat — aber die
+   * eine entschied, wo das **Budget** landet, und die andere, wo der
+   * **Bedarf** landet. Genau diese beiden Zeilen stellt die Budget-Revision
+   * untereinander; sie duerfen nicht aus zwei Regeln stammen.
+   *
+   * Massgeblich ist `artInVs`: damit rechnet der Durchlauf die ART-Rahmen
+   * (`frameKey(e.vs, e.artInVs)` in `seed-large-rounds.ts`).
+   */
+  const artIdxOfEpic = (i: number): number => epicVs[i]! * 2 + (roundPlan.epics[i]!.artInVs % 2);
+  const artOfEpic = (i: number): string => artIds[artIdxOfEpic(i)]!;
+
+  /**
+   * **Die gewaehrten Raten eines Epics je Halbjahr.**
+   *
+   * `BudgetAllocation.allocations` ist genau diese Karte — ein Epic in Umsetzung
+   * bekommt in jeder Runde seine naechste Rate, und sie laufen auf. Der
+   * eingefrorene Beleg schrieb hier bis zuletzt **einen einzigen** Schluessel,
+   * den des erfassten Zyklus; in der Revisionssicht stand deshalb in jeder
+   * Spalte davor 0 €, obwohl in der Tabelle daneben echtes Geld lag.
+   *
+   * `upToCycle` schneidet auf den Erfassungszeitpunkt: die Raten spaeterer
+   * Runden waren damals noch nicht entschieden.
+   */
+  const allocationsOfEpic = (i: number, upToCycle?: string): Record<string, number> => {
+    const out: Record<string, number> = {};
+    for (const t of roundPlan.epics[i]!.tranches) {
+      if (upToCycle !== undefined && compareCycles(t.cycleKey, upToCycle) > 0) continue;
+      out[t.cycleKey] = (out[t.cycleKey] ?? 0) + t.amount;
+    }
+    return out;
+  };
   /** Das Haupt-Gate je Epic — abgeleitet aus dem Schritt, auf dem es steht. */
   const gates = roundPlan.epics.map((e) => gateOfStep(e.finalStep));
 
@@ -850,7 +912,7 @@ async function main() {
       ownerId,
       assigneeIds: i % 2 === 0 && owned ? [U.owner] : [],
       valueStreamId: vsIds[vs]!,
-      artId: artIds[vs * 2 + (i % 2)]!,
+      artId: artOfEpic(i),
       // Alle Reifegrad-Spalten stammen aus der Faltung — `stageGate`, die
       // Freigabe-Stempel, die Baselines und das Timeline-Ist-Datum.
       ...history.stamps,
@@ -1083,7 +1145,7 @@ async function main() {
     const running = gate === "L4" || gate === "L5";
     // Der ART des Epics — nicht ein rotierender: ein Feature liefert im selben
     // Train wie sein Epic. Daraus folgt auch, an welcher Timeline es hängt.
-    const epicArtIdx = epicVs[i]! * 2 + (i % 2);
+    const epicArtIdx = artIdxOfEpic(i);
     const onTimelineB = TIMELINE_B_ARTS.has(epicArtIdx);
     const count = 2 + (i % 3);
     const pe = roundPlan.epics[i]!;
@@ -1238,7 +1300,7 @@ async function main() {
     if (!["L2", "L3", "L4", "L5"].includes(gate)) continue;
     const nIssues = 1 + (i % 3 === 0 ? 1 : 0); // 1–2 Issues je definiertem Epic
     const raisedBy = epicOwner[i] ?? U.rte;
-    const artIdx = epicVs[i]! * 2 + (i % 2);
+    const artIdx = artIdxOfEpic(i);
     for (let n = 0; n < nIssues; n++) {
       issueNo += 1;
       const issueId = uid(`large:issue:${i}:${n}`);
@@ -1405,11 +1467,7 @@ async function main() {
   const fundedIdx = roundPlan.epics.filter((e) => e.tranches.length > 0).map((e) => e.idx);
   await createManyChunked(
     fundedIdx.map((i, k) => {
-      const pe = roundPlan.epics[i]!;
-      const allocations: Record<string, number> = {};
-      for (const t of pe.tranches) {
-        allocations[t.cycleKey] = (allocations[t.cycleKey] ?? 0) + t.amount;
-      }
+      const allocations = allocationsOfEpic(i);
       return {
         id: uid(`large:balloc:${i}`),
         tenantId,
@@ -1426,10 +1484,61 @@ async function main() {
   /**
    * Der eingefrorene Stand je Runde. Er zeigt, worüber **in diesem Halbjahr**
    * entschieden wurde — nicht eine Auswahl, die zufällig in den Zyklus fällt.
+   *
+   * **Der ART-Block wird abgeleitet, nicht gesetzt.** Bis hierher stand dort
+   * `features: []` neben einem ART-Budget aus der Formel `130_000 + i * 12_000`
+   * — die Bedarfszeile blieb in jeder Revision leer, und die Budgetzeile
+   * darüber hatte mit den Kacheln desselben Mandanten nichts zu tun. Beides
+   * kommt jetzt aus den Daten, die der Durchlauf ohnehin erzeugt hat.
    */
+  const artDefs = artIds.map((id, i) => ({ id, name: artNames[i]! }));
+  /** Jeder finale Kachel-Betrag, gebucht auf den ART seines Epics. */
+  const artFinals: SeedArtFinal[] = roundPlan.rounds.flatMap((r) =>
+    r.candidates.map((c) => ({
+      artId: artOfEpic(c.epicIdx),
+      cycleKey: r.cycleKey,
+      amount: c.final,
+    })),
+  );
+  /** Die Toepfe aller Runden bis einschliesslich `upToCycle`. */
+  const poolUpTo = (upToCycle: string): Record<string, number> =>
+    Object.fromEntries(
+      roundPlan.rounds
+        .filter((r) => compareCycles(r.cycleKey, upToCycle) <= 0)
+        .map((r) => [r.cycleKey, r.pool]),
+    );
+  const revisions: BudgetPlanSnapshot[] = [];
   for (const round of roundPlan.rounds) {
     const capturedAt = beforeNow(addDays(cycleStart(round.cycleKey), PHASE.finalize), 1);
     const funded = round.candidates.filter((c) => c.final > 0);
+    const { snapshot, payload } = buildSnapshotPayload({
+      cycleKey: round.cycleKey,
+      capturedAt,
+      // Der Topf jeder bis dahin gelaufenen Kachel — `board.pool` summiert live
+      // genauso ueber alle Runden. Vorher stand hier ein einziges Halbjahr,
+      // waehrend die Kopfkachel „Pool gesamt" ihre Unterzeile aus dem
+      // Perioden-Raster zog: eine Zahl fuer ein Halbjahr unter der Ueberschrift
+      // „3 Halbjahre".
+      pool: poolUpTo(round.cycleKey),
+      epics: funded.map((c, k) => ({
+        epicId: epicIds[c.epicIdx]!,
+        title: epicTitles[c.epicIdx]!,
+        valueStreamId: vsIds[epicVs[c.epicIdx]!]!,
+        valueStreamName: vsNames[epicVs[c.epicIdx]!]!,
+        priority: k,
+        allocations: allocationsOfEpic(c.epicIdx, round.cycleKey),
+      })),
+      // Der Stand **zum Erfassungszeitpunkt**: ein Beleg aus 2024 darf weder
+      // ein 2026 angelegtes Feature noch das Budget von 2026 kennen.
+      features: snapshotFeatures(featureRows, {
+        artNameById,
+        piById,
+        asOf: capturedAt,
+        cycleKey: round.cycleKey,
+      }),
+      artRows: snapshotArtRows(artDefs, artFinals, round.cycleKey),
+    });
+    revisions.push(snapshot);
     await prisma.budgetPlanRevision.create({
       data: {
         id: uid(`large:bprev:${round.cycleKey}`),
@@ -1437,23 +1546,11 @@ async function main() {
         cycleKey: round.cycleKey,
         capturedAt,
         capturedBy: ADMIN,
-        payload: buildSnapshotPayload({
-          cycleKey: round.cycleKey,
-          capturedAt,
-          pool: round.pool,
-          epics: funded.map((c, k) => ({
-            epicId: epicIds[c.epicIdx]!,
-            title: epicTitles[c.epicIdx]!,
-            valueStreamId: vsIds[epicVs[c.epicIdx]!]!,
-            valueStreamName: vsNames[epicVs[c.epicIdx]!]!,
-            priority: k,
-            alloc: c.final,
-          })),
-          arts: artIds.map((id, i) => ({ id, name: artNames[i]!, amount: 130_000 + i * 12_000 })),
-        }),
+        payload,
       },
     });
   }
+  assertSnapshotLoad(revisions, TENANT_NAME);
 
   // PB-Kacheln: eine je Halbjahr — closed bis einschließlich des laufenden,
   // running für das nächste, draft für das übernächste.
@@ -1523,7 +1620,7 @@ async function main() {
     title: epicTitles[i]!,
     ask,
     valueStreamId: vsIds[epicVs[i]!]!,
-    artId: artIds[epicVs[i]! * 2 + (roundPlan.epics[i]!.artInVs % 2)]!,
+    artId: artOfEpic(i),
   });
   const backlogCands = waitingIdx.slice(0, 22).map((i) => candOf(i, roundPlan.epics[i]!.cost));
   /**
@@ -1925,8 +2022,6 @@ async function main() {
    * Die Beträge selbst kommen aus dem Durchlauf: es sind dieselben Raten, die
    * auch in `BudgetAllocation` stehen. Zwei Zeilen, ein Betrag.
    */
-  const artOfEpic = (i: number): string =>
-    artIds[epicVs[i]! * 2 + (roundPlan.epics[i]!.artInVs % 2)]!;
   const allocSpecs: ArtAllocationSpec[] = [];
   for (const [c, idxs] of [...artFundedByCycle.entries()].sort((a, b) => a[0] - b[0])) {
     const cycleKey = ALL_CYCLES[c]!;
@@ -2159,42 +2254,52 @@ function simulateSeries(
   return out;
 }
 
+/**
+ * Der eingefrorene Beleg einer Runde — und der Snapshot dazu, damit der
+ * Aufrufer ihn pruefen kann, statt ihn nur wegzuschreiben.
+ *
+ * `artRows` und `features` kommen von aussen herein. Frueher erfand diese
+ * Funktion beides: das ART-Budget als Formel, die Feature-Last als `[]`.
+ */
 function buildSnapshotPayload(input: {
   cycleKey: string;
   capturedAt: Date;
-  pool: number;
+  pool: Record<string, number>;
   epics: {
     epicId: string;
     title: string;
     valueStreamId: string;
     valueStreamName: string;
     priority: number;
-    alloc: number;
+    /** Die gewaehrten Raten je Halbjahr — **nicht** nur die des Zyklus. */
+    allocations: Record<string, number>;
   }[];
-  arts: { id: string; name: string; amount: number }[];
-}): Prisma.InputJsonValue {
+  artRows: readonly ArtSnapshotInput[];
+  features: readonly FeatureSnapshotInput[];
+}): { snapshot: BudgetPlanSnapshot; payload: Prisma.InputJsonValue } {
   const snapshot = buildBudgetPlanSnapshot({
     cycleKey: input.cycleKey,
     capturedAt: input.capturedAt,
-    pool: { [input.cycleKey]: input.pool },
+    pool: input.pool,
     epics: input.epics.map((e) => ({
       id: e.epicId,
       title: e.title,
       valueStreamId: e.valueStreamId,
       valueStream: e.valueStreamName,
-      costSlices: [e.alloc],
-      startKey: input.cycleKey,
-      allocations: { [input.cycleKey]: e.alloc },
+      // `costSlices`/`startKey` sind der **Bedarf** aus dem Business Case; die
+      // Snapshot-Faltung liest sie nicht (sie rechnet ausschliesslich ueber
+      // `allocations`, auch im Wertstrom-Rollup). Sie stehen hier nur, weil
+      // `BudgetEpicView` sie verlangt — der frueheste gewaehrte Zyklus ist die
+      // ehrlichste Fuellung.
+      costSlices: Object.values(e.allocations),
+      startKey: Object.keys(e.allocations).sort()[0] ?? input.cycleKey,
+      allocations: e.allocations,
       priority: e.priority,
     })),
-    artRows: input.arts.map((a) => ({
-      artId: a.id,
-      name: a.name,
-      budgetByPeriod: { [input.cycleKey]: a.amount },
-    })),
-    features: [],
+    artRows: input.artRows,
+    features: input.features,
   });
-  return { version: 1, snapshot } as unknown as Prisma.InputJsonValue;
+  return { snapshot, payload: { version: 1, snapshot } as unknown as Prisma.InputJsonValue };
 }
 
 main()
