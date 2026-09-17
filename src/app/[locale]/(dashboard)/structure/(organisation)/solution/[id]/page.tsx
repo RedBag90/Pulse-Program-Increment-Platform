@@ -179,8 +179,11 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
                     <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                       {STAGE_SHORT[e.stageGate as keyof typeof STAGE_SHORT] ?? e.stageGate}
                     </span>
+                    {/* `null` = Business Case noch nicht freigegeben. Ein Strich
+                        statt einer Null: „noch keine belastbare Zahl" ist etwas
+                        anderes als „kostet nichts". */}
                     <span className="tabular-nums text-muted-foreground">
-                      {e.cost > 0 ? formatCompactEUR(e.cost) : "—"}
+                      {e.cost != null && e.cost > 0 ? formatCompactEUR(e.cost) : "—"}
                     </span>
                   </span>
                 </li>

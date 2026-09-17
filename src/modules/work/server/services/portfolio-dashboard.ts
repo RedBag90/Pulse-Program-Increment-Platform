@@ -240,7 +240,29 @@ export async function getPortfolioEconomics(
 export async function getPortfolioGuardrailsInputs(db: PrismaClient, tenantId: TenantId) {
   const [epics, tenant] = await Promise.all([
     db.initiative.findMany({
-      where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+      // **Nur Epics mit freigegebenem Lean Business Case** (L3.1 aufwaerts) —
+      // dieselbe Grenze, die `isPbEligible` zieht und die `mayHoldAllocation`
+      // als Zahl fuehrt: das Portfolio finanziert die Umsetzung, nicht die
+      // Erarbeitung des Business Case.
+      //
+      // Hier stand **gar kein** Reifegrad-Filter, waehrend 170 Zeilen weiter
+      // oben `getPortfolioEconomics` in derselben Datei ab L3.2 filtert. Die
+      // Folge war messbar: bei einem Mandanten kamen 1,68 Mio. € von 4,83 Mio. €
+      // auf dieser Achse aus vier L2-Epics, deren Business Case noch niemand
+      // freigegeben hatte. Ein Entwurf ist ab L2 erlaubt (`contentForGate`) —
+      // gezaehlt werden darf er deshalb noch lange nicht.
+      //
+      // Die Schwelle ist bewusst **L3.1 und nicht L3.2**: diese Achse
+      // beantwortet „wohin wollen wir investieren" und nimmt darum den
+      // freigegebenen, aber noch nicht zugeteilten Plan mit. Mit L3.2 waere sie
+      // deckungsgleich mit der Economics-Achse, und die Frage haette keine
+      // Flaeche mehr.
+      where: {
+        tenantId,
+        level: InitiativeLevel.EPIC,
+        deletedAt: null,
+        businessCaseApprovedAt: { not: null },
+      },
       select: {
         id: true,
         title: true,

@@ -79,7 +79,17 @@ const loadBudgetingModel = cache(async function loadBudgetingModel(
         level: InitiativeLevel.EPIC,
         deletedAt: null,
         stagedForBudgeting: true,
-        OR: [{ hypothesisApprovedAt: { not: null } }, { businessCaseApprovedAt: { not: null } }],
+        // **Nur mit freigegebenem Lean Business Case** — dieselbe Grenze wie in
+        // `pb-list.ts`, `art-pot-view.ts` und `art-budget-access.ts`, und
+        // dieselbe, die `isPbEligible` als reines Praedikat zieht.
+        //
+        // Hier stand bis zuletzt `hypothesisApprovedAt ODER businessCaseApprovedAt`
+        // — die Menge von **vor September 2026**, als das Portfolio noch die
+        // Erarbeitung des Business Case budgetierte. Der Weg ist entfallen
+        // (`pb-submission.ts:10-20`), diese eine Zeile ist bei der Umstellung
+        // stehengeblieben. Der Test, der sie haette fangen sollen, haelt die
+        // Regel seitdem fest, laeuft aber nur mit `DATABASE_URL_TEST`.
+        businessCaseApprovedAt: { not: null },
       },
       select: {
         id: true,
