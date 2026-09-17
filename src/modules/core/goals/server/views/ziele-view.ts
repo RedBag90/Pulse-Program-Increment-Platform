@@ -20,6 +20,12 @@ import {
   type ChartObjective,
   type ChartRootCheckin,
 } from "./goals-forest";
+import {
+  buildGoalActivity,
+  type GoalActivityEntry,
+  type GoalEntryKind,
+  type GoalUpdateSection,
+} from "@/modules/core/goals/domain/goal-activity";
 
 /**
  * Ziele-/Strategie-Loader.
@@ -595,11 +601,11 @@ export async function loadStrategyTree(
 
 export type GoalTarget = "objective" | "kr";
 
-/** One block of a structured status update (Epic 4). */
-export interface GoalUpdateSection {
-  title: string;
-  body: string;
-}
+/**
+ * One block of a structured status update (Epic 4). Liegt in
+ * `domain/goal-activity.ts`, weil die Feed-Regel damit rechnet.
+ */
+export type { GoalUpdateSection };
 
 export interface GoalCheckinEntry {
   id: string;
@@ -623,19 +629,7 @@ export interface GoalCommentEntry {
   by: string;
 }
 
-export interface GoalActivityEntry {
-  id: string;
-  /** audit action, or synthetic `goal.checkin` / `goal.comment` / `goal.progress`. */
-  action: string;
-  at: string;
-  by?: string;
-  /** Free-text (check-in note or comment body). */
-  comment?: string;
-  /** Context, e.g. the check-in status label. */
-  detail?: string;
-  /** Structured status-update sections (Epic 4), when present. */
-  sections?: GoalUpdateSection[];
-}
+export type { GoalActivityEntry, GoalEntryKind };
 
 /**
  * Ein Punkt der Graf-Serie: `value` speist die Linie (Roh-Wert oder %), `status`
@@ -724,36 +718,25 @@ export async function loadGoalDetail(
     by: c.createdBy,
   }));
 
-  // Merge into one feed. Check-ins and comments carry their own text; audit
-  // events are generic action lines (created/updated/…).
-  const activity: GoalActivityEntry[] = [
-    // Status-Check-ins vs. reine Progress-Updates (status = null).
-    ...checkinRows.map((c) => {
-      const sections = parseSections(c.sections);
-      return {
-        id: `checkin-${c.id}`,
-        action: c.status != null ? "goal.checkin" : "goal.progress",
-        at: c.createdAt.toISOString(),
-        by: c.createdBy,
-        comment: c.note ?? undefined,
-        detail: c.status ?? (c.value != null ? `→ ${Number(c.value)}` : undefined),
-        ...(sections ? { sections } : {}),
-      };
-    }),
-    ...commentRows.map((c) => ({
-      id: `comment-${c.id}`,
-      action: "goal.comment",
-      at: c.createdAt.toISOString(),
-      by: c.createdBy,
-      comment: c.body,
+  // Eine Spur aus drei Quellen — die Regel steht rein in `buildGoalActivity`.
+  const activity = buildGoalActivity(
+    checkins.map((c) => ({
+      id: c.id,
+      status: c.status,
+      value: c.value,
+      note: c.note,
+      sections: c.sections,
+      at: c.at,
+      by: c.by,
     })),
-    ...auditRows.map((a) => ({
+    comments,
+    auditRows.map((a) => ({
       id: a.id,
       action: a.action,
       at: a.occurredAt.toISOString(),
       by: a.actorId ?? undefined,
     })),
-  ].sort((x, y) => (x.at < y.at ? 1 : -1));
+  );
 
   const progressChart = await loadProgressChart(db, tenantId, id);
 

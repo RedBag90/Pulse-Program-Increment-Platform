@@ -1,6 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, startTransition, useActionState } from "react";
+import {
+  CONFIDENCE_VALUES,
+  CONFIDENCE_LABEL,
+  needsReplan,
+} from "@/modules/core/goals/domain/goal-confidence";
+import {
+  acceptsDirectValue,
+  type ProgressMode,
+} from "@/modules/core/goals/domain/goal-progress-mode";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Plus } from "lucide-react";
@@ -88,8 +97,13 @@ export function GoalDetailPanel({
   const [composerValue, setComposerValue] = useState("");
   const [sections, setSections] = useState<{ title: string; body: string }[]>([]);
 
-  // Ist-Wert direkt pflegbar nur bei manueller Fortschrittsquelle.
-  const isManualValue = target === "kr" && progressMode === "manual";
+  // Ist-Wert direkt pflegbar nur bei den Quellen, die ihn selbst tragen —
+  // `manual` und `confidence` (derselbe Schnitt wie der Server-Guard in
+  // `recordGoalProgress`).
+  const isManualValue =
+    target === "kr" && progressMode != null && acceptsDirectValue(progressMode as ProgressMode);
+  /** Faust-zu-Fünf statt freiem Zahlenfeld: fünf Stufen, keine Zwischenwerte. */
+  const isConfidence = isManualValue && progressMode === "confidence";
 
   const reloadDetail = useCallback(() => {
     getGoalDetailAction(target, id).then((d) => setDetail(d));
@@ -220,15 +234,19 @@ export function GoalDetailPanel({
             {isManualValue && (
               <label className="block">
                 <span className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
-                  Aktueller Wert
+                  {isConfidence ? "Zuversicht" : "Aktueller Wert"}
                 </span>
-                <input
-                  type="number"
-                  step="any"
-                  value={composerValue}
-                  onChange={(e) => setComposerValue(e.target.value)}
-                  className="mt-1 h-9 w-32 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                />
+                {isConfidence ? (
+                  <FistOfFive value={composerValue} onChange={setComposerValue} />
+                ) : (
+                  <input
+                    type="number"
+                    step="any"
+                    value={composerValue}
+                    onChange={(e) => setComposerValue(e.target.value)}
+                    className="mt-1 h-9 w-32 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  />
+                )}
               </label>
             )}
             <p className="pb-2 text-meta text-muted-foreground">
@@ -342,16 +360,22 @@ export function GoalDetailPanel({
             <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/10 p-3">
               <label className="block">
                 <span className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
-                  Aktueller Wert{unitSuffix ? ` (${unitSuffix.trim()})` : ""}
+                  {isConfidence
+                    ? "Zuversicht"
+                    : `Aktueller Wert${unitSuffix ? ` (${unitSuffix.trim()})` : ""}`}
                 </span>
-                <input
-                  type="number"
-                  step="any"
-                  value={progressValue}
-                  onChange={(e) => setProgressValue(e.target.value)}
-                  className="mt-1 h-9 w-36 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  autoFocus
-                />
+                {isConfidence ? (
+                  <FistOfFive value={progressValue} onChange={setProgressValue} />
+                ) : (
+                  <input
+                    type="number"
+                    step="any"
+                    value={progressValue}
+                    onChange={(e) => setProgressValue(e.target.value)}
+                    className="mt-1 h-9 w-36 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    autoFocus
+                  />
+                )}
               </label>
               <label className="block">
                 <span className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
@@ -416,6 +440,9 @@ export function GoalDetailPanel({
           activity={detail.activity}
           userLabels={detail.userLabels}
           canComment={canEdit}
+          viewerId={detail.viewerId}
+          canManage={canEdit}
+          onChanged={reloadDetail}
         />
       )}
     </div>
@@ -452,4 +479,44 @@ function relTime(iso: string): string {
   if (day <= 0) return "heute";
   if (day === 1) return "gestern";
   return `vor ${day} Tagen`;
+}
+
+/**
+ * **Die Faust zu Fünf.**
+ *
+ * Fünf Knöpfe statt eines Zahlenfelds — weil es genau fünf Stufen gibt und
+ * keine Zwischenwerte. Ein `type="number"` liesse 2,5 und 7 zu, und beides
+ * müsste der Server danach wieder abweisen; hier kann man nur wählen, was es
+ * gibt.
+ *
+ * Unter 3 wird nachgeplant (`needsReplan`) — die betroffenen Stufen tragen
+ * deshalb eine warnende Färbung, sobald sie gewählt sind.
+ */
+function FistOfFive({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const current = Number(value);
+  return (
+    <div className="mt-1 flex gap-1">
+      {CONFIDENCE_VALUES.map((v) => {
+        const active = current === v;
+        return (
+          <button
+            key={v}
+            type="button"
+            onClick={() => onChange(String(v))}
+            aria-pressed={active}
+            title={CONFIDENCE_LABEL[v]}
+            className={`size-9 rounded-md border text-sm font-medium tabular-nums transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
+              active
+                ? needsReplan(v)
+                  ? "border-destructive bg-destructive/10 text-destructive"
+                  : "border-primary bg-primary/10 text-primary"
+                : "bg-background hover:bg-muted/50"
+            }`}
+          >
+            {v}
+          </button>
+        );
+      })}
+    </div>
+  );
 }

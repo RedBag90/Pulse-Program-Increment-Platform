@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
+import { hasCapability } from "@/server/auth/authorize";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import {
   createObjective,
@@ -14,6 +15,10 @@ import {
   recordGoalCheckin,
   recordGoalProgress,
   addGoalComment,
+  updateGoalCheckin,
+  deleteGoalCheckin,
+  updateGoalComment,
+  deleteGoalComment,
 } from "@/modules/core/goals/server/services/ziele";
 import {
   linkEpicToGoal,
@@ -63,7 +68,7 @@ const optPrecision = z.coerce.number().int().min(0).max(6).optional();
  */
 const progressModeField = z.preprocess(
   (v) => v ?? undefined,
-  z.enum(["manual", "rollup", "kpi_tree"]).optional().or(z.literal("")),
+  z.enum(["manual", "rollup", "kpi_tree", "confidence"]).optional().or(z.literal("")),
 );
 
 /**
@@ -511,6 +516,88 @@ export const addGoalCommentAction = createServerAction({
     addGoalComment(ctx, { target: input.target, id: input.id, body: input.body }),
   revalidate: "ziele",
   mapError: (e) => formatDomainError(e, { fallback: "Kommentar konnte nicht gespeichert werden" }),
+});
+
+/**
+ * **Einträge im Verlauf bearbeiten und entfernen.**
+ *
+ * Das Gate bleibt `target.manage` wie bei allen Ziele-Actions — schon das
+ * Schreiben eines Check-ins verlangt es. Die **eigentliche** Entscheidung fällt
+ * im Dienst an der Zeile: der Verfasser darf bearbeiten und löschen, die
+ * Ziel-Pflege nur löschen (`goalEntryEditDeniedReason`). Deshalb reicht die
+ * Action `mayManage` durch, statt selbst zu entscheiden.
+ */
+export const updateGoalCheckinAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    status: statusField,
+    value: optNum,
+    sections: goalSectionsField,
+  }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    updateGoalCheckin(ctx, {
+      id: input.id,
+      mayManage: hasCapability(ctx.principal, "target.manage", {
+        tenantId: ctx.principal.tenantId,
+      }),
+      ...(input.status !== undefined && input.status !== ""
+        ? { status: input.status }
+        : input.status === ""
+          ? { status: null }
+          : {}),
+      ...(input.value !== undefined ? { value: input.value } : {}),
+      ...(input.sections !== undefined ? { sections: input.sections } : {}),
+    }),
+  revalidate: "ziele",
+  mapError: (e) => formatDomainError(e, { fallback: "Eintrag konnte nicht geändert werden" }),
+});
+
+export const deleteGoalCheckinAction = createServerAction({
+  schema: z.object({ id: z.string().uuid() }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    deleteGoalCheckin(ctx, {
+      id: input.id,
+      mayManage: hasCapability(ctx.principal, "target.manage", {
+        tenantId: ctx.principal.tenantId,
+      }),
+    }),
+  revalidate: "ziele",
+  mapError: (e) => formatDomainError(e, { fallback: "Eintrag konnte nicht entfernt werden" }),
+});
+
+export const updateGoalCommentAction = createServerAction({
+  schema: z.object({ id: z.string().uuid(), body: z.string().min(1).max(2000) }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    updateGoalComment(ctx, {
+      id: input.id,
+      body: input.body,
+      mayManage: hasCapability(ctx.principal, "target.manage", {
+        tenantId: ctx.principal.tenantId,
+      }),
+    }),
+  revalidate: "ziele",
+  mapError: (e) => formatDomainError(e, { fallback: "Kommentar konnte nicht geändert werden" }),
+});
+
+export const deleteGoalCommentAction = createServerAction({
+  schema: z.object({ id: z.string().uuid() }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    deleteGoalComment(ctx, {
+      id: input.id,
+      mayManage: hasCapability(ctx.principal, "target.manage", {
+        tenantId: ctx.principal.tenantId,
+      }),
+    }),
+  revalidate: "ziele",
+  mapError: (e) => formatDomainError(e, { fallback: "Kommentar konnte nicht entfernt werden" }),
 });
 
 /**

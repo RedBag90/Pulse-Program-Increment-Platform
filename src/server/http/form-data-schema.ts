@@ -65,6 +65,9 @@ function unwrap(type: ZodTypeAny): UnwrappedFlags {
   let isOptional = false;
   let isNullable = false;
   let isArray = false;
+  // `z.preprocess` ist die **eine** Hülle, die die Eingabeform ändert — und
+  // damit die einzige, bei der der innere Typ nicht verrät, wie zu lesen ist.
+  let sawPreprocess = false;
   let cursor: ZodTypeAny = type;
   // Defensive ceiling; Zod schemas in this codebase nest at most ~3 deep.
   for (let depth = 0; depth < 8; depth++) {
@@ -91,6 +94,16 @@ function unwrap(type: ZodTypeAny): UnwrappedFlags {
     if (name === "ZodEffects") {
       // Zod's `.refine()` / `.transform()` wrap the type in ZodEffects; the
       // inner shape is what we want to inspect.
+      //
+      // Für `.refine()` und `.transform()` stimmt das: beide lassen die
+      // **Eingabe**form unberührt, der innere Typ sagt also weiterhin, wie zu
+      // lesen ist. `z.preprocess` gibt es für genau das Gegenteil — es sitzt
+      // *vor* dem inneren Typ und übersetzt erst in dessen Form. Ein
+      // `preprocess(JSON.parse, z.array(...))` will einen **String** lesen,
+      // kein `getAll()`-Array; wer das übersieht, liefert `["[{…}]"]`, das
+      // Preprocess greift nicht, `.optional()` schluckt das `undefined` — und
+      // niemand erfährt es. Genau so sind 163 Status-Kommentare verschwunden.
+      if (effectType(cursor) === "preprocess") sawPreprocess = true;
       cursor = (cursor as unknown as { _def: { schema: ZodTypeAny } })._def.schema;
       continue;
     }
@@ -106,12 +119,21 @@ function unwrap(type: ZodTypeAny): UnwrappedFlags {
     }
     break;
   }
-  return { isArray, isOptional, isNullable };
+  // `isOptional`/`isNullable` überleben ein Preprocess: sie entscheiden nur, ob
+  // ein *fehlendes* Feld als `undefined`, `""` oder `null` ankommt, und das
+  // bleibt richtig. `isArray` nicht — es ist die Aussage über die Eingabeform.
+  return { isArray: isArray && !sawPreprocess, isOptional, isNullable };
 }
 
 function typeName(type: ZodTypeAny): string {
   const def = (type as unknown as { _def?: { typeName?: string } })._def;
   return def?.typeName ?? "";
+}
+
+/** `"preprocess" | "transform" | "refinement"` einer ZodEffects-Hülle. */
+function effectType(type: ZodTypeAny): string {
+  const def = (type as unknown as { _def?: { effect?: { type?: string } } })._def;
+  return def?.effect?.type ?? "";
 }
 
 function cursorInner(type: ZodTypeAny): ZodTypeAny {

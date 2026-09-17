@@ -18,8 +18,25 @@ import {
 import {
   autoKpiCurrent,
   effectiveProgressMode,
+  acceptsDirectValue,
   type AutoKpiLink,
 } from "@/modules/core/goals/domain/goal-progress-mode";
+import {
+  isConfidenceValue,
+  confidenceScaleFields,
+  CONFIDENCE_MIN,
+  CONFIDENCE_MAX,
+} from "@/modules/core/goals/domain/goal-confidence";
+import {
+  mergeCheckinSlot,
+  type CheckinSlot,
+  type CheckinPatch,
+  type GoalSection,
+} from "@/modules/core/goals/domain/goal-checkin-slot";
+import {
+  goalEntryEditDeniedReason,
+  goalEntryDeleteDeniedReason,
+} from "@/modules/core/goals/domain/goal-entry-access";
 import { latestMeasurement } from "@/modules/core/kpi/domain/kpi-measurement";
 import { dayStart } from "@/modules/core/kernel/domain/calendar";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
@@ -142,6 +159,9 @@ export async function createObjective(
         target: input.target ?? null,
         current: input.current ?? null,
         progressMode: input.progressMode ?? null,
+        // `confidence` bringt seine Skala mit: 1..5, fest. Danach ist die Zeile
+        // ein manuelles Ziel mit fester Skala — mehr braucht es nicht.
+        ...(confidenceScaleFields(input.progressMode, null) ?? {}),
         createdBy: mctx.actorId,
         updatedBy: mctx.actorId,
       },
@@ -196,7 +216,18 @@ export async function updateObjective(
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "Objective", id: input.id });
     }
-    const { changes, data } = goalRecordedUpdate(existing, input, OBJECTIVE_FIELD_KEYS);
+    // Die Skala **vor** dem Diff einsetzen, damit der Prüfpfad sie als Änderung
+    // sieht: ein Wechsel auf „Zuversicht" verschiebt `baseline`/`target`, und
+    // das ist eine Änderung am Ziel, keine Nebenwirkung.
+    const scale = confidenceScaleFields(
+      input.progressMode !== undefined ? input.progressMode : existing.progressMode,
+      existing.progressMode,
+    );
+    const { changes, data } = goalRecordedUpdate(
+      existing,
+      scale ? { ...input, ...scale } : input,
+      OBJECTIVE_FIELD_KEYS,
+    );
     // A closed status stamps closedAt; reopening (open status) clears it.
     const closedAt: { closedAt?: Date | null } = {};
     if (input.status !== undefined) {
@@ -522,11 +553,13 @@ export async function deleteKeyResult(
 
 // ── Goal check-in + comment ─────────────────────────────────────────────
 
-/** One block of a structured status update (Asana-style composer). */
-export interface GoalSection {
-  title: string;
-  body: string;
-}
+/**
+ * One block of a structured status update (Asana-style composer).
+ *
+ * Liegt in `domain/goal-checkin-slot.ts`, weil die Merge-Regel des Tages-Slots
+ * damit rechnet; hier re-exportiert, damit die Aufrufer nichts umschreiben.
+ */
+export type { GoalSection };
 
 export interface CheckInGoalInput {
   target: GoalTarget;
@@ -549,9 +582,14 @@ export interface CheckInGoalInput {
 }
 
 /**
- * Ein Check-in **pro Tag**: überschreibt den bestehenden Check-in des Knotens an
- * diesem Tag (`day` = UTC-Mitternacht) vollständig — sonst neu anlegen. „Letzter
+ * Ein Check-in **pro Tag**: der bestehende Check-in des Knotens an diesem Tag
+ * (`day` = UTC-Mitternacht) wird fortgeschrieben — sonst neu angelegt. „Letzter
  * Eintrag des Tages gewinnt" (Wert-Eintrag und Status-Update teilen den Slot).
+ *
+ * **Fortgeschrieben, nicht überschrieben.** Ein weggelassenes Feld
+ * (`undefined`) bleibt stehen, `null` löscht es — die Regel steht rein in
+ * `mergeCheckinSlot`. Vorher schrieb jeder Aufrufer den Slot vollständig neu,
+ * und ein nachgetragener Wert löschte die Begründung des Morgens mit.
  */
 async function upsertDayCheckin(
   tx: Prisma.TransactionClient,
@@ -560,12 +598,7 @@ async function upsertDayCheckin(
     objectiveId: string;
     day: Date;
     createdBy: string;
-    status: string | null;
-    value: number | null;
-    progress: number | null;
-    note?: string | null;
-    sections?: GoalSection[] | null;
-  },
+  } & CheckinPatch,
 ): Promise<{ id: string }> {
   const next = new Date(input.day);
   next.setUTCDate(next.getUTCDate() + 1);
@@ -575,33 +608,67 @@ async function upsertDayCheckin(
       objectiveId: input.objectiveId,
       createdAt: { gte: input.day, lt: next },
     },
-    select: { id: true },
+    select: { id: true, status: true, value: true, progress: true, note: true, sections: true },
     orderBy: { createdAt: "desc" },
   });
-  const data = {
-    status: input.status,
-    value: input.value,
-    progress: input.progress,
-    note: input.note ?? null,
-    sections:
-      input.sections && input.sections.length > 0
-        ? (input.sections as unknown as Prisma.InputJsonValue)
-        : Prisma.DbNull,
-    createdAt: input.day,
-  };
+  const { tenantId, objectiveId, day, createdBy, ...patch } = input;
+  const slot = mergeCheckinSlot(existing ? rowToSlot(existing) : null, patch);
+  const data = { ...slotToData(slot), createdAt: day };
   if (existing) {
     await tx.goalCheckin.update({ where: { id: existing.id }, data });
     return { id: existing.id };
   }
   const created = await tx.goalCheckin.create({
-    data: {
-      tenantId: input.tenantId,
-      objectiveId: input.objectiveId,
-      createdBy: input.createdBy,
-      ...data,
-    },
+    data: { tenantId, objectiveId, createdBy, ...data },
   });
   return { id: created.id };
+}
+
+/** Prisma-Zeile → Slot (Decimal → number, Json → Sektionen). */
+function rowToSlot(row: {
+  status: string | null;
+  value: unknown;
+  progress: unknown;
+  note: string | null;
+  sections: unknown;
+}): CheckinSlot {
+  return {
+    status: row.status,
+    value: row.value == null ? null : Number(row.value),
+    progress: row.progress == null ? null : Number(row.progress),
+    note: row.note,
+    sections: parseStoredSections(row.sections),
+  };
+}
+
+/** Slot → Prisma-Schreibform (`null` für Json heißt `DbNull`, nicht JSON-`null`). */
+function slotToData(slot: CheckinSlot) {
+  return {
+    status: slot.status,
+    value: slot.value,
+    progress: slot.progress,
+    note: slot.note,
+    sections:
+      slot.sections && slot.sections.length > 0
+        ? (slot.sections as unknown as Prisma.InputJsonValue)
+        : Prisma.DbNull,
+  };
+}
+
+/**
+ * Die gespeicherte Json-Spalte zurück in Sektionen. Defensiv, weil dort
+ * historisch auch `{}` gelandet ist (70 Zeilen im Bestand) — und ein leeres
+ * Objekt ist keine Liste von Blöcken.
+ */
+function parseStoredSections(raw: unknown): GoalSection[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: GoalSection[] = [];
+  for (const s of raw) {
+    if (s && typeof s === "object" && "title" in s && "body" in s) {
+      out.push({ title: String((s as GoalSection).title), body: String((s as GoalSection).body) });
+    }
+  }
+  return out.length > 0 ? out : null;
 }
 
 /**
@@ -759,9 +826,9 @@ export async function recordGoalCheckin(
       note: input.note ?? null,
       sections: input.sections ?? null,
     });
-    // Bei manuellem Wert-Update `current` mitziehen (letzter Check-in gewinnt),
+    // Bei direkt gepflegtem Wert `current` mitziehen (letzter Check-in gewinnt),
     // damit ein Status-Update mit neuem Wert den Ist aktualisiert.
-    const manualValueUpdate = mode === "manual" && input.value != null;
+    const manualValueUpdate = acceptsDirectValue(mode) && input.value != null;
     await tx.objective.update({
       where: { id: input.id },
       data: {
@@ -811,17 +878,29 @@ export async function recordGoalProgress(
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "KeyResult", id: input.keyResultId });
     }
-    // Ist-Wert direkt pflegbar nur bei manueller Fortschrittsquelle — kpi_tree
-    // kommt aus KPIs, rollup aus den Unterzielen.
+    // Ist-Wert direkt pflegbar nur bei den Quellen, die ihn selbst tragen
+    // (`manual`, `confidence`) — kpi_tree kommt aus KPIs, rollup aus den
+    // Unterzielen.
     const childCount = await tx.objective.count({
       where: { parentObjectiveId: input.keyResultId, tenantId: mctx.tenantId },
     });
     const mode = effectiveProgressMode(existing.progressMode, childCount > 0);
-    if (mode !== "manual") {
+    if (!acceptsDirectValue(mode)) {
       return err({
         kind: "validation" as const,
         issues: [
           "Ist-Wert wird aus KPIs bzw. Unterzielen abgeleitet — nur manuelle Ziele sind direkt pflegbar.",
+        ],
+      });
+    }
+    // Die Faust-zu-Fünf kennt fünf Stufen und keine Zwischenwerte. Der Guard
+    // steht hier und nicht nur im Zod-Schema, weil die Skala eine fachliche
+    // Aussage ist: eine 2,5 gibt es an einer Hand nicht.
+    if (mode === "confidence" && !isConfidenceValue(input.value)) {
+      return err({
+        kind: "validation" as const,
+        issues: [
+          `Zuversicht ist eine Stufe von ${CONFIDENCE_MIN} bis ${CONFIDENCE_MAX} — „${input.value}" ist keine.`,
         ],
       });
     }
@@ -830,11 +909,11 @@ export async function recordGoalProgress(
       objectiveId: input.keyResultId,
       day: dayStart(input.entryDate ?? new Date()),
       createdBy: mctx.actorId,
-      status: null,
+      // Status, Notiz und Sektionen bleiben **ungenannt** und damit unberührt:
+      // ein nachgetragener Wert widerruft keine Aussage. Vorher stand hier
+      // dreimal `null`, und das Status-Update desselben Tages war weg.
       value: input.value,
       progress: normalizeKrValue(input.value, existing.baseline, existing.target),
-      note: null,
-      sections: null,
     });
     // `current` folgt dem zeitlich letzten Wert-Check-in (s. `latestCheckinCurrent`).
     const newCurrent = await latestCheckinCurrent(
@@ -915,6 +994,241 @@ export async function addGoalComment(
       },
     });
   });
+}
+
+// ── Verlaufseinträge bearbeiten und entfernen ───────────────────────────
+
+/**
+ * Bearbeiten und Löschen im Ziel-Verlauf.
+ *
+ * Die Berechtigung hat zwei Stufen, und die **maßgebliche ist hier**, nicht in
+ * der Action: `target.manage` ist der grobe Vorfilter, aber wer einen Eintrag
+ * anfassen darf, entscheidet sich an der Zeile selbst — der Verfasser darf
+ * beides, die Ziel-Pflege nur löschen (`goalEntryEditDeniedReason`).
+ *
+ * Dasselbe Idiom wie bei den Gate-Abnahmen: **die Zeile ist die Berechtigung.**
+ */
+
+export interface EditGoalCheckinInput {
+  id: string;
+  /** Der Handelnde hält `target.manage` (aus der Action gereicht). */
+  mayManage: boolean;
+  status?: string | null;
+  value?: number | null;
+  sections?: GoalSection[] | null;
+}
+
+/**
+ * Ändert einen Check-in **an Ort und Stelle**. Das Datum bleibt unberührt: der
+ * Slot ist nach Tag verschlüsselt, ein Umdatieren liefe auf einen womöglich
+ * belegten Tag. Wer das Datum ändern will, löscht und schreibt neu.
+ */
+export async function updateGoalCheckin(
+  ctx: RequestContext,
+  input: EditGoalCheckinInput,
+): Promise<Result<{ id: string }>> {
+  const mctx = toMutationContext(ctx);
+  return withAuditedTransaction(mctx, async (tx) => {
+    const row = await tx.goalCheckin.findFirst({
+      where: { id: input.id, tenantId: mctx.tenantId },
+    });
+    if (!row) {
+      return err({ kind: "not_found" as const, resourceType: "GoalCheckin", id: input.id });
+    }
+    const denied = goalEntryEditDeniedReason({
+      authorId: row.createdBy,
+      actorId: mctx.actorId,
+      mayManage: input.mayManage,
+    });
+    if (denied) return err({ kind: "validation" as const, issues: [denied] });
+
+    // `objectiveId` ist nullable (Altlast der Knoten-Vereinheitlichung); eine
+    // verwaiste Zeile gehört zu keinem Ziel und ist hier nicht erreichbar.
+    const objective = row.objectiveId
+      ? await tx.objective.findFirst({ where: { id: row.objectiveId, tenantId: mctx.tenantId } })
+      : null;
+    if (!objective) {
+      return err({ kind: "not_found" as const, resourceType: "Objective", id: input.id });
+    }
+    const patch: CheckinPatch = {};
+    if (input.status !== undefined) patch.status = input.status;
+    if (input.sections !== undefined) patch.sections = input.sections;
+    if (input.value !== undefined) {
+      patch.value = input.value;
+      patch.progress = normalizeKrValue(input.value, objective.baseline, objective.target);
+    }
+    const slot = mergeCheckinSlot(rowToSlot(row), patch);
+    await tx.goalCheckin.update({ where: { id: row.id }, data: slotToData(slot) });
+
+    // Der Ist-Wert des Ziels folgt dem zeitlich letzten Wert-Check-in. Wurde an
+    // einem Wert gedreht, muss er neu bestimmt werden — sonst zeigt das Ziel
+    // eine Zahl, die keine Zeile mehr trägt.
+    if (
+      input.value !== undefined &&
+      acceptsDirectValue(await progressModeOf(tx, mctx.tenantId, objective))
+    ) {
+      await tx.objective.update({
+        where: { id: objective.id },
+        data: {
+          current: await latestCheckinCurrent(tx, mctx.tenantId, objective.id, 0),
+          updatedBy: mctx.actorId,
+        },
+      });
+    }
+    return ok({
+      result: { id: row.id },
+      audit: {
+        action: "goal.checkin.edited",
+        resourceType: "objective",
+        resourceId: objective.id,
+        changes: { status: { before: row.status, after: slot.status } },
+      },
+    });
+  });
+}
+
+export interface DeleteGoalEntryInput {
+  id: string;
+  /** Der Handelnde hält `target.manage` (aus der Action gereicht). */
+  mayManage: boolean;
+}
+
+/** Entfernt einen Check-in aus dem Verlauf und zieht `current` nach. */
+export async function deleteGoalCheckin(
+  ctx: RequestContext,
+  input: DeleteGoalEntryInput,
+): Promise<Result<{ id: string }>> {
+  const mctx = toMutationContext(ctx);
+  return withAuditedTransaction(mctx, async (tx) => {
+    const row = await tx.goalCheckin.findFirst({
+      where: { id: input.id, tenantId: mctx.tenantId },
+    });
+    if (!row) {
+      return err({ kind: "not_found" as const, resourceType: "GoalCheckin", id: input.id });
+    }
+    const denied = goalEntryDeleteDeniedReason({
+      authorId: row.createdBy,
+      actorId: mctx.actorId,
+      mayManage: input.mayManage,
+    });
+    if (denied) return err({ kind: "validation" as const, issues: [denied] });
+
+    await tx.goalCheckin.delete({ where: { id: row.id } });
+
+    const objective = row.objectiveId
+      ? await tx.objective.findFirst({ where: { id: row.objectiveId, tenantId: mctx.tenantId } })
+      : null;
+    // Trug die entfernte Zeile einen Wert, fällt `current` auf den vorherigen
+    // Wert-Check-in zurück — `0` nur, wenn es gar keinen mehr gibt.
+    if (
+      objective &&
+      row.value != null &&
+      acceptsDirectValue(await progressModeOf(tx, mctx.tenantId, objective))
+    ) {
+      await tx.objective.update({
+        where: { id: objective.id },
+        data: {
+          current: await latestCheckinCurrent(tx, mctx.tenantId, objective.id, 0),
+          updatedBy: mctx.actorId,
+        },
+      });
+    }
+    return ok({
+      result: { id: row.id },
+      audit: {
+        action: "goal.checkin.deleted",
+        resourceType: "objective",
+        resourceId: row.objectiveId ?? row.id,
+      },
+    });
+  });
+}
+
+export interface EditGoalCommentInput {
+  id: string;
+  body: string;
+  /** Der Handelnde hält `target.manage` (aus der Action gereicht). */
+  mayManage: boolean;
+}
+
+/** Ändert den Text eines freien Kommentars. Nur der Verfasser. */
+export async function updateGoalComment(
+  ctx: RequestContext,
+  input: EditGoalCommentInput,
+): Promise<Result<{ id: string }>> {
+  const mctx = toMutationContext(ctx);
+  return withAuditedTransaction(mctx, async (tx) => {
+    const row = await tx.goalComment.findFirst({
+      where: { id: input.id, tenantId: mctx.tenantId },
+    });
+    if (!row) {
+      return err({ kind: "not_found" as const, resourceType: "GoalComment", id: input.id });
+    }
+    const denied = goalEntryEditDeniedReason({
+      authorId: row.createdBy,
+      actorId: mctx.actorId,
+      mayManage: input.mayManage,
+    });
+    if (denied) return err({ kind: "validation" as const, issues: [denied] });
+
+    await tx.goalComment.update({ where: { id: row.id }, data: { body: input.body } });
+    return ok({
+      result: { id: row.id },
+      audit: {
+        action: "goal.comment.edited",
+        resourceType: "objective",
+        resourceId: row.objectiveId ?? row.id,
+      },
+    });
+  });
+}
+
+/** Entfernt einen freien Kommentar aus dem Verlauf. */
+export async function deleteGoalComment(
+  ctx: RequestContext,
+  input: DeleteGoalEntryInput,
+): Promise<Result<{ id: string }>> {
+  const mctx = toMutationContext(ctx);
+  return withAuditedTransaction(mctx, async (tx) => {
+    const row = await tx.goalComment.findFirst({
+      where: { id: input.id, tenantId: mctx.tenantId },
+    });
+    if (!row) {
+      return err({ kind: "not_found" as const, resourceType: "GoalComment", id: input.id });
+    }
+    const denied = goalEntryDeleteDeniedReason({
+      authorId: row.createdBy,
+      actorId: mctx.actorId,
+      mayManage: input.mayManage,
+    });
+    if (denied) return err({ kind: "validation" as const, issues: [denied] });
+
+    await tx.goalComment.delete({ where: { id: row.id } });
+    return ok({
+      result: { id: row.id },
+      audit: {
+        action: "goal.comment.deleted",
+        resourceType: "objective",
+        resourceId: row.objectiveId ?? row.id,
+      },
+    });
+  });
+}
+
+/**
+ * Die wirksame Fortschrittsquelle eines Knotens — `rollup`, sobald er Kinder
+ * hat. Nur `manual`/`confidence` tragen `current` selbst; bei den anderen wäre
+ * ein Nachziehen falsch, ihr Ist kommt aus KPIs bzw. der Kaskade.
+ */
+async function progressModeOf(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  objective: { id: string; progressMode: string | null },
+): Promise<ReturnType<typeof effectiveProgressMode>> {
+  const childCount = await tx.objective.count({
+    where: { parentObjectiveId: objective.id, tenantId },
+  });
+  return effectiveProgressMode(objective.progressMode, childCount > 0);
 }
 
 // ── Goal picker (read) ──────────────────────────────────────────────────

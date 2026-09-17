@@ -197,6 +197,80 @@ describe("parseFromSchema — picks the right fields() reader per Zod shape", ()
     expect(refined.safeParse(parseFromSchema(makeFd([]), refined)).success).toBe(true);
   });
 
+  /**
+   * **Ein `preprocess` über einem Array will einen String lesen.**
+   *
+   * Der gemeldete Fehler: die Status-Update-Kommentare kamen nie an. Die
+   * Sektionen reisen als **ein** JSON-String im FormData; das Schema ist
+   * `z.preprocess(JSON.parse, z.array(...).optional())`. Der Reader schälte die
+   * Effekt-Hülle ab, sah darunter `ZodArray` und las mit `fd.getAll()` — also
+   * `["[{…}]"]`. Das Preprocess verlangt `typeof v === "string"`, bekam ein
+   * Array, gab `undefined` zurück, und `.optional()` schluckte es **ohne
+   * Fehler**: die Action meldete Erfolg, der Text war weg.
+   *
+   * `.refine()` und `.transform()` lassen die Eingabeform unberührt und werden
+   * weiter abgeschält — nur `preprocess` sitzt davor und übersetzt erst hinein.
+   */
+  it("preprocess über einem Array liest einen Skalar, kein getAll()", () => {
+    const sections = z.preprocess(
+      (v) => {
+        if (typeof v !== "string" || v.trim() === "") return undefined;
+        try {
+          return JSON.parse(v);
+        } catch {
+          return undefined;
+        }
+      },
+      z.array(z.object({ title: z.string(), body: z.string() })).optional(),
+    );
+    const schema = z.object({ sections });
+    const json = JSON.stringify([{ title: "Fortschritt", body: "Zwei Features fertig." }]);
+
+    const raw = parseFromSchema(makeFd([["sections", json]]), schema);
+    expect(raw).toEqual({ sections: json });
+
+    const parsed = schema.safeParse(raw);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.sections).toEqual([
+        { title: "Fortschritt", body: "Zwei Features fertig." },
+      ]);
+    }
+
+    // Abwesend bleibt abwesend — `.optional()` greift, kein Fehler.
+    expect(schema.safeParse(parseFromSchema(makeFd([]), schema)).success).toBe(true);
+  });
+
+  it("ein echtes Array-Feld wird weiter mit getAll() gelesen", () => {
+    // Die Gegenprobe: ohne Preprocess bleibt `fields.list` richtig.
+    const schema = z.object({ tags: z.array(z.string()) });
+    expect(
+      parseFromSchema(
+        makeFd([
+          ["tags", "a"],
+          ["tags", "b"],
+        ]),
+        schema,
+      ),
+    ).toEqual({
+      tags: ["a", "b"],
+    });
+  });
+
+  it("preprocess über einem Skalar bleibt unverändert", () => {
+    // statusField / ownerIdField: `null → undefined`, kein Array im Kern.
+    const schema = z.object({
+      status: z.preprocess(
+        (v) => v ?? undefined,
+        z.enum(["on_track"]).optional().or(z.literal("")),
+      ),
+    });
+    expect(parseFromSchema(makeFd([]), schema)).toEqual({ status: null });
+    expect(parseFromSchema(makeFd([["status", "on_track"]]), schema)).toEqual({
+      status: "on_track",
+    });
+  });
+
   it("peels nested ZodEffects (.refine().superRefine())", () => {
     const schema = z
       .object({ a: z.string().optional() })

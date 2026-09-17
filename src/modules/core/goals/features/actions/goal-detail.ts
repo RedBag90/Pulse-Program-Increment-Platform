@@ -9,7 +9,15 @@ import {
   type GoalTarget,
 } from "@/modules/core/goals/server/views/ziele-view";
 
-export type GoalDetailPayload = GoalDetail & { userLabels: Record<string, string> };
+export type GoalDetailPayload = GoalDetail & {
+  userLabels: Record<string, string>;
+  /**
+   * Wer gerade liest. Der Verlauf zeigt Bearbeiten/Löschen nur am eigenen
+   * Eintrag (`goal-entry-access.ts`), und das kann erst entscheiden, wer den
+   * Leser kennt — der Loader selbst sieht nur den Mandanten.
+   */
+  viewerId: string;
+};
 
 /**
  * Read-only detail bundle (check-in history + comments + activity + the actor
@@ -27,5 +35,5 @@ export async function getGoalDetailAction(
     loadGoalDetail(db, principal.tenantId, target, id),
     listTenantUserLabels(db, principal.tenantId),
   ]);
-  return { ...detail, userLabels };
+  return { ...detail, userLabels, viewerId: principal.id };
 }
