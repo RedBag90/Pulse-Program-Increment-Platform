@@ -104,21 +104,27 @@ model SetupProgress {
   @@map("setup_progress")
 }
 
-/// Per-User gespeicherter Portfolio-Übersicht-Filter: benannte Filter-Sets, die
-/// der Nutzer anlegt/anwendet. `criteria` = { vs, gate, status, owner } als JSON.
-/// Genau ein `isDefault` je Nutzer wird beim bloßen Öffnen von /portfolio
+/// Per-User gespeicherter Filter: benannte Filter-Sets, die der Nutzer anlegt
+/// und anwendet. `criteria` = Facetten-Karte als JSON, je Fläche anders belegt.
+/// Genau ein `isDefault` je Nutzer **und Fläche** wird beim bloßen Öffnen
 /// automatisch angewandt. Tenant+User-scoped (plain columns, wie Risk/Impediment).
-model SavedPortfolioFilter {
+///
+/// `scope` trennt die Flächen (`portfolio` | `goals`) — ohne ihn könnte niemand
+/// „Q4" für beide führen. Der **Tabellenname** bleibt `saved_portfolio_filters`,
+/// obwohl darin jetzt auch Ziele-Filter liegen: ein Rename kostet RLS-Policy,
+/// Seed-Teardown und Audit-ResourceType für null Gewinn.
+model SavedFilter {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @map("tenant_id") @db.Uuid
   userId    String   @map("user_id") @db.Uuid
+  scope     String   @default("portfolio")
   name      String
   criteria  Json     @default("{}")
   isDefault Boolean  @default(false) @map("is_default")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@unique([tenantId, userId, name])
+  @@unique([tenantId, userId, scope, name])
   @@index([tenantId, userId])
   @@map("saved_portfolio_filters")
 }
@@ -298,9 +304,11 @@ model Objective {
   baseline               Decimal?  @db.Decimal(14, 4)
   target                 Decimal?  @db.Decimal(14, 4)
   current                Decimal?  @db.Decimal(14, 4)
-  /// Fortschrittsquelle (src/domain/goal-progress-mode.ts): manual | rollup |
-  /// auto_kpi | kpi_tree. Null = abgeleitet (Kinder → rollup, sonst manual) =
-  /// Alt-Verhalten.
+  /// Fortschrittsquelle (modules/core/goals/domain/goal-progress-mode.ts):
+  /// manual | rollup | kpi_tree | confidence. Null = abgeleitet (Kinder →
+  /// rollup, sonst manual) = Alt-Verhalten. `auto_kpi` ist zurückgebaut und
+  /// wird von `effectiveProgressMode` defensiv auf `kpi_tree` gemappt.
+  /// `confidence` ist `manual` mit fester Skala 1..5 (ADR-0011, Nachtrag).
   progressMode           String?   @map("progress_mode")
   ownerId                String?   @map("owner_id") @db.Uuid
   /// Verantwortliches Team (Asana „Accountable team"). Null = kein Team.

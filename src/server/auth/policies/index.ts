@@ -71,6 +71,7 @@ export type Action =
   | "goal.custom_field.manage"
   | "pi.demo.manage"
   | "portfolio_filter.manage"
+  | "goal_filter.manage"
   | "role.onboarding.manage";
 
 /** A scope dimension a grant may additionally require the principal to match. */
@@ -332,6 +333,25 @@ export const POLICIES: Record<Action, Grant[]> = {
   // pflegen ihre eigenen Demo-Items. Scope ist heute global (pro
   // Tenant) — eine ART-Scope-Verschaerfung folgt, wenn noetig.
   "pi.demo.manage": [{ roles: [RTE, FEATURE_OWNER] }],
+
+  // Dasselbe für die Ziele-Seite. **Eigene Capability statt einer gemeinsamen:**
+  // `portfolio_filter.manage` hängt am Work-Modul, die Ziele liegen in Core —
+  // eine geteilte Berechtigung wäre entweder in beiden Modulen oder in keinem.
+  // Umbenennen kam nicht in Frage: 35 Zeilen in `role_capabilities` verweisen
+  // auf den alten Namen, und eine DML-Nachführung brächte nichts ein.
+  "goal_filter.manage": [
+    {
+      roles: [
+        TENANT_ADMIN,
+        PORTFOLIO_MANAGER,
+        VALUE_STREAM_OWNER,
+        EPIC_OWNER,
+        RTE,
+        FEATURE_OWNER,
+        VIEWER,
+      ],
+    },
+  ],
 
   // Persönliche, gespeicherte Portfolio-Filter — reine Nutzer-Präferenz
   // (user-scoped). Jede Rolle mit Portfolio-Zugang darf ihre eigenen Filter

@@ -3,6 +3,12 @@
 import { useEntityOptions } from "@/features/create/use-entity-options";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import { MultiSelectFilter, type MultiSelectSection } from "@/components/ui/multi-select-filter";
+import { SavedFilterControls } from "@/components/ui/saved-filter-controls";
+import type { SavedFilterDTO, FilterCriteria } from "@/server/services/saved-filter";
+import {
+  saveGoalFilterAction,
+  deleteGoalFilterAction,
+} from "@/modules/core/goals/features/actions/saved-filter";
 import { PeriodMultiSelect } from "@/modules/core/goals/features/components/period-multi-select";
 import {
   OPEN_STATUSES,
@@ -28,11 +34,14 @@ interface ScopeOption {
 export function GoalScopeFilterBar({
   showValueStreams = true,
   showArts = true,
+  savedFilters = [],
 }: {
   /** VS = Portfolio-Inhalt — im Free-Tenant ausgeblendet. */
   showValueStreams?: boolean;
   /** ARTs = Programm-Inhalt — dito. */
   showArts?: boolean;
+  /** Persönlich gespeicherte Filter dieser Fläche. */
+  savedFilters?: SavedFilterDTO[];
 } = {}) {
   const { params, push } = useUrlState();
   const readSet = (key: string): Set<string> =>
@@ -66,6 +75,17 @@ export function GoalScopeFilterBar({
   const arts = useEntityOptions<ScopeOption>("/api/v1/arts", showArts);
 
   const anyActive = periodSel.size + vsSel.size + artSel.size + statusSel.size > 0;
+
+  const csv = (arr: string[] | undefined) => (arr && arr.length ? arr.join(",") : null);
+  /** Ein angewandter Filter räumt den „bewusst leer"-Marker weg. */
+  const applySaved = (c: FilterCriteria) =>
+    push({
+      period: csv(c.period),
+      vs: csv(c.vs),
+      art: csv(c.art),
+      status: csv(c.status),
+      f: null,
+    });
 
   const vsSections: MultiSelectSection[] = [
     { options: valueStreams.data.map((v) => ({ value: v.id, label: v.name ?? v.id })) },
@@ -127,12 +147,29 @@ export function GoalScopeFilterBar({
       {anyActive && (
         <button
           type="button"
-          onClick={() => push({ period: null, vs: null, art: null, status: null })}
-          className="ml-auto rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+          // `f: "0"` ist der Marker „bewusst leer". Ohne ihn wäre
+          // zurückgesetzt nicht von „Seite frisch geöffnet" zu unterscheiden,
+          // und der Standard-Filter schlüge sofort wieder zu.
+          onClick={() => push({ period: null, vs: null, art: null, status: null, f: "0" })}
+          className="rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
         >
           Alle Filter zurücksetzen
         </button>
       )}
+
+      <SavedFilterControls
+        filters={savedFilters}
+        criteria={{
+          period: [...periodSel],
+          vs: [...vsSel],
+          art: [...artSel],
+          status: [...statusSel],
+        }}
+        anyActive={anyActive}
+        onApply={applySaved}
+        saveAction={saveGoalFilterAction}
+        deleteAction={deleteGoalFilterAction}
+      />
     </div>
   );
 }

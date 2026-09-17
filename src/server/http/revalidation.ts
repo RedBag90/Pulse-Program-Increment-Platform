@@ -38,6 +38,7 @@ export type RevalidationResource =
   | "setup"
   | "risk"
   | "portfolioFilter"
+  | "goalFilter"
   | "roleOnboarding";
 
 const REGISTRY: Record<RevalidationResource, readonly string[]> = {
@@ -132,6 +133,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   // Portfolio-Übersicht (Risiken-Kachel).
   risk: ["/issues", "/portfolio/epics/[id]", "/portfolio"],
   portfolioFilter: ["/portfolio"],
+  goalFilter: ["/ziele"],
   // Nur die Nachschlage-Seite. Das Willkommensfenster selbst hängt am
   // Dashboard-Layout und wird nach dem Annehmen clientseitig geschlossen —
   // ein globales Layout-Revalidate für jede Quittung wäre unverhältnismäßig.

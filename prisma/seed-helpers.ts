@@ -243,7 +243,7 @@ export async function wipeDomainData(tenantId: string): Promise<void> {
   await prisma.tenantInvite.deleteMany(w);
   await prisma.tenantJoinRequest.deleteMany(w);
   // Per-User Portfolio-Filter (tenant+user-scoped plain columns → per tenant löschen).
-  await prisma.savedPortfolioFilter.deleteMany(w);
+  await prisma.savedFilter.deleteMany(w);
 
   console.log("  ✓ Domain-Daten gelöscht");
 }

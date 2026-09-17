@@ -10,6 +10,7 @@ import { StrategyRoadmapView } from "./strategy-roadmap-view";
 import { StrategyAlignmentView } from "./strategy-alignment-view";
 import { StrategyLayoutToggle, type StrategyLayout } from "./strategy-layout-toggle";
 import { GoalScopeFilterBar } from "./goal-scope-filter-bar";
+import type { SavedFilterDTO } from "@/server/services/saved-filter";
 import { ZieleEditDrawer } from "./ziele-edit-drawer";
 import { MoneySheetView } from "./money-sheet-view";
 import { GoalSetupStepper } from "./goal-setup-stepper";
@@ -31,9 +32,17 @@ interface Props {
   userLabels?: Record<string, string>;
   /** Erst-Aufsetz-Anleitung tenant-weit weggeklickt? (aus `setup_progress`). */
   setupDismissed?: boolean;
+  /** Persönlich gespeicherte Filter dieser Fläche (Scope `goals`). */
+  savedFilters?: SavedFilterDTO[];
 }
 
-export function ZieleShell({ model, layout, userLabels = {}, setupDismissed = false }: Props) {
+export function ZieleShell({
+  model,
+  layout,
+  userLabels = {},
+  setupDismissed = false,
+  savedFilters = [],
+}: Props) {
   const { tab, themes, tenantTrio, permissions, modules, setup } = model;
   // Money existiert nur mit Portfolio-Modul — Deep-Link `?tab=money` ohne
   // Portfolio fällt still auf „Strategie" zurück (keine leere Fläche).
@@ -66,7 +75,11 @@ export function ZieleShell({ model, layout, userLabels = {}, setupDismissed = fa
       {effectiveTab === "strategie" && (
         <PageSection>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <GoalScopeFilterBar showValueStreams={modules.portfolio} showArts={modules.program} />
+            <GoalScopeFilterBar
+              showValueStreams={modules.portfolio}
+              showArts={modules.program}
+              savedFilters={savedFilters}
+            />
             <StrategyLayoutToggle active={layout} />
           </div>
           {layout === "tabelle" && (

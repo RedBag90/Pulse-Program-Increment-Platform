@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, startTransition, useState } from "react";
-import { Star, Save, Trash2 } from "lucide-react";
 import { useUrlState } from "@/lib/hooks/use-url-state";
+import { SavedFilterControls } from "@/components/ui/saved-filter-controls";
+import type { FilterCriteria } from "@/server/services/saved-filter";
 import { MultiSelectFilter, type MultiSelectSection } from "@/components/ui/multi-select-filter";
 import { STATUS_LABELS } from "@/components/detail/initiative-labels";
 import { STAGE_SHORT } from "@/components/detail/initiative-labels";
@@ -43,7 +43,6 @@ export function PortfolioFilterBar({
   showClassFacet = false,
 }: Props) {
   const { params, push } = useUrlState();
-  const [saveOpen, setSaveOpen] = useState(false);
 
   const readSet = (key: string): Set<string> =>
     new Set((params.get(key) ?? "").split(",").filter(Boolean));
@@ -98,39 +97,17 @@ export function PortfolioFilterBar({
     },
   ];
 
-  const csv = (arr: string[]) => (arr.length ? arr.join(",") : null);
-  function applySaved(f: SavedPortfolioFilterDTO) {
+  const csv = (arr: string[] | undefined) => (arr && arr.length ? arr.join(",") : null);
+  /** Der Marker `f` wird geräumt — ein angewandter Filter ist kein „zurückgesetzt". */
+  function applySaved(c: FilterCriteria) {
     push({
-      vs: csv(f.criteria.vs),
-      gate: csv(f.criteria.gate),
-      status: csv(f.criteria.status),
-      owner: csv(f.criteria.owner),
-      cls: csv(f.criteria.cls),
+      vs: csv(c.vs),
+      gate: csv(c.gate),
+      status: csv(c.status),
+      owner: csv(c.owner),
+      cls: csv(c.cls),
       f: null,
     });
-  }
-
-  // Save/Delete server actions (FormData style).
-  const [, submitSave, savingBusy] = useActionState(savePortfolioFilterAction, {});
-  const [, submitDelete] = useActionState(deletePortfolioFilterAction, {});
-
-  function handleSave(formData: FormData) {
-    const criteria = {
-      vs: [...vsSel],
-      gate: [...gateSel],
-      status: [...statusSel],
-      owner: [...ownerSel],
-      cls: [...clsSel],
-    };
-    formData.set("criteria", JSON.stringify(criteria));
-    startTransition(() => submitSave(formData));
-    setSaveOpen(false);
-  }
-
-  function handleDelete(id: string) {
-    const fd = new FormData();
-    fd.set("id", id);
-    startTransition(() => submitDelete(fd));
   }
 
   return (
@@ -180,98 +157,25 @@ export function PortfolioFilterBar({
         </button>
       )}
 
-      <div className="ml-auto flex items-center gap-2">
-        {savedFilters.length > 0 && (
-          <select
-            aria-label="Gespeicherten Filter anwenden"
-            defaultValue=""
-            onChange={(e) => {
-              const f = savedFilters.find((x) => x.id === e.target.value);
-              if (f) applySaved(f);
-              e.currentTarget.value = "";
-            }}
-            className="rounded-md border bg-background px-2 py-1.5 text-xs"
-          >
-            <option value="" disabled>
-              Gespeicherte Filter…
-            </option>
-            {savedFilters.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.isDefault ? "★ " : ""}
-                {f.name}
-              </option>
-            ))}
-          </select>
-        )}
-
-        {anyActive && !saveOpen && (
-          <button
-            type="button"
-            onClick={() => setSaveOpen(true)}
-            className="inline-flex items-center gap-1 rounded-md border px-2 py-1.5 text-xs font-medium hover:bg-muted"
-          >
-            <Save className="size-3.5" /> Speichern
-          </button>
-        )}
-
-        {saveOpen && (
-          <form action={handleSave} className="flex items-center gap-1.5">
-            <input
-              name="name"
-              required
-              maxLength={80}
-              placeholder="Filter-Name"
-              autoFocus
-              className="w-36 rounded-md border bg-background px-2 py-1.5 text-xs"
-            />
-            <label className="flex items-center gap-1 text-xs text-muted-foreground">
-              <input type="checkbox" name="isDefault" value="true" /> Standard
-            </label>
-            <button
-              type="submit"
-              disabled={savingBusy}
-              className="rounded-md bg-primary px-2 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-            >
-              OK
-            </button>
-            <button
-              type="button"
-              onClick={() => setSaveOpen(false)}
-              className="rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-            >
-              Abbrechen
-            </button>
-          </form>
-        )}
-      </div>
-
-      {savedFilters.length > 0 && (
-        <div className="flex w-full flex-wrap items-center gap-1.5">
-          {savedFilters.map((f) => (
-            <span
-              key={f.id}
-              className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-xs"
-            >
-              {f.isDefault && <Star className="size-3 fill-amber-400 text-amber-500" />}
-              <button
-                type="button"
-                onClick={() => applySaved(f)}
-                className="hover:text-primary hover:underline"
-              >
-                {f.name}
-              </button>
-              <button
-                type="button"
-                aria-label={`Filter „${f.name}" löschen`}
-                onClick={() => handleDelete(f.id)}
-                className="text-muted-foreground hover:text-rose-500"
-              >
-                <Trash2 className="size-3" />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
+      {/* Auswahlliste, Chips und Speichern-Formular stehen seit dem Auslösen
+          in `components/ui/saved-filter-controls.tsx` — dieselbe Bedienung
+          benutzt jetzt auch die Ziele-Leiste. Was hier bleibt, ist das, was
+          dieser Fläche gehört: ihre fünf Facetten und wie sie in die URL
+          geschrieben werden. */}
+      <SavedFilterControls
+        filters={savedFilters}
+        criteria={{
+          vs: [...vsSel],
+          gate: [...gateSel],
+          status: [...statusSel],
+          owner: [...ownerSel],
+          cls: [...clsSel],
+        }}
+        anyActive={anyActive}
+        onApply={applySaved}
+        saveAction={savePortfolioFilterAction}
+        deleteAction={deletePortfolioFilterAction}
+      />
     </div>
   );
 }

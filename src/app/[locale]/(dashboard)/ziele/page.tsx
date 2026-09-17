@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import { listSavedFilters } from "@/server/services/saved-filter";
+import { GOAL_FILTER_KEYS } from "@/modules/core/goals/domain/goal-filter";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
@@ -41,6 +43,28 @@ export default async function ZielePage({ searchParams }: PageProps) {
       : "tabelle";
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+
+  const savedFilters = await listSavedFilters(db, principal, "goals", GOAL_FILTER_KEYS);
+
+  // **Auto-Standard**: keine Filter-Parameter in der URL UND kein „leer"-Marker
+  // → den als Standard markierten Filter anwenden, und zwar als **Redirect**,
+  // damit die URL Single Source of Truth bleibt und teilbar ist. Dasselbe
+  // Vorgehen wie auf der Portfolio-Übersicht.
+  //
+  // Ein Standard aus lauter leeren Mengen löst bewusst nichts aus — sonst
+  // entstünde eine Umleitung, die nichts ändert.
+  const anyFilterParam = Boolean(params.period || params.vs || params.art || params.status);
+  if (!anyFilterParam && params.f !== "0") {
+    const c = savedFilters.find((x) => x.isDefault)?.criteria;
+    if (c && GOAL_FILTER_KEYS.some((k) => (c[k]?.length ?? 0) > 0)) {
+      const qs = new URLSearchParams();
+      if (typeof params.tab === "string") qs.set("tab", params.tab);
+      if (typeof params.layout === "string") qs.set("layout", params.layout);
+      for (const k of GOAL_FILTER_KEYS) if (c[k]?.length) qs.set(k, c[k]!.join(","));
+      redirect(`/ziele?${qs.toString()}`);
+    }
+  }
+
   // Baum-Load und User-Labels (inkl. blockierendem Supabase-listUsers) laufen
   // unabhängig → parallel, statt seriell auf dem kritischen Renderpfad.
   const [tree, userLabels, setupDismissed] = await Promise.all([
@@ -85,6 +109,7 @@ export default async function ZielePage({ searchParams }: PageProps) {
   return (
     <Suspense fallback={null}>
       <ZieleShell
+        savedFilters={savedFilters}
         model={model}
         layout={layout}
         userLabels={userLabels}

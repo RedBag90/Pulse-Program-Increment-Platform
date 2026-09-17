@@ -90,6 +90,10 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
       // muss (ADR-0017) — die Invariante „jede Action hat ein Modul" bleibt so
       // trotzdem erfüllt.
       "role.onboarding.manage",
+      // Persönlich gespeicherte Filter der Ziele-Fläche. Ziele sind Core, also
+      // ist es die Berechtigung auch — das Geschwister `portfolio_filter.manage`
+      // hängt am Work-Modul, weil es dessen Fläche betrifft.
+      "goal_filter.manage",
       "admin.",
     ],
     home: "/ziele",
