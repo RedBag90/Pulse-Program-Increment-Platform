@@ -43,29 +43,30 @@ export function OverviewMissionControl({ data }: { data: PortfolioOverview }) {
 
       <CompactKanban data={data} />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-4">
-          <DueSoonBlock
-            label="L4-Abschluss fällig (≤ 4 Wochen)"
-            items={data.l4DueSoon}
-            hrefBase="/portfolio/epics"
-            emptyText="Kein Epic mit geplantem L4-Abschluss in den nächsten 4 Wochen."
-            classFilter={data.classFilter}
-          />
-          <DueSoonBlock
-            label="Features fällig (≤ 2 Wochen)"
-            items={data.featuresDueSoon}
-            hrefBase="/feature"
-            emptyText="Kein Feature mit geplantem Abschluss in den nächsten 2 Wochen."
-            classFilter={data.classFilter}
-          />
-        </div>
-        <RisksBlock data={data} />
-      </div>
+      {/* Beide „Fällig"-Kacheln über die volle Breite, untereinander. Sie
+          standen bis zuletzt zu zweit in einer Spalte neben den Risiken — und
+          weil das Raster stretcht, die Liste darin aber bei ihren 384 px blieb,
+          lief die Risiko-Karte unten leer weiter. */}
+      <DueSoonBlock
+        label="L4-Abschluss fällig (≤ 4 Wochen)"
+        items={data.l4DueSoon}
+        hrefBase="/portfolio/epics"
+        emptyText="Kein Epic mit geplantem L4-Abschluss in den nächsten 4 Wochen."
+        classFilter={data.classFilter}
+      />
+      <DueSoonBlock
+        label="Features fällig (≤ 2 Wochen)"
+        items={data.featuresDueSoon}
+        hrefBase="/feature"
+        emptyText="Kein Feature mit geplantem Abschluss in den nächsten 2 Wochen."
+        classFilter={data.classFilter}
+      />
+
+      {/* Bringt sein eigenes Drei-Spalten-Raster mit — eine Kachel je
+          ROAM-Zustand. */}
+      <RisksBlock data={data} />
 
       <SteeringTableBlock data={data} />
-
-      <div className="grid gap-4 md:grid-cols-2"></div>
 
       <RecentActivityBlock data={data} />
     </div>

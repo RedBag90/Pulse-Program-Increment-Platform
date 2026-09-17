@@ -193,8 +193,12 @@ export default async function PortfolioPage({ searchParams }: Props) {
       // verknüpftem Epic bekannt (der Parent-Titel liegt nicht im Include).
       const epicIdOf = (init: { id: string; level: number; parentId: string | null } | null) =>
         init ? (init.level === 0 ? init.id : init.parentId) : null;
+      // **`resolved` gehört dazu.** Hier stand `.filter((r) => r.roamStatus
+      // !== "resolved")`, solange die Übersicht *eine* Liste „aktiver" Risiken
+      // zeigte. Seit sie ein ROAM-Board ist, hat jede Disposition ihre eigene
+      // Kachel — und eine davon heißt „Resolved". Sie wegzufiltern hieße, eine
+      // leere Kachel zu zeigen, wo Arbeit steht.
       return issues
-        .filter((r) => r.roamStatus !== "resolved")
         .filter(
           (r) =>
             !filter.ownerIds.length || (r.ownerId != null && filter.ownerIds.includes(r.ownerId)),

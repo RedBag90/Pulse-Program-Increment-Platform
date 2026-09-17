@@ -43,7 +43,7 @@ import type {
   FunnelItem,
   HorizonTargets,
 } from "@/modules/work/features/portfolio/lib/horizon-funnel";
-import type { RoamStatus } from "@/modules/core/kernel/domain/roam";
+import { ROAM_STATUSES, type RoamStatus } from "@/modules/core/kernel/domain/roam";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -156,6 +156,32 @@ export interface OverviewRisk {
   roamStatus: RoamStatus;
   /** Erstes verknüpftes Epic (Risiken können 0..n Epics verlinken). */
   epic: { id: string; title: string } | null;
+}
+
+/**
+ * Die Risiken je ROAM-Zustand — die Form, in der die Übersicht sie zeigt: eine
+ * Kachel je Disposition statt einer Rolle aus allem.
+ *
+ * Vorher stand dort **eine** Liste, allein nach Exposure sortiert. ROAM spielte
+ * beim Ranking keine Rolle, und weil ein gemindertes Risiko mit Exposure 12
+ * über einem offenen mit Exposure 4 rangiert, füllte erledigte Arbeit den
+ * sichtbaren Kopf der Liste. Trennt man nach Disposition, ist die
+ * Exposure-Ordnung **innerhalb** einer Kachel genau die richtige.
+ *
+ * Jeder der fünf Schlüssel existiert immer, auch leer: eine Kachel, die bei
+ * null Einträgen verschwindet, lässt die Fläche bei kleinen Mandanten
+ * zerfallen.
+ */
+export function groupRisksByRoam(
+  risks: readonly OverviewRisk[],
+): Record<RoamStatus, OverviewRisk[]> {
+  const out = Object.fromEntries(ROAM_STATUSES.map((s) => [s, [] as OverviewRisk[]])) as Record<
+    RoamStatus,
+    OverviewRisk[]
+  >;
+  // Die Eingabe ist bereits nach Exposure sortiert; `push` erhält diese Ordnung.
+  for (const r of risks) out[r.roamStatus].push(r);
+  return out;
 }
 
 /**

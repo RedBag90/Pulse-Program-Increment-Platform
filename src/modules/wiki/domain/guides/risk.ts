@@ -188,7 +188,7 @@ export const RISK: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Die Portfolio-Übersicht zeigt die dokumentierten, nicht erledigten Einträge nach Kritikalität — **die einzige Stelle, an der Risiken aus dem Register in die Steuerungssicht treten**.",
+              text: "Die Portfolio-Übersicht zeigt die dokumentierten Einträge als **ROAM-Board**: je eine Kachel für Offen, Owned, Resolved, Accepted und Mitigated, innerhalb nach Kritikalität geordnet. „Offen\u201c steht allein in der ersten Spalte — das ist die Menge, über die noch zu entscheiden ist. Es ist **die einzige Stelle, an der Risiken aus dem Register in die Steuerungssicht treten**.",
             },
             {
               kind: "aside",
