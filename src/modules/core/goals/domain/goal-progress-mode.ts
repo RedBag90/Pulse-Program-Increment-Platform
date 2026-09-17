@@ -7,6 +7,11 @@
  *                 `current`-Spalte); gilt auf jeder Ebene, auch als Override bei
  *                 einem Knoten **mit** Kindern.
  *  - `rollup`   — gewichteter Durchschnitt der Kind-Fortschritte (ADR-0008).
+ *  - `confidence` — Faust-zu-Fünf: wie `manual`, aber auf der festen Skala
+ *                 1..5 (`goal-confidence.ts`). Das Ziel trägt `baseline = 1`
+ *                 und `target = 5`, gerechnet wird deshalb nichts Eigenes.
+ *                 Für Ziele **ohne** Metrik, wo bisher ein von Hand gesetzter
+ *                 Prozentwert stand.
  *  - `kpi_tree` — KPI-Baum-Knoten: **Blatt** leitet den Ist-Wert aus den
  *                 verknüpften Epic-KPIs ab (`autoKpiCurrent`, Δ×Faktor auf die
  *                 Ziel-Skala), **Ast** (mit Kindern) kaskadiert die Unterziel-
@@ -25,7 +30,7 @@
 import { isMetricType } from "@/modules/core/goals/domain/goal-metric";
 import { kpiDelta, direction, type KpiPoint } from "@/modules/core/kpi/domain/kpi-valuation";
 
-export const PROGRESS_MODES = ["manual", "rollup", "kpi_tree"] as const;
+export const PROGRESS_MODES = ["manual", "rollup", "kpi_tree", "confidence"] as const;
 export type ProgressMode = (typeof PROGRESS_MODES)[number];
 
 export function isProgressMode(v: string | null | undefined): v is ProgressMode {
@@ -46,6 +51,18 @@ export function derivesCurrentFromKpis(mode: ProgressMode, hasChildren: boolean)
 /** Knoten aggregiert Fortschritt/Wert aus seinen Kindern (rollup, oder kpi_tree-Ast). */
 export function aggregatesFromChildren(mode: ProgressMode, hasChildren: boolean): boolean {
   return hasChildren && (mode === "rollup" || mode === "kpi_tree");
+}
+
+/**
+ * **Trägt dieses Ziel seinen Ist-Wert selbst?** `manual` und `confidence`.
+ *
+ * Beide unterscheiden sich nur in der Skala, nicht im Rechenweg — `confidence`
+ * ist `manual` mit fest verdrahtetem `baseline = 1` / `target = 5`. Das
+ * Prädikat steht hier, damit die Flächen nicht an drei Stellen
+ * `mode === "manual"` schreiben und beim vierten Modus eine davon vergessen.
+ */
+export function acceptsDirectValue(mode: ProgressMode): boolean {
+  return mode === "manual" || mode === "confidence";
 }
 
 /** Ast misst magnituden-/wert-basiert (`realized/|target−baseline|`) statt Kinder-Ø — nur kpi_tree. */

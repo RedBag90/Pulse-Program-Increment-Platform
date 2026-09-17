@@ -11,6 +11,7 @@
  */
 
 import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
+import { CONFIDENCE_MAX } from "@/modules/core/goals/domain/goal-confidence";
 import { keyResultProgress, isAtRisk } from "@/modules/core/goals/domain/goals-rollup";
 import {
   goalTimeframe,
@@ -25,6 +26,21 @@ import {
  */
 export function goalNodeProgress(node: GoalNode): number {
   return node.progress ?? (node.isMeasurable ? keyResultProgress(node) : 0);
+}
+
+/**
+ * **„3 / 5" statt „50 %"** — für Ziele, die per Faust-zu-Fünf gemessen werden.
+ *
+ * Der Fortschritt eines Confidence-Ziels ist rechnerisch ein ganz normaler
+ * 0..1-Wert (`baseline = 1`, `target = 5`), und genau das ist die Gefahr: eine
+ * 3 erscheint als „50 %", und wer das liest, denkt „halb fertig". Gemeint ist
+ * „mittlere Zuversicht". Die Beschriftung stellt das richtig; die Leiste bleibt.
+ *
+ * `null` = kein Confidence-Ziel, es gilt die gewohnte Prozentanzeige.
+ */
+export function goalNodeConfidenceLabel(node: GoalNode): string | null {
+  if (node.progressMode !== "confidence" || node.current == null) return null;
+  return `${Math.round(node.current)} / ${CONFIDENCE_MAX}`;
 }
 
 /** Effektiver Zeitraum eines Knotens (Range gewinnt über Bucket) oder null. */

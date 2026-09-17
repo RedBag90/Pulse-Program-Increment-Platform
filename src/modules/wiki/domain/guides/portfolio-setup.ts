@@ -114,11 +114,15 @@ Portfolio-Guardrails ── tenant-weit, jederzeit`,
                   "KPI-Baum",
                   "Blatt: Ist aus verknüpften Epic-KPIs (Δ × Faktor); Ast: kaskadiert über die Unterziele",
                 ],
+                [
+                  "Confidence Vote",
+                  "die Faust-zu-Fünf: eine Stufe von 1 bis 5 statt einer Metrik — **für Ziele, die sich nicht in einer Zahl messen lassen**",
+                ],
               ],
             },
             {
               kind: "note",
-              text: "Zwei Fallen. Bei **„Aus Unterzielen“** rendert die Fläche den ganzen Metrik-Block gar nicht erst — Baseline, Target, Einheit sind weg. Und **„KPI-Baum“ erscheint nur, wenn das Portfolio-Modul aktiv ist**; ohne es stehen faktisch zwei Optionen zur Wahl.",
+              text: "Zwei Fallen. Bei **„Aus Unterzielen“** und **„Confidence Vote“** rendert die Fläche den ganzen Metrik-Block gar nicht erst — Baseline, Target, Einheit sind weg; beim Vote steht die Skala mit 1 bis 5 ohnehin fest. Und **„KPI-Baum“ erscheint nur, wenn das Portfolio-Modul aktiv ist**; ohne es stehen drei Optionen zur Wahl.",
             },
             {
               kind: "paragraph",
@@ -132,7 +136,10 @@ Portfolio-Guardrails ── tenant-weit, jederzeit`,
                 ["Metriktyp", "Pflicht: Zahl · Prozent · Währung · Individuell"],
                 ["Einheit (Label)", "nur bei Zahl und Individuell"],
                 ["Baseline · Target (Zielwert)", "der Ausgangswert und das Ziel"],
-                ["Aktuell", "nur bei Fortschrittsquelle Manuell"],
+                [
+                  "Aktuell",
+                  "nur bei Fortschrittsquelle Manuell — beim Vote tragen es die fünf Knöpfe",
+                ],
               ],
             },
             {

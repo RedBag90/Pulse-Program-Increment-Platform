@@ -55,3 +55,63 @@ gelesen. Messbarkeit leitet sich aus `isMeasurableGoal` (Metrik/Modus) ab.
   als Alias auf `entity=goal` weiter akzeptiert.
 - Additiv: nur `progressMode String?` neu; keine Migration, keine RLS (Modul-Konvention:
   Tenant-Scoping im Service).
+
+---
+
+## Nachtrag 2026-09-17: eine vierte Quelle — und zwei Korrekturen am Text oben
+
+**Korrektur zuerst.** Dieser ADR beschreibt die Dreiheit `manual | rollup |
+auto_kpi`. `auto_kpi` ist seit dem Backfill vom 2026-08-29 zurückgebaut
+(`prisma/scripts/2026-08-29-auto-kpi-to-kpi-tree.ts`); an seiner Stelle steht
+`kpi_tree`, das zusätzlich den **Ast**-Fall kennt (kaskadierte Unterziel-Werte,
+wert-basierte Erfüllung). `effectiveProgressMode` mappt Altwerte defensiv.
+
+**Neu: `confidence`** — die SAFe-Faust-zu-Fünf.
+
+### Warum das eine Fortschrittsquelle sein darf
+
+Die drei vorhandenen Quellen beantworten „woher kommt der Ist-Wert?". Die
+Zuversicht beantwortet „wie sicher sind wir?" — das ist **nicht dasselbe**: ein
+Ziel kann zu 80 % erledigt sein und trotzdem wackeln, weil die schweren 20 %
+noch kommen.
+
+Für Ziele **ohne Metrik** gibt es die erste Frage aber gar nicht. Im Bestand
+standen elf solche Ziele auf `manual` und trugen einen von Hand gesetzten
+Prozentwert — eine erfundene Zahl. Eine Fünfer-Zuversicht ist ehrlicher als die,
+und genau dort ist `confidence` gedacht.
+
+### Die Entscheidung: eine Einschränkung, kein Rechenweg
+
+`confidence` **ist `manual` mit fester Skala.** Beim Speichern schreibt der
+Service `baseline = 1`, `target = 5`, `precision = 0`,
+`metricName = "Zuversicht"` auf die Zeile (`confidenceScaleFields`). Danach
+rechnet die vorhandene Maschinerie ohne einen einzigen Sonderfall weiter:
+`keyResultProgress` macht aus einer 3 genau 0,5, `nodeProgress` rollt sie wie
+jedes andere Blatt, die Check-in-Historie und der Verlaufsgraf tragen unverändert.
+
+Verlässt ein Ziel `confidence`, werden `baseline`/`target` wieder **freigegeben**
+— sie stehen zu lassen hieße, dem Ziel eine Skala zu vererben, die niemand
+gesetzt hat.
+
+Das Prädikat `acceptsDirectValue(mode)` (`manual` ∪ `confidence`) ersetzt die
+verstreuten `mode === "manual"`-Vergleiche in Fläche, Lesepfad und Service-Guard.
+
+### Was bewusst nicht entstanden ist
+
+**Der eigentliche Vote.** Was hier steht, ist das _Ergebnis_-Feld: eine Person
+trägt ein, was der Raum gezeigt hat — so, wie es das 2026-08 gedroppte
+`PiObjective.confidence Int?` auch tat. Es gibt keine Zeile je Person, keinen
+Teilnehmerkreis, keine Verteilung.
+
+Das ist eine Einschränkung mit Folgen: **5·5·1·1 und 3·3·3·3 haben denselben
+Mittelwert und bedeuten das Gegenteil.** Ein späterer echter Vote müsste die
+Streuung zeigen. Wiederverwendbar wären dann `approval-primitives.ts` (Zeile je
+Person, „die Zeile _ist_ die Berechtigung") und das
+Regel→Auflösung→**Einfrieren**-Muster aus `gate-policy.ts`; neu zu bauen wäre ein
+Schwellen-Quorum — `Quorum` kennt heute nur `all | any`.
+
+### Anzeige
+
+Die Fortschrittsleiste bleibt, bekommt aber eine Beschriftung: **„3 / 5"** statt
+nur „50 %". Eine 3 ist nicht „halb fertig", sondern „mittlere Zuversicht", und
+die Zahl allein sagt das Falsche.

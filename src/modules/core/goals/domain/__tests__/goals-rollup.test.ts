@@ -273,6 +273,26 @@ describe("nodeProgress / nodeTrio (recursive cascade)", () => {
     expect(nodeProgress(node)).toBeCloseTo(0.9);
   });
 
+  /**
+   * **`confidence` rechnet wie `manual`** — das ist der ganze Zuschnitt. Das
+   * Ziel traegt `baseline = 1` / `target = 5`, der Fortschritt ist damit ein
+   * gewoehnlicher 0..1-Wert, und er rollt in sein Elternteil wie jeder andere.
+   *
+   * Waere es anders, muesste jede Aggregation einen Sonderfall tragen.
+   */
+  it("confidence: eigener Wert schlaegt die Kinder — wie manual", () => {
+    const node = branch([leaf(0.2), leaf(0.8)], { mode: "confidence", progressLeaf: 0.5 });
+    expect(nodeProgress(node)).toBe(0.5);
+  });
+
+  it("confidence: zaehlt im Eltern-Rollup wie jedes andere Kind", () => {
+    const eltern = branch([
+      leaf(1, { mode: "confidence", progressLeaf: 1 }),
+      leaf(0, { mode: "manual", progressLeaf: 0 }),
+    ]);
+    expect(nodeProgress(eltern)).toBe(0.5);
+  });
+
   it("kpi_tree aggregiert mit Kindern (Ast = Ø), aber nutzt progressLeaf ohne Kinder (Blatt)", () => {
     // Ast: kpi_tree mit Kindern mittelt (der wert-basierte Override sitzt im Loader).
     const ast = branch([leaf(0.2), leaf(0.8)], { mode: "kpi_tree", progressLeaf: 0.99 });

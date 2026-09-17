@@ -37,6 +37,7 @@ import {
 } from "@/modules/core/goals/domain/goal-tree-filter";
 import {
   goalNodeProgress,
+  goalNodeConfidenceLabel,
   goalNodeOwner,
   goalNodeTimeframeLabel,
   goalInitials,
@@ -571,6 +572,9 @@ const Row = memo(function Row({
   editHref,
   addChildHref,
 }: RowProps) {
+  // Aus `node` abgeleitet statt als Prop durchgereicht: `Row` ist memoisiert und
+  // hat den Knoten ohnehin.
+  const confidenceLabel = goalNodeConfidenceLabel(node);
   const placement = isOver ? overPlacement : null;
   // Kopf-Ziele (Top-Level-Themes) tragen eine hellblaue Schiene links; beim Ziehen
   // zeigt eine blaue Linie oben/unten die Einfüge-Position (davor/danach).
@@ -690,7 +694,18 @@ const Row = memo(function Row({
         </span>
       </Td>
       <Td>
-        <ProgressBar value={progress} />
+        {/* Bei Zuversicht sagt die Stufe mehr als der Prozentwert: eine 3 ist
+            „mittlere Zuversicht", nicht „halb fertig". */}
+        {confidenceLabel ? (
+          <span className="flex items-center gap-2">
+            <ProgressBar value={progress} />
+            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+              {confidenceLabel}
+            </span>
+          </span>
+        ) : (
+          <ProgressBar value={progress} />
+        )}
       </Td>
       <Td>
         <TrioBadge trio={trio} />

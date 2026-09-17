@@ -9,11 +9,17 @@ import {
   derivesCurrentFromKpis,
   aggregatesFromChildren,
   usesValueBasedCompletion,
+  acceptsDirectValue,
 } from "@/modules/core/goals/domain/goal-progress-mode";
 
 describe("progress mode basics", () => {
-  it("exposes the three modes (auto_kpi ist zurückgebaut)", () => {
-    expect(PROGRESS_MODES).toEqual(["manual", "rollup", "kpi_tree"]);
+  /**
+   * Die Liste steht hier ausdrücklich und nicht als Länge: wer einen Modus
+   * ergänzt, soll an dieser Stelle vorbeikommen und die Prädikate darunter
+   * mitbedenken. `confidence` kam so dazu — der Test war rot, bevor er grün war.
+   */
+  it("exposes the four modes (auto_kpi ist zurückgebaut)", () => {
+    expect(PROGRESS_MODES).toEqual(["manual", "rollup", "kpi_tree", "confidence"]);
   });
   it("isProgressMode guards", () => {
     expect(isProgressMode("manual")).toBe(true);
@@ -213,5 +219,43 @@ describe("isMeasurableGoal", () => {
     expect(isMeasurableGoal({ progressMode: "kpi_tree", target: null, hasChildren: false })).toBe(
       false,
     );
+  });
+});
+
+/**
+ * **`confidence` ist ein Blatt mit eigenem Ist-Wert — wie `manual`.**
+ *
+ * Es gehoert in **keins** der drei Aggregations-Praedikate: es leitet nichts aus
+ * KPIs ab, aggregiert nicht aus Kindern und misst nicht wert-basiert. Waere es
+ * versehentlich in einem davon, rechnete ein Confidence-Ziel etwas ganz anderes
+ * als die 1..5, die jemand eingetragen hat.
+ */
+describe("confidence als vierte Fortschrittsquelle", () => {
+  it("steht in PROGRESS_MODES", () => {
+    expect(PROGRESS_MODES).toContain("confidence");
+    expect(isProgressMode("confidence")).toBe(true);
+  });
+
+  it("gehoert in keins der drei Aggregations-Praedikate", () => {
+    for (const hasChildren of [false, true]) {
+      expect(derivesCurrentFromKpis("confidence", hasChildren)).toBe(false);
+      expect(aggregatesFromChildren("confidence", hasChildren)).toBe(false);
+      expect(usesValueBasedCompletion("confidence", hasChildren)).toBe(false);
+    }
+  });
+
+  /** Dasselbe Override, das `manual` hat: eigener Wert schlaegt die Kinder. */
+  it("behaelt seinen eigenen Wert auch mit Kindern", () => {
+    expect(effectiveProgressMode("confidence", true)).toBe("confidence");
+    expect(effectiveProgressMode("confidence", false)).toBe("confidence");
+  });
+});
+
+describe("acceptsDirectValue", () => {
+  it("trifft genau manual und confidence", () => {
+    expect(acceptsDirectValue("manual")).toBe(true);
+    expect(acceptsDirectValue("confidence")).toBe(true);
+    expect(acceptsDirectValue("rollup")).toBe(false);
+    expect(acceptsDirectValue("kpi_tree")).toBe(false);
   });
 });

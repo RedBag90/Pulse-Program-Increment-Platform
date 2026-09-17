@@ -269,8 +269,10 @@ valuePerUnit`), summiert über die Messmonate auf den vollen KPI-Wert. Der
   einen eigenen Container-Fortschritts-Fallback (€-Trio-Quote).
 - **Theme (OKR)** — Top-Level-Goal-Knoten (parentObjectiveId = null) unter dem
   Tenant. Stored as `Objective`-Row; der legacy `StrategicTheme` bleibt versteckter
-  Default-Anker. Carries title, narrative, period (see **Goal-Zeitraum**),
-  confidence (1–5), status, rollt zu einem tenant trio hoch.
+  Default-Anker. Carries title, narrative, period (see **Goal-Zeitraum**), status,
+  rollt zu einem tenant trio hoch. Eine **Zuversicht (1–5)** gibt es nicht als
+  eigene Spalte: sie ist eine Fortschrittsquelle (`progressMode = "confidence"`)
+  und lebt in `baseline = 1` / `target = 5` / `current`.
 - **Key Result (KR)** — Goal-Knoten mit `nodeKind="key_result"`, messbares Blatt (oder
   selbst Zweig). Either `formula="manual"` (own baseline/target/current) or
   `formula="auto_from_kpi"` (€-rollup via bound Epic-KPIs). Eigenes optionales `period`.

@@ -8,6 +8,7 @@ import { ChevronDown } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { InfoHint } from "@/components/ui/info-hint";
+import { CONFIDENCE_LABEL } from "@/modules/core/goals/domain/goal-confidence";
 import {
   Dialog,
   DialogContent,
@@ -222,6 +223,10 @@ function GoalPane({
   // ihn KPIs bzw. die Unterziel-Kaskade ab (derselbe Schnitt wie der
   // Server-Guard in `recordGoalProgress`).
   const showCurrent = mode === "manual";
+  // Der Metrik-Block entfällt bei „Aus Unterzielen" (der Fortschritt kommt aus
+  // den Kindern) und bei „Confidence Vote" — dort **ist** die Skala die Metrik:
+  // 1 bis 5, fest. Wer sie eintippen könnte, könnte sie auch falsch eintippen.
+  const showMetricBlock = mode !== "rollup" && mode !== "confidence";
   const [confirmOpen, setConfirmOpen] = useState(false);
   // Edit-Drawer-Tabs (B2): Überblick / Verknüpfungen / Einstellungen.
   const [tab, setTab] = useState<"overview" | "links" | "settings">("overview");
@@ -262,7 +267,7 @@ function GoalPane({
           disabled={!canEdit}
         />
       </Field>
-      {mode !== "rollup" && (
+      {showMetricBlock && (
         // Kaskade: erst der Metriktyp, dann nur das, was zu ihm gehört. Was
         // ausgeblendet ist, wird **nicht** mitgesendet (undefined = unverändert)
         // — ein Leer-Reset würde sonst still Daten löschen, die man nicht mehr
@@ -479,7 +484,7 @@ function GoalPane({
 
       <Field
         label="Fortschrittsquelle"
-        hint="Woraus sich der Fortschritt berechnet: Manuell (du pflegst den Wert selbst), Aus Unterzielen (Ø der Kinder) oder KPI-Baum (Blatt: Ist aus verknüpften KPIs, Δ × Faktor; Ast: kaskadierte KPI-Werte über die Unterziele)."
+        hint="Woraus sich der Fortschritt berechnet: Manuell (du pflegst den Wert selbst), Aus Unterzielen (Ø der Kinder), KPI-Baum (Blatt: Ist aus verknüpften KPIs, Δ × Faktor; Ast: kaskadierte KPI-Werte über die Unterziele) oder Confidence Vote (Faust-zu-Fünf statt Metrik)."
       >
         <select
           name="progressMode"
@@ -490,6 +495,9 @@ function GoalPane({
         >
           <option value="manual">Manuell</option>
           <option value="rollup">Aus Unterzielen</option>
+          {/* Nicht modul-gegatet: eine Zuversicht braucht kein Epic und keine
+              KPI — sie ist Core und steht jedem Mandanten offen. */}
+          <option value="confidence">Confidence Vote</option>
           {/* Epic-KPIs sind Portfolio-Inhalt — Option nur mit Modul (oder wenn bereits gewählt). */}
           {(model.modules.portfolio || mode === "kpi_tree") && (
             <option value="kpi_tree">KPI-Baum</option>
@@ -506,6 +514,13 @@ function GoalPane({
       {mode === "rollup" && (
         <p className="text-xs text-muted-foreground">
           Fortschritt = gewichteter Durchschnitt der Unterziele. Eine eigene Metrik wird ignoriert.
+        </p>
+      )}
+      {mode === "confidence" && (
+        <p className="text-xs text-muted-foreground">
+          Faust-zu-Fünf: statt einer Metrik trägst du eine Stufe von 1 bis 5 ein — „{" "}
+          {CONFIDENCE_LABEL[1]}" bis „{CONFIDENCE_LABEL[5]}". Skala und Zielwert stehen fest, unter
+          3 wird nachgeplant. Für Ziele, die sich nicht in einer Zahl messen lassen.
         </p>
       )}
 

@@ -262,6 +262,7 @@ Wert  (Umrechnungsfaktor)        0 € /Jahr`,
                 "**Manuell** — ich pflege den Wert. Der Check-in ist die Pflege.",
                 "**Aus Unterzielen** — gewichteter Durchschnitt der Kinder. Meine eigene Metrik wird ignoriert; mein Check-in trägt dann nur Status und Notiz.",
                 "**KPI-Baum** — als Blatt zieht das Ziel seinen Ist aus den verknüpften Epic-KPIs; als Ast kaskadiert es die Werte seiner Unterziele hoch.",
+                "**Confidence Vote** — die Faust-zu-Fünf. Statt einer Metrik trage ich eine Stufe von 1 bis 5 ein; unter 3 wird nachgeplant. Für Ziele, die sich nicht in einer Zahl messen lassen — dort stand vorher ein ausgedachter Prozentwert.",
               ],
             },
             {

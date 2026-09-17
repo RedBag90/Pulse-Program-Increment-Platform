@@ -34,6 +34,7 @@ import {
   derivesCurrentFromKpis,
   aggregatesFromChildren,
   usesValueBasedCompletion,
+  acceptsDirectValue,
   type ProgressMode,
   type AutoKpiLink,
 } from "@/modules/core/goals/domain/goal-progress-mode";
@@ -515,17 +516,19 @@ export function buildProgressChart(input: GoalChartInput): ProgressChart {
   //    kpi_tree) haben an jedem Datum einen abgeleiteten Wert ⇒ den
   //    Marker auf die Linie am Check-in-Datum projizieren, nicht den eingefrorenen
   //    „heute"-Snapshot nutzen (der sonst Punkt UND Linie am Backdate verzerrt).
-  //    Nur manuelle Ziele sind selbst die Wert-Quelle.
+  //    Nur direkt gepflegte Ziele (`manual`, `confidence`) sind selbst die
+  //    Wert-Quelle.
   for (const c of rootCheckins) {
     const frozen = mode === "value" ? c.value : c.progress != null ? c.progress * 100 : null;
-    const v = effMode === "manual" ? frozen : (lineValueAt(c.atMs) ?? frozen);
+    const v = acceptsDirectValue(effMode) ? frozen : (lineValueAt(c.atMs) ?? frozen);
     if (v == null) continue;
     points.push({ at: c.atMs, value: v, status: c.status, entry: c.status == null });
   }
 
-  // 3) manual: Live-Ende (aktueller Ist-Wert @ heute) als Linienknick, kein Punkt.
+  // 3) Direkt gepflegt: Live-Ende (aktueller Ist-Wert @ heute) als Linienknick,
+  //    kein Punkt.
   //    Bei geschlossenem Ziel entfällt es → die Linie endet am letzten Check-in.
-  if (mode === "value" && effMode === "manual" && seriesRoot.current != null && !closed) {
+  if (mode === "value" && acceptsDirectValue(effMode) && seriesRoot.current != null && !closed) {
     points.push({ at: Date.parse(now), value: seriesRoot.current, status: null, entry: false });
   }
 
