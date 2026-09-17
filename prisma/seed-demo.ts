@@ -42,6 +42,7 @@ import {
   seedBudgetPeriod,
   seedRunTheBusiness,
   seedValueStreamGuardrails,
+  type ArtAllocationSpec,
   type GroupSpec,
 } from "./seed-budgeting.js";
 import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
@@ -1471,7 +1472,13 @@ async function main() {
   //   ART 4 — Rahmen 120.000 €, deckt nur eines der beiden Epics (Σ 140.000 €)
   //   ART 5 — hat gar keinen Rahmen: sein ART-Epic ist nicht finanzierbar
   const smallAsk = (i: number): number => 40_000 + (i % 5) * 12_000;
-  await seedArtEpicAllocations(tenantId, ADMIN, [
+  /**
+   * Benannt, damit die Budgetierungs-Regel weiter unten sie **lesen** kann. Bis
+   * hierher stand die Liste anonym im Aufruf, und der Waechter sah nur den
+   * Portfolio-Topf — genau deshalb blieb eine ART-Zuteilung an einem L2-Epic
+   * jahrelang unbemerkt.
+   */
+  const artAllocs: ArtAllocationSpec[] = [
     {
       artId: artIds[0]!,
       epicId: epicIds[0]!,
@@ -1494,11 +1501,15 @@ async function main() {
       amount: smallAsk(18),
       ask: smallAsk(18),
     },
-    // Klassenwechsel: dieses Epic wurde einmal aus dem ART-Rahmen finanziert,
-    // ist mit seinem heutigen Business Case aber Portfolio-Sache. Die alte
-    // Zuteilung bleibt stehen — die Kachel hat sie damals so entschieden.
-    { artId: artIds[2]!, epicId: epicIds[2]!, cycleKey: PREV, amount: 100_000, ask: 100_000 },
-  ]);
+    // Hier stand ein vierter Eintrag: 100.000 € aus dem Rahmen von ART 2 an
+    // „AI Fraud Detection", erzaehlt als Klassenwechsel („einmal aus dem
+    // ART-Rahmen finanziert, heute Portfolio-Sache"). Das Epic steht aber auf
+    // **L2**, mit offenem L3.1-Antrag — wessen Business Case noch zur
+    // Unterschrift liegt, hat keinen heutigen Business Case und darf kein Geld
+    // halten (`FIRST_FUNDABLE_STEP`). Zwei Geschichten an einem Epic, die
+    // einander ausschliessen; die teurere ist gegangen.
+  ];
+  await seedArtEpicAllocations(tenantId, ADMIN, artAllocs);
 
   // ── Die Budgetierungs-Regel gegenprüfen ───────────────────────────────────
   //
@@ -1507,21 +1518,58 @@ async function main() {
   // Vorher hielt dieser Datensatz neun von zwanzig Epics mit Geld im Funnel, in
   // der Hypothese, in der Analyse-Einplanung oder im Business Case.
   {
-    // Die ART-Zuteilungen dieses Datensatzes liegen sämtlich in `PREV` (siehe
-    // oben) — für den laufenden Zyklus zählt hier also nur der Portfolio-Topf.
-    const facts: AllocationFacts[] = EPIC_DEFS.map((def, i) => ({
-      id: epicIds[i]!,
-      title: def.title,
-      step: targetStep(i, def),
-      amountInCycle: fundedEpics.some((f) => f.i === i) ? 80_000 + i * 6_000 : 0,
-    }));
-    const violations = allocationRuleViolations(facts, CUR);
-    if (violations.length > 0) {
-      throw new Error(
-        `Budgetierungs-Regel verletzt (${CUR}):\n${formatAllocationViolations(violations)}`,
+    /**
+     * **Beide Töpfe, jedes Halbjahr.**
+     *
+     * Hier stand: „Die ART-Zuteilungen liegen sämtlich in `PREV` — für den
+     * laufenden Zyklus zählt also nur der Portfolio-Topf." Der Satz stimmte und
+     * war genau das Loch: damit wurde die Regel auf den ART-Topf **nie**
+     * angewandt, obwohl `AllocationFacts.amountInCycle` ausdrücklich „aus beiden
+     * Töpfen zusammen" verlangt.
+     */
+    const portfolioSlice = (i: number, cycle: string): number =>
+      cycle === CUR ? 80_000 + i * 6_000 : cycle === NEXT ? 60_000 + i * 4_000 : 0;
+    const inCycle = (i: number, cycle: string): number =>
+      (fundedEpics.some((f) => f.i === i) ? portfolioSlice(i, cycle) : 0) +
+      artAllocs
+        .filter((a) => a.epicId === epicIds[i] && a.cycleKey === cycle)
+        .reduce((sum, a) => sum + a.amount, 0);
+
+    let checked = 0;
+    for (const cycle of [PREV, CUR, NEXT]) {
+      const facts: AllocationFacts[] = EPIC_DEFS.map((def, i) => ({
+        id: epicIds[i]!,
+        title: def.title,
+        step: targetStep(i, def),
+        amountInCycle: inCycle(i, cycle),
+      }));
+      /**
+       * **Zwei Richtungen, zwei Reichweiten.**
+       *
+       * `funded_too_early` gilt für jedes Halbjahr: dieser Seed kennt je Epic
+       * nur seinen End-Schritt (`targetStep`), keinen Schritt-je-Zyklus wie
+       * `seed-large`. Das ist unschädlich, weil die Reifegrade hier vorwärts
+       * laufen — früher war ein Epic höchstens **niedriger**, Geld in einem
+       * vergangenen Halbjahr an einem heute zu jungen Epic also immer falsch.
+       *
+       * `running_without_budget` ist dagegen ausdrücklich eine Aussage über den
+       * **laufenden** Zyklus. Über `PREV`/`NEXT` gezogen meldete sie jedes
+       * L4-Epic ohne Geld in jenem Halbjahr — ein Fehlalarm.
+       */
+      const violations = allocationRuleViolations(facts, cycle).filter(
+        (v) => cycle === CUR || v.kind === "funded_too_early",
       );
+      if (violations.length > 0) {
+        throw new Error(
+          `Budgetierungs-Regel verletzt (${cycle}):\n${formatAllocationViolations(violations)}`,
+        );
+      }
+      checked += facts.length;
     }
-    console.log(`  ✓ Budgetierungs-Regel geprüft — ${facts.length} Epics, keine Verstöße`);
+    console.log(
+      `  ✓ Budgetierungs-Regel geprüft — 3 Halbjahre, ${checked} Epic-Stände, ` +
+        `beide Töpfe, keine Verstöße`,
+    );
   }
 
   // Nur EIN Wertstrom setzt eigene Ziele — erst der Unterschied zum geerbten
@@ -2537,7 +2585,7 @@ async function main() {
   });
 
   // SavedPortfolioFilter ×2 (benannte Views, user-scoped → admin).
-  await prisma.savedPortfolioFilter.createMany({
+  await prisma.savedFilter.createMany({
     data: [
       {
         id: uid("spf:1"),

@@ -2057,6 +2057,14 @@ async function main() {
   // Halbjahr**, nicht nur das laufende. Der Datensatz, den dieser Seed ablöst,
   // hätte diese Prüfung nicht bestanden: er trug Zuteilungen in genau einem
   // Zyklus, obwohl zehn Runden geschlossen waren.
+  //
+  // **Beide Töpfe sind abgedeckt, aber nur durch die Bauart.** `amountInCycle`
+  // summiert die Tranchen des Durchlaufs, und die ART-Zuteilungen (`allocSpecs`,
+  // oben) stammen aus genau denselben Tranchen — derselbe Euro, anders geroutet.
+  // Sie hier zusätzlich zu addieren wäre Doppelzählung. Wer aber je eine
+  // ART-Zuteilung **von Hand** dazuschreibt, steht ausserhalb dieser Summe und
+  // öffnet damit dasselbe Loch, das `seed-demo` hatte: dort lag ein L2-Epic mit
+  // 100.000 € aus dem ART-Rahmen, und der Wächter sah nur den Portfolio-Topf.
   {
     let checked = 0;
     for (const round of roundPlan.rounds) {
