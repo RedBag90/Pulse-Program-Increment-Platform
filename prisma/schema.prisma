@@ -590,10 +590,23 @@ model ValueStream {
   description       String?
   budgetAmount      Decimal?  @map("budget_amount") @db.Decimal(14, 2)
   budgetCurrency    String?   @map("budget_currency") @db.Char(3)
-  // Governance: who signs off Epics in this value stream (Finance party) and the
-  // responsible VMO — loose user ids (users live in Supabase auth).
+  // Governance: die namentlich Verantwortlichen dieses Wertstroms — lose User-Ids
+  // (Nutzer leben in Supabase Auth), kein FK, keine Rollenbindung.
+  //
+  // Drei davon lösen Gate-Platzhalter auf (`work/domain/gate-policy.ts`), einer
+  // ist vorerst nur benannt. Die Spaltennamen folgen den Etiketten der Fläche —
+  // mit der Ausnahme `vmoId`, das dort „Portfolio Manager" heißt und aus
+  // historischen Gründen so stehen bleibt (s. `wiki/domain/guides/portfolio-setup.ts`).
   financeApproverId String?   @map("finance_approver_id") @db.Uuid
   vmoId             String?   @map("vmo_id") @db.Uuid
+  /// Fachliche Priorität und Nutzen. **Vorbelegung** der Epic-Partei
+  /// `epic.party.business_owner` am Tor L2 → L3.1 — der Antragsteller kann sie
+  /// am Epic überschreiben (ADR-0018, Nachtrag).
+  businessOwnerId   String?   @map("business_owner_id") @db.Uuid
+  /// Architektur und technische Machbarkeit im Wertstrom. Als Platzhalter
+  /// `value_stream.architect_lead` verfügbar, steht aber in **keiner**
+  /// Code-Vorgabe — wer ihn zeichnen lassen will, trägt ihn je Wertstrom ein.
+  architectLeadId   String?   @map("architect_lead_id") @db.Uuid
   createdAt         DateTime  @default(now()) @map("created_at")
   deletedAt         DateTime? @map("deleted_at")
 
@@ -613,19 +626,23 @@ model ValueStream {
 }
 
 model Art {
-  id            String    @id @default(uuid()) @db.Uuid
-  tenantId      String    @map("tenant_id") @db.Uuid
-  valueStreamId String    @map("value_stream_id") @db.Uuid
-  name          String
-  description   String?
-  rteId         String?   @map("rte_id") @db.Uuid // Release Train Engineer
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  valueStreamId   String    @map("value_stream_id") @db.Uuid
+  name            String
+  description     String?
+  rteId           String?   @map("rte_id") @db.Uuid // Release Train Engineer
+  /// Technisch Verantwortliche:r dieses ARTs. **Vorerst nur benannt**: keine
+  /// Gate-Abnahme, kein Recht, kein Lücken-Signal — die Zuständigkeit steht
+  /// fest, bevor entschieden ist, wo sie greift.
+  technicalLeadId String?   @map("technical_lead_id") @db.Uuid
   /// Subscription to a shared Timeline. Each ART belongs to at most one
   /// Timeline; nullable during the rollout so brand-new ARTs (or those that
   /// left a Timeline) live without one. The PI grid the ART planss against
   /// comes from `timeline.programIncrements`.
-  timelineId    String?   @map("timeline_id") @db.Uuid
-  createdAt     DateTime  @default(now()) @map("created_at")
-  deletedAt     DateTime? @map("deleted_at")
+  timelineId      String?   @map("timeline_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  deletedAt       DateTime? @map("deleted_at")
 
   tenant          Tenant               @relation(fields: [tenantId], references: [id])
   valueStream     ValueStream          @relation(fields: [valueStreamId], references: [id])

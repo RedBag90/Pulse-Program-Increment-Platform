@@ -16,6 +16,7 @@ import {
   GATE_APPROVER_ROLES,
   isGateApproverRole,
   type GateApproverRole,
+  MAX_APPROVER_ROLES_PER_RULE,
 } from "@/modules/work/domain/gate-policy";
 
 export type { ActionState as StageGateActionState };
@@ -155,7 +156,10 @@ export const saveGateApproverRuleAction = createServerAction({
     required: z.coerce.boolean(),
     quorum: z.enum(QUORA),
     approverUserIds: z.array(z.string().uuid()).max(10).default([]),
-    approverRoles: z.array(z.enum(GATE_APPROVER_ROLES)).max(5).default([]),
+    approverRoles: z
+      .array(z.enum(GATE_APPROVER_ROLES))
+      .max(MAX_APPROVER_ROLES_PER_RULE)
+      .default([]),
   }),
   action: "epic.gate.approvers.configure",
   resource: (input, p) => ({

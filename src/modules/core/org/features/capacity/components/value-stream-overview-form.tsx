@@ -33,6 +33,8 @@ interface Props {
   description: string;
   financeApproverId: string;
   vmoId: string;
+  businessOwnerId: string;
+  architectLeadId: string;
   /** All tenant users — options for the Finance Approver picker. */
   users: UserOption[];
   /** Users holding the `portfolio_manager` role — options for the VS reviewer picker. */
@@ -47,6 +49,8 @@ export function ValueStreamOverviewForm({
   description,
   financeApproverId,
   vmoId,
+  businessOwnerId,
+  architectLeadId,
   users,
   vmoUsers,
   userLabels,
@@ -99,6 +103,38 @@ export function ValueStreamOverviewForm({
         ) : (
           <p className="text-xs text-muted-foreground">Zuständiges Value Management Office.</p>
         )}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Business Owner</Label>
+        <UserPicker
+          name="businessOwnerId"
+          defaultValue={businessOwnerId}
+          options={toUserOptions(users, userLabels)}
+          ariaLabel="Business Owner"
+          placeholder="— Niemand —"
+          emptyLabel="— Niemand —"
+        />
+        <p className="text-xs text-muted-foreground">
+          Steht für den fachlichen Nutzen. Wird beim Business-Case-Antrag (L2 → L3.1) als Partei
+          vorbelegt — der Antragsteller kann sie am Epic ändern.
+        </p>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Value Stream Architect Lead</Label>
+        <UserPicker
+          name="architectLeadId"
+          defaultValue={architectLeadId}
+          options={toUserOptions(users, userLabels)}
+          ariaLabel="Value Stream Architect Lead"
+          placeholder="— Niemand —"
+          emptyLabel="— Niemand —"
+        />
+        <p className="text-xs text-muted-foreground">
+          Architektur und technische Machbarkeit. Zeichnet nur, wo du ihn unter „Freigaben je
+          Reifegrad" einträgst.
+        </p>
       </div>
 
       {state.error && (

@@ -22,6 +22,8 @@ export interface UpdateArtInput {
   description?: string | undefined;
   /** Release Train Engineer; null clears it. */
   rteId?: string | null | undefined;
+  /** Technisch Verantwortliche:r des ARTs; null löscht. */
+  technicalLeadId?: string | null | undefined;
 }
 
 export async function createArt(
@@ -60,7 +62,7 @@ export async function createArt(
 
 export async function updateArt(ctx: RequestContext, input: UpdateArtInput): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id, name, description, rteId } = input;
+  const { id, name, description, rteId, technicalLeadId } = input;
 
   return withAuditedTransaction(
     mctx,
@@ -74,8 +76,8 @@ export async function updateArt(ctx: RequestContext, input: UpdateArtInput): Pro
 
       const { changes, data } = recordedUpdate({
         existing,
-        updates: { name, description, rteId },
-        fields: ["name", "description", "rteId"] as const,
+        updates: { name, description, rteId, technicalLeadId },
+        fields: ["name", "description", "rteId", "technicalLeadId"] as const,
       });
 
       await tx.art.update({ where: { id }, data });

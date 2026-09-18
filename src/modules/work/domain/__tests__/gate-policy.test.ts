@@ -3,6 +3,8 @@ import {
   resolveGatePolicy,
   expandApprovers,
   DEFAULT_GATE_POLICIES,
+  GATE_APPROVER_ROLES,
+  MAX_APPROVER_ROLES_PER_RULE,
   allowsAdHocApprovers,
   type ApproverContext,
   type GateApproverRuleRow,
@@ -12,6 +14,8 @@ const VS = "vs-1";
 const FINANCE = "user-finance";
 const VMO = "user-vmo";
 const OWNER = "user-owner";
+const BO = "user-business-owner";
+const ARCHITECT = "user-architect";
 
 function rule(over: Partial<GateApproverRuleRow> = {}): GateApproverRuleRow {
   return {
@@ -29,6 +33,7 @@ function ctx(over: Partial<ApproverContext> = {}): ApproverContext {
   return {
     valueStreamFinanceApproverId: FINANCE,
     valueStreamVmoId: VMO,
+    valueStreamBusinessOwnerId: BO,
     epicOwnerId: OWNER,
     ...over,
   };
@@ -191,7 +196,7 @@ describe("expandApprovers — Platzhalter-Auflösung", () => {
 
   it("ein leerer Override wird auch an L3.1 ignoriert", () => {
     const p = resolveGatePolicy("L3.1", [], VS);
-    expect(expandApprovers(p, ctx(), []).map((a) => a.userId)).toEqual([FINANCE, VMO]);
+    expect(expandApprovers(p, ctx(), []).map((a) => a.userId)).toEqual([BO, FINANCE, VMO]);
   });
 
   it("L3.1 besetzt im Code-Default die fünf Parteien plus den Produkt-Manager", () => {
@@ -204,9 +209,11 @@ describe("expandApprovers — Platzhalter-Auflösung", () => {
       "epic.party.lace_vmo",
       "solution.product_manager",
     ]);
-    // MGMT, Business Owner und IRT-Owner haben keine Wertstrom-Spalte: sie
-    // fallen still weg und werden am Antrag benannt.
+    // Seit der Wertstrom einen Business Owner trägt, lösen **drei** der fünf
+    // Parteien vorbelegend auf. MGMT und IRT-Owner haben weiter keine
+    // Wertstrom-Spalte: sie fallen still weg und werden am Antrag benannt.
     expect(expandApprovers(p, ctx())).toEqual([
+      { userId: BO, role: "epic.party.business_owner", source: "value_stream" },
       { userId: FINANCE, role: "epic.party.finance", source: "value_stream" },
       { userId: VMO, role: "epic.party.lace_vmo", source: "value_stream" },
     ]);
@@ -254,5 +261,82 @@ describe("expandApprovers — Produkt-Manager der Solution", () => {
   it("fällt still weg, wenn niemand benannt ist", () => {
     const p = resolveGatePolicy("L3.1", [], VS);
     expect(expandApprovers(p, { ...base, solutionProductManagerId: null })).toEqual([]);
+  });
+});
+
+/**
+ * **Die zwei neuen Wertstrom-Platzhalter.**
+ *
+ * Der Business Owner kehrt eine Festlegung aus ADR-0018 teilweise um: er hatte
+ * bewusst keine Wertstrom-Spalte, „wer dafür steht, ist eine Eigenschaft des
+ * Epics". Er hat jetzt eine — aber nur als **Vorbelegung**: der Picker an L3.1
+ * schlägt sie, und damit bleibt der Kern der Festlegung wahr.
+ *
+ * Der Architect Lead ist neu und steht in **keiner** Code-Vorgabe. Das ist die
+ * eigentliche Zusicherung dieser Suite: bestehende Mandanten bekommen über Nacht
+ * keinen zusätzlichen Abnehmer.
+ */
+describe("expandApprovers — Business Owner und Architect Lead", () => {
+  it("der Business Owner des Wertstroms belegt die Partei vor", () => {
+    const p = resolveGatePolicy("L3.1", [], VS);
+    expect(expandApprovers(p, ctx()).map((a) => a.userId)).toContain(BO);
+  });
+
+  it("die Besetzung am Antrag schlägt die Vorbelegung", () => {
+    const p = resolveGatePolicy("L3.1", [], VS);
+    const out = expandApprovers(p, ctx(), [
+      { userId: "user-someone-else", role: "epic.party.business_owner" },
+    ]);
+    // Der Override ersetzt die ganze Liste — genau deshalb bleibt „wer
+    // gezeichnet hat" eine Eigenschaft des Epics.
+    expect(out).toEqual([
+      { userId: "user-someone-else", role: "epic.party.business_owner", source: "manual" },
+    ]);
+  });
+
+  it("ohne benannten Business Owner fällt die Partei still weg wie zuvor", () => {
+    const p = resolveGatePolicy("L3.1", [], VS);
+    const out = expandApprovers(p, ctx({ valueStreamBusinessOwnerId: null }));
+    expect(out.map((a) => a.role)).not.toContain("epic.party.business_owner");
+  });
+
+  it("der Architect Lead steht in keiner Code-Vorgabe", () => {
+    for (const policy of Object.values(DEFAULT_GATE_POLICIES)) {
+      expect(policy.approverRoles).not.toContain("value_stream.architect_lead");
+    }
+  });
+
+  it("löst auf, sobald ihn eine Wertstrom-Regel einträgt", () => {
+    const p = resolveGatePolicy(
+      "L4",
+      [rule({ valueStreamId: VS, toGate: "L4", approverRoles: ["value_stream.architect_lead"] })],
+      VS,
+    );
+    expect(expandApprovers(p, ctx({ valueStreamArchitectLeadId: ARCHITECT }))).toEqual([
+      { userId: ARCHITECT, role: "value_stream.architect_lead", source: "value_stream" },
+    ]);
+  });
+});
+
+/**
+ * **Jede Code-Vorgabe muss durch die Schranke der Action passen.**
+ *
+ * `saveGateApproverRuleAction` begrenzte `approverRoles` auf `.max(5)`, während
+ * der L3.1-Default schon sechs Rollen hatte. Der Editor füllt seinen Entwurf aus
+ * genau diesem Default und schickt ihn beim Speichern mit — wer an L3.1 auch nur
+ * das Quorum änderte, bekam „Abnehmer konnten nicht gespeichert werden".
+ *
+ * Die Schranke ist seitdem aus `GATE_APPROVER_ROLES.length` abgeleitet; dieser
+ * Test hält fest, dass sie nicht wieder hinter die Liste zurückfällt.
+ */
+describe("die Schranke der Action deckt jede Code-Vorgabe", () => {
+  it("die Schranke ist aus der Liste abgeleitet, nicht abgeschrieben", () => {
+    expect(MAX_APPROVER_ROLES_PER_RULE).toBe(GATE_APPROVER_ROLES.length);
+  });
+
+  it("keine Vorgabe hat mehr Rollen, als gespeichert werden dürfen", () => {
+    for (const policy of Object.values(DEFAULT_GATE_POLICIES)) {
+      expect(policy.approverRoles.length).toBeLessThanOrEqual(MAX_APPROVER_ROLES_PER_RULE);
+    }
   });
 });

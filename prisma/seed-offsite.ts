@@ -289,6 +289,8 @@ async function main() {
       budgetCurrency: "EUR",
       financeApproverId: admin,
       vmoId: portfolio,
+      businessOwnerId: portfolio,
+      architectLeadId: rte,
     },
   });
 
@@ -305,6 +307,7 @@ async function main() {
       name: "Offsite-Planung",
       description: "Das Planungsteam: drei Epic Owner, drei Feature Owner.",
       rteId: rte,
+      technicalLeadId: admin,
       timelineId,
     },
   });

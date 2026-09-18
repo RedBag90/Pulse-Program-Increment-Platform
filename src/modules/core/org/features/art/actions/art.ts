@@ -40,6 +40,7 @@ export const updateArtAction = createServerAction({
     name: z.string().min(1).max(100).optional(),
     description: z.string().optional(),
     rteId: z.string().uuid().nullable().optional(),
+    technicalLeadId: z.string().uuid().nullable().optional(),
   }),
   action: "art.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -52,6 +53,7 @@ export const updateArtAction = createServerAction({
       // nullableString: absent (partial cadence-only form) → undefined (don't
       // touch); empty → null (clear); else the value.
       rteId: f.nullableString("rteId"),
+      technicalLeadId: f.nullableString("technicalLeadId"),
     };
   },
   service: (ctx, input) =>
@@ -60,6 +62,7 @@ export const updateArtAction = createServerAction({
       name: input.name,
       description: input.description,
       rteId: input.rteId,
+      technicalLeadId: input.technicalLeadId,
     }),
   revalidate: "art",
   mapError: (e) =>

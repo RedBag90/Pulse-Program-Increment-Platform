@@ -19,13 +19,29 @@ interface Props {
   name: string;
   description: string;
   rteId: string;
+  technicalLeadId: string;
   /** Users holding the `rte` role — options for the RTE picker. */
   rteUsers: UserOption[];
+  /**
+   * Alle Nutzer des Mandanten — Auswahl für den Technical Lead. Es gibt keine
+   * passende App-Rolle, nach der man filtern könnte, und niemand soll eine
+   * bekommen müssen, nur um benannt werden zu können.
+   */
+  users: UserOption[];
   userLabels: Record<string, string>;
 }
 
 /** Inline editor for an ART's details — the Overview tab. */
-export function ArtOverviewForm({ id, name, description, rteId, rteUsers, userLabels }: Props) {
+export function ArtOverviewForm({
+  id,
+  name,
+  description,
+  rteId,
+  technicalLeadId,
+  rteUsers,
+  users,
+  userLabels,
+}: Props) {
   const [state, action, isPending] = useActionState(updateArtAction, {});
 
   return (
@@ -59,6 +75,23 @@ export function ArtOverviewForm({ id, name, description, rteId, rteUsers, userLa
         {rteUsers.length === 0 && (
           <p className="text-xs text-warning">Keine Nutzer mit RTE-Rolle im Mandanten.</p>
         )}
+      </div>
+
+      <div className="space-y-1.5 max-w-xs">
+        <Label>ART Technical Lead</Label>
+        <UserPicker
+          name="technicalLeadId"
+          defaultValue={technicalLeadId}
+          options={users.map((u) => ({
+            value: u.userId,
+            label: userLabel(u.userId, userLabels),
+            ...(u.roles.length ? { hint: u.roles.join(", ") } : {}),
+          }))}
+          ariaLabel="ART Technical Lead"
+          placeholder="— Niemand —"
+          emptyLabel="— Niemand —"
+        />
+        <p className="text-xs text-muted-foreground">Technisch Verantwortliche:r dieses ARTs.</p>
       </div>
 
       {state.error && (

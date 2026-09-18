@@ -25,6 +25,10 @@ export interface UpdateValueStreamInput {
   financeApproverId?: string | null | undefined;
   /** Responsible reviewer (Portfolio Manager) for this value stream; null clears it. */
   vmoId?: string | null | undefined;
+  /** Fachliche Priorität und Nutzen; vorbelegte Epic-Partei. Null löscht. */
+  businessOwnerId?: string | null | undefined;
+  /** Architektur und Machbarkeit im Wertstrom. Null löscht. */
+  architectLeadId?: string | null | undefined;
 }
 
 export async function createValueStream(
@@ -59,7 +63,8 @@ export async function updateValueStream(
   input: UpdateValueStreamInput,
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id, name, description, financeApproverId, vmoId } = input;
+  const { id, name, description, financeApproverId, vmoId, businessOwnerId, architectLeadId } =
+    input;
 
   return withAuditedTransaction(
     mctx,
@@ -78,10 +83,19 @@ export async function updateValueStream(
 
       // `description` is written but not audited (it's free-text noise, not a
       // governance field). Stays out of the recordedUpdate field list.
+      // Beide Listen müssen mitwachsen: `updates` liefert den Wert, `fields`
+      // entscheidet, ob er überhaupt geschrieben und protokolliert wird. Ein
+      // Feld, das nur in einer der beiden steht, verschwindet still.
       const { changes, data } = recordedUpdate({
         existing,
-        updates: { name, financeApproverId, vmoId },
-        fields: ["name", "financeApproverId", "vmoId"] as const,
+        updates: { name, financeApproverId, vmoId, businessOwnerId, architectLeadId },
+        fields: [
+          "name",
+          "financeApproverId",
+          "vmoId",
+          "businessOwnerId",
+          "architectLeadId",
+        ] as const,
       });
 
       await tx.valueStream.update({

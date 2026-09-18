@@ -48,10 +48,39 @@ interface Props {
   /** Governance-Felder des Wertstroms — lösen die Rollen-Platzhalter zu Personen auf. */
   vmoId: string | null;
   financeApproverId: string | null;
+  businessOwnerId: string | null;
+  architectLeadId: string | null;
   approvers: TenantApprover[];
   userLabels: Record<string, string>;
   canConfigure: boolean;
 }
+
+/**
+ * **Die Platzhalter, nach ihrer Herkunft geordnet.**
+ *
+ * Ohne diese Teilung stünde „Finance" zweimal und „Business Owner" zweimal in
+ * derselben Reihe, unterscheidbar nur im Tooltip — und die beiden meinen etwas
+ * anderes: der eine zieht die Governance-Spalte des Wertstroms, der andere ist
+ * die Partei, die der Antragsteller am Epic besetzt. Genau der Schnitt, den
+ * ADR-0018 beschreibt; er steht jetzt auf der Fläche statt nur im Dokument.
+ *
+ * Aus `GATE_APPROVER_ROLES` abgeleitet statt abgeschrieben: ein neuer
+ * Platzhalter fällt hier nicht heraus, sondern landet in seiner Gruppe.
+ */
+const PLACEHOLDER_GROUPS: { label: string; roles: GateApproverRole[] }[] = [
+  {
+    label: "Aus dem Wertstrom",
+    roles: GATE_APPROVER_ROLES.filter((r) => r.startsWith("value_stream.")),
+  },
+  {
+    label: "Je Epic benannt",
+    roles: GATE_APPROVER_ROLES.filter((r) => r.startsWith("epic.")),
+  },
+  {
+    label: "Aus der Solution",
+    roles: GATE_APPROVER_ROLES.filter((r) => r.startsWith("solution.")),
+  },
+];
 
 /**
  * Wertstrom-Setup: **wer** jeden Reifegrad-Übergang (L1..L5) freigibt. Zeigt je
@@ -67,6 +96,8 @@ export function GateApproverRulesSection({
   rules,
   vmoId,
   financeApproverId,
+  businessOwnerId,
+  architectLeadId,
   approvers,
   userLabels,
   canConfigure,
@@ -183,18 +214,29 @@ export function GateApproverRulesSection({
         return financeApproverId
           ? userLabel(financeApproverId, userLabels)
           : "kein Finance-Approver hinterlegt";
+      case "value_stream.business_owner":
+        return businessOwnerId
+          ? userLabel(businessOwnerId, userLabels)
+          : "kein Business Owner hinterlegt";
+      case "value_stream.architect_lead":
+        return architectLeadId
+          ? userLabel(architectLeadId, userLabels)
+          : "kein Architect Lead hinterlegt";
       case "epic.owner":
         return "je Epic";
-      // Die Business-Case-Parteien: zwei ziehen die Wertstrom-Governance, die
-      // anderen drei werden am Antrag je Epic benannt.
+      // Die Business-Case-Parteien: drei ziehen die Wertstrom-Governance als
+      // **Vorbelegung**, die anderen zwei werden am Antrag je Epic benannt.
       case "epic.party.lace_vmo":
         return vmoId ? userLabel(vmoId, userLabels) : "kein VMO hinterlegt";
       case "epic.party.finance":
         return financeApproverId
           ? userLabel(financeApproverId, userLabels)
           : "kein Finance-Approver hinterlegt";
-      case "epic.party.mgmt":
       case "epic.party.business_owner":
+        return businessOwnerId
+          ? `${userLabel(businessOwnerId, userLabels)} — am Antrag änderbar`
+          : "je Epic am Antrag";
+      case "epic.party.mgmt":
       case "epic.party.irt_owner":
         return "je Epic am Antrag";
       // Hängt an der Primär-Solution des Epics, nicht am Wertstrom — und an L4
@@ -310,29 +352,31 @@ export function GateApproverRulesSection({
                         </select>
                       </div>
 
-                      <div className="space-y-1">
-                        <SectionLabel>Rollen-Platzhalter</SectionLabel>
-                        <div className="flex flex-wrap gap-1.5">
-                          {GATE_APPROVER_ROLES.map((role) => {
-                            const active = d.roles.has(role);
-                            return (
-                              <button
-                                key={role}
-                                type="button"
-                                onClick={() => toggleRole(gate, role)}
-                                className={`rounded-full px-2 py-0.5 text-xs ${
-                                  active
-                                    ? "bg-primary text-primary-foreground"
-                                    : "border bg-background hover:bg-muted"
-                                }`}
-                                title={rolePersonHint(role)}
-                              >
-                                {GATE_APPROVER_ROLE_LABELS[role]}
-                              </button>
-                            );
-                          })}
+                      {PLACEHOLDER_GROUPS.map((group) => (
+                        <div key={group.label} className="space-y-1">
+                          <SectionLabel>{group.label}</SectionLabel>
+                          <div className="flex flex-wrap gap-1.5">
+                            {group.roles.map((role) => {
+                              const active = d.roles.has(role);
+                              return (
+                                <button
+                                  key={role}
+                                  type="button"
+                                  onClick={() => toggleRole(gate, role)}
+                                  className={`rounded-full px-2 py-0.5 text-xs ${
+                                    active
+                                      ? "bg-primary text-primary-foreground"
+                                      : "border bg-background hover:bg-muted"
+                                  }`}
+                                  title={rolePersonHint(role)}
+                                >
+                                  {GATE_APPROVER_ROLE_LABELS[role]}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
+                      ))}
 
                       <div className="space-y-1">
                         <SectionLabel>Benannte Personen</SectionLabel>

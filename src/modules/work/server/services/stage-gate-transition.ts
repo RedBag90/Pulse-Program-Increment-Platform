@@ -217,7 +217,12 @@ export async function resolveGateApprovers(
     epic.valueStreamId
       ? tx.valueStream.findUnique({
           where: { id: epic.valueStreamId },
-          select: { financeApproverId: true, vmoId: true },
+          select: {
+            financeApproverId: true,
+            vmoId: true,
+            businessOwnerId: true,
+            architectLeadId: true,
+          },
         })
       : Promise.resolve(null),
     epic.primarySolutionId
@@ -236,6 +241,8 @@ export async function resolveGateApprovers(
     {
       valueStreamFinanceApproverId: valueStream?.financeApproverId ?? null,
       valueStreamVmoId: valueStream?.vmoId ?? null,
+      valueStreamBusinessOwnerId: valueStream?.businessOwnerId ?? null,
+      valueStreamArchitectLeadId: valueStream?.architectLeadId ?? null,
       epicOwnerId: epic.ownerId,
       solutionProductManagerId: solution?.productManagerId ?? null,
       epicClass: epic.epicClass ?? null,

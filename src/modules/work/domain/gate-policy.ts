@@ -21,12 +21,18 @@ import type { GateStep } from "@/modules/work/domain/stage-gate";
  * so bleibt „der Finance-Approver dieses Wertstroms" eine *Regel* statt einer
  * abgeschriebenen User-ID, die bei einem Personalwechsel still falsch wird.
  *
- * Ehrt die vorhandenen Governance-Spalten `ValueStream.financeApproverId` /
- * `vmoId` — dasselbe Prefill, das `buildApprovalView` für den Business Case macht.
+ * Ehrt die Governance-Spalten des Wertstroms (`financeApproverId`, `vmoId`,
+ * `businessOwnerId`, `architectLeadId`) — dasselbe Prefill, das
+ * `buildApprovalView` für den Business Case macht.
  */
 export const GATE_APPROVER_ROLES = [
   "value_stream.finance_approver",
   "value_stream.vmo",
+  "value_stream.business_owner",
+  // Steht in **keiner** Code-Vorgabe: wer ihn zeichnen lassen will, trägt ihn je
+  // Wertstrom ein. Ein neuer Abnehmer in einer Vorgabe wäre eine Abnahme, mit der
+  // bestehende Mandanten nicht rechnen.
+  "value_stream.architect_lead",
   "epic.owner",
   // Die fünf Business-Case-Parteien. Sie hatten eine eigene Freigabe-Achse
   // (`EpicApproval`); seit die Abnahme des Schritts L2 → L3.1 *die*
@@ -42,6 +48,20 @@ export const GATE_APPROVER_ROLES = [
 ] as const;
 export type GateApproverRole = (typeof GATE_APPROVER_ROLES)[number];
 
+/**
+ * Wie viele Platzhalter eine Regel-Zeile tragen darf.
+ *
+ * Die Schranke stand als nackte `5` im Zod-Schema der Action, während der
+ * L3.1-Default längst sechs Rollen hatte — und der Editor füllt seinen Entwurf
+ * aus genau diesem Default und schickt ihn beim Speichern mit. Wer an L3.1 auch
+ * nur das Quorum änderte, bekam „Abnehmer konnten nicht gespeichert werden".
+ *
+ * Deshalb steht sie jetzt hier, **abgeleitet** statt abgeschrieben: mehr als
+ * alle Platzhalter kann niemand eintragen, und die Zahl kann nicht wieder hinter
+ * die Liste zurückfallen.
+ */
+export const MAX_APPROVER_ROLES_PER_RULE = GATE_APPROVER_ROLES.length;
+
 export function isGateApproverRole(value: string): value is GateApproverRole {
   return (GATE_APPROVER_ROLES as readonly string[]).includes(value);
 }
@@ -50,6 +70,8 @@ export function isGateApproverRole(value: string): value is GateApproverRole {
 export const GATE_APPROVER_ROLE_LABELS: Record<GateApproverRole, string> = {
   "value_stream.finance_approver": "Finance",
   "value_stream.vmo": "VMO",
+  "value_stream.business_owner": "Business Owner",
+  "value_stream.architect_lead": "Architect Lead",
   "epic.owner": "Epic Owner",
   "epic.party.mgmt": "MGMT",
   "epic.party.business_owner": "Business Owner",
@@ -239,6 +261,10 @@ export function resolveGatePolicy(
 export interface ApproverContext {
   valueStreamFinanceApproverId: string | null;
   valueStreamVmoId: string | null;
+  /** Business Owner des Wertstroms; **vorbelegt** die Epic-Partei an L3.1. */
+  valueStreamBusinessOwnerId?: string | null;
+  /** Architect Lead des Wertstroms; nur wo eine Regel ihn einträgt. */
+  valueStreamArchitectLeadId?: string | null;
   epicOwnerId: string | null;
   /** Produkt-Manager der Primär-Solution des Epics; `null`, wenn keiner benannt. */
   solutionProductManagerId?: string | null;
@@ -262,19 +288,32 @@ function resolveRole(role: GateApproverRole, ctx: ApproverContext): ResolvedAppr
       return ctx.valueStreamVmoId
         ? { userId: ctx.valueStreamVmoId, role, source: "value_stream" }
         : null;
+    // Seit der Wertstrom einen Business Owner trägt, löst die Partei **vorbelegend**
+    // aus ihm auf — dasselbe Paar aus Wertstrom-Platzhalter und Epic-Partei wie bei
+    // Finance. Der Picker an L3.1 schlägt die Vorbelegung weiterhin: `expandApprovers`
+    // ersetzt bei nicht-leerem `override` die ganze Liste. Wer gezeichnet hat, bleibt
+    // damit eine Eigenschaft des Epics (ADR-0018, Nachtrag).
+    case "value_stream.business_owner":
+    case "epic.party.business_owner":
+      return ctx.valueStreamBusinessOwnerId
+        ? { userId: ctx.valueStreamBusinessOwnerId, role, source: "value_stream" }
+        : null;
+    case "value_stream.architect_lead":
+      return ctx.valueStreamArchitectLeadId
+        ? { userId: ctx.valueStreamArchitectLeadId, role, source: "value_stream" }
+        : null;
     case "epic.owner":
       return ctx.epicOwnerId ? { userId: ctx.epicOwnerId, role, source: "epic_owner" } : null;
     case "solution.product_manager":
       return ctx.solutionProductManagerId
         ? { userId: ctx.solutionProductManagerId, role, source: "solution" }
         : null;
-    // MGMT, Business Owner und IRT-Owner haben keine Governance-Spalte am
-    // Wertstrom — für sie gibt es keinen Code-Default. Sie kommen aus der
-    // Wertstrom-Regel (`approverUserIds`) oder werden am Antrag benannt. Ein
-    // Platzhalter ins Leere fällt still weg; `planGateRequest` fängt den Fall,
-    // dass am Ende niemand übrig bleibt.
+    // MGMT und IRT-Owner haben keine Governance-Spalte am Wertstrom — für sie
+    // gibt es keinen Code-Default. Sie kommen aus der Wertstrom-Regel
+    // (`approverUserIds`) oder werden am Antrag benannt. Ein Platzhalter ins
+    // Leere fällt still weg; `planGateRequest` fängt den Fall, dass am Ende
+    // niemand übrig bleibt.
     case "epic.party.mgmt":
-    case "epic.party.business_owner":
     case "epic.party.irt_owner":
       return null;
   }

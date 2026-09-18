@@ -15,8 +15,14 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
 - **Epic** — portfolio-level Initiative. Carries a Business Case and a Benefit
   Hypothesis.
 - **Feature** — program-level Initiative under an ART; carries a WSJF score.
-- **Value Stream** — funds and groups Epics.
-- **ART** (Agile Release Train) — groups Features and Teams; runs PIs.
+- **Value Stream** — funds and groups Epics. Trägt **vier** namentlich benannte
+  Zuständigkeiten: `financeApproverId` (Finance Approver), `vmoId` (auf der
+  Fläche **Portfolio Manager** — der Spaltenname ist historisch),
+  `businessOwnerId` und `architectLeadId`. Freie Personenfelder ohne
+  Rollenbindung; drei davon lösen Gate-Platzhalter auf. Das Verzeichnis unter
+  `/structure/rollen` liest sie je Wertstrom aus und lässt sie dort benennen.
+- **ART** (Agile Release Train) — groups Features and Teams; runs PIs. Benannt
+  sind `rteId` und `technicalLeadId` (vorerst ohne Wirkung).
 - **PI** (Program Increment) — a planning cadence; has Objectives and Sprints.
 - **Story / Task** — team-level work under a Feature.
 - **Team** — an execution unit within an ART.

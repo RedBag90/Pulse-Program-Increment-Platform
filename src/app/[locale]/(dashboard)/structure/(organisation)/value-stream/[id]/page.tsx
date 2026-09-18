@@ -189,12 +189,16 @@ async function OverviewTab({ db, vs, principal, canEdit, inScope }: any) {
             vs.description ?? "",
             vs.financeApproverId ?? "",
             vs.vmoId ?? "",
+            vs.businessOwnerId ?? "",
+            vs.architectLeadId ?? "",
           ].join("|")}
           id={vs.id}
           name={vs.name}
           description={vs.description ?? ""}
           financeApproverId={vs.financeApproverId ?? ""}
           vmoId={vs.vmoId ?? ""}
+          businessOwnerId={vs.businessOwnerId ?? ""}
+          architectLeadId={vs.architectLeadId ?? ""}
           users={approvers}
           vmoUsers={vmoUsers}
           userLabels={userLabels}
@@ -209,6 +213,12 @@ async function OverviewTab({ db, vs, principal, canEdit, inScope }: any) {
           <Field label="Portfolio Manager">
             {vs.vmoId ? userLabel(vs.vmoId, userLabels) : "—"}
           </Field>
+          <Field label="Business Owner">
+            {vs.businessOwnerId ? userLabel(vs.businessOwnerId, userLabels) : "—"}
+          </Field>
+          <Field label="Value Stream Architect Lead">
+            {vs.architectLeadId ? userLabel(vs.architectLeadId, userLabels) : "—"}
+          </Field>
         </dl>
       )}
 
@@ -219,6 +229,8 @@ async function OverviewTab({ db, vs, principal, canEdit, inScope }: any) {
             rules={gateRules}
             vmoId={vs.vmoId ?? null}
             financeApproverId={vs.financeApproverId ?? null}
+            businessOwnerId={vs.businessOwnerId ?? null}
+            architectLeadId={vs.architectLeadId ?? null}
             approvers={approvers}
             userLabels={userLabels}
             canConfigure={canConfigureGates}

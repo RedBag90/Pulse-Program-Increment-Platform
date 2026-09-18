@@ -821,15 +821,18 @@ export async function loadEpicDetailInputs(
               role,
               label: GATE_APPROVER_ROLE_LABELS[role],
             })),
-            // Zwei der fünf Parteien haben eine Governance-Spalte am Wertstrom
-            // und werden daraus vorbelegt; die anderen drei benennt der
-            // Antragsteller.
+            // Drei der fünf Parteien haben eine Governance-Spalte am Wertstrom
+            // und werden daraus vorbelegt; MGMT und IRT-Owner benennt der
+            // Antragsteller. Vorbelegt heißt vorbelegt: der Picker schlägt sie.
             defaults: {
               ...(epic.valueStream?.financeApproverId && {
                 "epic.party.finance": [epic.valueStream.financeApproverId],
               }),
               ...(epic.valueStream?.vmoId && {
                 "epic.party.lace_vmo": [epic.valueStream.vmoId],
+              }),
+              ...(epic.valueStream?.businessOwnerId && {
+                "epic.party.business_owner": [epic.valueStream.businessOwnerId],
               }),
             },
           }

@@ -307,6 +307,47 @@ Zeilen die `epic.party.business_owner`-Abnahmen seines **jüngsten** Antrags. De
 frühere Revisions-Schnitt hatte dieselbe Aufgabe — ein neuer Lauf ist jetzt ein
 neuer Antrag.
 
+### Nachtrag (2026-09-18): der Business Owner löst vorbelegend aus dem Wertstrom auf
+
+Oben steht, drei der fünf Parteien hätten bewusst keine Governance-Spalte:
+
+> Für MGMT, Business Owner und IRT-Owner gibt es keine solche Spalte — und das
+> ist richtig so: wer dafür steht, ist eine Eigenschaft des _Epics_.
+
+**Für den Business Owner gilt das nur noch zur Hälfte.** `ValueStream` trägt
+jetzt ein `businessOwnerId`, und `epic.party.business_owner` löst daraus auf —
+dasselbe Paar aus Wertstrom-Platzhalter und Epic-Partei, das Finance und
+LACE/VMO schon bilden.
+
+**Der Kern der Festlegung bleibt trotzdem wahr**, und zwar an derselben Stelle,
+die ihn vorher getragen hat: `allowsAdHocApprovers` gilt weiterhin nur an L3.1,
+und `expandApprovers` ersetzt bei nicht-leerem `override` die **ganze** Liste.
+Wer den Picker benutzt, überschreibt die Vorbelegung — wer für _dieses_ Epic
+gezeichnet hat, steht danach am Epic, nicht am Wertstrom.
+
+Was sich ändert, ist nur der Ausgangspunkt: statt eines leeren Feldes steht dort
+ein Vorschlag. Der Grund ist praktisch, nicht begrifflich — in den meisten
+Portfolios ist der Business Owner eines Wertstroms über Monate derselbe, und ihn
+bei jedem Antrag neu einzutippen erzeugt genau die Lücken, die Guardrail 4
+(Business-Owner-Engagement) anschließend misst.
+
+MGMT und IRT-Owner bleiben unverändert ohne Spalte.
+
+**Dazu zwei weitere benannte Personen**, die keine Festlegung umkehren:
+
+- `ValueStream.architectLeadId` — als Platzhalter `value_stream.architect_lead`
+  verfügbar, aber in **keiner** `DEFAULT_GATE_POLICIES`-Zeile eingetragen.
+  Bestehende Mandanten bekommen dadurch keinen zusätzlichen Abnehmer; wer ihn
+  zeichnen lassen will, trägt ihn je Wertstrom ein. Ein Test hält das fest.
+- `Art.technicalLeadId` — vorerst **nur benannt**, ohne Tor und ohne Recht.
+
+**Nebenbei behoben:** `saveGateApproverRuleAction` begrenzte `approverRoles` auf
+`.max(5)`, während der L3.1-Default sechs Rollen hatte — und der Editor füllt
+seinen Entwurf aus genau diesem Default. Wer an L3.1 auch nur das Quorum
+änderte, bekam „Abnehmer konnten nicht gespeichert werden". Die Schranke heißt
+jetzt `MAX_APPROVER_ROLES_PER_RULE` und ist aus `GATE_APPROVER_ROLES.length`
+abgeleitet.
+
 ## Offene Punkte
 
 - **Benachrichtigung.** Ein benannter Abnehmer erfährt heute über den

@@ -146,12 +146,20 @@ async function OverviewTab({ db, art, principal, canEdit }: any) {
     <div className="space-y-8">
       {canEdit ? (
         <ArtOverviewForm
-          key={[art.id, art.name, art.description ?? "", art.rteId ?? ""].join("|")}
+          key={[
+            art.id,
+            art.name,
+            art.description ?? "",
+            art.rteId ?? "",
+            art.technicalLeadId ?? "",
+          ].join("|")}
           id={art.id}
           name={art.name}
           description={art.description ?? ""}
           rteId={art.rteId ?? ""}
+          technicalLeadId={art.technicalLeadId ?? ""}
           rteUsers={rteUsers}
+          users={approvers}
           userLabels={userLabels}
         />
       ) : (
@@ -179,6 +187,14 @@ async function OverviewTab({ db, art, principal, canEdit }: any) {
               RTE
             </dt>
             <dd className="mt-0.5">{art.rteId ? userLabel(art.rteId, userLabels) : "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              ART Technical Lead
+            </dt>
+            <dd className="mt-0.5">
+              {art.technicalLeadId ? userLabel(art.technicalLeadId, userLabels) : "—"}
+            </dd>
           </div>
         </dl>
       )}

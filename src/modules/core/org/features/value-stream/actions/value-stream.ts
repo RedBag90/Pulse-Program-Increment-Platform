@@ -38,6 +38,8 @@ export const updateValueStreamAction = createServerAction({
     description: z.string().optional(),
     financeApproverId: z.string().uuid().nullable().optional(),
     vmoId: z.string().uuid().nullable().optional(),
+    businessOwnerId: z.string().uuid().nullable().optional(),
+    architectLeadId: z.string().uuid().nullable().optional(),
   }),
   action: "value_stream.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -50,6 +52,8 @@ export const updateValueStreamAction = createServerAction({
       // nullableString: "" clears the assignment (→ null); absent leaves it untouched.
       financeApproverId: f.nullableString("financeApproverId"),
       vmoId: f.nullableString("vmoId"),
+      businessOwnerId: f.nullableString("businessOwnerId"),
+      architectLeadId: f.nullableString("architectLeadId"),
     };
   },
   service: (ctx, input) =>
@@ -59,6 +63,8 @@ export const updateValueStreamAction = createServerAction({
       description: input.description,
       financeApproverId: input.financeApproverId,
       vmoId: input.vmoId,
+      businessOwnerId: input.businessOwnerId,
+      architectLeadId: input.architectLeadId,
     }),
   revalidate: "valueStream",
   mapError: (e) =>

@@ -826,7 +826,15 @@ export async function getEpic(db: PrismaClient, tenantId: TenantId, id: EpicId) 
   return db.initiative.findFirst({
     where: { id, tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
     include: {
-      valueStream: { select: { id: true, name: true, financeApproverId: true, vmoId: true } },
+      valueStream: {
+        select: {
+          id: true,
+          name: true,
+          financeApproverId: true,
+          vmoId: true,
+          businessOwnerId: true,
+        },
+      },
       // Primär-Solution → abgeleiteter Horizont; alle Links → Solutions-Abschnitt.
       primarySolution: { select: { id: true, horizon: true } },
       solutionLinks: {

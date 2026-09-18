@@ -214,6 +214,11 @@ async function main() {
       budgetCurrency: "EUR",
       financeApproverId: U.fo,
       vmoId: U.vmo,
+      // Die beiden jüngeren Benennungen: der Business Owner belegt die
+      // Business-Case-Partei vor, der Architect Lead ist nur benannt. Ohne sie
+      // stünde im Verzeichnis („Wen frage ich wofür") überall „Nicht benannt".
+      businessOwnerId: U.vso,
+      architectLeadId: U.transformation,
     })),
   });
 
@@ -234,6 +239,7 @@ async function main() {
       name,
       description: `${name} — Agile Release Train`,
       rteId: U.rte,
+      technicalLeadId: U.owner,
       timelineId: TIMELINE_B_ARTS.has(i) ? timelineBId : timelineId,
     })),
   });
