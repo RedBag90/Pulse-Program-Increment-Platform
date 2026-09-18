@@ -5,7 +5,10 @@ import {
   rtbManageDeniedReason,
   artBudgetReadDeniedReason,
   readAllowedWithoutProductManagerCheck,
+  valueStreamBudgetReadDeniedReason,
+  maySeeValueStreamTotals,
   type ArtPotAccessFacts,
+  type ValueStreamBudgetReadFacts,
 } from "@/modules/budgeting/domain/budget-access";
 
 const nobody: ArtPotAccessFacts = {
@@ -153,6 +156,84 @@ describe("readAllowedWithoutProductManagerCheck", () => {
         hasBudgetRead: false,
         hasArtDistributeCapability: false,
       }),
+    ).toBe(false);
+  });
+});
+
+/**
+ * Die Wertstromfläche prüfte bis zu dieser Stufe **gar nichts** — kein Modul,
+ * keine Capability, keinen Scope. Tragbar, solange sie nur Summen zeigte; mit
+ * den ART-Inhalten darin stünde geschütztes Geld hinter einer offenen Tür.
+ */
+describe("valueStreamBudgetReadDeniedReason", () => {
+  const facts = (over: Partial<ValueStreamBudgetReadFacts> = {}): ValueStreamBudgetReadFacts => ({
+    budgetingEnabled: true,
+    isValueStreamFinance: false,
+    hasValueStreamBudgetRead: false,
+    hasRtbCapability: false,
+    visibleArtCount: 0,
+    ...over,
+  });
+
+  it("verweigert ohne Modul, noch vor jeder Rolle", () => {
+    const r = valueStreamBudgetReadDeniedReason(
+      facts({ budgetingEnabled: false, isValueStreamFinance: true, visibleArtCount: 3 }),
+    );
+    expect(r).toContain("Budgeting-Modul");
+  });
+
+  it("lässt die drei Wertstrom-Wege durch", () => {
+    for (const over of [
+      { isValueStreamFinance: true },
+      { hasValueStreamBudgetRead: true },
+      { hasRtbCapability: true },
+    ]) {
+      expect(valueStreamBudgetReadDeniedReason(facts(over))).toBeNull();
+    }
+  });
+
+  /**
+   * **Der Weg, für den es die Regel gibt.** Ein RTE trägt kein Wertstrom-Recht,
+   * seit die ART-Budgets hier aufklappen ist die Fläche aber sein Weg zu
+   * seinem eigenen Geld.
+   */
+  it("lässt hinein, wer mindestens ein ART dieses Stroms sehen darf", () => {
+    expect(valueStreamBudgetReadDeniedReason(facts({ visibleArtCount: 1 }))).toBeNull();
+  });
+
+  it("verweigert, wer weder den Strom noch eines seiner ARTs sehen darf", () => {
+    const r = valueStreamBudgetReadDeniedReason(facts());
+    expect(r).toContain("nicht zugänglich");
+  });
+});
+
+describe("maySeeValueStreamTotals", () => {
+  const facts = (over: Partial<ValueStreamBudgetReadFacts> = {}): ValueStreamBudgetReadFacts => ({
+    budgetingEnabled: true,
+    isValueStreamFinance: false,
+    hasValueStreamBudgetRead: false,
+    hasRtbCapability: false,
+    visibleArtCount: 0,
+    ...over,
+  });
+
+  /**
+   * Die Trennung, auf die es ankommt: **hineinkommen** und **die Summen sehen**
+   * sind zwei Fragen. Wer über ein ART hereinkommt, läse in Budgetplan, Verlauf
+   * und Auslastung die Zahlen der anderen ARTs mit.
+   */
+  it("gibt die Summen nicht frei, nur weil ein ART sichtbar ist", () => {
+    expect(maySeeValueStreamTotals(facts({ visibleArtCount: 5 }))).toBe(false);
+    expect(valueStreamBudgetReadDeniedReason(facts({ visibleArtCount: 5 }))).toBeNull();
+  });
+
+  it("gibt sie frei, sobald das Wertstrom-Recht da ist", () => {
+    expect(maySeeValueStreamTotals(facts({ hasValueStreamBudgetRead: true }))).toBe(true);
+  });
+
+  it("gibt ohne Modul nichts frei", () => {
+    expect(
+      maySeeValueStreamTotals(facts({ budgetingEnabled: false, isValueStreamFinance: true })),
     ).toBe(false);
   });
 });

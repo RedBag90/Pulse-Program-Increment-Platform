@@ -20,7 +20,7 @@ const kind = z.enum(RTB_KINDS);
 /**
  * Der ART, für den ein `art_change`-Budget reserviert wird. Leer heißt „keiner":
  * bei `run` ist das der Normalfall, bei `art_change` weist der Service es ab —
- * ein ART-Epic-Budget ohne ART hätte niemanden, der es verteilen darf.
+ * ein ART-Rahmen ohne ART hätte niemanden, der ihn verteilen darf.
  */
 const artField = (f: ReturnType<typeof fields>) => f.nonEmptyString("artId") ?? null;
 /** Leerer Select-Wert = wertstrom-übergreifend, also ausdrücklich `null`. */

@@ -77,4 +77,40 @@ describe("revalidateFor", () => {
       expect(REGISTRY.feature).toContain(p);
     }
   });
+
+  /**
+   * **Die zwei Geldlisten.** Beide standen in keiner einzigen Gruppe, obwohl
+   * ihre Spalten nach jeder Finalisierung und jeder Verteilung veralten — der
+   * dritte Fall derselben Art in diesem Haus.
+   */
+  it("revalidiert die Wertstrom-Liste, wenn sich Geld bewegt", () => {
+    for (const group of ["budgetAllocation", "art", "rtbItem"] as const) {
+      expect(REGISTRY[group]).toContain("/budgeting/value-streams");
+    }
+  });
+
+  /**
+   * **Die ART-Detailroute steht in keiner Gruppe mehr** — und das ist eine
+   * Entscheidung, keine Lücke.
+   *
+   * Sie war in `art` und `rtbItem`, solange sie eine Fläche mit Geldzahlen war.
+   * Seit der Zusammenlegung ist sie ein Redirect auf die Wertstromseite: nichts
+   * daran kann veralten. Wer sie wieder einträgt, hat vermutlich übersehen,
+   * dass die Fläche umgezogen ist — deshalb steht der Satz hier als Test und
+   * nicht als Kommentar.
+   */
+  /**
+   * **Keine `/budgeting/arts`-Route steht mehr in einer Gruppe** — und das ist
+   * eine Entscheidung, keine Lücke.
+   *
+   * Liste und Detail waren dort, solange sie Flächen mit Geldzahlen waren. Beide
+   * sind seit der Zusammenlegung reine Wegweiser auf die Wertstromseite: sie
+   * laden nichts, also kann an ihnen nichts veralten. Wer sie wieder einträgt,
+   * hat vermutlich übersehen, dass die Fläche umgezogen ist.
+   */
+  it("revalidiert die reinen Wegweiser-Routen nicht mehr", () => {
+    for (const group of ["budgetAllocation", "art", "rtbItem"] as const) {
+      expect(REGISTRY[group].filter((r) => r.startsWith("/budgeting/arts"))).toEqual([]);
+    }
+  });
 });

@@ -21,6 +21,12 @@ export interface ArtGridRow {
   name: string;
   budgetByPeriod: PeriodAmounts;
   load: ArtFeatureLoad;
+  /**
+   * Betriebsgeld dieses ARTs je Halbjahr (REQ-9). **Steht neben der Rechnung,
+   * nicht darin:** `allocatedByPeriod` und alles, was daraus folgt, bleiben
+   * Veränderungsgeld (REQ-10).
+   */
+  operatingPerCycle: number;
 }
 
 export interface ArtGridModel {
@@ -40,12 +46,15 @@ export interface ArtGridModel {
   unassigned: PeriodAmounts;
   /** Kein ART im Wertstrom — die Sicht zeigt dann nur einen Hinweis. */
   isEmpty: boolean;
+  /** Betriebsgeld, das keinem ART zuzuordnen war — die Fläche benennt es. */
+  operatingUnresolved: number;
 }
 
 export interface BuildArtGridInputs {
   periods: readonly Period[];
   vsByPeriod: PeriodAmounts;
   rows: readonly ArtGridRow[];
+  operatingUnresolved?: number;
 }
 
 /**
@@ -73,6 +82,7 @@ export function buildArtGridModel(inputs: BuildArtGridInputs): ArtGridModel {
       periods.map((p) => p.key),
     ),
     isEmpty: rows.length === 0,
+    operatingUnresolved: inputs.operatingUnresolved ?? 0,
   };
 }
 
@@ -87,5 +97,6 @@ export async function loadArtGridModel(
     periods: breakdown.periods,
     vsByPeriod: breakdown.vsByPeriod,
     rows: breakdown.arts,
+    operatingUnresolved: breakdown.operatingUnresolved,
   });
 }

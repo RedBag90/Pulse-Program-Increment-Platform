@@ -7,7 +7,7 @@ import { saveArtEpicAllocationsAction } from "@/modules/budgeting/features/actio
 import type { ArtPotView } from "@/modules/budgeting/domain/art-budget-model";
 
 /**
- * Der ART-Epic-Budget eines ARTs und seine Verteilung auf ART-Epics.
+ * Der ART-Rahmen eines ARTs und seine Verteilung auf ART-Epics.
  *
  * Nichts ist vorbelegt, und sortiert wird nach Richtwert, nicht nach Eingabe —
  * dieselben zwei Regeln wie im Verteilbogen der Gruppen: jede Zuteilung ist eine
@@ -47,7 +47,7 @@ export function ArtPotSection({
       <section className="space-y-2">
         <h2 className="text-lg font-medium">ART-Epics finanzieren</h2>
         <p className="rounded-r-md border-l-2 bg-surface-frame px-3 py-2 text-sm text-muted-foreground">
-          Für dieses Halbjahr ist diesem ART kein ART-Epic-Budget zugeteilt. Ein Rahmen wird als
+          Für dieses Halbjahr ist diesem ART kein Rahmen zugesprochen. Ein Rahmen wird als
           Run-the-Business-Position im Wertstrom angelegt und in der Kachel mitverteilt.
         </p>
       </section>
@@ -58,14 +58,18 @@ export function ArtPotSection({
     <section className="space-y-3">
       <h2 className="text-lg font-medium">ART-Epics finanzieren · {pot.cycleKey}</h2>
       <p className="text-sm text-muted-foreground">
-        Aus dem ART-Epic-Budget des ARTs. Portfolio-Epics laufen über die Kachel.
+        Aus dem ART-Rahmen dieses ARTs. Portfolio-Epics laufen über die Kachel.
       </p>
 
       <div className="grid gap-4 md:grid-cols-3">
         {[
-          { label: "ART-Epic-Budget", value: pot.total, tone: "" },
-          { label: "Verteilt", value: sum, tone: "var(--primary)" },
-          { label: "Rest", value: pot.total - sum, tone: over ? "var(--destructive)" : "" },
+          { label: "ART-Rahmen", value: pot.total, tone: "" },
+          { label: "Aus dem Rahmen verteilt", value: sum, tone: "var(--primary)" },
+          {
+            label: "Rahmen offen",
+            value: pot.total - sum,
+            tone: over ? "var(--destructive)" : "",
+          },
         ].map((t) => (
           <div key={t.label} className="rounded-lg bg-card shadow-card p-4">
             <div className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
@@ -177,7 +181,7 @@ export function ArtPotSection({
 
       {over && (
         <p role="alert" className="text-sm text-destructive">
-          Die Summe überschreitet das ART-Epic-Budget um {formatEUR(sum - pot.total)}.
+          Die Summe überschreitet den ART-Rahmen um {formatEUR(sum - pot.total)}.
         </p>
       )}
       {state.error && (

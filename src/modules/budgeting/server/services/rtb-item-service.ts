@@ -19,6 +19,7 @@ import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel
 import { rtbIntervalOrDefault, sumRtbCycle } from "@/modules/budgeting/domain/rtb-interval";
 import { assertRtbManage } from "@/modules/budgeting/server/services/rtb-authz";
 import { isChangeKind, rtbKindOrDefault } from "@/modules/budgeting/domain/rtb-kind";
+import { readRtbItems } from "@/modules/budgeting/server/services/budget-reads";
 
 export interface RtbItemFilter {
   valueStreamId?: string;
@@ -40,28 +41,18 @@ export async function listRtbItems(
   tenantId: TenantId,
   filter: RtbItemFilter = {},
 ) {
-  const rows = await db.runTheBusinessItem.findMany({
-    where: {
-      tenantId,
-      ...(filter.valueStreamId != null && { valueStreamId: filter.valueStreamId }),
-      ...(filter.solutionId != null && { solutionId: filter.solutionId }),
-      ...(filter.artId != null && { artId: filter.artId }),
-      ...(filter.kind != null && { kind: filter.kind }),
-    },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      plannedAmount: true,
-      active: true,
-      interval: true,
-      solutionId: true,
-      valueStreamId: true,
-      artId: true,
-      kind: true,
-    },
-  });
-  return rows.map((r) => ({ ...r, plannedAmount: Number(r.plannedAmount) }));
+  // Über den geteilten Lader (REQ-5): dieselbe Tabelle lesen auf einer
+  // Wertstromseite drei Wege — diese Liste, der Zuspruch und die
+  // Finanzierungskette —, jeder mit einem anderen `where`. Der Schnitt ist
+  // billig, die Rundreise nicht.
+  const rows = await readRtbItems(db, tenantId);
+  return rows.filter(
+    (r) =>
+      (filter.valueStreamId == null || r.valueStreamId === filter.valueStreamId) &&
+      (filter.solutionId == null || r.solutionId === filter.solutionId) &&
+      (filter.artId == null || r.artId === filter.artId) &&
+      (filter.kind == null || r.kind === filter.kind),
+  );
 }
 
 /**

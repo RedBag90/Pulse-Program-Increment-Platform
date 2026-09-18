@@ -110,7 +110,7 @@ export default async function ArtNodePage({ params, searchParams }: Props) {
               Das Budget dieses ARTs — Zuteilung, Deckung und die Verteilung auf seine ART-Epics —
               liegt im Budgeting-Bereich.{" "}
               <Link
-                href={`/budgeting/arts/${art.id}`}
+                href={`/budgeting/value-streams/${art.valueStream.id}?tab=budget&art=${art.id}`}
                 className="font-medium text-primary hover:underline"
               >
                 Budget dieses ARTs →

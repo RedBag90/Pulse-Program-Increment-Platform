@@ -36,9 +36,9 @@ export interface RtbItem {
   interval: string;
   /** `null` = wertstrom-übergreifend. */
   solutionId: string | null;
-  /** "run" (Betrieb) | "art_change" (ART-Epic-Budget). */
+  /** "run" (Betrieb) | "art_change" (ART-Rahmen). */
   kind?: string;
-  /** Der ART, für den ein ART-Epic-Budget reserviert ist. */
+  /** Der ART, für den ein ART-Rahmen reserviert ist. */
   artId?: string | null;
 }
 
@@ -54,9 +54,9 @@ export interface RtbArtOption {
 
 /**
  * Run-the-Business-Plan: die **eine** Pflege-Fläche für Betriebskosten und
- * ART-Epic-Budgets. Gerendert im Wertstrom-Budget und im Solution-Detail.
+ * ART-Rahmen. Gerendert im Wertstrom-Budget und im Solution-Detail.
  *
- * **Zwei Gruppen, zwei Summen.** Betrieb ist Run, ein ART-Epic-Budget ist Grow.
+ * **Zwei Gruppen, zwei Summen.** Betrieb ist Run, ein ART-Rahmen ist Grow.
  * Vorher stand eine gemeinsame Summe über der Liste, beschriftet als
  * „Betriebskosten (Keep the lights on)" — bei den Testdaten waren darin 69 %
  * Grow. Die Trennung macht die Zahl ehrlich und erspart zugleich eine
@@ -89,7 +89,7 @@ export function RtbSection({
   solutions?: RtbSolutionOption[];
   /** Gesetzt ⇒ Fläche einer einzelnen Solution: Spalte weg, Zurechnung fix. */
   solutionId?: string | null;
-  /** ARTs dieses Wertstroms; leer ⇒ kein ART-Epic-Budget anlegbar. */
+  /** ARTs dieses Wertstroms; leer ⇒ kein ART-Rahmen anlegbar. */
   arts?: RtbArtOption[];
 }) {
   // Genau eine Zeile ist offen — mehr braucht niemand gleichzeitig, und die
@@ -126,7 +126,7 @@ export function RtbSection({
         <p className="text-xs text-muted-foreground">
           {scoped
             ? "Betriebskosten, die dieser Solution zugerechnet sind."
-            : "Was dieser Wertstrom laufend braucht: der Betrieb (Keep the lights on) und die ART-Epic-Budgets seiner ARTs. Beide gehen denselben Weg über die PB-Liste — das eine ist Run, das andere Grow, deshalb stehen sie getrennt."}{" "}
+            : "Was dieser Wertstrom laufend braucht: der Betrieb (Keep the lights on) und die ART-Rahmen seiner ARTs. Beide gehen denselben Weg über die PB-Liste — das eine ist Run, das andere Grow, deshalb stehen sie getrennt."}{" "}
           Aktive Positionen kommen als Kandidaten auf die PB-Liste jeder gestarteten
           Budgeting-Kachel.
         </p>
@@ -195,7 +195,7 @@ function RtbGroupTable({
 }) {
   const isChange = kindOfGroup === "art_change";
   // Die zweite Spalte trägt, was die Gruppe **nicht** schon sagt: bei Betrieb
-  // die Solution, bei einem ART-Epic-Budget den ART.
+  // die Solution, bei einem ART-Rahmen den ART.
   const secondCol = isChange ? "ART" : p.showSolution ? "Solution" : null;
 
   return (

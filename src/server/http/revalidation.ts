@@ -55,8 +55,8 @@ export const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     // Geschwister: `/structure` deckt `/structure/rollen` **nicht** ab.
     "/structure/rollen",
     "/structure/art/[id]",
-    "/budgeting/arts/[artId]",
     "/structure/value-stream/[id]",
+    "/budgeting/value-streams",
     "/budgeting/value-streams/[id]",
   ],
   // Beim CREATE reicht der schmale Cut: die neue Detail-Page wird ohnehin
@@ -117,6 +117,10 @@ export const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   budgetAllocation: [
     "/budgeting",
     "/budgeting/round",
+    // Die Wertstrom-Liste trägt Geldspalten und stand in **keiner** Gruppe —
+    // ihre Summen veralteten nach jeder Finalisierung und jeder Verteilung
+    // (REQ-12).
+    "/budgeting/value-streams",
     "/portfolio",
     "/portfolio/epics/[id]",
     "/structure",
@@ -137,11 +141,16 @@ export const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   // Solution-Flächen hängen mit dran.
   rtbItem: [
     "/structure/value-stream/[id]",
+    "/budgeting/value-streams",
     "/budgeting/value-streams/[id]",
     "/budgeting/periods/[id]",
     "/budgeting/run-the-business",
     "/structure/solutions",
     "/structure/solution/[id]",
+    // **Keine `/budgeting/arts`-Route mehr.** Beide — Liste und Detail — sind
+    // seit der Zusammenlegung reine Wegweiser auf die Wertstromseite. Sie laden
+    // nichts, also kann an ihnen auch nichts veralten; die Fläche, die die Zahl
+    // wirklich zeigt, steht weiter oben.
   ],
   // Timeline mutations ripple anywhere PIs surface (planning, PI detail) and
   // the structure tab that hosts the management UI.

@@ -14,6 +14,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 import type { AllocationCourse } from "@/modules/budgeting/domain/allocation-course";
 import { buildArtBudgetDetail } from "@/modules/budgeting/server/views/art-budget-detail";
+import { readBudgetCandidates } from "@/modules/budgeting/server/services/budget-reads";
 import { loadEpicRows, type CandidateRow } from "@/modules/budgeting/server/services/epic-rows";
 
 /**
@@ -38,26 +39,23 @@ export async function loadValueStreamCourse(
 }> {
   const now = opts.now ?? new Date();
 
-  const finals = await db.budgetCandidate.findMany({
-    where: { tenantId, kind: "epic", valueStreamId, finalAmount: { not: null } },
-    select: {
-      epicId: true,
-      title: true,
-      ask: true,
-      finalAmount: true,
-      round: { select: { cycleKey: true, status: true } },
-    },
-  });
+  // Über den geteilten Lader (REQ-5). Diese Stelle stand nicht in der Liste der
+  // Spec und fiel erst am laufenden Server auf: auf der Wertstromseite blieben
+  // drei Kandidaten-Abfragen stehen statt einer, weil hier eine vierte Form
+  // gelesen wurde.
+  const finals = (await readBudgetCandidates(db, tenantId)).filter(
+    (c) => c.kind === "epic" && c.valueStreamId === valueStreamId && c.finalAmount != null,
+  );
 
   const candidates: CandidateRow[] = finals
     .filter((f): f is typeof f & { epicId: string } => f.epicId != null)
     .map((f) => ({
       epicId: f.epicId,
       title: f.title,
-      ask: Number(f.ask),
-      amount: f.finalAmount == null ? null : Number(f.finalAmount),
-      cycleKey: f.round.cycleKey,
-      decided: f.round.status === "closed",
+      ask: f.ask,
+      amount: f.finalAmount,
+      cycleKey: f.cycleKey,
+      decided: f.roundStatus === "closed",
     }));
 
   const epics = await loadEpicRows(db, tenantId, candidates);

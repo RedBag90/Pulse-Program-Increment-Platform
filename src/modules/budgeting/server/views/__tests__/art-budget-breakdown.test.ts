@@ -14,11 +14,12 @@ const emptyLoad = (artId: string): ArtFeatureLoad => ({
   total: { count: 0, jobSize: 0 },
 });
 
-const row = (artId: string, budgetByPeriod: Record<string, number>) => ({
+const row = (artId: string, budgetByPeriod: Record<string, number>, operatingPerCycle = 0) => ({
   artId,
   name: `ART ${artId}`,
   budgetByPeriod,
   load: emptyLoad(artId),
+  operatingPerCycle,
 });
 
 describe("buildArtGridModel", () => {
@@ -54,5 +55,33 @@ describe("buildArtGridModel", () => {
     });
     expect(Object.keys(model.unassigned)).toEqual(["2026-H1", "2026-H2"]);
     expect(model.isEmpty).toBe(false);
+  });
+});
+
+/**
+ * **REQ-10 — die Rechnung bleibt Veränderungsgeld.**
+ *
+ * `allocatedByPeriod` ist zugleich die Bezugsgrösse der Deckungsampel und der
+ * Zähler des €-Satzes je Job-Size-Punkt. Flösse Betriebsgeld dort hinein,
+ * geschähe zweierlei: die Ampel spränge auf „gedeckt", obwohl kein Euro davon
+ * ein Feature bezahlt, und der Satz stiege — und da derselbe Satz die Last in
+ * Euro **multipliziert**, verstärkte sich der Fehler ein zweites Mal.
+ *
+ * Deshalb steht das hier als Test und nicht als Kommentar.
+ */
+describe("REQ-10 — Betriebsgeld fasst die Rechnung nicht an", () => {
+  it("lässt `allocatedByPeriod` unberührt, egal wie hoch das Betriebsgeld ist", () => {
+    const ohne = buildArtGridModel({
+      periods,
+      vsByPeriod: { "2026-H1": 1000 },
+      rows: [row("a", { "2026-H1": 300 }, 0)],
+    });
+    const mit = buildArtGridModel({
+      periods,
+      vsByPeriod: { "2026-H1": 1000 },
+      rows: [row("a", { "2026-H1": 300 }, 9_999_999)],
+    });
+    expect(mit.allocatedByPeriod).toEqual(ohne.allocatedByPeriod);
+    expect(mit.unassigned).toEqual(ohne.unassigned);
   });
 });

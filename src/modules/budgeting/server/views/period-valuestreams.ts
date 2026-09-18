@@ -102,6 +102,8 @@ export async function loadPeriodValueStreams(
       select: { kind: true, finalAmount: true, valueStreamId: true, artId: true },
     }),
     db.valueStream.findMany({ where: { tenantId }, select: { id: true, name: true } }),
+    // Namensauflösung für eine **abgeschlossene** Kachel — gelöschte ARTs
+    // gehören dazu, sonst verlöre das Protokoll seine Beschriftung.
     db.art.findMany({ where: { tenantId }, select: { id: true, name: true } }),
   ]);
 

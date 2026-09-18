@@ -5,6 +5,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
 import { getValueStreamBudgetTotals } from "@/modules/budgeting/server/services/budgeting";
 import { Page, PageHeader } from "@/components/layout";
+import { formatEUR } from "@/lib/formatting";
 
 /**
  * Die Wertströme aus Budget-Sicht — der Einstieg in die Fläche, auf der ein
@@ -13,7 +14,6 @@ import { Page, PageHeader } from "@/components/layout";
  * Löst `/budgeting/run-the-business` ab, das dieselben Positionen zeigte, aber
  * ohne Detailebene und ohne Nav-Eintrag.
  */
-const EUR = (n: number) => `${Math.round(n).toLocaleString("de-DE")} €`;
 
 export default async function BudgetingValueStreamsPage() {
   const principal = await requirePrincipal().catch(() => null);
@@ -48,7 +48,7 @@ export default async function BudgetingValueStreamsPage() {
                 {vs.name}
               </Link>
               <span className="text-sm tabular-nums text-muted-foreground">
-                {EUR(totals[vs.id] ?? 0)} zugeteilt insgesamt
+                {formatEUR(totals[vs.id] ?? 0)} zugeteilt insgesamt
               </span>
             </li>
           ))}

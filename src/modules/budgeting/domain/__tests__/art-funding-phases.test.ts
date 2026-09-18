@@ -29,12 +29,11 @@ describe("artFundingPhases", () => {
     }
   });
 
-  it("beginnt beim ART-Epic-Budget und sperrt alles dahinter", () => {
+  it("beginnt beim ART-Rahmen und sperrt alles dahinter", () => {
     expect(keys(base)).toEqual([
       "budget:current",
       "pb_list:blocked",
       "award:blocked",
-      "split:blocked",
       "distribute:blocked",
     ]);
   });
@@ -56,18 +55,66 @@ describe("artFundingPhases", () => {
       arts: [{ artId: "a1", total: 100, distributed: 0 }],
       focusArtId: "a1",
     };
-    expect(keys(f)).toEqual([
-      "budget:done",
-      "pb_list:done",
-      "award:done",
-      "split:done",
-      "distribute:current",
-    ]);
-    expect(artFundingPhases(f)[4]!.href).toBe("/budgeting/arts/a1?tab=verteilen");
+    expect(keys(f)).toEqual(["budget:done", "pb_list:done", "award:done", "distribute:current"]);
+    // Der Sprung führt an **die aufgeklappte Zeile** dieses ARTs, nicht mehr
+    // auf eine eigene Seite.
+    expect(artFundingPhases(f)[3]!.href).toBe("/budgeting/value-streams/vs1?tab=betrieb&art=a1");
+  });
+
+  /**
+   * **Derselbe Schritt, zwei Handelnde.** Der einzige Grund, warum das
+   * Zusammenlegen von „Aufteilen" und „Verteilen" überhaupt heikel war: die
+   * Leiste beantwortet „auf wen warte ich", und die Antwort wechselt mitten im
+   * Schritt. Solange der Zuspruch nicht aufgeteilt ist, wartet man auf den
+   * Wertstrom; danach auf das ART.
+   */
+  it("lässt den Handelnden innerhalb des letzten Schritts wandern", () => {
+    const f = {
+      ...base,
+      hasBudgetItem: true,
+      roundId: "r1",
+      onPbList: true,
+      awarded: true,
+      arts: [{ artId: "a1", total: 100, distributed: 0 }],
+      focusArtId: "a1",
+    };
+    const vorher = artFundingPhases({ ...f, splitDone: false })[3]!;
+    expect(vorher.actor).toBe("value_stream");
+    expect(vorher.label).toBe("Aufteilen und verteilen");
+    expect(vorher.state).toBe("current");
+
+    const nachher = artFundingPhases({ ...f, splitDone: true })[3]!;
+    expect(nachher.actor).toBe("art");
+    expect(nachher.label).toBe("Verteilen");
+    expect(nachher.state).toBe("current");
+  });
+
+  /**
+   * Aufgeteilt, aber noch nicht verteilt: **nicht erledigt.** Vor dem
+   * Zusammenlegen sagte das der eigene Schritt „Aufteilen: erledigt"; jetzt
+   * müsste ein `done`, das nur am Aufteilen hängt, den halben Schritt als
+   * fertig ausgeben.
+   */
+  it("nennt den Schritt erst fertig, wenn auch verteilt ist", () => {
+    const f = {
+      ...base,
+      hasBudgetItem: true,
+      roundId: "r1",
+      onPbList: true,
+      awarded: true,
+      splitDone: true,
+      arts: [{ artId: "a1", total: 100, distributed: 40 }],
+      focusArtId: "a1",
+    };
+    expect(artFundingPhases(f)[3]!.state).toBe("current");
+    expect(
+      artFundingPhases({ ...f, arts: [{ artId: "a1", total: 100, distributed: 100 }] })[3]!.state,
+    ).toBe("done");
   });
 
   it("fasst den letzten Schritt auf der Wertstrom-Sicht zusammen", () => {
-    // Ohne `focusArtId`: die Wertstrom-Sicht. Schritt 5 gehört den ARTs.
+    // Ohne `focusArtId`: keine Zeile aufgeklappt. Der letzte Schritt fasst dann
+    // alle ARTs zusammen und springt in den Reiter, wo die Zeilen stehen.
     const phases = artFundingPhases({
       ...base,
       hasBudgetItem: true,
@@ -82,9 +129,9 @@ describe("artFundingPhases", () => {
       ],
     });
     // a3 hat kein Budget und zählt nicht mit.
-    expect(phases[4]!.detail).toBe("1 von 2");
-    expect(phases[4]!.href).toBe("/budgeting/arts?vs=vs1");
-    expect(phases[4]!.state).toBe("current");
+    expect(phases[3]!.detail).toBe("1 von 2");
+    expect(phases[3]!.href).toBe("/budgeting/value-streams/vs1?tab=betrieb");
+    expect(phases[3]!.state).toBe("current");
   });
 
   it("trägt je Schritt, wer handelt", () => {
@@ -92,15 +139,15 @@ describe("artFundingPhases", () => {
       "value_stream",
       "period",
       "period",
+      // Noch nichts aufgeteilt — also wartet man auf den Wertstrom.
       "value_stream",
-      "art",
     ]);
   });
 });
 
 describe("fundingSummary", () => {
   it("nennt Nummer und Namen des aktuellen Schritts", () => {
-    expect(fundingSummary(artFundingPhases(base))).toBe("Schritt 1 · ART-Epic-Budget");
+    expect(fundingSummary(artFundingPhases(base))).toBe("Schritt 1 · ART-Rahmen");
   });
 
   it("meldet den Abschluss, wenn nichts mehr offen ist", () => {

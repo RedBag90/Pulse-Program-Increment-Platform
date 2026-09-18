@@ -36,7 +36,7 @@ export function BudgetingTasksSection({
             className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-card shadow-card px-4 py-3"
           >
             <div className="text-sm">
-              <span className="font-medium">💶 {f.artName}</span> — das ART-Epic-Budget für{" "}
+              <span className="font-medium">💶 {f.artName}</span> — der ART-Rahmen für{" "}
               <span className="font-medium">{f.cycleLabel}</span> steht:{" "}
               <span className="font-medium tabular-nums">{EUR(f.remaining)}</span> sind noch nicht
               verteilt.

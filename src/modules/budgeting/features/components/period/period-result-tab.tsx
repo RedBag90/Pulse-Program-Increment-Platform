@@ -17,6 +17,8 @@ import {
 import { CaptureRevisionButton } from "@/modules/budgeting/features/components/revision/capture-revision-button";
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { formatEUR } from "@/lib/formatting";
+import { Link } from "@/i18n/navigation";
+import { RTB_KIND_LABELS } from "@/modules/budgeting/domain/rtb-kind";
 
 const btn =
   "rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50";
@@ -218,17 +220,27 @@ export function PeriodResultTab({
           <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Abgeleitete Budgets
           </h3>
+          {/*
+            **Andere Zeitform, gleiche Wörter** (REQ-15). Diese Tabelle zeigt den
+            Stand der Finalisierung: was diese Kachel entschieden hat, und das
+            ändert sich nicht mehr. Die Geldfläche des Wertstroms zeigt, was
+            **heute** gilt — dorthin führt jede ART-Zeile.
+
+            Was hier bewusst **nicht** steht: Deckung, Zustandsstaffel und
+            Verlauf. Die lesen den heutigen Reifegrad der Epics und sind damit
+            lebendig; eingefroren gibt es sie nicht, und sie hier zu zeigen
+            hiesse, Lebendiges als Beleg auszugeben.
+          */}
           <p className="text-xs text-muted-foreground">
-            Aus den finalen Beträgen oben: Wertstrom-Budget = Run the Business + Grow the Business
-            (Epics nach ART).
+            Stand der Finalisierung — was diese Kachel entschieden hat. Wertstrom-Budget ={" "}
+            {RTB_KIND_LABELS.run} + Zuteilungen an Epics, nach ART. Ein Klick auf ein ART zeigt, was
+            dort <strong className="font-medium">heute</strong> gilt.
           </p>
           <div className="overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/40 text-xs text-muted-foreground">
-                  <th className="px-3 py-2 text-left font-medium">
-                    Value Stream / Aufschlüsselung
-                  </th>
+                  <th className="px-3 py-2 text-left font-medium">Wertstrom / Aufschlüsselung</th>
                   <th className="px-3 py-2 text-right font-medium">Σ Budget</th>
                 </tr>
               </thead>
@@ -243,7 +255,7 @@ export function PeriodResultTab({
                     </tr>
                     {vs.runTotal > 0 && (
                       <tr className="border-b">
-                        <td className="px-3 py-1.5 pl-8 text-warning">Run the Business</td>
+                        <td className="px-3 py-1.5 pl-8 text-warning">{RTB_KIND_LABELS.run}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">
                           {formatEUR(vs.runTotal)}
                         </td>
@@ -252,7 +264,19 @@ export function PeriodResultTab({
                     {vs.arts.map((art) => (
                       <tr key={art.artId ?? "noart"} className="border-b">
                         <td className="px-3 py-1.5 pl-8 text-muted-foreground">
-                          ART {art.artName}
+                          {art.artId != null && vs.valueStreamId != null ? (
+                            // In die aufgeklappte Zeile desselben ARTs, im
+                            // selben Halbjahr — dieselbe Adresse, die auch die
+                            // Kette und die Inbox benutzen.
+                            <Link
+                              href={`/budgeting/value-streams/${vs.valueStreamId}?tab=budget&cycle=${cycleKey}&art=${art.artId}`}
+                              className="hover:underline"
+                            >
+                              ART {art.artName}
+                            </Link>
+                          ) : (
+                            <>ART {art.artName}</>
+                          )}
                         </td>
                         <td className="px-3 py-1.5 text-right tabular-nums">
                           {formatEUR(art.total)}

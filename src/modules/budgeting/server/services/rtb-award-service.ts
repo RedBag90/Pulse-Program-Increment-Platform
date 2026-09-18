@@ -17,6 +17,11 @@ import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
+import {
+  readBudgetCandidates,
+  readRtbItems,
+  readRtbAwards,
+} from "@/modules/budgeting/server/services/budget-reads";
 import { potWindowClosedReason } from "@/modules/budgeting/domain/art-pot-window";
 import { proportionalAwards, awardSplitDeniedReason } from "@/modules/budgeting/domain/rtb-award";
 import { assertRtbManage } from "@/modules/budgeting/server/services/rtb-authz";
@@ -66,45 +71,42 @@ export async function loadRtbAwards(
   cycleKey: string,
   now: Date = new Date(),
 ): Promise<RtbAwardView> {
-  const [items, candidate, awards] = await Promise.all([
-    db.runTheBusinessItem.findMany({
-      where: { tenantId, valueStreamId, active: true },
-      orderBy: [{ kind: "asc" }, { name: "asc" }],
-      select: {
-        id: true,
-        name: true,
-        kind: true,
-        artId: true,
-        plannedAmount: true,
-        interval: true,
-      },
-    }),
-    db.budgetCandidate.findFirst({
-      where: {
-        tenantId,
-        kind: "rtb",
-        valueStreamId,
-        finalAmount: { not: null },
-        round: { cycleKey },
-      },
-      select: { finalAmount: true },
-    }),
-    // Nur die Awards dieses Wertstroms: vorher las die Abfrage alle Awards des
-    // Mandanten je Zyklus und warf beim Mappen fast alles wieder weg.
-    db.rtbItemAward.findMany({
-      where: { tenantId, cycleKey, rtbItem: { valueStreamId } },
-      select: { rtbItemId: true, amount: true },
-    }),
+  const [allItems, allCandidates, allAwards] = await Promise.all([
+    readRtbItems(db, tenantId),
+    // Über den geteilten Lader (REQ-5): dieselbe Zeile sucht die Finanzierungs-
+    // kette eine Ebene höher noch einmal, nur über `roundId` statt `cycleKey`.
+    readBudgetCandidates(db, tenantId),
+    readRtbAwards(db, tenantId),
   ]);
+
+  // Die aktiven Positionen dieses Wertstroms. **Die Ordnung steht hier von
+  // Hand**, weil sie die Reihenfolge der Tabelle ist: erst Betrieb, dann
+  // ART-Rahmen, darin alphabetisch — vorher `orderBy: [{kind},{name}]`.
+  const items = allItems
+    .filter((i) => i.valueStreamId === valueStreamId && i.active)
+    .sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
 
   const asks = items.map((i) => ({
     id: i.id,
-    ask: rtbCycleAmount(Number(i.plannedAmount), i.interval),
+    ask: rtbCycleAmount(i.plannedAmount, i.interval),
   }));
   const requested = asks.reduce((s, a) => s + a.ask, 0);
-  const awarded = candidate?.finalAmount == null ? null : Number(candidate.finalAmount);
+  // Der Zuspruch dieses Wertstroms für dieses Halbjahr — aus dem geteilten
+  // Lader geschnitten statt eigens gesucht.
+  const candidate = allCandidates.find(
+    (c) =>
+      c.kind === "rtb" &&
+      c.valueStreamId === valueStreamId &&
+      c.finalAmount != null &&
+      c.cycleKey === cycleKey,
+  );
+  const awarded = candidate?.finalAmount ?? null;
 
-  const savedBy = new Map(awards.map((a) => [a.rtbItemId, Number(a.amount)]));
+  // Die Zusprüche dieses Halbjahrs an die Positionen dieses Wertstroms.
+  const ownItems = new Set(items.map((i) => i.id));
+  const awards = allAwards.filter((a) => a.cycleKey === cycleKey && ownItems.has(a.rtbItemId));
+
+  const savedBy = new Map(awards.map((a) => [a.rtbItemId, a.amount]));
   const saved = items.some((i) => savedBy.has(i.id));
   // Vorbelegen nur, solange es keine Entscheidung gibt, die sie überschreiben würde.
   const prefill = awarded == null || saved ? {} : proportionalAwards(asks, awarded);

@@ -8,27 +8,16 @@
  * Rein, kein I/O.
  */
 
-export interface ReserveResult {
-  /** Verbleibendes Budget (verteilbar − finanziert). */
-  reserve: number;
-  /** True, wenn der Rest kein Epic mehr finanzieren kann (Rest < günstigstes). */
-  fullyDistributed: boolean;
-}
-
 /**
- * Reserve = `available − allocated`. „Vollständig verteilt", sobald der Rest
- * unter dem günstigsten (noch nicht finanzierten) Epic liegt. `cheapestCost`
- * ≤ 0 bedeutet „kein finanzierbares Epic mehr offen" → immer vollständig verteilt.
+ * Hier stand ein zweites `computeReserve` — mit `fullyDistributed`, also der
+ * Regel „der Rest unter dem günstigsten Epic ist keiner mehr" (D-03/F-03).
+ * **Es hatte keinen Aufrufer**, nur einen Test; die Finalisierung rechnet mit
+ * `computeReserve` aus `domain/finalize.ts`, das bloss subtrahiert.
+ *
+ * Entfernt (REQ-13). Zwei gleichnamige Funktionen mit verschiedener Bedeutung
+ * sind schlimmer als eine fehlende Regel: die eine sieht aus, als sei sie in
+ * Kraft. Wird die Schwelle gebraucht, kommt sie mit einem Aufrufer zurück.
  */
-export function computeReserve(
-  available: number,
-  allocated: number,
-  cheapestCost: number,
-): ReserveResult {
-  const reserve = available - allocated;
-  const fullyDistributed = cheapestCost <= 0 || reserve < cheapestCost;
-  return { reserve, fullyDistributed };
-}
 
 /**
  * Trägt die Reserve additiv in den Topf der Folgerunde. Bewusst nur der Betrag —

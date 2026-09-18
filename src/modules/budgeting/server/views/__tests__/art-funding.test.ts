@@ -65,14 +65,14 @@ function world(stage: "leer" | "budget" | "kachel" | "zuspruch" | "aufgeteilt" |
 async function stepsOf(
   stage: Parameters<typeof world>[0],
   focusArtId?: string,
-): Promise<{ key: string; state: string }[]> {
+): Promise<{ key: string; state: string; actor: string }[]> {
   const store = budgetingStore(world(stage));
   const phases = await loadFundingPhases(store.db, "T" as never, VS, CYCLE, focusArtId);
-  return phases.map((p) => ({ key: p.key, state: p.state }));
+  return phases.map((p) => ({ key: p.key, state: p.state, actor: p.actor }));
 }
 
 /** Welcher Schritt ist gerade dran? */
-const current = (steps: { key: string; state: string }[]) =>
+const current = (steps: { key: string; state: string; actor: string }[]) =>
   steps.find((s) => s.state === "current")?.key;
 
 describe("loadFundingPhases — die Fakten hinter der Leiste", () => {
@@ -94,7 +94,11 @@ describe("loadFundingPhases — die Fakten hinter der Leiste", () => {
   });
 
   it("erkennt den Zuspruch am finalen Betrag", async () => {
-    expect(current(await stepsOf("zuspruch"))).toBe("split");
+    // Aufteilen und Verteilen sind **ein** Schritt (REQ-8) — mit dem Zuspruch
+    // ist also er dran, und zwar noch in seiner Wertstrom-Hälfte.
+    const steps = await stepsOf("zuspruch");
+    expect(current(steps)).toBe("distribute");
+    expect(steps.find((p) => p.key === "distribute")?.actor).toBe("value_stream");
   });
 
   it("erkennt das Aufteilen am Award — dann ist der ART dran", async () => {
@@ -110,7 +114,7 @@ describe("loadFundingPhases — die Fakten hinter der Leiste", () => {
     // A2 hat keine Position, zählt also nicht in „x von y".
     const store = budgetingStore(world("aufgeteilt"));
     const phases = await loadFundingPhases(store.db, "T" as never, VS, CYCLE);
-    expect(phases[4]?.detail).toBe("0 von 1");
+    expect(phases[3]?.detail).toBe("0 von 1");
   });
 
   it("nennt die fehlende Kachel als Grund, nicht das fehlende Budget", async () => {

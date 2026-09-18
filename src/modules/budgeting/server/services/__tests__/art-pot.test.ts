@@ -53,12 +53,32 @@ function txWith(over: Partial<Tx> = {}, awardAmounts: number[] = [100_000]): Tx 
     art: { findFirst: vi.fn(async () => ({ id: ART, valueStreamId: VS })) },
     valueStream: { findFirst: vi.fn(async () => ({ financeApproverId: "finance" })) },
     initiative: { findFirst: vi.fn(async () => ({ primarySolution: null })) },
-    runTheBusinessItem: { findMany: vi.fn(async () => [{ id: "rtb1" }]) },
-    // Das Budget wird seit `art-epic-budget.ts` über die Relation gefiltert;
-    // die Awards tragen deshalb ihren ART mit.
+    // Der Rahmen wird nicht mehr über einen Relationsfilter gebildet, sondern
+    // aus den geteilten Ladern (`budget-reads.ts`): die Positionen sagen, welcher
+    // Zuspruch auf welches ART einzahlt. Die Zeilen tragen deshalb die Felder,
+    // nach denen im Speicher geschnitten wird — `kind`, `active`, `artId`.
+    runTheBusinessItem: {
+      findMany: vi.fn(async () => [
+        {
+          id: "rtb1",
+          name: "ART-Rahmen",
+          kind: "art_change",
+          artId: ART,
+          solutionId: null,
+          valueStreamId: VS,
+          plannedAmount: 0,
+          interval: "half_yearly",
+          active: true,
+        },
+      ]),
+    },
     rtbItemAward: {
       findMany: vi.fn(async () =>
-        awardAmounts.map((a) => ({ amount: a, rtbItem: { artId: ART } })),
+        awardAmounts.map((a) => ({
+          rtbItemId: "rtb1",
+          cycleKey: openCycle(new Date()),
+          amount: a,
+        })),
       ),
     },
     artEpicAllocation: {

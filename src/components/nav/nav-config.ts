@@ -16,7 +16,6 @@ import {
   Plug,
   ClipboardCheck,
   ClipboardList,
-  TrainFront,
   Inbox,
   ListTodo,
   Compass,
@@ -183,18 +182,12 @@ export const NAV_GROUPS: NavGroup[] = [
         capability: "budget.round.manage",
       },
       {
-        // Wo ein ART-Epic-Budget entsteht und der Zuspruch aufgeteilt wird.
+        // **Die** Geldfläche eines Wertstroms: Budgetplan, Verlauf, die ARTs als
+        // aufklappbare Zeilen, die Betriebspositionen und der Zuspruch. Hier
+        // entsteht der ART-Rahmen und hier wird er verteilt.
         href: "/budgeting/value-streams",
         labelKey: "budgetValueStreams",
         icon: Network,
-      },
-      {
-        // Wo ein ART sein Budget verteilt — ohne Umweg über eine Kachel.
-        // Die Practice `artEpics` blendet die Route selbst aus (REQ-19); die
-        // Nav-Konfiguration kennt keine Practices.
-        href: "/budgeting/arts",
-        labelKey: "budgetArts",
-        icon: TrainFront,
       },
       {
         href: "/budgeting/budget-plan",

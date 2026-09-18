@@ -25,11 +25,11 @@ export const ART_EPIC_BUDGET: Guide = {
     { kind: "quote", text: "Der Rahmen ist kein Betriebsgeld." },
     {
       kind: "paragraph",
-      text: "Der ART-Epic-Budget wird geführt wie eine Run-the-Business-Position, trägt aber eine **eigene Art** — ausdrücklich getrennt, damit Wachstums-Geld nicht als Betrieb ausgewiesen wird. **Betriebsgeld finanziert nie ein Epic.** Wer nach „dem übrigen Run-the-Business-Budget“ fragt, fragt nach der falschen Größe.",
+      text: "Der ART-Rahmen wird geführt wie eine Run-the-Business-Position, trägt aber eine **eigene Art** — ausdrücklich getrennt, damit Wachstums-Geld nicht als Betrieb ausgewiesen wird. **Betriebsgeld finanziert nie ein Epic.** Wer nach „dem übrigen Run-the-Business-Budget“ fragt, fragt nach der falschen Größe.",
     },
     {
       kind: "paragraph",
-      text: "Wie jede andere Position geht der Rahmen über die Kandidatenliste einer Halbjahres-Kachel. Was dort am Ende festgeschrieben ist, **ist** der Topf. **Ohne geschlossene Kachel für dieses Halbjahr ist er null**, auch wenn der Rahmen gepflegt ist.",
+      text: "Wie jede andere Position geht der Rahmen über die Kandidatenliste einer Halbjahres-Kachel. Was dort am Ende festgeschrieben ist, **ist** der Rahmen. **Ohne geschlossene Kachel für dieses Halbjahr ist er null**, auch wenn der Rahmen gepflegt ist.",
     },
     { kind: "quote", text: "Der Rahmen gilt je Halbjahr und wandert nicht." },
     {
@@ -101,7 +101,7 @@ export const ART_EPIC_BUDGET: Guide = {
             },
             {
               kind: "paragraph",
-              text: "Auskunft geben mir der **Wertstrom-Owner**, die **Finance-Partei**, der **RTE** — der den Topf seines ARTs sieht — oder das **Portfolio-Management**. Und der **Produkt-Manager** meiner Primär-Solution, der nicht nur Auskunft gibt, sondern selbst zuteilen darf.",
+              text: "Auskunft geben mir der **Wertstrom-Owner**, die **Finance-Partei**, der **RTE** — der den Rahmen seines ARTs sieht — oder das **Portfolio-Management**. Und der **Produkt-Manager** meiner Primär-Solution, der nicht nur Auskunft gibt, sondern selbst zuteilen darf.",
             },
           ],
         },
@@ -144,11 +144,11 @@ export const ART_EPIC_BUDGET: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Aus dem Rahmen des ARTs, aber **nur den Epics meiner Solution**. Der Rahmen gehört dem ART, die Verantwortung für das einzelne Vorhaben mir; deshalb hängt dieses Recht **am Epic, nicht am Topf**.",
+              text: "Aus dem Rahmen des ARTs, aber **nur den Epics meiner Solution**. Der Rahmen gehört dem ART, die Verantwortung für das einzelne Vorhaben mir; deshalb hängt dieses Recht **am Epic, nicht am Rahmen**.",
             },
             {
               kind: "paragraph",
-              text: "Stünde es am Topf, dürfte ich über fremde Vorhaben desselben ARTs mitentscheiden, nur weil sie zufällig danebenliegen.",
+              text: "Stünde es am Rahmen, dürfte ich über fremde Vorhaben desselben ARTs mitentscheiden, nur weil sie zufällig danebenliegen.",
             },
             {
               kind: "paragraph",
@@ -178,21 +178,21 @@ export const ART_EPIC_BUDGET: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Im Reiter _Betrieb_ lege ich **je ART** eine Position mit der Art _ART-Epic-Budget_ an. Sie geht denselben Weg wie jede Run-the-Business-Position: sie wird Kandidat auf der Liste der Halbjahres-Kachel, und was dort festgeschrieben wird, ist der Topf.",
+              text: "Im Reiter _Betrieb_ lege ich **je ART** eine Position mit der Art _ART-Rahmen_ an. Sie geht denselben Weg wie jede Run-the-Business-Position: sie wird Kandidat auf der Liste der Halbjahres-Kachel, und was dort festgeschrieben wird, ist der Rahmen.",
             },
             {
               kind: "note",
-              text: "**Lege ich für einen ART keinen an, hat jedes ART-Epic dieses ARTs keinen Weg zu Geld**: es steht nicht auf der Kandidatenliste und hat keinen Topf. Der Ausweg ist entweder ein Rahmen — oder die bewusste Erklärung, dass dieses Vorhaben trotz seiner Größe Portfolio-Sache bleibt.",
+              text: "**Lege ich für einen ART keinen an, hat jedes ART-Epic dieses ARTs keinen Weg zu Geld**: es steht nicht auf der Kandidatenliste und hat keinen Rahmen. Der Ausweg ist entweder ein Rahmen — oder die bewusste Erklärung, dass dieses Vorhaben trotz seiner Größe Portfolio-Sache bleibt.",
             },
           ],
         },
         {
           title: "Verteilt wird am ART",
-          route: "/budgeting/arts",
+          route: "/budgeting/value-streams",
           body: [
             {
               kind: "paragraph",
-              text: "Dort sehe ich drei Zahlen: **Topf, Verteiltes, Rest**. Darunter die vorgemerkten ART-Epics mit ihrem Richtwert — **der friert beim ersten Zuteilen ein**, sonst verschöbe sich die Liste zwischen zwei Besuchen dem Business Case hinterher, ohne dass jemand etwas getan hat.",
+              text: "Im Reiter _Betrieb_ steht unter den Positionen eine Zeile je ART mit drei Zahlen: **ART-Rahmen, aus dem Rahmen verteilt, Rahmen offen**. Ein Klick auf die Zeile klappt das Verteilformular auf. Darunter die vorgemerkten ART-Epics mit ihrem Richtwert — **der friert beim ersten Zuteilen ein**, sonst verschöbe sich die Liste zwischen zwei Besuchen dem Business Case hinterher, ohne dass jemand etwas getan hat.",
             },
             {
               kind: "paragraph",
@@ -216,7 +216,7 @@ export const ART_EPIC_BUDGET: Guide = {
             },
             {
               kind: "paragraph",
-              text: "**Der RTE sieht seinen Topf, verteilt ihn aber nicht**: der Rahmen wird _für_ den ART verteilt, nicht _von_ ihm.",
+              text: "**Der RTE sieht seinen Rahmen, verteilt ihn aber nicht**: der Rahmen wird _für_ den ART verteilt, nicht _von_ ihm.",
             },
             {
               kind: "quote",
@@ -243,7 +243,7 @@ export const ART_EPIC_BUDGET: Guide = {
     },
     {
       claim: "Ich frage, wie viel Run-the-Business-Budget übrig ist.",
-      why: "Falsche Größe. Der ART-Epic-Budget ist eine eigene Art; Betriebsgeld finanziert nie ein Epic.",
+      why: "Falsche Größe. Der ART-Rahmen ist eine eigene Art; Betriebsgeld finanziert nie ein Epic.",
     },
     {
       claim: "Das Geld kommt aus dem letzten Budget-Zyklus.",
@@ -265,7 +265,7 @@ export const ART_EPIC_BUDGET: Guide = {
 
   who: [
     {
-      step: "ART-Epic-Budget anlegen",
+      step: "ART-Rahmen anlegen",
       who: "Wertstrom-Owner, Portfolio-Management; Finance-Partei über den Seam",
       capability: "rtb_item.manage",
     },

@@ -5,17 +5,26 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { hasCapability } from "@/server/auth/authorize";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
+import { loadValueStreamBudgetAccess } from "@/modules/budgeting/server/services/value-stream-budget-access";
 import { resolveCycle } from "@/modules/budgeting/domain/cycle";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
 import { loadRtbAwards } from "@/modules/budgeting/server/services/rtb-award-service";
 import { loadArtGridModel } from "@/modules/budgeting/server/views/art-budget-breakdown";
+import { loadArtBudgetDetail } from "@/modules/budgeting/server/views/art-budget-detail";
+import { artDetailIsEmpty } from "@/modules/budgeting/domain/art-budget-model";
+import { getTenantPractices } from "@/server/services/target-model";
+import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
+import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
+import { getTenantBudgetSettings } from "@/modules/budgeting/server/services/tenant-budget-settings";
 import { loadValueStreamCourse } from "@/modules/budgeting/server/views/value-stream-course";
 import { loadFundingPhases } from "@/modules/budgeting/server/views/art-funding";
-import { getValueStreamBudget } from "@/modules/budgeting/server/services/budgeting";
 import { RtbSection } from "@/modules/budgeting/features/components/rtb/rtb-section";
 import { RtbAwardsSection } from "@/modules/budgeting/features/components/rtb/rtb-awards-section";
-import { ArtBudgetView } from "@/modules/budgeting/features/components/art-budget/art-budget-view";
-import { ValueStreamBudgetPlan } from "@/modules/budgeting/features/components/value-stream/value-stream-budget-plan";
+import { ArtBudgetBreakdown } from "@/modules/budgeting/features/components/art-budget/art-budget-breakdown";
+import { ArtBudgetTab } from "@/modules/budgeting/features/components/art-budget/art-budget-tab";
+import { ArtPotRows } from "@/modules/budgeting/features/components/art-budget/art-pot-rows";
+import { loadArtEpicBudgets } from "@/modules/budgeting/server/services/art-epic-budget";
+import { readSolutions } from "@/modules/budgeting/server/services/budget-reads";
 import { AllocationCourseChart } from "@/modules/budgeting/features/components/art-budget/allocation-course-chart";
 import { ArtFundingRail } from "@/modules/budgeting/features/components/art-funding-rail";
 import { EntityDetailShell, resolveTab } from "@/components/detail/entity-detail-shell";
@@ -40,13 +49,13 @@ export default async function BudgetingValueStreamPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; cycle?: string }>;
+  searchParams: Promise<{ tab?: string; cycle?: string; art?: string }>;
 }) {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
   const { id } = await params;
-  const { tab, cycle } = await searchParams;
+  const { tab, cycle, art } = await searchParams;
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
   const vs = await db.valueStream.findFirst({
@@ -54,6 +63,34 @@ export default async function BudgetingValueStreamPage({
     select: { id: true, name: true, financeApproverId: true },
   });
   if (!vs) notFound();
+
+  /**
+   * **Bis hierhin prüfte diese Seite gar nichts** — kein Modul, keine
+   * Capability, keinen Scope. Tragbar, solange sie nur Wertstrom-Summen zeigte;
+   * mit den ART-Budgets darin stünde geschütztes Geld hinter einer offenen Tür
+   * (Spec `art-budget-consolidation.md`, REQ-1).
+   *
+   * `notFound()` statt einer Fehlerseite: ob es diesen Wertstrom gibt, ist
+   * selbst schon eine Auskunft.
+   */
+  const arts = await db.art.findMany({
+    where: { valueStreamId: vs.id, tenantId: principal.tenantId, deletedAt: null },
+    select: { id: true },
+    orderBy: { name: "asc" },
+  });
+  const access = await loadValueStreamBudgetAccess(db, principal, vs, arts);
+  if (access.deniedReason !== null) notFound();
+
+  /**
+   * **Welche Zeile ist offen** — und darf sie es sein.
+   *
+   * `?art=` kommt aus der Adresszeile, also aus fremder Hand. Ein ART eines
+   * anderen Wertstroms oder eines, dessen Zahlen der Betrachter nicht sehen
+   * darf, wird hier zu „keine Zeile offen" — nicht zu einem Fehler: die
+   * Einsprünge aus Kette und Inbox sollen auch dann auf einer brauchbaren Seite
+   * landen, wenn sich das Recht inzwischen geändert hat.
+   */
+  const expandedArtId = art != null && access.visibleArtIds.has(art) ? art : null;
 
   const canManage =
     vs.financeApproverId === principal.id ||
@@ -75,13 +112,18 @@ export default async function BudgetingValueStreamPage({
       tabs={TABS}
       activeTab={active}
       basePath={basePath}
-      tabQuery={{ cycle: cycleKey }}
+      // `art` reist mit: sonst fiele die aufgeklappte Zeile beim Reiterwechsel zu.
+      tabQuery={
+        expandedArtId != null ? { cycle: cycleKey, art: expandedArtId } : { cycle: cycleKey }
+      }
       headerActions={
         <nav className="flex items-center gap-1" aria-label="Halbjahr">
           {cycles.map((c) => (
             <Link
               key={c.key}
-              href={`${basePath}?tab=${active}&cycle=${c.key}`}
+              href={`${basePath}?tab=${active}&cycle=${c.key}${
+                expandedArtId != null ? `&art=${expandedArtId}` : ""
+              }`}
               aria-current={c.key === cycleKey ? "page" : undefined}
               className={`rounded-md border px-2.5 py-1 text-sm ${
                 c.key === cycleKey
@@ -99,18 +141,35 @@ export default async function BudgetingValueStreamPage({
         // auf dieser Seite braucht. Vorher stand hier ein nacktes `await` vor
         // dem `return` und hielt den Reiter auf, bis die Leiste stand.
         <Suspense fallback={<RailSkeleton />}>
-          <FundingRail db={db} tenantId={principal.tenantId} vsId={vs.id} cycleKey={cycleKey} />
+          <FundingRail
+            db={db}
+            tenantId={principal.tenantId}
+            vsId={vs.id}
+            cycleKey={cycleKey}
+            focusArtId={expandedArtId}
+          />
         </Suspense>
       }
     >
       {active === "budget" ? (
-        <BudgetTab db={db} tenantId={principal.tenantId} vsId={vs.id} cycleKey={cycleKey} />
+        <BudgetTab
+          db={db}
+          principal={principal}
+          vs={vs}
+          cycleKey={cycleKey}
+          basePath={basePath}
+          expandedArtId={expandedArtId}
+          access={access}
+        />
       ) : (
         <OperationsTab
           db={db}
-          tenantId={principal.tenantId}
-          vsId={vs.id}
+          principal={principal}
+          vs={vs}
           cycleKey={cycleKey}
+          basePath={basePath}
+          expandedArtId={expandedArtId}
+          access={access}
           canManage={canManage}
         />
       )}
@@ -124,14 +183,29 @@ async function FundingRail({
   tenantId,
   vsId,
   cycleKey,
+  focusArtId,
 }: {
   db: ReturnType<typeof createPrismaClient>;
   tenantId: string;
   vsId: string;
   cycleKey: string;
+  /** Die aufgeklappte Zeile, falls eine offen ist. */
+  focusArtId: string | null;
 }) {
-  const phases = await loadFundingPhases(db, tenantId as never, vsId, cycleKey);
-  return <ArtFundingRail phases={phases} surface="value_stream" />;
+  const phases = await loadFundingPhases(
+    db,
+    tenantId as never,
+    vsId,
+    cycleKey,
+    focusArtId ?? undefined,
+  );
+  /**
+   * **Die Fläche wechselt die Rolle mit der aufgeklappten Zeile.** `surface`
+   * entscheidet, ob ein Schritt „dran · Sie" oder „wartet auf: ART" sagt. Ohne
+   * offene Zeile steht man als Wertstrom davor; mit einer offenen sieht man die
+   * Kette **dieses** ARTs, und dann ist sein Schritt der eigene.
+   */
+  return <ArtFundingRail phases={phases} surface={focusArtId != null ? "art" : "value_stream"} />;
 }
 
 /** Platzhalter in der Höhe der Leiste, damit der Kopf nicht springt. */
@@ -139,27 +213,41 @@ function RailSkeleton() {
   return <div className="h-[58px] animate-pulse rounded-lg border bg-muted/40" />;
 }
 
+/**
+ * Der Reiter „Budget" — **eine** Tabelle, deren ART-Zeilen aufklappen.
+ *
+ * Hier stand zusätzlich `ValueStreamBudgetPlan`: eine eigene Tabelle mit dem
+ * Budgetplan je Halbjahr — dieselben Zahlen aus derselben Quelle, die die
+ * ART-Matrix als ihre erste Zeile ohnehin schon trägt
+ * (`getArtBudgetBreakdown` liest `vsBudget.budget.byPeriod`). Zwei Tabellen mit
+ * derselben Kopfzeile untereinander; die zweite ist entfallen.
+ */
 async function BudgetTab({
   db,
-  tenantId,
-  vsId,
+  principal,
+  vs,
   cycleKey,
+  basePath,
+  expandedArtId,
+  access,
 }: {
   db: ReturnType<typeof createPrismaClient>;
-  tenantId: string;
-  vsId: string;
+  principal: Awaited<ReturnType<typeof requirePrincipal>>;
+  vs: { id: string; name: string; financeApproverId: string | null };
   cycleKey: string;
+  basePath: string;
+  expandedArtId: string | null;
+  access: Awaited<ReturnType<typeof loadValueStreamBudgetAccess>>;
 }) {
-  const [plan, model, course] = await Promise.all([
-    getValueStreamBudget(db, tenantId as never, vsId as never),
-    loadArtGridModel(db, tenantId as never, vsId as never),
-    loadValueStreamCourse(db, tenantId as never, vsId, { cycleKey }),
+  const [model, course] = await Promise.all([
+    loadArtGridModel(db, principal.tenantId as never, vs.id as never),
+    loadValueStreamCourse(db, principal.tenantId as never, vs.id, { cycleKey }),
   ]);
 
   return (
     <div className="space-y-6">
-      <ValueStreamBudgetPlan plan={plan.budget ?? undefined} periods={plan.periods} />
-      {course.course && (
+      {/* Der Verlauf ist eine Wertstrom-Summe — ohne das Wertstrom-Recht entfällt er (REQ-3). */}
+      {access.showTotals && course.course && (
         <AllocationCourseChart
           course={course.course}
           todayIndex={course.todayIndex}
@@ -167,49 +255,226 @@ async function BudgetTab({
           subtitle="Alle Zuteilungen dieses Wertstroms, auf die Monate des Halbjahres verteilt."
         />
       )}
-      <ArtBudgetView model={model} />
+      <ArtBudgetBreakdown
+        model={model}
+        basePath={basePath}
+        tab="budget"
+        cycleKey={cycleKey}
+        expandedArtId={expandedArtId}
+        visibleArtIds={access.visibleArtIds}
+        showTotals={access.showTotals}
+        expanded={
+          expandedArtId != null ? (
+            // Eigene Insel: der ART-Falter kostet rund ein Dutzend Abfragen.
+            // Ohne sie stünde die Tabelle erst, wenn auch der Kasten steht.
+            <Suspense fallback={<PanelSkeleton />}>
+              <ArtDetailPanel
+                db={db}
+                principal={principal}
+                vs={vs}
+                artId={expandedArtId}
+                cycleKey={cycleKey}
+                view="overview"
+              />
+            </Suspense>
+          ) : null
+        }
+      />
     </div>
   );
 }
 
+/** Platzhalter in ungefährer Höhe des Kastens, damit die Tabelle nicht springt. */
+function PanelSkeleton() {
+  return <div className="h-64 animate-pulse rounded-lg border bg-muted/40" />;
+}
+
+/**
+ * Was bisher die ART-Seite war — jetzt der Inhalt einer aufgeklappten Zeile.
+ *
+ * Es ist **dieselbe** Komponente: `ArtBudgetTab` teilt sich schon immer nach
+ * `view` in „alles zum Lesen" und „die Arbeit", und das ist genau der Schnitt
+ * der beiden Reiter dieser Seite. Zusammenlegen heißt hier also nicht
+ * nachbauen, sondern nur noch anders aufhängen.
+ */
+async function ArtDetailPanel({
+  db,
+  principal,
+  vs,
+  artId,
+  cycleKey,
+  view,
+}: {
+  db: ReturnType<typeof createPrismaClient>;
+  principal: Awaited<ReturnType<typeof requirePrincipal>>;
+  vs: { id: string; financeApproverId: string | null };
+  artId: string;
+  cycleKey: string;
+  view: "overview" | "distribute";
+}) {
+  const [practices, guardrailRows, tenantRow] = await Promise.all([
+    getTenantPractices(db, principal.tenantId),
+    listValueStreamGuardrailTargets(db, principal.tenantId),
+    getTenantBudgetSettings(db, principal.tenantId),
+  ]);
+  const threshold = resolveGuardrailTargets(
+    guardrailRows,
+    tenantRow.guardrailTargets ?? null,
+    vs.id,
+  ).targets.approval.portfolioThreshold;
+
+  const isValueStreamFinance = vs.financeApproverId === principal.id;
+  const hasRtbCapability = hasCapability(principal, "rtb_item.manage", {
+    tenantId: principal.tenantId,
+    valueStreamId: vs.id,
+  });
+  const hasArtDistributeCapability = hasCapability(principal, "art_budget.distribute", {
+    tenantId: principal.tenantId,
+    artId,
+  });
+
+  const detail = await loadArtBudgetDetail(
+    db,
+    principal.tenantId as never,
+    { id: artId, valueStreamId: vs.id },
+    {
+      cycleKey,
+      artEpics: practices.artEpics,
+      threshold,
+      viewer: {
+        userId: principal.id,
+        isValueStreamFinance,
+        hasRtbCapability,
+        hasArtDistributeCapability,
+      },
+    },
+  );
+
+  const canDistribute =
+    isValueStreamFinance ||
+    hasRtbCapability ||
+    hasArtDistributeCapability ||
+    (detail.pot?.rows.some((r) => r.canDistribute) ?? false);
+
+  // Der leere Kasten sagt, was fehlt — und das ist in den beiden Reitern nicht
+  // dasselbe: im Lesen fehlt die Zuteilung, im Arbeiten der Rahmen.
+  if (artDetailIsEmpty(detail)) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        {view === "distribute"
+          ? `Für ${halfYearLabel(cycleKey)} ist diesem ART kein Rahmen zugesprochen — es gibt nichts zu verteilen. Ein Rahmen entsteht aus einer Betriebsposition der Art „ART-Rahmen“ und dem Zuspruch der Kachel.`
+          : `Für ${halfYearLabel(cycleKey)} ist diesem ART nichts zugeteilt, und es sind keine Features eingeplant. Zuteilungen entstehen beim Festschreiben einer Budgeting-Kachel.`}
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {/*
+        **Die Zeile spricht über alle Halbjahre, der Kasten über eines.** Das ist
+        keine Unstimmigkeit, sondern die Rechnung: Deckung, Zustandsstaffel und
+        Rahmen gibt es nur je Halbjahr. Deshalb steht hier, welches gemeint ist.
+      */}
+      <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+        Detail · {halfYearLabel(cycleKey)}
+      </p>
+      <ArtBudgetTab
+        detail={detail}
+        // In den Reiter „Betrieb", **an dieselbe Zeile**: der Sprung soll nicht
+        // die aufgeklappte Stelle verlieren, an der man gerade steht.
+        distributeHref={`/budgeting/value-streams/${vs.id}?tab=betrieb&cycle=${detail.cycleKey}&art=${artId}`}
+        canDistribute={canDistribute}
+        view={view}
+      />
+    </div>
+  );
+}
+
+/**
+ * Der Reiter „Betrieb" — die Arbeit, von oben nach unten in der Reihenfolge, in
+ * der sie anfällt: die Positionen anlegen, den Zuspruch der Kachel aufteilen,
+ * und dann je ART seinen Rahmen verteilen.
+ *
+ * Der letzte Schritt war bis hierhin eine eigene Seite je ART. Er steht jetzt
+ * als aufklappbare Zeile darunter — dieselbe Geste wie im Reiter „Budget", und
+ * dasselbe `?art=`.
+ */
 async function OperationsTab({
   db,
-  tenantId,
-  vsId,
+  principal,
+  vs,
   cycleKey,
+  basePath,
+  expandedArtId,
+  access,
   canManage,
 }: {
   db: ReturnType<typeof createPrismaClient>;
-  tenantId: string;
-  vsId: string;
+  principal: Awaited<ReturnType<typeof requirePrincipal>>;
+  vs: { id: string; name: string; financeApproverId: string | null };
   cycleKey: string;
+  basePath: string;
+  expandedArtId: string | null;
+  access: Awaited<ReturnType<typeof loadValueStreamBudgetAccess>>;
   canManage: boolean;
 }) {
+  const tenantId = principal.tenantId;
   const [items, solutions, arts, awards] = await Promise.all([
-    listRtbItems(db, tenantId as never, { valueStreamId: vsId }),
-    db.solution.findMany({
-      where: { tenantId, valueStreamId: vsId, deletedAt: null },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
+    listRtbItems(db, tenantId as never, { valueStreamId: vs.id }),
+    // Über den geteilten Lader: der Reiter „Budget" liest dieselben Solutions,
+    // um Betriebspositionen auf ihre ARTs aufzulösen (REQ-9).
+    readSolutions(db, tenantId as never).then((all) =>
+      all.filter((s) => s.valueStreamId === vs.id),
+    ),
     db.art.findMany({
-      where: { tenantId, valueStreamId: vsId },
+      // Ein gelöschtes ART stand bis hierhin im Auswahlfeld der
+      // Betriebspositionen (REQ-11).
+      where: { tenantId, valueStreamId: vs.id, deletedAt: null },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    loadRtbAwards(db, tenantId as never, vsId, cycleKey),
+    loadRtbAwards(db, tenantId as never, vs.id, cycleKey),
   ]);
+
+  const budgets = await loadArtEpicBudgets(
+    db,
+    tenantId as never,
+    arts.map((a) => a.id),
+    cycleKey,
+  );
 
   return (
     <div className="space-y-6">
       <RtbSection
-        valueStreamId={vsId}
+        valueStreamId={vs.id}
         items={items}
         canManage={canManage}
         solutions={solutions}
         arts={arts}
       />
-      <RtbAwardsSection valueStreamId={vsId} view={awards} canManage={canManage} />
+      <RtbAwardsSection valueStreamId={vs.id} view={awards} canManage={canManage} />
+      <ArtPotRows
+        arts={arts}
+        budgets={budgets}
+        basePath={basePath}
+        cycleKey={cycleKey}
+        expandedArtId={expandedArtId}
+        visibleArtIds={access.visibleArtIds}
+        expanded={
+          expandedArtId != null ? (
+            <Suspense fallback={<PanelSkeleton />}>
+              <ArtDetailPanel
+                db={db}
+                principal={principal}
+                vs={vs}
+                artId={expandedArtId}
+                cycleKey={cycleKey}
+                view="distribute"
+              />
+            </Suspense>
+          ) : null
+        }
+      />
     </div>
   );
 }

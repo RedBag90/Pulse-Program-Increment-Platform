@@ -46,11 +46,18 @@ import {
  */
 function RemainingTile({
   detail,
-  basePath,
+  distributeHref,
   canDistribute,
 }: {
   detail: ArtBudgetDetail;
-  basePath: string;
+  /**
+   * Wohin „Verteilen →" führt. **Fertig hereingereicht, nicht hier gebaut:**
+   * vorher stand hier `${basePath}?tab=verteilen`, und die Kachel wusste damit,
+   * wie der Reiter ihrer Seite heisst. Seit derselbe Falter auch in einer
+   * aufgeklappten Zeile der Wertstromseite steht, stimmte das nicht mehr — dort
+   * heisst der Reiter `betrieb`, und der Link führte still ins Leere.
+   */
+  distributeHref: string;
   canDistribute: boolean;
 }) {
   const standing = potStanding(detail.pot?.pot ?? null);
@@ -75,8 +82,7 @@ function RemainingTile({
       <div className="text-xs text-muted-foreground">{note}</div>
       {standing.state === "open" && canDistribute && (
         <Link
-          // Auf **dasselbe** Halbjahr, das die Übersicht gerade zeigt.
-          href={`${basePath}?tab=verteilen&cycle=${detail.cycleKey}`}
+          href={distributeHref}
           className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
         >
           Verteilen →
@@ -101,47 +107,28 @@ const TILE_ORDER: AllocationState[] = ["consumed", "committed", "notStarted"];
  * gewesen, und seine Tabellen beantworten dieselbe Frage wie die
  * Quellen-Staffel — woher kommt das Geld.
  *
- * `view: "all"` rendert weiterhin alles am Stück; das braucht die alte
- * Struktur-Fläche, solange sie existiert.
+ * Es gab einmal eine dritte Fassung, `view: "all"`, für die alte
+ * Struktur-Fläche — mit eigenem Halbjahres-Umschalter, der auf `?tab=budget`
+ * zeigte. Diesen Reiter gibt es hier nicht; die Fläche ist mit dem Umzug
+ * verschwunden, die Fassung blieb. Sie ist entfernt (REQ-13).
  */
 export function ArtBudgetTab({
   detail,
-  basePath,
+  distributeHref,
   canDistribute = false,
-  view = "all",
+  view,
 }: {
   detail: ArtBudgetDetail;
-  basePath: string;
+  /** Wohin „Verteilen →" führt — die Fläche kennt ihren eigenen Reiter nicht. */
+  distributeHref: string;
   canDistribute?: boolean;
-  view?: "all" | "overview" | "distribute";
+  view: "overview" | "distribute";
 }) {
   const showRead = view !== "distribute";
   const showWork = view !== "overview";
   return (
     <div className="space-y-8">
       {showRead && detail.coverage && <CoverageSection coverage={detail.coverage} />}
-
-      {view === "all" && detail.cycles.length > 1 && (
-        <nav className="flex flex-wrap items-center gap-2" aria-label="Halbjahr">
-          <span className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            Halbjahr
-          </span>
-          {detail.cycles.map((c) => (
-            <Link
-              key={c.key}
-              href={`${basePath}?tab=budget&cycle=${c.key}`}
-              aria-current={c.key === detail.cycleKey ? "page" : undefined}
-              className={`rounded-md border px-2.5 py-1 text-sm ${
-                c.key === detail.cycleKey
-                  ? "border-primary bg-primary/10 font-medium text-primary"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              {c.label}
-            </Link>
-          ))}
-        </nav>
-      )}
 
       {showRead &&
         detail.sources.map((s) => (
@@ -189,7 +176,11 @@ export function ArtBudgetTab({
               ))}
 
               {s.source === "art" && (
-                <RemainingTile detail={detail} basePath={basePath} canDistribute={canDistribute} />
+                <RemainingTile
+                  detail={detail}
+                  distributeHref={distributeHref}
+                  canDistribute={canDistribute}
+                />
               )}
             </div>
 
@@ -259,7 +250,7 @@ export function ArtBudgetTab({
         />
       )}
 
-      {/* Ein ART-Epic-Budget gibt es nur in einer ART-Sicht — dort trägt
+      {/* Einen ART-Rahmen gibt es nur in einer ART-Sicht — dort trägt
           `artId` immer einen Wert. */}
       {showWork && detail.pot && detail.artId != null && (
         <ArtPotSection view={detail.pot} artId={detail.artId} canDistribute={canDistribute} />
@@ -272,12 +263,12 @@ export function ArtBudgetTab({
           <h2 className="text-lg font-medium">Run the Business</h2>
           <p className="text-sm text-muted-foreground">
             Diesem ART zugerechnet. Verantwortet wird das Budget im Wertstrom. Betrieb und
-            ART-Epic-Budget stehen getrennt — das eine ist Run, das andere Grow.
+            ART-Rahmen stehen getrennt — das eine ist Run, das andere Grow.
           </p>
           {(
             [
               ["Betrieb", detail.rtb.run],
-              ["ART-Epic-Budget", detail.rtb.change],
+              ["ART-Rahmen", detail.rtb.change],
             ] as const
           ).map(([label, items]) =>
             items.length === 0 ? null : (

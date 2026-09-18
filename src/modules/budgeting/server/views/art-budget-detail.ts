@@ -18,6 +18,7 @@ import {
 import { halfYearKey, monthStart } from "@/modules/core/kernel/domain/calendar";
 import { stageAtMonth, type StageTransition } from "@/modules/work/domain/epic-stage-timeline";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
+import { readBudgetCandidates } from "@/modules/budgeting/server/services/budget-reads";
 import { monthsOfCycle } from "@/modules/budgeting/domain/period-window";
 import { sortCycles, currentCycle, cycleLabel } from "@/modules/budgeting/domain/cycle";
 import {
@@ -201,7 +202,6 @@ export function buildArtBudgetDetail(input: {
               todayIndex,
             )
           : null,
-      art: null,
     },
     todayIndex,
   };
@@ -225,28 +225,14 @@ export async function loadArtBudgetDetail(
 ): Promise<ArtBudgetDetail> {
   const now = opts.now ?? new Date();
 
-  const [finals, vsFinals, arts, artCycles] = await Promise.all([
-    db.budgetCandidate.findMany({
-      where: { tenantId, kind: "epic", artId: art.id },
-      select: {
-        epicId: true,
-        title: true,
-        ask: true,
-        finalAmount: true,
-        round: { select: { cycleKey: true, status: true } },
-      },
-    }),
-    // Zuteilungen des Wertstroms ohne ART — sie tauchen in keiner ART-Sicht auf.
-    db.budgetCandidate.findMany({
-      where: {
-        tenantId,
-        kind: "epic",
-        valueStreamId: art.valueStreamId,
-        artId: null,
-        finalAmount: { not: null },
-      },
-      select: { finalAmount: true },
-    }),
+  const [allCandidates, arts, artCycles] = await Promise.all([
+    // Ein Lader statt zweier Abfragen (REQ-5): die Zeilen dieses ARTs und die
+    // des Wertstroms **ohne** ART kamen bisher aus zwei eingeengten Abfragen,
+    // obwohl sie in derselben Tabelle nebeneinander liegen.
+    readBudgetCandidates(db, tenantId),
+    // **Ohne `deletedAt`-Filter, und das ist richtig:** hier werden nur Namen
+    // aufgelöst. Ein Epic, das in einem seither gelöschten ART sass, soll
+    // dessen Namen zeigen und nicht „—".
     db.art.findMany({ where: { tenantId }, select: { id: true, name: true } }),
     // Die Halbjahre, in denen dieser ART aus seinem Rahmen verteilt hat — zweite
     // Quelle der Achse (siehe `artCycleKeys`).
@@ -257,15 +243,25 @@ export async function loadArtBudgetDetail(
     }),
   ]);
 
+  const finals = allCandidates.filter((c) => c.kind === "epic" && c.artId === art.id);
+  // Zuteilungen des Wertstroms ohne ART — sie tauchen in keiner ART-Sicht auf.
+  const vsFinals = allCandidates.filter(
+    (c) =>
+      c.kind === "epic" &&
+      c.valueStreamId === art.valueStreamId &&
+      c.artId == null &&
+      c.finalAmount != null,
+  );
+
   const candidates: CandidateRow[] = finals
     .filter((f): f is typeof f & { epicId: string } => f.epicId != null)
     .map((f) => ({
       epicId: f.epicId,
       title: f.title,
-      ask: Number(f.ask),
-      amount: f.finalAmount == null ? null : Number(f.finalAmount),
-      cycleKey: f.round.cycleKey,
-      decided: f.round.status === "closed",
+      ask: f.ask,
+      amount: f.finalAmount,
+      cycleKey: f.cycleKey,
+      decided: f.roundStatus === "closed",
     }));
 
   const epics = await loadEpicRows(db, tenantId, candidates);
@@ -278,7 +274,7 @@ export async function loadArtBudgetDetail(
     artNames: Object.fromEntries(arts.map((a) => [a.id, a.name])),
     withoutArt: {
       count: vsFinals.length,
-      amount: vsFinals.reduce((s, f) => s + Number(f.finalAmount), 0),
+      amount: vsFinals.reduce((s, f) => s + (f.finalAmount ?? 0), 0),
     },
     artCycleKeys: artCycles.map((c) => c.cycleKey),
     ...(opts.cycleKey != null ? { cycleKey: opts.cycleKey } : {}),

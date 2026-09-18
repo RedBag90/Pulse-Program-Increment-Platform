@@ -11,7 +11,7 @@ import type { RtbAwardView } from "@/modules/budgeting/server/services/rtb-award
  *
  * Die Runde entscheidet **eine** Summe je Wertstrom; hier entscheidet der
  * Wertstrom, wie viel davon der Betrieb bekommt und wie viel die
- * ART-Epic-Budget seiner ARTs. Aus den Rahmen-Zeilen entsteht der Topf, den
+ * ART-Rahmen seiner ARTs. Aus den Rahmen-Zeilen entsteht der Topf, den
  * ein ART auf seine ART-Epics verteilen darf.
  */
 export function RtbAwardsSection({
@@ -40,16 +40,16 @@ export function RtbAwardsSection({
       <div>
         <h2 className="text-sm font-medium">Zuspruch aufteilen · {view.cycleKey}</h2>
         <p className="text-xs text-muted-foreground">
-          Die Runde spricht dem Wertstrom eine Summe zu; wie sie sich auf Betrieb und die
-          ART-Epic-Budgets der ARTs verteilt, entscheidet er hier. Aus den Rahmen entsteht der Topf,
-          den ein ART auf seine ART-Epics verteilen darf.
+          Die Runde spricht dem Wertstrom eine Summe zu; wie sie sich auf Betrieb und die ART-Rahmen
+          der ARTs verteilt, entscheidet er hier. Aus den Rahmen entsteht der Topf, den ein ART auf
+          seine ART-Epics verteilen darf.
         </p>
       </div>
 
       {view.awarded == null ? (
         <p className="rounded-r-md border-l-2 bg-surface-frame px-3 py-2 text-sm text-muted-foreground">
           Für dieses Halbjahr ist noch nichts zugesprochen — die Kachel ist nicht abgeschlossen. Bis
-          dahin gibt es nichts aufzuteilen, und die ART-Epic-Budgets stehen auf 0 €.
+          dahin gibt es nichts aufzuteilen, und die ART-Rahmen stehen auf 0 €.
         </p>
       ) : (
         <form action={action} className="space-y-2">
@@ -73,7 +73,13 @@ export function RtbAwardsSection({
                   <th className="p-2 text-left font-medium">Position</th>
                   <th className="p-2 text-left font-medium">Art</th>
                   <th className="p-2 text-right font-medium">Beantragt</th>
-                  <th className="p-2 text-right font-medium">Zugeteilt</th>
+                  {/*
+                    „Zugesprochen", nicht „Zugeteilt": das ist das Ergebnis der
+                    Kachel. „Zugeteilt" heisst auf diesen Flächen die Summe, die
+                    aus Epic-Zuteilungen an einem ART hängt — zwei Zahlen, die
+                    sich nicht denselben Namen teilen dürfen (Spec §2.5).
+                  */}
+                  <th className="p-2 text-right font-medium">Zugesprochen</th>
                 </tr>
               </thead>
               <tbody>

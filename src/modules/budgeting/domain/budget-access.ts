@@ -148,3 +148,59 @@ export function readAllowedWithoutProductManagerCheck(
 ): boolean {
   return artBudgetReadDeniedReason({ ...facts, isEpicSolutionProductManager: false }) == null;
 }
+
+// ---------------------------------------------------------------------------
+// Das Budget eines Wertstroms sehen
+// ---------------------------------------------------------------------------
+
+export interface ValueStreamBudgetReadFacts {
+  /** Das Budgeting-Modul ist für diesen Mandanten lizenziert. */
+  budgetingEnabled: boolean;
+  /** Der Aufrufer ist die Finance-Partei dieses Wertstroms. */
+  isValueStreamFinance: boolean;
+  /** `budget.read` auf diesem Wertstrom. */
+  hasValueStreamBudgetRead: boolean;
+  /** `rtb_item.manage` auf diesem Wertstrom — wer pflegen darf, darf lesen. */
+  hasRtbCapability: boolean;
+  /** Zahl der ARTs dieses Stroms, deren Budget der Aufrufer sehen darf. */
+  visibleArtCount: number;
+}
+
+/**
+ * Trägt der Aufrufer das Recht am **Wertstrom selbst**?
+ *
+ * Das ist die Frage nach den **Summenzeilen** — Budgetplan, Verlauf,
+ * Auslastung. Sie fassen alle ARTs zusammen; wer nur eines davon verantwortet,
+ * läse darin die Zahlen der anderen mit.
+ */
+export function maySeeValueStreamTotals(facts: ValueStreamBudgetReadFacts): boolean {
+  return (
+    facts.budgetingEnabled &&
+    (facts.isValueStreamFinance || facts.hasValueStreamBudgetRead || facts.hasRtbCapability)
+  );
+}
+
+/**
+ * Darf der Aufrufer die Budgetfläche dieses Wertstroms **öffnen**?
+ *
+ * Zwei Wege hinein, und der zweite ist der Grund, warum diese Regel überhaupt
+ * nötig ist: **wer ein ART dieses Stroms sehen darf, darf die Fläche öffnen** —
+ * seit die ART-Budgets darin aufklappen, ist sie sein Weg zu seinem eigenen
+ * Geld. Er sieht dann eine **kürzere** Seite: seine ART-Zeile mit Zahlen, die
+ * übrigen nur als Name, und keine Summenzeilen
+ * (`maySeeValueStreamTotals`).
+ *
+ * Bis hierhin prüfte die Fläche **gar nichts** — kein Modul, keine Capability,
+ * keinen Scope. Das war tragbar, solange sie nur Wertstrom-Summen zeigte; mit
+ * den ART-Inhalten darin stünde geschütztes Geld hinter einer offenen Tür.
+ *
+ * `null` = erlaubt.
+ */
+export function valueStreamBudgetReadDeniedReason(
+  facts: ValueStreamBudgetReadFacts,
+): string | null {
+  if (!facts.budgetingEnabled) return "Das Budgeting-Modul ist für diesen Mandanten nicht aktiv.";
+  if (maySeeValueStreamTotals(facts)) return null;
+  if (facts.visibleArtCount > 0) return null;
+  return "Das Budget dieses Wertstroms ist Ihnen nicht zugänglich.";
+}

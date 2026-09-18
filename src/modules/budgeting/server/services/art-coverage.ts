@@ -18,6 +18,7 @@ import {
 } from "@/modules/budgeting/domain/art-throughput";
 import { aggregateArtFeatureLoad } from "@/modules/budgeting/domain/art-budget";
 import type { ArtCoverage } from "@/modules/budgeting/domain/art-budget-model";
+import { getTenantBudgetSettings } from "@/modules/budgeting/server/services/tenant-budget-settings";
 
 /**
  * Last gegen Deckung eines ARTs im gewählten Halbjahr.
@@ -55,7 +56,7 @@ export async function loadArtCoverage(
         pi: { select: { startDate: true, endDate: true } },
       },
     }),
-    db.tenant.findUnique({ where: { id: tenantId }, select: { costPerJobSizePoint: true } }),
+    getTenantBudgetSettings(db, tenantId),
   ]);
 
   // Zähler: das Primitiv, nicht von Hand.
@@ -118,7 +119,7 @@ export async function loadArtCoverage(
 
   const rate = deriveJobSizeRate({
     cycles,
-    tenantDefault: tenant?.costPerJobSizePoint != null ? Number(tenant.costPerJobSizePoint) : null,
+    tenantDefault: tenant.costPerJobSizePoint,
     undatedFeatures: undated,
     placeholderJobSize: placeholder,
   });

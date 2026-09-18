@@ -10,6 +10,28 @@
  * kommen aus dem Layout.
  *
  *     npx tsx prisma/scripts/measure-budget-pages.ts
+ *
+ * **Was dieses Skript NICHT sieht — und das ist wichtig beim Lesen seiner
+ * Zahlen:** die geteilten Lader in `budget-reads.ts` sind `react.cache`-
+ * gewickelt, und `react.cache` dedupliziert **nur innerhalb eines React-
+ * Requests**. Hier läuft kein Request; jeder Aufruf ist ein Fehlschlag. Das
+ * Skript misst also den **ungecachten Schlimmstfall**. Die Zahl, die die Seite
+ * wirklich zahlt, kommt aus dem laufenden Server:
+ *
+ *     PRISMA_DEBUG=1 pnpm dev      # dann die Seite öffnen und `[prisma #n]` zählen
+ *
+ * Deshalb weist es **zwei** Zahlen aus:
+ *
+ * - **roh** — jede abgesetzte Abfrage. Der Schlimmstfall ohne Cache.
+ * - **verschieden** — nach SQL *und* Parametern entdoppelt.
+ *
+ * Die Seite zahlt **zwischen beiden**, und zwar genauer: entdoppelt wird nur,
+ * was durch einen `cache()`-Lader geht. Zwei gleiche Lesungen aus zwei
+ * **ungecachten** Wegen fallen hier in „verschieden" zusammen, auf der Seite
+ * aber nicht. „verschieden" ist also die Untergrenze, „roh" die Obergrenze.
+ *
+ * Fällt beides auseinander, liest die Fläche etwas mehrfach — und die Differenz
+ * sagt, wieviel zu holen ist. Den genauen Wert nennt nur der laufende Server.
  */
 import { PrismaClient } from "../../src/generated/prisma/index.js";
 import { loadEnvLocal } from "../seed-helpers";
@@ -30,18 +52,25 @@ interface Ctx {
   cycleKey: string;
 }
 
+/** Eine beobachtete Abfrage — SQL **und** Parameter, denn erst beide zusammen
+ *  machen zwei Lesungen zu derselben. */
+interface Seen {
+  sql: string;
+  key: string;
+}
+
 /** Ein Client, der jede Abfrage mitzählt. */
-function countingClient(): { db: PrismaClient; take: () => string[] } {
-  const seen: string[] = [];
+function countingClient(): { db: PrismaClient; take: () => Seen[] } {
+  const seen: Seen[] = [];
   const db = new PrismaClient({
     datasources: { db: { url: process.env.DIRECT_URL! } },
     log: [{ emit: "event", level: "query" }],
   });
-  db.$on("query", (e: { query: string }) => {
+  db.$on("query", (e: { query: string; params?: string }) => {
     // Transaktions-Rahmen zählen nicht als Arbeit.
     const q = e.query.trim();
     if (/^(BEGIN|COMMIT|ROLLBACK|DEALLOCATE|SELECT 1)/i.test(q)) return;
-    seen.push(q);
+    seen.push({ sql: q, key: `${q}\u0000${e.params ?? ""}` });
   });
   return {
     db,
@@ -72,7 +101,7 @@ const PROBES: Probe[] = [
       });
       return loadArtEpicBudgets(
         db,
-        c.tenantId,
+        c.tenantId as never,
         arts.map((a) => a.id),
         c.cycleKey,
       );
@@ -184,14 +213,18 @@ async function main() {
         continue;
       }
       const qs = take();
+      const distinct = new Set(qs.map((q) => q.key)).size;
       const byTable = new Map<string, number>();
-      for (const q of qs) byTable.set(tableOf(q), (byTable.get(tableOf(q)) ?? 0) + 1);
+      for (const q of qs) byTable.set(tableOf(q.sql), (byTable.get(tableOf(q.sql)) ?? 0) + 1);
       const top = [...byTable.entries()]
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 4)
+        .slice(0, 3)
         .map(([tbl, n]) => `${tbl}×${n}`)
         .join(", ");
-      console.log(`  ${probe.label.padEnd(46)} ${String(qs.length).padStart(4)} Abfragen   ${top}`);
+      console.log(
+        `  ${probe.label.padEnd(46)} ${String(qs.length).padStart(3)} roh · ` +
+          `${String(distinct).padStart(3)} verschieden   ${top}`,
+      );
     }
   }
   await db.$disconnect();

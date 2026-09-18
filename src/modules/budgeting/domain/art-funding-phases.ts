@@ -1,15 +1,19 @@
 /**
- * Die fünf Schritte, über die ein ART an sein Budget kommt — die Orientierung
+ * Die vier Schritte, über die ein ART an sein Budget kommt — die Orientierung
  * „wo stehe ich, und auf wen warte ich".
  *
  * Baugleich zu `period-phases.ts`, mit **einem** wesentlichen Zusatz. Die Phasen
- * einer Kachel laufen an einem Ort in einer Rolle; diese Kette läuft über drei
- * Flächen und drei Rollen, und für vier von fünf Schritten kann der ART selbst
+ * einer Kachel laufen an einem Ort in einer Rolle; diese Kette läuft über zwei
+ * Flächen und drei Rollen, und für die Hälfte der Schritte kann der ART selbst
  * nichts tun. Eine Leiste, die nur sagt, *was* dran ist, führte ihn deshalb ins
  * Leere. Jede Phase trägt darum ihren `actor`.
  *
+ * **Es waren fünf.** „Aufteilen" und „Verteilen" lagen auf zwei Seiten und
+ * wurden zu einem Schritt, als beide in den Reiter „Betrieb" des Wertstroms
+ * zogen. Der Handelnde wandert seither **innerhalb** des Schritts (siehe dort).
+ *
  * Der zweite Unterschied: die Sprungziele sind **ganze Routen**, keine
- * `?tab=`-Anhänge derselben Seite. Das geht erst, seit alle drei Flächen unter
+ * `?tab=`-Anhänge derselben Seite. Das geht erst, seit alle Flächen unter
  * `/budgeting` liegen.
  *
  * Rein, kein I/O.
@@ -56,16 +60,16 @@ export interface FundingPhaseFacts {
   /** Je ART sein zugesprochenes Budget und was davon verteilt ist. */
   arts: readonly ArtPotFacts[];
   /**
-   * Gesetzt auf der ART-Fläche: dann ist Schritt 5 „sein" Schritt. Leer auf dem
-   * Wertstrom — dort fasst Schritt 5 alle ARTs zusammen, und genau deshalb
-   * braucht die Wertstrom-Fläche keinen ART-Wähler: die Schritte 1–4 sind
-   * ohnehin Wertstrom-Schritte.
+   * Gesetzt, wenn eine ART-Zeile aufgeklappt ist: dann ist der letzte Schritt
+   * „sein" Schritt und springt an genau diese Zeile. Leer, wenn keine offen ist
+   * — dann fasst er alle ARTs zusammen („2 von 3") und springt in den Reiter
+   * „Betrieb", wo die Zeilen stehen.
    */
   focusArtId?: string | undefined;
 }
 
 /**
- * Die fünf Phasen mit Zustand. `current` ist die **erste**, die weder erledigt
+ * Die vier Phasen mit Zustand. `current` ist die **erste**, die weder erledigt
  * noch blockiert ist — daraus liest der Nutzer, was als Nächstes dran ist, ohne
  * dass irgendwo ein Zeiger gespeichert werden müsste.
  */
@@ -87,7 +91,7 @@ export function artFundingPhases(f: FundingPhaseFacts): FundingPhase[] {
   const raw: Array<Omit<FundingPhase, "state"> & { done: boolean; blockedBy?: string }> = [
     {
       key: "budget",
-      label: "ART-Epic-Budget",
+      label: "ART-Rahmen",
       actor: "value_stream",
       href: vsHref,
       done: f.hasBudgetItem,
@@ -102,7 +106,7 @@ export function artFundingPhases(f: FundingPhaseFacts): FundingPhase[] {
         ? f.roundId == null
           ? { blockedBy: `Für ${f.cycleKey} gibt es keine Kachel.` }
           : {}
-        : { blockedBy: "Erst mit einem ART-Epic-Budget." }),
+        : { blockedBy: "Erst mit einem ART-Rahmen." }),
     },
     {
       key: "award",
@@ -112,25 +116,29 @@ export function artFundingPhases(f: FundingPhaseFacts): FundingPhase[] {
       done: f.awarded,
       ...(f.onPbList ? {} : { blockedBy: "Erst auf der PB-Liste einer Kachel." }),
     },
-    {
-      key: "split",
-      label: "Aufteilen",
-      actor: "value_stream",
-      href: vsHref,
-      done: f.splitDone,
-      ...(f.awarded ? {} : { blockedBy: "Die Kachel ist noch nicht abgeschlossen." }),
-    },
+    /**
+     * **Aufteilen und Verteilen sind ein Schritt geworden** (REQ-8).
+     *
+     * Sie waren zwei, weil sie auf zwei Seiten lagen: der Wertstrom teilte den
+     * Zuspruch auf seine Positionen auf, das ART verteilte seinen Rahmen auf
+     * seine Epics. Seit beides im Reiter „Betrieb" derselben Fläche steht, wäre
+     * das zwei Kästchen für eine Fläche.
+     *
+     * **Der Handelnde wandert dafür innerhalb des Schritts.** `FundingPhase`
+     * trägt genau einen `actor`, und der beantwortet die Frage, für die es die
+     * Leiste gibt — *„auf wen warte ich"*. Solange der Zuspruch nicht
+     * aufgeteilt ist, wartet man auf den Wertstrom; danach auf das ART. Ein
+     * fester Handelnder hätte hier die Hälfte der Zeit die falsche Auskunft
+     * gegeben.
+     */
     {
       key: "distribute",
-      label: "Verteilen",
-      actor: "art",
-      href:
-        focus != null
-          ? `/budgeting/arts/${focus.artId}?tab=verteilen`
-          : `/budgeting/arts?vs=${f.valueStreamId}`,
-      done: distributed,
-      ...(f.splitDone ? {} : { blockedBy: "Der Zuspruch ist noch nicht aufgeteilt." }),
-      ...(focus == null && withBudget.length > 0
+      label: f.splitDone ? "Verteilen" : "Aufteilen und verteilen",
+      actor: f.splitDone ? "art" : "value_stream",
+      href: focus != null ? `${vsHref}&art=${focus.artId}` : vsHref,
+      done: f.splitDone && distributed,
+      ...(f.awarded ? {} : { blockedBy: "Die Kachel ist noch nicht abgeschlossen." }),
+      ...(f.splitDone && focus == null && withBudget.length > 0
         ? { detail: `${done.length} von ${withBudget.length}` }
         : {}),
     },
@@ -148,7 +156,7 @@ export function artFundingPhases(f: FundingPhaseFacts): FundingPhase[] {
   });
 }
 
-/** Kurzform für Listen — „Schritt 5 · Verteilen", wie `phaseSummary` bei der Kachel. */
+/** Kurzform für Listen — „Schritt 4 · Verteilen", wie `phaseSummary` bei der Kachel. */
 export function fundingSummary(phases: readonly FundingPhase[]): string {
   const i = phases.findIndex((p) => p.state === "current");
   if (i === -1) {

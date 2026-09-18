@@ -4,6 +4,7 @@ import {
   loadArtEpicBudget,
 } from "@/modules/budgeting/server/services/art-epic-budget";
 import { budgetingStore } from "@/test/fakes/budgeting-store";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 
 /**
  * Die Schnittstelle ist die Testfläche: gefragt wird nach einer **Menge** von
@@ -15,37 +16,61 @@ import { budgetingStore } from "@/test/fakes/budgeting-store";
 const A1 = "art-1";
 const A2 = "art-2";
 const A3 = "art-3";
+const T = "T" as unknown as TenantId;
 const NOW = new Date("2026-08-15T00:00:00Z"); // 2026-H2 ist offen
 
+/**
+ * Je Zuspruch eine Position, die auf sein ART einzahlt — die Verbindung
+ * Zuspruch → ART lief früher über einen Relationsfilter in der Abfrage und
+ * läuft jetzt über die ohnehin geladenen Positionen (REQ-5).
+ */
 function dbWith(
   awards: { amount: number; artId: string | null }[],
   allocations: { artId: string; amount: number }[],
 ) {
+  const items = awards.map((a, i) => ({
+    id: `p${i}`,
+    name: `Position ${i}`,
+    kind: "art_change",
+    artId: a.artId,
+    solutionId: null,
+    valueStreamId: "vs1",
+    plannedAmount: 0,
+    interval: "half_yearly",
+    active: true,
+  }));
+  const itemQuery = vi.fn(async (_args: { where: unknown }) => items);
   const awardQuery = vi.fn(async (_args: { where: unknown }) =>
-    awards.map((a) => ({ amount: a.amount, rtbItem: { artId: a.artId } })),
+    awards.map((a, i) => ({ rtbItemId: `p${i}`, cycleKey: "2026-H2", amount: a.amount })),
   );
   const allocQuery = vi.fn(async (_args: { where: unknown }) => allocations);
   return {
     db: {
+      runTheBusinessItem: { findMany: itemQuery },
       rtbItemAward: { findMany: awardQuery },
       artEpicAllocation: { findMany: allocQuery },
     } as unknown as Parameters<typeof loadArtEpicBudgets>[0],
+    itemQuery,
     awardQuery,
     allocQuery,
   };
 }
 
 describe("loadArtEpicBudgets", () => {
-  it("beantwortet mehrere ARTs mit zwei Abfragen — nicht mit zwei je ART", async () => {
-    const { db, awardQuery, allocQuery } = dbWith(
+  it("beantwortet mehrere ARTs mit fester Abfragezahl — nicht mit zweien je ART", async () => {
+    const { db, itemQuery, awardQuery, allocQuery } = dbWith(
       [
         { amount: 100_000, artId: A1 },
         { amount: 60_000, artId: A2 },
       ],
       [{ artId: A1, amount: 40_000 }],
     );
-    await loadArtEpicBudgets(db, "T", [A1, A2, A3], "2026-H2", NOW);
-    // Das ist der Punkt der ganzen Umstellung.
+    await loadArtEpicBudgets(db, T, [A1, A2, A3], "2026-H2", NOW);
+    // Das ist der Punkt der ganzen Umstellung: die Zahl der Abfragen hängt
+    // nicht an der Zahl der ARTs. Zwei der drei teilt sich die Funktion
+    // inzwischen mit dem Rest der Seite (`budget-reads.ts`) — je Seitenaufruf
+    // sind es also weniger, nicht mehr.
+    expect(itemQuery).toHaveBeenCalledTimes(1);
     expect(awardQuery).toHaveBeenCalledTimes(1);
     expect(allocQuery).toHaveBeenCalledTimes(1);
   });
@@ -62,14 +87,14 @@ describe("loadArtEpicBudgets", () => {
         { artId: A1, amount: 30_000 },
       ],
     );
-    const m = await loadArtEpicBudgets(db, "T", [A1, A2], "2026-H2", NOW);
+    const m = await loadArtEpicBudgets(db, T, [A1, A2], "2026-H2", NOW);
     expect(m.get(A1)).toMatchObject({ total: 120_000, distributed: 70_000, remaining: 50_000 });
     expect(m.get(A2)).toMatchObject({ total: 60_000, distributed: 0, remaining: 60_000 });
   });
 
   it("liefert jeden gefragten ART, auch den ohne Budget", async () => {
     const { db } = dbWith([{ amount: 10_000, artId: A1 }], []);
-    const m = await loadArtEpicBudgets(db, "T", [A1, A2, A3], "2026-H2", NOW);
+    const m = await loadArtEpicBudgets(db, T, [A1, A2, A3], "2026-H2", NOW);
     // Sonst müsste jeder Aufrufer zwischen „kein Budget" und „nicht gefragt"
     // unterscheiden — genau die Fallunterscheidung, die vorher viermal stand.
     expect([...m.keys()]).toEqual([A1, A2, A3]);
@@ -92,7 +117,7 @@ describe("loadArtEpicBudgets", () => {
         { id: "w3", tenantId: "T", rtbItemId: "p3", cycleKey: "2026-H2", amount: 900_000 },
       ],
     });
-    const m = await loadArtEpicBudgets(store.db, "T", [A1], "2026-H2", NOW);
+    const m = await loadArtEpicBudgets(store.db, T, [A1], "2026-H2", NOW);
     // Ohne den `active`-Filter stünden hier 500.000 €, ohne den Art-Filter 1,4 Mio.
     expect(m.get(A1)?.total).toBe(100_000);
   });
@@ -106,29 +131,30 @@ describe("loadArtEpicBudgets", () => {
         { id: "w1", tenantId: "T", rtbItemId: "p1", cycleKey: "2026-H2", amount: 100_000 },
       ],
     });
-    const m = await loadArtEpicBudgets(store.db, "T", [A1], "2027-H1", NOW);
+    const m = await loadArtEpicBudgets(store.db, T, [A1], "2027-H1", NOW);
     expect(m.get(A1)?.total).toBe(0);
   });
 
-  it("spart beide Abfragen, wenn niemand gefragt ist", async () => {
-    const { db, awardQuery, allocQuery } = dbWith([], []);
-    const m = await loadArtEpicBudgets(db, "T", [], "2026-H2", NOW);
+  it("spart alle Abfragen, wenn niemand gefragt ist", async () => {
+    const { db, itemQuery, awardQuery, allocQuery } = dbWith([], []);
+    const m = await loadArtEpicBudgets(db, T, [], "2026-H2", NOW);
     expect(m.size).toBe(0);
+    expect(itemQuery).not.toHaveBeenCalled();
     expect(awardQuery).not.toHaveBeenCalled();
     expect(allocQuery).not.toHaveBeenCalled();
   });
 
   it("trägt den Grund, warum ein Halbjahr gesperrt ist", async () => {
     const { db } = dbWith([], []);
-    const offen = await loadArtEpicBudgets(db, "T", [A1], "2026-H2", NOW);
+    const offen = await loadArtEpicBudgets(db, T, [A1], "2026-H2", NOW);
     expect(offen.get(A1)?.closedReason).toBeNull();
-    const zu = await loadArtEpicBudgets(db, "T", [A1], "2020-H1", NOW);
+    const zu = await loadArtEpicBudgets(db, T, [A1], "2020-H1", NOW);
     expect(zu.get(A1)?.closedReason).not.toBeNull();
   });
 
   it("ordnet Awards ohne ART niemandem zu", async () => {
     const { db } = dbWith([{ amount: 99_000, artId: null }], []);
-    const m = await loadArtEpicBudgets(db, "T", [A1], "2026-H2", NOW);
+    const m = await loadArtEpicBudgets(db, T, [A1], "2026-H2", NOW);
     expect(m.get(A1)?.total).toBe(0);
   });
 });
@@ -136,7 +162,7 @@ describe("loadArtEpicBudgets", () => {
 describe("loadArtEpicBudget — der Sonderfall der Menge", () => {
   it("gibt dieselbe Antwort wie die Menge mit einem Element", async () => {
     const { db } = dbWith([{ amount: 80_000, artId: A1 }], [{ artId: A1, amount: 25_000 }]);
-    const one = await loadArtEpicBudget(db, "T", A1, "2026-H2", NOW);
+    const one = await loadArtEpicBudget(db, T, A1, "2026-H2", NOW);
     expect(one).toMatchObject({ total: 80_000, distributed: 25_000, remaining: 55_000 });
   });
 });

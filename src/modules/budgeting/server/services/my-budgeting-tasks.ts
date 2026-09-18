@@ -16,6 +16,7 @@
 
 import type { PrismaClient } from "@/generated/prisma";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { currentCycle } from "@/modules/budgeting/domain/cycle";
 import { loadArtEpicBudgets } from "@/modules/budgeting/server/services/art-epic-budget";
 
@@ -98,32 +99,40 @@ export async function listMyArtFundingTasks(
       active: true,
       artId: { in: [...artIds] },
     },
-    select: { id: true, artId: true, art: { select: { name: true } } },
+    select: { id: true, artId: true, art: { select: { name: true, valueStreamId: true } } },
   });
   if (items.length === 0) return [];
 
   // Die dritte Kopie der Rechnung *zugesprochen − verteilt* ist damit weg; sie
   // wohnt jetzt in `art-epic-budget.ts`. Die Namen der ARTs stehen schon oben.
-  const names = new Map<string, string>();
+  const names = new Map<string, { name: string; valueStreamId: string }>();
   for (const i of items) {
-    if (i.artId != null) names.set(i.artId, i.art?.name ?? "ART");
+    if (i.artId != null) {
+      names.set(i.artId, {
+        name: i.art?.name ?? "ART",
+        valueStreamId: i.art?.valueStreamId ?? "",
+      });
+    }
   }
   const budgets = await loadArtEpicBudgets(
     db,
-    principal.tenantId,
+    principal.tenantId as TenantId,
     [...names.keys()],
     cycleKey,
     now,
   );
 
   return [...names.entries()]
-    .map(([artId, artName]) => ({
+    .map(([artId, art]) => ({
       artId,
-      artName,
+      artName: art.name,
       cycleKey,
       cycleLabel: halfYearLabel(cycleKey),
       remaining: budgets.get(artId)?.remaining ?? 0,
-      href: `/budgeting/arts/${artId}?tab=verteilen`,
+      // Direkt an die aufgeklappte Zeile im Reiter „Betrieb" — die alte Route
+      // `/budgeting/arts/<id>?tab=verteilen` leitet zwar dorthin um, aber eine
+      // Aufgabenliste soll nicht über einen Umweg zeigen.
+      href: `/budgeting/value-streams/${art.valueStreamId}?tab=betrieb&cycle=${cycleKey}&art=${artId}`,
     }))
     .filter((t) => t.remaining > 0);
 }

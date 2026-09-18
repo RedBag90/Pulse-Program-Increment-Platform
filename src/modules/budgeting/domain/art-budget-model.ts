@@ -22,25 +22,37 @@ import type { ArtEpicBudget } from "@/modules/budgeting/domain/art-epic-budget";
 /** Woher das Geld einer Zuteilung kommt. Heute nur `portfolio`. */
 export type AllocationSource = "portfolio" | "art";
 
+/**
+ * **Ein Wort, eine Bedeutung.** „ART-Epic-Budget" bezeichnete an fünf Stellen
+ * Verschiedenes — die Geldquelle hier, die Position im Betrieb, den Schritt der
+ * Kette, die Spalte der Liste und die Kachel im Verteilformular. Der
+ * **Rahmen**, aus dem ein ART seine ART-Epics bezahlt, heisst ab jetzt überall
+ * „ART-Rahmen" (Spec `art-budget-consolidation.md` §2.5).
+ */
 export const ALLOCATION_SOURCE_LABELS: Record<AllocationSource, string> = {
   portfolio: "Portfolio-Budget",
-  art: "ART-Epic-Budget",
+  art: "ART-Rahmen",
 };
 
 /**
  * Warum ein Vorhaben kein Geld hat. Die Abhilfe unterscheidet sich je Fall —
  * deshalb getrennt geführt und nicht in eine Liste geworfen.
  */
-export type UnfundedReason = "ballot" | "artPot";
+/**
+ * Es gab hier einen zweiten Fall, `artPot` („Vom ART-Rahmen nicht gedeckt"),
+ * samt Abhilfe — **erzeugt hat ihn nie jemand**: `art-budget-detail.ts` setzt
+ * ausschliesslich `ballot`. Die Frage, die er beantwortete, stellt heute die
+ * Reallokations-Sicht („Beantragt, nicht finanziert"). Er ist entfernt
+ * (REQ-13); kommt er zurück, kommt er mit einem Erzeuger.
+ */
+export type UnfundedReason = "ballot";
 
 export const UNFUNDED_REASON_LABELS: Record<UnfundedReason, string> = {
   ballot: "Auf der PB-Liste ohne Zuteilung geblieben",
-  artPot: "Vom ART-Rahmen nicht gedeckt",
 };
 
 export const UNFUNDED_REMEDIES: Record<UnfundedReason, string> = {
   ballot: "Auf die nächste Kachel setzen.",
-  artPot: "Einen größeren Rahmen beantragen.",
 };
 
 export interface UnfundedCandidate {
@@ -73,7 +85,12 @@ export interface ArtBudgetDetail {
   /** Beantragt und leer ausgegangen — die Gegenseite der Reallokations-Sicht. */
   unfunded: UnfundedCandidate[];
   /** Der Monatsverlauf des gewählten Halbjahres, je Quelle. */
-  course: Record<AllocationSource, AllocationCourse | null>;
+  /**
+   * Der Verlauf — **nur** für das Portfolio-Budget. Der Schlüssel `art` stand
+   * hier als Teil eines `Record<AllocationSource, …>`, war aber konstant `null`
+   * und wurde nie gelesen: eine Zusage, die niemand einlöste (REQ-13).
+   */
+  course: { portfolio: AllocationCourse | null };
   /** Index des laufenden Monats auf der Achse; −1 = außerhalb des Halbjahres. */
   todayIndex: number;
   /** Last gegen Deckung — `null`, solange kein ART-Budget geladen wurde. */
@@ -139,4 +156,28 @@ export function coverageVerdict(coverage: ArtCoverage): CoverageVerdict {
   if (coverage.plannedJobSize === 0 && coverage.allocated === 0) return "empty";
   if (coverage.gap == null) return "unknown";
   return coverage.gap > 0 ? "over" : "covered";
+}
+
+/**
+ * **Ist an diesem ART in diesem Halbjahr überhaupt etwas?**
+ *
+ * Ohne diese Frage zeigt ein leerer ART eine vollständige Fläche aus Nullen:
+ * drei Kacheln mit 0 €, eine leere Epic-Liste, ein Verlaufsdiagramm ohne
+ * Verlauf, eine Deckungsampel auf „leer". Das sieht aus wie eine Auskunft und
+ * ist keine. In „Large Setup Corp" stehen drei solcher ARTs — der Fall ist
+ * Bestand, nicht Theorie.
+ *
+ * **Die Feature-Last zählt mit.** Ein ART ohne einen Euro, aber mit zwanzig
+ * eingeplanten Features ist gerade **nicht** leer — das ist die interessanteste
+ * Lage überhaupt, und sie muss sichtbar bleiben.
+ */
+export function artDetailIsEmpty(detail: ArtBudgetDetail): boolean {
+  return (
+    detail.sources.every((s) => s.breakdown.total === 0) &&
+    detail.unfunded.length === 0 &&
+    (detail.pot?.pot.total ?? 0) === 0 &&
+    detail.rtb.run.length === 0 &&
+    detail.rtb.change.length === 0 &&
+    (detail.coverage?.featureCount ?? 0) === 0
+  );
 }

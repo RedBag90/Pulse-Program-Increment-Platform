@@ -18,6 +18,7 @@ import { mayDistributeToEpic } from "@/modules/budgeting/domain/budget-access";
 import { summarizeAllocations } from "@/modules/budgeting/domain/allocation-state";
 import { loadArtEpicAllocations } from "@/modules/budgeting/server/services/art-pot";
 import { loadArtEpicBudget } from "@/modules/budgeting/server/services/art-epic-budget";
+import { readBudgetCandidates } from "@/modules/budgeting/server/services/budget-reads";
 import type { ArtPotView } from "@/modules/budgeting/domain/art-budget-model";
 
 /**
@@ -77,13 +78,18 @@ export async function loadArtEpicBudgetView(
     // REQ-18: Epics, die für dieses Halbjahr schon auf der PB-Liste stehen,
     // gehören nicht auch in die Verteilliste. Beide schreiben dieselbe Zelle in
     // `BudgetAllocation`; wer zuletzt schriebe, gewönne.
-    db.budgetCandidate.findMany({
-      where: { tenantId, kind: "epic", artId: art.id, round: { cycleKey } },
-      select: { epicId: true },
-    }),
+    //
+    // Über den geteilten Lader (REQ-5) — dieselbe Tabelle liest der ART-Falter
+    // eine Ebene höher ohnehin schon.
+    readBudgetCandidates(db, tenantId),
   ]);
 
-  const onList = new Set(onPbList.map((c) => c.epicId).filter((id): id is string => id != null));
+  const onList = new Set(
+    onPbList
+      .filter((c) => c.kind === "epic" && c.artId === art.id && c.cycleKey === cycleKey)
+      .map((c) => c.epicId)
+      .filter((id): id is string => id != null),
+  );
   const byEpic = new Map(allocations.map((a) => [a.epicId, a]));
 
   const rows = candidates

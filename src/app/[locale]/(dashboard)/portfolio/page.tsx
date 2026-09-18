@@ -235,7 +235,7 @@ export default async function PortfolioPage({ searchParams }: Props) {
     // zeigt der Trichter nur die Investition, und das ist die ganze Wahrheit.
     async () =>
       budgetingEnabled ? cycleRunCosts(db, principal.tenantId) : { bySolution: {}, unassigned: [] },
-    // Der ART-Topf: der zweite Geldweg. Ohne ihn zeigte der Trichter für
+    // Der ART-Rahmen: der zweite Geldweg. Ohne ihn zeigte der Trichter für
     // ART-Epics null, obwohl ihnen zugeteilt wurde.
     async (cycleKey) =>
       budgetingEnabled ? artEpicCycleAllocations(db, principal.tenantId, cycleKey) : {},
