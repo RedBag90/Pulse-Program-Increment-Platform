@@ -10,12 +10,13 @@ ALTER TABLE initiatives
   ADD CONSTRAINT i1_level_range
     CHECK (level BETWEEN 0 AND 3),
 
-  -- I2: Epics (level=0) must have no parent; all others must have a parent
-  ADD CONSTRAINT i2_epic_no_parent
-    CHECK (
-      (level = 0 AND parent_id IS NULL) OR
-      (level > 0 AND parent_id IS NOT NULL)
-    ),
+  -- I2 ist ENTFERNT (ADR-0023): ein Feature darf ohne Epic bestehen.
+  --
+  -- Die alte Klausel verlangte für jede Nicht-Epic-Zeile ein Elternteil. Sie
+  -- war nie angewandt — diese Datei nennt längst gelöschte Spalten —, hätte das
+  -- eigenständige Feature aber ausgesperrt, sobald sie jemand einspielt. Die
+  -- verbliebene Richtung (ein Epic hat kein Elternteil) wird in
+  -- `validateParentLevel` durchgesetzt, nicht hier.
 
   -- I3: WSJF fields only on Features (level=1)
   ADD CONSTRAINT i3_wsjf_only_features

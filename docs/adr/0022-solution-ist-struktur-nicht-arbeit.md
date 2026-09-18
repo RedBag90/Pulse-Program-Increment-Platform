@@ -82,3 +82,19 @@ einzige Funktion des alten Service, die `loadAuthorizedEpic` brauchte.
   hatte, und sie steht dort, wo sie hingehört: in der Kompositions-Wurzel.
 - ADR-0013 bleibt unangetastet. Dieser Beschluss ordnet einen Begriff neu ein,
   er ändert die Schichtung nicht.
+
+---
+
+## Nachtrag 2026-09-18 — die Verknüpfung reicht bis zum Feature
+
+ADR-0023 lässt ein Feature seine Solution **selbst** tragen (die eigene, sonst
+die des Epics). Das ändert an dieser Entscheidung nichts, präzisiert aber einen
+Satz: _„Sie autorisiert ein Epic (`epic.update`), nicht die Solution"_ galt für
+die Epic-Verknüpfung. Die Feature-Zuordnung autorisiert entsprechend ein
+**Feature** (`feature.update`), ebenfalls nicht die Solution — die Richtung
+bleibt also dieselbe.
+
+Die Solution bleibt Core, die Verknüpfung bleibt Work. Neu ist nur, dass Work
+sie an zwei Ebenen führt: `EpicSolution` (n:m, mit Primär) am Epic,
+`primarySolutionId` allein am Feature — ein Feature wird in genau **eine**
+Solution geliefert, es braucht keine Verknüpfungstabelle.

@@ -436,6 +436,20 @@ export type CreateInitiativeInput = z.infer<typeof createInitiativeSchema>;
 
 The following invariants MUST hold at all times.
 
+> **Korrektur 2026-09-18.** Diese Tabelle ist in drei Zeilen überholt, und die
+> Spalte „PostgreSQL" behauptet durchweg mehr, als es gibt: an `initiatives`
+> hängt **kein einziges CHECK**. `prisma/sql/invariants.sql` ist nie angewandt
+> worden.
+>
+> - **I2** gilt nur noch in einer Richtung: ein _Epic_ hat kein Elternteil; ein
+>   _Feature_ **kann** eins haben. Ein Feature ohne Epic ist ein
+>   **eigenständiges Feature** (ADR-0023). Durchgesetzt in
+>   `validateParentLevel`, nicht in der Datenbank.
+> - **I4** stimmt nicht: ein Feature ohne PI liegt im Backlog — ein gewollter
+>   Zustand, den das Cockpit ausdrücklich zeigt.
+> - **I5** ist gegenstandslos: die Spalte `sprint_id` existiert nicht mehr, und
+>   `InitiativeLevel` kennt nur noch `EPIC` und `FEATURE`.
+
 | #   | Invariant                            | TypeScript            | Zod                          | Prisma          | PostgreSQL         |
 | --- | ------------------------------------ | --------------------- | ---------------------------- | --------------- | ------------------ |
 | I1  | `child.level === parent.level + 1`   | ✓ discriminated union | ✓ literal `level` per schema | ✓ via service   | ✓ CHECK constraint |
