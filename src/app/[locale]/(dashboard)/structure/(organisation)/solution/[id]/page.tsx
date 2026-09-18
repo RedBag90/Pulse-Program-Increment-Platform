@@ -5,7 +5,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { hasCapability } from "@/server/auth/authorize";
 import { listAuditHistory } from "@/server/services/audit-history";
 import { loadSolutionDetail } from "@/modules/core/org/server/views/solution-detail";
-import { loadSolutionEpics } from "@/modules/work/server/views/solution-grow";
+import { loadSolutionEpics, loadSolutionFeatures } from "@/modules/work/server/views/solution-grow";
 import { HorizonBadge } from "@/modules/core/org/features/solution/components/horizon-badge";
 import { SolutionLifecycleBar } from "@/modules/core/org/features/solution/components/solution-lifecycle-bar";
 import { SolutionGrowRunTiles } from "@/modules/core/org/features/solution/components/solution-grow-run-tiles";
@@ -31,13 +31,17 @@ const CORE_TABS: readonly DetailTab[] = [
 ];
 
 /**
- * Der Epics-Reiter steht zwischen Overview und Verlauf — aber nur mit **Work**.
- * Er liest Epics und Business Cases; ohne das Modul gibt es beides nicht, und
- * ein leerer Reiter saehe aus wie ein Datenfehler (ADR-0022).
+ * Der Arbeits-Reiter steht zwischen Overview und Verlauf — aber nur mit
+ * **Work**. Er liest Epics, Business Cases und Features; ohne das Modul gibt es
+ * das alles nicht, und ein leerer Reiter sähe aus wie ein Datenfehler
+ * (ADR-0022).
+ *
+ * Der Schlüssel bleibt `epics`, damit gespeicherte Links weiter funktionieren —
+ * die Beschriftung nennt jetzt beides.
  */
 const WORK_TABS: readonly DetailTab[] = [
   { key: "overview", label: "Overview" },
-  { key: "epics", label: "Epics" },
+  { key: "epics", label: "Epics & Features" },
   { key: "history", label: "Verlauf" },
 ];
 
@@ -78,7 +82,12 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
   const activeTab = resolveTab(TABS, tab);
   // Grow und die Primaer-Epics stammen aus Work; ohne das Modul bleibt der
   // Strukturknoten uebrig — Name, Wertstrom, ART, Horizont, Verantwortliche.
-  const workSide = workEnabled ? await loadSolutionEpics(db, principal.tenantId, model.id) : null;
+  const [workSide, solutionFeatures] = workEnabled
+    ? await Promise.all([
+        loadSolutionEpics(db, principal.tenantId, model.id),
+        loadSolutionFeatures(db, principal.tenantId, model.id),
+      ])
+    : [null, []];
   // Betriebskosten pflegt, wer den Wertstrom verantwortet — nicht, wer die
   // Solution verwaltet. **Einschließlich der Finance-Partei:** der Service lässt
   // sie durch (`assertRtbManage`), die Fläche tat es bisher nicht, und dieselbe
@@ -185,6 +194,38 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
                     <span className="tabular-nums text-muted-foreground">
                       {e.cost != null && e.cost > 0 ? formatCompactEUR(e.cost) : "—"}
                     </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <h2 className="pt-4 text-lg font-medium">Direkt zugeordnete Features</h2>
+          <p className="text-sm text-muted-foreground">
+            Features, die ihre Solution <strong className="font-medium">selbst</strong> tragen — ein
+            Feature wird in genau eine Solution geliefert. Features, die sie nur über ihr Epic
+            erben, stehen nicht hier: sie hängen unter einem Epic aus der Liste darüber. Diese
+            Zeilen tragen <strong className="font-medium">kein Geld</strong>; Grow ist die Summe der
+            Umsetzungskosten der Primär-Epics, ein Feature hat keinen Business Case.
+          </p>
+          {solutionFeatures.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Kein Feature ist dieser Solution direkt zugeordnet.
+            </p>
+          ) : (
+            <ul className="divide-y rounded-lg border">
+              {solutionFeatures.map((f) => (
+                <li
+                  key={f.id}
+                  className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                >
+                  <Link href={`/feature/${f.id}`} className="font-medium hover:underline">
+                    {f.title}
+                  </Link>
+                  <span className="flex items-center gap-3 text-xs text-muted-foreground">
+                    {f.artName && <span>{f.artName}</span>}
+                    {/* Kein Epic ist hier kein fehlender Wert, sondern eine Aussage. */}
+                    <span>{f.epic ? f.epic.title : "eigenständig"}</span>
                   </span>
                 </li>
               ))}

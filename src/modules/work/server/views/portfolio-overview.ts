@@ -45,6 +45,7 @@ import type {
 } from "@/modules/work/features/portfolio/lib/horizon-funnel";
 import { ROAM_STATUSES, type RoamStatus } from "@/modules/core/kernel/domain/roam";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { resolveFeatureSolution } from "@/modules/work/domain/feature-solution";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
@@ -797,14 +798,24 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
       return {
         id: f.id,
         title: f.title,
-        subtitle: f.parent?.valueStream?.name ?? null,
+        // Der Wertstrom kommt vom ART — ein eigenständiges Feature hat kein
+        // Epic, von dem er kommen könnte, und stünde sonst ohne Herkunft da.
+        subtitle: f.art?.valueStream?.name ?? f.parent?.valueStream?.name ?? null,
         epic: f.parent ? { id: f.parent.id, title: f.parent.title } : null,
         dateIso: isoDay(f.pi.endDate),
         daysUntil: signedDays(ms),
         overdue: ms < today,
-        // Ein Feature erbt beides von seinem Epic — es hat keine eigene Klasse.
-        epicClass: f.parent ? classOf(f.parent.id) : null,
-        solution: f.parent ? solutionOf(f.parent.id) : null,
+        // Die Klasse erbt ein Feature von seinem Epic — eine eigene hat es
+        // nicht. **Ohne** Epic ist es ART-eigene Arbeit; in der Klassen-Facette
+        // zählt es deshalb als „art". Fehlende Klasse gilt dort nämlich als
+        // „portfolio" (`isClassShown`) — für ein Epic vor L3.1 richtig, für ein
+        // eigenständiges Feature genau verkehrt herum.
+        epicClass: f.parent ? classOf(f.parent.id) : "art",
+        // Die Solution dagegen darf es selbst tragen.
+        solution: resolveFeatureSolution({
+          own: f.primarySolution,
+          parent: f.parent ? solutionOf(f.parent.id) : null,
+        }),
       };
     })
     .sort((a, b) => a.dateIso.localeCompare(b.dateIso));

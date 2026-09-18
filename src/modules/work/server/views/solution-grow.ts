@@ -145,3 +145,54 @@ export async function loadSolutionEpics(
   });
   return { epics, grow };
 }
+
+/**
+ * Die Features **einer** Solution — für den Epics-Reiter der Detailseite.
+ *
+ * Gemeint sind die Features, die ihre Solution **selbst** tragen. Features, die
+ * sie nur über ihr Epic erben, stehen nicht hier: sie hängen unter einem Epic,
+ * das die Liste darüber ohnehin zeigt, und doppelt aufgeführt wäre die Solution
+ * scheinbar doppelt belastet.
+ *
+ * Sie tragen **kein Geld**. Grow ist die Summe der Umsetzungskosten der
+ * Primär-Epics; ein Feature hat keinen Business Case. Die Liste beantwortet
+ * deshalb „was wird an dieser Solution gebaut", nicht „was kostet sie".
+ */
+export interface SolutionFeature {
+  id: string;
+  title: string;
+  status: string;
+  /** `null` = eigenständig, hängt an keinem Epic. */
+  epic: { id: string; title: string } | null;
+  artName: string | null;
+}
+
+export async function loadSolutionFeatures(
+  db: PrismaClient,
+  tenantId: string,
+  solutionId: string,
+): Promise<SolutionFeature[]> {
+  const rows = await db.initiative.findMany({
+    where: {
+      tenantId,
+      level: InitiativeLevel.FEATURE,
+      deletedAt: null,
+      primarySolutionId: solutionId,
+    },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      parent: { select: { id: true, title: true } },
+      art: { select: { name: true } },
+    },
+    orderBy: { title: "asc" },
+  });
+  return rows.map((f) => ({
+    id: f.id,
+    title: f.title,
+    status: f.status,
+    epic: f.parent ? { id: f.parent.id, title: f.parent.title } : null,
+    artName: f.art?.name ?? null,
+  }));
+}
