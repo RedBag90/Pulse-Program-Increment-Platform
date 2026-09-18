@@ -1,7 +1,11 @@
 import type { Prisma, Initiative } from "@/generated/prisma";
 import type { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { ok, err, isErr, type Result } from "@/modules/core/kernel/domain/errors";
-import { validateParentLevel } from "@/modules/core/kernel/domain/hierarchy";
+import {
+  validateParentLevel,
+  type ParentLevelOptions,
+} from "@/modules/core/kernel/domain/hierarchy";
+import { derivedInitiativePath } from "@/modules/core/kernel/domain/initiative-path";
 import { notDeleted } from "@/server/db/soft-delete";
 import type { MutationContext } from "@/modules/core/kernel/server/mutation";
 
@@ -28,12 +32,19 @@ type ChildCreateData = Partial<
  * Loads and validates the parent for a `childLevel` initiative (hierarchy
  * invariants I1 + I2). Excludes soft-deleted parents. Epic-level callers pass
  * `parentId = null` and receive `ok(null)`; everyone else gets the parent row.
+ *
+ * `opts.allowOrphan` lässt ein **fehlendes** Elternteil durchgehen, statt
+ * `not_found` zu melden — der Weg des eigenständigen Features. Ohne die Option
+ * bleibt es beim alten, strengen Verhalten; ein falsch getippte `parentId`
+ * scheitert weiterhin, weil die Zeile dann nicht gefunden wird und `parentId`
+ * gesetzt ist.
  */
 export async function findValidatedParent(
   tx: Prisma.TransactionClient,
   mctx: MutationContext,
   childLevel: InitiativeLevel,
   parentId: string | null,
+  opts: ParentLevelOptions = {},
 ): Promise<Result<ValidatedParent | null>> {
   const parent = parentId
     ? await tx.initiative.findFirst({
@@ -42,7 +53,7 @@ export async function findValidatedParent(
       })
     : null;
 
-  const check = validateParentLevel(childLevel, parent, parentId ?? "");
+  const check = validateParentLevel(childLevel, parent, parentId ?? "", opts);
   if (isErr(check)) return check;
   return ok(parent);
 }
@@ -72,7 +83,7 @@ export async function createInitiativeWithDerivedPath(
   },
 ): Promise<Initiative> {
   const row = await tx.initiative.create({ data: { ...args.data, path: "" } });
-  const path = args.parentPath ? `${args.parentPath}.${row.id}` : row.id;
+  const path = derivedInitiativePath(args.parentPath, row.id);
   await tx.initiative.update({ where: { id: row.id }, data: { path } });
   return { ...row, path };
 }

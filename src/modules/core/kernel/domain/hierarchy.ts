@@ -21,10 +21,32 @@ const LEVEL_NAME: Record<InitiativeLevel, string> = {
 };
 
 /**
+ * Wie ein Aufrufer ein **fehlendes** Elternteil gewertet haben will.
+ *
+ * Für ein Feature war „kein Elternteil" immer ein Fehler. Seit es
+ * eigenständige Features gibt — ART-eigene Arbeit unter keinem
+ * Portfolio-Vorhaben — ist es ein erlaubter Zustand, aber nur dort, wo der
+ * Aufrufer ihn ausdrücklich zulässt.
+ *
+ * Die Vorgabe bleibt **streng**: wer nichts sagt, bekommt das alte Verhalten.
+ */
+export interface ParentLevelOptions {
+  /**
+   * `true` = **keine** angegebene `parentId` ist in Ordnung, statt `not_found`.
+   *
+   * Greift ausdrücklich nur bei leerer `parentId`. Eine angegebene, aber nicht
+   * auffindbare Id bleibt ein Fehler — sonst würde ein Tippfehler zu einem
+   * stillschweigend eigenständigen Feature.
+   */
+  allowOrphan?: boolean;
+}
+
+/**
  * Validates that `parent` is the correct level to parent a `childLevel`
  * initiative (invariants I1 + I2).
  *
- * - `parent === null` → `not_found` for the expected parent type.
+ * - `parent === null` → `not_found` for the expected parent type,
+ *   **unless** `allowOrphan` is set.
  * - parent of the wrong level → `hierarchy_violation` (I1).
  *
  * `parentId` is echoed back in the error so callers need not re-wrap it.
@@ -33,6 +55,7 @@ export function validateParentLevel(
   childLevel: InitiativeLevel,
   parent: { level: number } | null,
   parentId: string,
+  opts: ParentLevelOptions = {},
 ): Result<void> {
   const expected = PARENT_LEVEL[childLevel];
 
@@ -49,6 +72,11 @@ export function validateParentLevel(
   }
 
   if (parent === null) {
+    // Ein eigenständiges Feature ist elternlos — aber „ohne Epic" heisst **gar
+    // keine** Id, nicht eine falsche. Wurde eine angegeben und nichts gefunden,
+    // bleibt es `not_found`, auch mit Erlaubnis: sonst schluckte ein Tippfehler
+    // in einer Id die Zuordnung stillschweigend.
+    if (opts.allowOrphan && parentId === "") return ok(undefined);
     return err({ kind: "not_found" as const, resourceType: LEVEL_NAME[expected], id: parentId });
   }
 

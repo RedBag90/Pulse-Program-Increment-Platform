@@ -84,7 +84,19 @@ export interface Epic extends InitiativeBase {
 export interface Feature extends InitiativeBase {
   readonly level: InitiativeLevel.FEATURE;
   readonly id: FeatureId;
-  readonly parentId: EpicId;
+  /**
+   * Das Eltern-Epic — oder `null`.
+   *
+   * `null` heißt **eigenständiges Feature**: ART-eigene Arbeit, die unter
+   * keinem Portfolio-Vorhaben hängt (klassisches SAFe: das ART-Backlog ist
+   * nicht der Unterbau des Portfolio-Backlogs). Der Wertstrom kommt dann vom
+   * ART, nicht vom Epic — siehe `initiative-value-stream.ts`.
+   *
+   * Die Konzeptnotiz §6.4 führt dazu eine Invariante I2 („Epic ⟺ parentId ===
+   * null"). Sie ist mit dieser Entscheidung überholt; die Korrektur steht in
+   * der ADR zum eigenständigen Feature.
+   */
+  readonly parentId: EpicId | null;
   readonly artId: ArtId;
   readonly piId: PiId;
   wsjf: WsjfScore;
