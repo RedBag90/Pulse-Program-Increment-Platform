@@ -6,6 +6,8 @@ const vsRow = (over: {
   name: string;
   vmoId?: string | null;
   financeApproverId?: string | null;
+  businessOwnerId?: string | null;
+  architectLeadId?: string | null;
   arts?: ReturnType<typeof artRow>[];
   solutions?: ReturnType<typeof solRow>[];
 }) => ({
@@ -14,22 +16,38 @@ const vsRow = (over: {
   description: null,
   vmoId: over.vmoId ?? null,
   financeApproverId: over.financeApproverId ?? null,
+  businessOwnerId: over.businessOwnerId ?? null,
+  architectLeadId: over.architectLeadId ?? null,
   arts: over.arts ?? [],
   solutions: over.solutions ?? [],
 });
 
-const solRow = (over: { id: string; name: string; horizon?: string; artId?: string | null }) => ({
+const solRow = (over: {
+  id: string;
+  name: string;
+  horizon?: string;
+  artId?: string | null;
+  productManagerId?: string | null;
+}) => ({
   id: over.id,
   name: over.name,
   horizon: over.horizon ?? "h1",
   artId: over.artId ?? null,
+  productManagerId: over.productManagerId ?? null,
 });
 
-const artRow = (over: { id: string; name: string; rteId?: string | null; piCount?: number }) => ({
+const artRow = (over: {
+  id: string;
+  name: string;
+  rteId?: string | null;
+  technicalLeadId?: string | null;
+  piCount?: number;
+}) => ({
   id: over.id,
   name: over.name,
   description: null,
   rteId: over.rteId ?? null,
+  technicalLeadId: over.technicalLeadId ?? null,
   _count: { pis: over.piCount ?? 0 },
 });
 

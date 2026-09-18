@@ -4,7 +4,7 @@ const revalidatePath = vi.fn();
 vi.mock("next/cache", () => ({ revalidatePath: (...args: unknown[]) => revalidatePath(...args) }));
 
 // Imported after the mock is registered.
-const { revalidateFor } = await import("@/server/http/revalidation");
+const { revalidateFor, REGISTRY } = await import("@/server/http/revalidation");
 
 beforeEach(() => revalidatePath.mockClear());
 
@@ -38,10 +38,26 @@ describe("revalidateFor", () => {
     );
   });
 
-  it("issues one revalidatePath call per registered path", () => {
+  it("issues one revalidatePath call per registered path — genau einen, keinen doppelt", () => {
     revalidateFor("valueStream");
-    // /structure + /structure/value-stream/[id] + /budgeting/value-streams/[id]:
-    // die Budget-Fläche des Wertstroms lebt seit dem Umzug unter /budgeting.
-    expect(revalidatePath).toHaveBeenCalledTimes(3);
+    const paths = revalidatePath.mock.calls.map((c) => c[0]);
+    // Aus der Registry abgeleitet statt abgeschrieben: eine neue Route in der
+    // Gruppe ist eine Erweiterung, kein Fehlschlag.
+    expect(paths).toHaveLength(REGISTRY.valueStream.length);
+    expect(new Set(paths).size).toBe(paths.length);
+    expect(paths).toEqual(expect.arrayContaining([...REGISTRY.valueStream]));
+  });
+
+  // Die Rollenverteilung schreibt über alle drei Ebenen; nach dem Benennen muss
+  // sie den neuen Stand zeigen, ohne dass jemand neu lädt.
+  it("frischt die Rollenverteilung auf, egal welche Ebene benannt wurde", () => {
+    for (const resource of ["valueStream", "art", "solution"] as const) {
+      revalidatePath.mockClear();
+      revalidateFor(resource);
+      expect(
+        revalidatePath.mock.calls.map((c) => c[0]),
+        resource,
+      ).toContain("/structure/rollen");
+    }
   });
 });

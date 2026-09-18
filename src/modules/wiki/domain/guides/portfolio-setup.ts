@@ -172,6 +172,20 @@ Portfolio-Guardrails ── tenant-weit, jederzeit`,
           ],
         },
         {
+          title: "Nachsehen, wer schon benannt ist",
+          route: "/structure/rollen",
+          body: [
+            {
+              kind: "paragraph",
+              text: "Die **Rollenverteilung** zeigt alle Benennungen des Mandanten auf einer Fläche — je Wertstrom die Zuständigkeiten als Plätze, besetzte mit Gesicht, unbesetzte gestrichelt. Wer das Recht hat, besetzt sie dort direkt, statt jede Detailseite einzeln aufzusuchen.",
+            },
+            {
+              kind: "aside",
+              text: "Es sind **Benennungen**, keine App-Rollen: eine Rolle sagt, was jemand darf, eine Benennung sagt, wen man fragt. Niemand muss eine Rolle tragen, um benannt zu werden.",
+            },
+          ],
+        },
+        {
           title: "Die ARTs",
           route: "/structure",
           anchor: "structure-tree",

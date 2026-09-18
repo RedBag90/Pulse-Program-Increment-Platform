@@ -41,9 +41,19 @@ export type RevalidationResource =
   | "goalFilter"
   | "roleOnboarding";
 
-const REGISTRY: Record<RevalidationResource, readonly string[]> = {
+/**
+ * Exportiert, damit der Test die Zahl der Aufrufe **ableiten** kann statt sie
+ * abzuschreiben. Vorher stand dort eine feste `3`; eine neue Route in einer
+ * Gruppe ließ ihn fehlschlagen, ohne dass etwas kaputt war.
+ */
+export const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   art: [
     "/structure",
+    // Die Rollenverteilung liest die Benennungen aller drei Ebenen und schreibt
+    // sie auch — sie gehört deshalb in alle drei Gruppen. `revalidatePath`
+    // trifft ohne `type: "layout"` genau den angegebenen Pfad, nicht seine
+    // Geschwister: `/structure` deckt `/structure/rollen` **nicht** ab.
+    "/structure/rollen",
     "/structure/art/[id]",
     "/budgeting/arts/[artId]",
     "/structure/value-stream/[id]",
@@ -74,11 +84,17 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     // Portfolio-Manager) auffrischen.
     "/my-tasks",
   ],
-  valueStream: ["/structure", "/structure/value-stream/[id]", "/budgeting/value-streams/[id]"],
+  valueStream: [
+    "/structure",
+    "/structure/rollen",
+    "/structure/value-stream/[id]",
+    "/budgeting/value-streams/[id]",
+  ],
   // Solutions wirken auf die Verwaltungsseiten UND auf den abgeleiteten
   // Epic-Horizont (Kanban-Swimlanes, Guardrail, Epic-Detail).
   solution: [
     "/structure/solutions",
+    "/structure/rollen",
     "/structure/solution/[id]",
     "/portfolio",
     "/portfolio/dashboard",

@@ -21,6 +21,8 @@ export async function getStructureTree(db: PrismaClient, tenantId: TenantId) {
       description: true,
       financeApproverId: true,
       vmoId: true,
+      businessOwnerId: true,
+      architectLeadId: true,
       arts: {
         where: { ...notDeleted },
         orderBy: { name: "asc" },
@@ -29,13 +31,20 @@ export async function getStructureTree(db: PrismaClient, tenantId: TenantId) {
           name: true,
           description: true,
           rteId: true,
+          technicalLeadId: true,
           _count: { select: { pis: true } },
         },
       },
       solutions: {
         where: { ...notDeleted },
         orderBy: { name: "asc" },
-        select: { id: true, name: true, horizon: true, artId: true },
+        select: {
+          id: true,
+          name: true,
+          horizon: true,
+          artId: true,
+          productManagerId: true,
+        },
       },
     },
   });

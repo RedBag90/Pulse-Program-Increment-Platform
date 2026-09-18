@@ -83,7 +83,8 @@
     "budgeting": "Budgeting",
     "others": "Other",
     "targetState": "Target State",
-    "openMenu": "Open menu"
+    "openMenu": "Open menu",
+    "roleMap": "Role map"
   },
   "auth": {
     "signIn": "Sign in",

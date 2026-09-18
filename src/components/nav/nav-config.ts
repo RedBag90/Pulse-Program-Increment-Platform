@@ -26,6 +26,7 @@ import {
   BookOpen,
   ShieldAlert,
   type LucideIcon,
+  Users,
 } from "lucide-react";
 import type { Practice } from "@/modules/core/kernel/domain/operating-model";
 import type { Action } from "@/server/auth/policies";
@@ -100,6 +101,7 @@ export const NAV_GROUPS: NavGroup[] = [
     defaultHref: "/structure",
     items: [
       { href: "/structure", labelKey: "organisation", icon: Network, exact: true },
+      { href: "/structure/rollen", labelKey: "roleMap", icon: Users },
       { href: "/structure/solutions", labelKey: "solutions", icon: Boxes },
       { href: "/structure/timelines", labelKey: "timelines", icon: CalendarDays },
     ],
