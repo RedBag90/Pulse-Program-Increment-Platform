@@ -668,7 +668,12 @@ model Solution {
   id               String    @id @default(uuid()) @db.Uuid
   tenantId         String    @map("tenant_id") @db.Uuid
   valueStreamId    String    @map("value_stream_id") @db.Uuid
-  artId            String?   @map("art_id") @db.Uuid
+  /// **Welcher Zug diese Solution baut.** Pflicht seit 2026-09-19: über dieses
+  /// Feld löst sich eine Betriebsposition an einer Solution auf ein ART auf
+  /// (`rtb-art-resolution.ts`); ohne ART bricht dieser Weg. Die Solution bleibt
+  /// trotzdem ein Kind des **Wertstroms** (ADR-0022) — das hier ist ein
+  /// Verweis, keine Elternschaft. In H2 ist er eine Absicht, keine Zusage.
+  artId            String    @map("art_id") @db.Uuid
   name             String
   description      String?
   /// h0 (Decommissioning) | h1 (Investing) | h2 (Emerging) | h3 (R&D).
@@ -688,7 +693,10 @@ model Solution {
 
   tenant         Tenant               @relation(fields: [tenantId], references: [id])
   valueStream    ValueStream          @relation(fields: [valueStreamId], references: [id])
-  art            Art?                 @relation(fields: [artId], references: [id], onDelete: SetNull)
+  /// `Restrict`, nicht `SetNull`: letzteres setzte die Pflichtspalte beim harten
+  /// Löschen eines ARTs auf NULL und verletzte die Bedingung im selben Atemzug.
+  /// Das übliche Löschen im Haus ist weich (`deletedAt`).
+  art            Art                  @relation(fields: [artId], references: [id], onDelete: Restrict)
   epicLinks      EpicSolution[]
   primaryOfInitiatives Initiative[]   @relation("InitiativePrimarySolution")
   /// Betriebskosten dieser Solution — die **eine** Run-the-Business-Definition

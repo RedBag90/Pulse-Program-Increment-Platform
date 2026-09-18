@@ -26,13 +26,14 @@ const solRow = (over: {
   id: string;
   name: string;
   horizon?: string;
-  artId?: string | null;
+  /** Pflicht in den Daten seit 2026-09-19 — die Vorlage setzt einen Vorgabewert. */
+  artId?: string;
   productManagerId?: string | null;
 }) => ({
   id: over.id,
   name: over.name,
   horizon: over.horizon ?? "h1",
-  artId: over.artId ?? null,
+  artId: over.artId ?? "art1",
   productManagerId: over.productManagerId ?? null,
 });
 
@@ -207,7 +208,17 @@ describe("buildStructurePageModel", () => {
  * Solution über den Baum nicht erreichbar.
  */
 describe("buildStructurePageModel — Solutions als dritte Ebene", () => {
-  it("hängt eine Solution unter ihren ART, eine ohne ART unter den Wertstrom", () => {
+  /**
+   * **Gefragt wird „ist ihr ART hier zu sehen", nicht „hat sie eins".**
+   *
+   * Bis 2026-09-19 war `artId` optional, und der Baum hängte genau die
+   * ART-losen Solutions an den Wertstrom. Seit die Spalte Pflicht ist, wäre die
+   * alte Bedingung nie mehr wahr — der **Fall** aber bleibt: ein weich
+   * gelöschtes ART fällt aus der Liste heraus, und seine Solutions zeigten dann
+   * auf einen Knoten, den niemand rendert. Sie wären spurlos aus dem Baum
+   * verschwunden. Deshalb steht dieser Test hier.
+   */
+  it("hängt eine Solution unter ihren ART — und an den Wertstrom, wenn der ART nicht zu sehen ist", () => {
     const m = buildStructurePageModel({
       mode: "structure",
       tree: [
@@ -217,7 +228,8 @@ describe("buildStructurePageModel — Solutions als dritte Ebene", () => {
           arts: [artRow({ id: "art1", name: "OEE" })],
           solutions: [
             solRow({ id: "s1", name: "Produktion Betrieb", artId: "art1" }),
-            solRow({ id: "s2", name: "Produktion Pilot", horizon: "h3" }),
+            // `art-weg` ist weich gelöscht und steht deshalb nicht in `arts`.
+            solRow({ id: "s2", name: "Produktion Pilot", horizon: "h3", artId: "art-weg" }),
           ],
         }),
       ],

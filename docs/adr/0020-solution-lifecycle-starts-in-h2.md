@@ -101,3 +101,29 @@ Daraus folgt:
 - **Der Trichter bleibt unberührt.** Er zeigt Solutions und Solution-lose Epics
   als zwei Symbolsorten auf einer Skala; die H3-Bahn trägt danach nur noch
   Epic-Symbole — fachlich genau das gewünschte Bild, ohne eine Zeile Änderung.
+
+---
+
+## Nachtrag 2026-09-19 — jede Solution braucht ab H2 ein ART
+
+Diese Entscheidung sagt, dass eine Solution **in H2 entsteht**, als „Emerging".
+Die Seeds haben daraus gefolgert, dass ein ART erst in H1 sinnvoll ist, und
+geben nur den h1-Solutions eines (`seed-demo.ts`, `seed-large.ts`).
+
+Mit `art-budget-consolidation.md` fällt diese Folgerung: **`solutions.art_id`
+wird Pflicht**, und damit braucht auch eine gerade entstehende Solution von
+Anfang an ein ART. Der Grund liegt im Geld, nicht im Lebenszyklus — eine
+Betriebsposition an einer Solution löst sich über deren ART auf, und ohne ART
+bricht dieser Weg.
+
+**Mein Einwand dazu, überstimmt und hier festgehalten**, weil er beim nächsten
+Lesen sonst fehlt: die Pflicht verlangt die Zuordnung im **unsichersten
+Moment**. In H2 weiß niemand sicher, welcher Zug das bauen wird; das ist der
+Punkt von „Emerging". Gemessen löst die Pflicht **eine** heutige Position über
+7.500 € je Halbjahr — die Alternative „ART erst ab H1, Position bis dahin
+sichtbar offen" hätte dasselbe ohne Schemaänderung erreicht.
+
+Die Entscheidung ist gefallen. Was bleibt: **ein ART in H2 ist eine Absicht,
+keine Zusage.** Wer ihn später ändert, korrigiert keine Falschangabe, sondern
+folgt dem Erkenntnisstand — und die Fläche soll das nicht wie einen Fehler
+aussehen lassen.

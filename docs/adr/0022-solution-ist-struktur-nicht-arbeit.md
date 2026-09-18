@@ -98,3 +98,28 @@ Die Solution bleibt Core, die Verknüpfung bleibt Work. Neu ist nur, dass Work
 sie an zwei Ebenen führt: `EpicSolution` (n:m, mit Primär) am Epic,
 `primarySolutionId` allein am Feature — ein Feature wird in genau **eine**
 Solution geliefert, es braucht keine Verknüpfungstabelle.
+
+---
+
+## Nachtrag 2026-09-19 — das ART wird Pflicht, der Wertstrom bleibt die Heimat
+
+Diese Entscheidung hängt die Solution an den **Wertstrom**: dort gehört sie hin,
+und `valueStreamId` ist deshalb Pflicht, `artId` war es nicht.
+
+Mit `art-budget-consolidation.md` wird auch `artId` Pflicht. **Das stellt die
+Zuordnung nicht um.** Der Wertstrom bleibt die Heimat der Solution; das ART ist
+die Angabe, _welcher Zug sie baut_. Beide ARTs eines Stroms liegen in
+demselben Strom — die Pflicht verschiebt also keine Ebene, sie schließt eine
+Lücke.
+
+Zwei Dinge, die dabei nicht verwechselt werden dürfen:
+
+- **Die Solution wandert nicht unter das ART.** Sie bleibt ein Kind des
+  Wertstroms in Baum, Navigation und Rechten. `Solution.artId` ist ein Verweis,
+  keine Elternschaft — genau wie `productManagerId` ein Verweis ist und keine
+  Zugehörigkeit.
+- **Der Fremdschlüssel wird strenger.** `ON DELETE SET NULL` wäre ab jetzt ein
+  Widerspruch in sich: ein hart gelöschtes ART setzte `art_id` auf NULL und
+  verletzte die Pflicht im selben Atemzug. Er wird `RESTRICT`. Das übliche
+  Löschen im Haus ist ohnehin weich (`deleted_at`), also trifft das niemanden,
+  der den normalen Weg geht.

@@ -141,16 +141,25 @@ export function CreateSolutionDialog({ open, onOpenChange, solution }: CreateSol
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="sol-art">ART</Label>
+                <Label htmlFor="sol-art">ART *</Label>
+                {/*
+                  **Pflichtfeld seit 2026-09-19.** „— kein ART —" stand hier als
+                  gleichwertige Wahl; über dieses Feld löst sich aber das
+                  Betriebsgeld dieser Solution auf einen Zug auf, und ohne ART
+                  bleibt es sichtbar liegen. Der leere Eintrag heißt jetzt
+                  „noch nicht gewählt", nicht „keins" — `required` lässt ihn
+                  nicht durch.
+                */}
                 <select
                   key={vsId}
                   id="sol-art"
                   name="artId"
+                  required
                   defaultValue={solution?.artId ?? ""}
                   disabled={!vsId || arts.loading}
                   className={SELECT_CLASS}
                 >
-                  <option value="">{!vsId ? "Zuerst Value Stream…" : "— kein ART —"}</option>
+                  <option value="">{!vsId ? "Zuerst Value Stream…" : "— bitte wählen —"}</option>
                   {artOptions.map((art) => (
                     <option key={art.id} value={art.id}>
                       {art.name}

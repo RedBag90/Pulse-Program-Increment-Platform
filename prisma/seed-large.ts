@@ -482,7 +482,12 @@ async function main() {
         id: solId(vs, h),
         tenantId,
         valueStreamId: vsIds[vs]!,
-        artId: h === "h1" ? artIds[vs * 2]! : null,
+        // **Jede Solution trägt ein ART** (Pflichtspalte seit 2026-09-19). Hier
+        // stand `h === "h1" ? … : null`, weil ADR-0020 den Lebenszyklus in H2
+        // beginnen lässt und ein ART dort noch unsicher ist. Das bleibt wahr —
+        // die Angabe ist in H2 eine **Absicht**, keine Zusage. Der erste ART des
+        // Stroms ist die naheliegende: er trägt auch dessen H1-Solution.
+        artId: artIds[vs * 2]!,
         name: `${vsNames[vs]} ${solNameSuffix[h]}`,
         horizon: h,
         productManagerId: solutionPm[`${vs}:${h}`] ?? null,

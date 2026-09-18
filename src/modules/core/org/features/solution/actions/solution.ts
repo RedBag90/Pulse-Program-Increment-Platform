@@ -34,7 +34,10 @@ export const createSolutionAction = createServerAction({
     name: z.string().min(1).max(200),
     description: z.string().optional(),
     valueStreamId: z.string().uuid(),
-    artId: z.string().uuid().nullable(),
+    // **Pflicht seit 2026-09-19.** Ein leeres Feld kam vorher als `null` durch;
+    // jetzt lehnt das Schema es ab — mit einer Meldung an der Kante, statt dass
+    // die Datenbank es tut.
+    artId: z.string().uuid({ message: "Bitte ein ART wählen." }),
     status,
     productManagerId: z.string().uuid().nullable().optional(),
   }),
@@ -46,7 +49,7 @@ export const createSolutionAction = createServerAction({
       name: f.string("name"),
       description: f.nonEmptyString("description"),
       valueStreamId: f.string("valueStreamId"),
-      artId: f.nonEmptyString("artId") ?? null,
+      artId: f.nonEmptyString("artId") ?? "",
       status: (f.nonEmptyString("status") ?? "investing") as z.infer<typeof status>,
       productManagerId: f.nonEmptyString("productManagerId") ?? null,
     };
@@ -77,7 +80,9 @@ export const updateSolutionAction = createServerAction({
     name: z.string().min(1).max(200).optional(),
     description: z.string().optional(),
     valueStreamId: z.string().uuid().optional(),
-    artId: z.string().uuid().nullable().optional(),
+    // **Wechselbar, nicht entfernbar** (Pflichtspalte seit 2026-09-19):
+    // `undefined` heißt „nicht angefasst", `null` gibt es nicht mehr.
+    artId: z.string().uuid().optional(),
     status: status.optional(),
     productManagerId: z.string().uuid().nullable().optional(),
   }),
@@ -94,7 +99,7 @@ export const updateSolutionAction = createServerAction({
       name: f.nonEmptyString("name"),
       description: f.nonEmptyString("description"),
       valueStreamId: f.nonEmptyString("valueStreamId"),
-      artId: f.nullableString("artId"),
+      artId: f.nonEmptyString("artId"),
       status: f.nonEmptyString("status") as z.infer<typeof status> | undefined,
       productManagerId: f.nullableString("productManagerId"),
     };

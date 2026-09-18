@@ -170,9 +170,22 @@ export function buildStructurePageModel(input: {
       artIds: vs.arts.map((a) => a.id),
     });
 
+    /**
+     * Solutions unter dem ART, der sie baut — aber nur unter einem, den dieser
+     * Baum auch zeigt.
+     *
+     * Die Bedingung hieß bis 2026-09-19 `sol.artId == null`, weil die Spalte
+     * optional war. Sie ist jetzt Pflicht, und damit wäre die Prüfung nie mehr
+     * wahr — **aber der Fall selbst ist nicht verschwunden**: ein weich
+     * gelöschtes ART fällt aus `vs.arts` heraus, seine Solutions zeigten dann
+     * auf einen Knoten, den niemand rendert, und wären aus dem Baum
+     * verschwunden. Gefragt wird deshalb nicht mehr „hat sie ein ART", sondern
+     * „ist ihr ART hier zu sehen".
+     */
+    const shownArts = new Set(vs.arts.map((a) => a.id));
     const solutionsOfArt = new Map<string, typeof vs.solutions>();
     for (const sol of vs.solutions) {
-      if (sol.artId == null) continue;
+      if (sol.artId == null || !shownArts.has(sol.artId)) continue;
       solutionsOfArt.set(sol.artId, [...(solutionsOfArt.get(sol.artId) ?? []), sol]);
     }
 
@@ -208,11 +221,12 @@ export function buildStructurePageModel(input: {
       });
     }
 
-    // Ohne ART hängt die Solution direkt am Wertstrom — sie trägt immer einen,
-    // `artId` ist optional. Sie unterschlagen hieße, sie unauffindbar machen.
+    // Ist ihr ART hier nicht zu sehen, hängt die Solution direkt am Wertstrom.
+    // Sie unterschlagen hieße, sie unauffindbar machen — und der Wertstrom ist
+    // ohnehin ihre Heimat (ADR-0022), das ART nur ein Verweis.
     if (mode === "structure") {
       for (const sol of vs.solutions) {
-        if (sol.artId != null) continue;
+        if (sol.artId != null && shownArts.has(sol.artId)) continue;
         rows.push(solutionRow(sol, vs.id, 1));
       }
     }

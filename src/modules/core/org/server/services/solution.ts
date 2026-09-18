@@ -54,7 +54,12 @@ export interface CreateSolutionInput {
   name: string;
   description?: string | undefined;
   valueStreamId: string;
-  artId?: string | null | undefined;
+  /**
+   * **Pflicht seit 2026-09-19.** Welcher Zug diese Solution baut — der Weg, auf
+   * dem sich eine Betriebsposition an ihr auf ein ART auflöst. In H2 ist die
+   * Angabe eine Absicht, keine Zusage; sie lässt sich jederzeit ändern.
+   */
+  artId: string;
   horizon: Horizon;
   /** Nur H1 relevant; außerhalb H1 auf null normalisiert. Default „investing". */
   investmentMode?: InvestmentMode | null | undefined;
@@ -67,20 +72,27 @@ export interface UpdateSolutionInput {
   name?: string | undefined;
   description?: string | null | undefined;
   valueStreamId?: string | undefined;
-  artId?: string | null | undefined;
+  /** Änderbar, aber nicht löschbar — `null` gibt es nicht mehr. */
+  artId?: string | undefined;
   horizon?: Horizon | undefined;
   investmentMode?: InvestmentMode | null | undefined;
   productManagerId?: string | null | undefined;
 }
 
-/** Prüft, dass ein (optionaler) ART zum Value Stream + Tenant gehört. */
+/**
+ * Prüft, dass der ART zum Value Stream + Tenant gehört.
+ *
+ * `undefined` heißt beim Update „nicht angefasst" — das bleibt erlaubt.
+ * **`null` gibt es nicht mehr:** die Spalte ist Pflicht, und ein ART lässt sich
+ * seit 2026-09-19 nur wechseln, nicht entfernen.
+ */
 async function assertArtInStream(
   tx: Prisma.TransactionClient,
   tenantId: string,
   valueStreamId: string,
-  artId: string | null | undefined,
+  artId: string | undefined,
 ): Promise<Result<void>> {
-  if (artId == null) return ok(undefined);
+  if (artId === undefined) return ok(undefined);
   const art = await tx.art.findFirst({
     where: { id: artId, tenantId, valueStreamId, ...notDeleted },
     select: { id: true },
@@ -121,7 +133,7 @@ export async function createSolution(
         tenantId: mctx.tenantId,
         name,
         valueStreamId,
-        artId: artId ?? null,
+        artId,
         horizon,
         // H1 ohne expliziten Modus → „investing"; außerhalb H1 → null.
         investmentMode: investmentModeForHorizon(horizon, investmentMode ?? "investing"),

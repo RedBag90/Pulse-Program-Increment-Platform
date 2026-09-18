@@ -30,6 +30,7 @@ async function makeSolution(horizon: "h2" | "h1" | "h0", mode: "investing" | "ex
       tenantId: seed.tenantId,
       name: "Produkt",
       valueStreamId: seed.valueStreamId,
+      artId: seed.artId,
       horizon,
       investmentMode: mode,
       createdBy: seed.actorId,
@@ -45,7 +46,7 @@ describe("In H3 gibt es keine Solution", () => {
     const res = await createSolution(ctx(), {
       name: "Explorativ",
       valueStreamId: seed.valueStreamId,
-      artId: null,
+      artId: seed.artId,
       horizon: "h3",
     });
     expect(isErr(res)).toBe(true);
@@ -59,7 +60,7 @@ describe("In H3 gibt es keine Solution", () => {
     const res = await createSolution(ctx(), {
       name: "Anwärter",
       valueStreamId: seed.valueStreamId,
-      artId: null,
+      artId: seed.artId,
       horizon: "h2",
     });
     expect(isOk(res)).toBe(true);
