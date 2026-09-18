@@ -1235,9 +1235,95 @@ async function main() {
       gf++;
     }
   }
+  /**
+   * **Eigenständige Features** — ART-eigene Arbeit unter keinem
+   * Portfolio-Vorhaben (ADR-0023). Drei je ART: laufend mit eigener Solution,
+   * geplant ohne, und abgeschlossen.
+   *
+   * **Die Kadenz ist hier der Fallstrick.** `TIMELINE_B_ARTS` enthält Index 5
+   * — „Materials & Energy" —, nicht Index 2 wie im Demo-Seed. Wer die Zeile von
+   * dort abschreibt, legt ausgerechnet in diesem ART jedes Beispiel in ein PI
+   * der fremden Kadenz.
+   *
+   * Das Abschlussdatum kommt aus dem **PI**, nicht aus einem Abstand zu
+   * `now`: ein erster Versuch mit `now - 430` landete zwölf Tage **nach** dem
+   * Ende von PI 2 — ein Feature, das abgeschlossen wurde, nachdem sein PI
+   * vorbei war. Beide alten PIs (PI 2 und Werk-PI 1) enden in einem
+   * abgeschlossenen Halbjahr; die Beispiele zählen damit in beiden Kadenzen
+   * zum €-Satz je Job-Size-Punkt.
+   */
+  const STANDALONE_SPECS = [
+    {
+      title: "Rüstzeiten der Nachtschicht halbieren",
+      status: "in_progress",
+      jobSize: 5,
+      withSolution: true,
+      done: false,
+    },
+    {
+      title: "Stillstandsgründe einheitlich erfassen",
+      status: "approved",
+      jobSize: 8,
+      withSolution: false,
+      done: false,
+    },
+    {
+      title: "Ersatzteil-Mindestbestände automatisch melden",
+      status: "completed",
+      jobSize: 13,
+      withSolution: true,
+      done: true,
+    },
+  ] as const;
+
+  const standaloneRows: Prisma.InitiativeCreateManyInput[] = [];
+  artIds.forEach((artId, ai) => {
+    const onTimelineB = TIMELINE_B_ARTS.has(ai);
+    const laufendesPi = onTimelineB ? activePiB : activePi;
+    const altesPi = onTimelineB ? oldPiB : oldPi;
+    // Der Abschluss liegt **im Fenster** seines PI — abgeleitet aus dessen
+    // Start, nicht aus einem geratenen Abstand zu heute.
+    const altesPiStart = (onTimelineB ? piBSpecs[0]! : piSpecs[1]!).start;
+
+    STANDALONE_SPECS.forEach((spec, ti) => {
+      const fid = uid(`large:feat:standalone:${ai}:${ti}`);
+      standaloneRows.push({
+        id: fid,
+        tenantId,
+        level: 1,
+        parentId: null,
+        path: fid,
+        title: spec.title,
+        description:
+          "Eigenständiges Feature: vom ART selbst geplant, ohne Portfolio-Vorhaben darüber.",
+        ownerId: ti % 2 === 0 ? U.rte : U.fo,
+        assigneeIds: [],
+        artId,
+        piId: spec.done ? altesPi : laufendesPi,
+        primarySolutionId: spec.withSolution ? solId(Math.floor(ai / 2), "h1") : null,
+        wsjfBusinessValue: 5,
+        wsjfTimeCriticality: 3,
+        wsjfRiskReduction: 8,
+        // Gestreut: die 3 ist der Schnellanlage-Platzhalter und geht als
+        // Vorbehalt in den €-Satz ein (`placeholderJobSize`).
+        wsjfJobSize: spec.jobSize,
+        wsjfComputed: Number((((5 + 3 + 8) / spec.jobSize) as number).toFixed(2)),
+        featureType: "enabler",
+        stageGate: "L3",
+        status: spec.status,
+        completedAt: spec.done ? beforeNow(addDays(altesPiStart, 55), 2) : null,
+        acceptanceCriteria: ["Messbar besser als vorher", "Vom Team abgenommen"],
+        createdBy: ADMIN,
+        updatedBy: ADMIN,
+      });
+    });
+  });
+  featureRows.push(...standaloneRows);
+
   await createManyChunked(featureRows, (data) => prisma.initiative.createMany({ data }));
   console.log(
-    `  ✓ ${epicIds.length} Epics + ${featureRows.length} Features + ${kpiRows.length} KPIs`,
+    `  ✓ ${epicIds.length} Epics + ${featureRows.length} Features ` +
+      `(davon ${standaloneRows.length} eigenständig) + ${kpiRows.length} KPIs`,
   );
 
   // ── Phase 6: Issues (vom Epic-Owner beim LBC aufgenommen; Epics L2–L5) ─────
@@ -1262,6 +1348,9 @@ async function main() {
   /** Das erste Feature je Epic — Aufhänger für die Issues, die am Bauteil hängen. */
   const firstFeatureByEpic = new Map<string, string>();
   for (const f of featureRows) {
+    // Eigenständige Features haben kein Epic — ohne diesen Riegel entstünde ein
+    // Eintrag unter dem Schlüssel `null`.
+    if (f.parentId == null) continue;
     const parent = f.parentId as string;
     if (!firstFeatureByEpic.has(parent)) firstFeatureByEpic.set(parent, f.id as string);
   }

@@ -1097,8 +1097,112 @@ async function main() {
       gf++;
     }
   });
+  /**
+   * **Eigenständige Features** — ART-eigene Arbeit unter keinem
+   * Portfolio-Vorhaben (klassisches SAFe: das ART-Backlog ist nicht der
+   * Unterbau des Portfolio-Backlogs).
+   *
+   * Zwei je ART, eins davon mit eigener Solution. Ohne gesäte Beispiele sähe im
+   * Demo-Mandanten niemand, dass es die Sache gibt: im Bestand hängt jedes der
+   * 425 Features an einem Epic.
+   *
+   * Der Pfad ist die eigene Id — dieselbe Form, die ein Epic trägt; die Ebene
+   * unterscheidet die beiden, nicht der Pfad.
+   */
+  /**
+   * **Eigenständige Features** — ART-eigene Arbeit unter keinem
+   * Portfolio-Vorhaben (klassisches SAFe: das ART-Backlog ist nicht der
+   * Unterbau des Portfolio-Backlogs, ADR-0023).
+   *
+   * Drei je ART, und die drei zeigen absichtlich drei verschiedene Dinge:
+   * laufend mit eigener Solution, geplant ohne, und **abgeschlossen** — nur
+   * Letzteres landet im Nenner des €-Satzes je Job-Size-Punkt, der ausschliesslich
+   * fertiggestellte Features abgeschlossener Zyklen zählt.
+   *
+   * Der Pfad ist die eigene Id — dieselbe Form, die ein Epic trägt; die Ebene
+   * unterscheidet die beiden, nicht der Pfad.
+   */
+  const STANDALONE_SPECS = [
+    {
+      title: "Build-Pipeline auf zwei Minuten bringen",
+      status: "in_progress",
+      jobSize: 5,
+      withSolution: true,
+      done: false,
+    },
+    {
+      title: "Fehlerbudget je Team sichtbar machen",
+      status: "approved",
+      jobSize: 8,
+      withSolution: false,
+      done: false,
+    },
+    {
+      title: "Flaky Tests aus der Nachtstrecke entfernen",
+      status: "completed",
+      jobSize: 13,
+      withSolution: true,
+      done: true,
+    },
+  ] as const;
+
+  const standaloneRows: Prisma.InitiativeCreateManyInput[] = [];
+  artIds.forEach((artId, ai) => {
+    // Die Kadenz des ARTs, nicht die Haupt-Kadenz: ein Feature in einem PI der
+    // fremden Timeline wäre ein Termin im falschen Kalender — dieselbe
+    // Verzweigung, die die Feature-Schleife oben fährt.
+    const onTimelineB = TIMELINE_B_ARTS.has(ai);
+    const laufendesPi = onTimelineB ? piIds["pib2"]! : activePi;
+    const altesPi = onTimelineB ? piIds["pib1"]! : piIds["pi1"]!;
+    // Abschluss innerhalb des Fensters seines PI. Hinweis: „Payments PI 1"
+    // endete erst vor drei Wochen und liegt damit im **laufenden** Halbjahr —
+    // das abgeschlossene Beispiel dieses ARTs trägt deshalb nicht zum €-Satz
+    // bei. Ein früheres Datum zu erfinden, nur damit eine Kennzahl etwas
+    // anzeigt, wäre der falsche Handel.
+    const abschluss = onTimelineB ? addDays(now, -25) : addDays(now, -95);
+
+    STANDALONE_SPECS.forEach((spec, ti) => {
+      const fid = uid(`feat:standalone:${ai}:${ti}`);
+      standaloneRows.push({
+        id: fid,
+        tenantId,
+        level: 1,
+        parentId: null,
+        path: fid,
+        title: spec.title,
+        description:
+          "Eigenständiges Feature: vom ART selbst geplant, ohne Portfolio-Vorhaben darüber.",
+        ownerId: ti % 2 === 0 ? U.rte : U.fo,
+        assigneeIds: [],
+        artId,
+        piId: spec.done ? altesPi : laufendesPi,
+        // Nicht jedes trägt eine eigene Solution — so zeigt der Bestand beide
+        // Fälle: eigene Zuordnung und gar keine.
+        primarySolutionId: spec.withSolution ? solId(Math.floor(ai / 2), "h1") : null,
+        wsjfBusinessValue: 5,
+        wsjfTimeCriticality: 3,
+        wsjfRiskReduction: 8,
+        // Bewusst gestreut: die 3 ist der Schnellanlage-Platzhalter und geht als
+        // Vorbehalt in den €-Satz ein (`placeholderJobSize`).
+        wsjfJobSize: spec.jobSize,
+        wsjfComputed: Number((((5 + 3 + 8) / spec.jobSize) as number).toFixed(2)),
+        featureType: "enabler",
+        stageGate: "L3",
+        status: spec.status,
+        completedAt: spec.done ? abschluss : null,
+        acceptanceCriteria: ["Messbar besser als vorher", "Vom Team abgenommen"],
+        createdBy: ADMIN,
+        updatedBy: ADMIN,
+      });
+    });
+  });
+  featureRows.push(...standaloneRows);
+
   await prisma.initiative.createMany({ data: featureRows });
-  console.log(`  ✓ ${epicIds.length} Epics + ${featureRows.length} Features`);
+  console.log(
+    `  ✓ ${epicIds.length} Epics + ${featureRows.length} Features ` +
+      `(davon ${standaloneRows.length} eigenständig)`,
+  );
 
   // Netzplan-Positionen für JEDES Epic (deterministisches Grid) — nicht nur Epic 0.
   const graphPositions: Prisma.InitiativeGraphPositionCreateManyInput[] = [];
@@ -1613,6 +1717,32 @@ async function main() {
       createdBy: ADMIN,
     });
   }
+  /**
+   * **Eine Kante, die ein eigenständiges Feature trifft.**
+   *
+   * Die Schleife oben nimmt die ersten 26 Zeilen des Arrays; die
+   * eigenständigen Features hängen hinten und blieben deshalb unverbunden — im
+   * Netzplan Inseln. Genau das wäre ein falsches Bild: ART-eigene Arbeit hängt
+   * mit Vorhaben-Arbeit zusammen, sie ist nur selbst kein Vorhaben.
+   *
+   * Gewählt wird ein Feature eines **anderen** ARTs als Ziel, damit die Kante
+   * auch im Cross-ART-Bild auftaucht.
+   */
+  const standaloneFrom = standaloneRows[0]?.id as string | undefined;
+  const crossTarget = allFeatureIds.find(
+    (id) => featureArtById.get(id) !== featureArtById.get(standaloneFrom ?? ""),
+  );
+  if (standaloneFrom && crossTarget) {
+    depRows.push({
+      id: uid("dep:standalone:0"),
+      tenantId,
+      fromId: standaloneFrom,
+      toId: crossTarget,
+      type: "depends_on",
+      createdBy: ADMIN,
+    });
+  }
+
   await prisma.dependency.createMany({ data: depRows, skipDuplicates: true });
   console.log(`  ✓ ${depRows.length} Cross-ART Dependencies`);
 
