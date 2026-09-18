@@ -402,8 +402,20 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Union, ohne dass irgendetwas sie las: erteilbar, aber wirkungslos. Was
   // heute „Acceptance" heisst, ist der Acceptance-Criteria-Editor und laeuft
   // ueber `feature.update`.
-  "feature.create": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
-  "feature.update": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
+  //
+  // **Der ART-Scope stand bisher nur auf dem Papier.** `role-function-matrix.md`
+  // und `personas.md` schreiben für RTE und Feature Owner ausdrücklich
+  // „Scope: ARTs" — der Code erteilte die Rechte unbeschränkt, und ein Grant
+  // ohne Scope erlaubt in `authorize.ts` sofort. Mit eigenständigen Features
+  // wiegt das schwerer: sie sind ART-eigene Arbeit, ihre Anlage ist der eine
+  // Ort, an dem ART-Zugehörigkeit zählt.
+  //
+  // Ungefährlich, weil `memberOrVacuous` eine **leere** Scope-Liste als „alles
+  // in Reichweite" behandelt: wer heute keine ART-Eingrenzung trägt, behält
+  // vollen Zugriff. Der Portfolio Manager bleibt bewusst ohne Scope — er
+  // steuert über ARTs hinweg.
+  "feature.create": [{ roles: [PORTFOLIO_MANAGER] }, { roles: [RTE, FEATURE_OWNER], scope: "art" }],
+  "feature.update": [{ roles: [PORTFOLIO_MANAGER] }, { roles: [RTE, FEATURE_OWNER], scope: "art" }],
   "feature.wsjf.set": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
   // Delivery-lifecycle transitions on Features (approved → in_progress, pause,
   // resume, complete, cancel). Same audience as "feature.update".

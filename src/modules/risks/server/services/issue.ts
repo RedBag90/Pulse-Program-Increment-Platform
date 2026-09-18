@@ -10,6 +10,7 @@ import { isRiskLevel } from "@/modules/risks/domain/risk-matrix";
 import { isRiskCategory } from "@/modules/risks/domain/risk-category";
 import { canReview, reviewTarget, type ReviewDecision } from "@/modules/risks/domain/risk-review";
 import { wouldCreateCycle } from "@/modules/risks/domain/issue-tree";
+import { resolveInitiativeValueStreamId } from "@/modules/core/kernel/domain/initiative-value-stream";
 
 /**
  * Unified Issue service — the merged Risk+Impediment write/read layer against
@@ -85,11 +86,22 @@ async function resolveInitiativeVs(
   if (!initiativeId) return ok(null);
   const init = await tx.initiative.findFirst({
     where: { id: initiativeId, tenantId, deletedAt: null },
-    select: { id: true, valueStreamId: true, parent: { select: { valueStreamId: true } } },
+    select: {
+      id: true,
+      valueStreamId: true,
+      parent: { select: { valueStreamId: true } },
+      art: { select: { valueStreamId: true } },
+    },
   });
   if (!init)
     return err({ kind: "not_found" as const, resourceType: "Initiative", id: initiativeId });
-  return ok(init.valueStreamId ?? init.parent?.valueStreamId ?? null);
+  return ok(
+    resolveInitiativeValueStreamId({
+      parentValueStreamId: init.parent?.valueStreamId ?? null,
+      ownValueStreamId: init.valueStreamId,
+      artValueStreamId: init.art?.valueStreamId ?? null,
+    }),
+  );
 }
 
 // ── read scope ────────────────────────────────────────────────────────────────

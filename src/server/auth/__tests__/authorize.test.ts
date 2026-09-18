@@ -12,6 +12,7 @@ import { enumerateDefaultCapabilities } from "@/server/auth/policies";
 import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 import { isErr, isOk } from "@/modules/core/kernel/domain/errors";
 import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
+import { resolveInitiativeValueStreamId } from "@/modules/core/kernel/domain/initiative-value-stream";
 
 /**
  * Test-Principal-Factory. Mit dem RoleCapability-Modell (PR B) trägt der
@@ -90,6 +91,77 @@ describe("authorize — value_stream scope", () => {
     // This is why by-id mutations must re-check at the service seam with the
     // loaded row's valueStreamId — see authorizeResource / ADR-0002.
     expect(authorize("epic.update", { tenantId: "t1" }, vsOwner(["vs1"])).allow).toBe(true);
+  });
+
+  /**
+   * **Und hier ist die Lücke für Features geschlossen.**
+   *
+   * Ein Feature ohne Eltern-Epic hat weder einen eigenen Wertstrom noch einen
+   * geerbten. Genau der Fall lief bisher vakuös durch: `memberOrVacuous` hält
+   * ein leeres Feld für „alles in Reichweite", ein Wertstrom-Verantwortlicher
+   * hätte also **jedes** elternlose Feature anfassen dürfen.
+   *
+   * `resolveInitiativeValueStreamId` nimmt als letzten Halt das ART, und
+   * `Art.valueStreamId` ist NOT NULL. Steht ein ART an der Zeile, ist das Feld
+   * damit nie leer — der vakuöse Zweig ist für Features unerreichbar.
+   *
+   * Der Test prüft die **Verbindung** aus Ableitung und Prüfung, nicht die
+   * beiden Teile einzeln: genau dort saß der Fehler. Wer den `art`-Join aus der
+   * Abfrage entfernt, bekommt hier rot.
+   */
+  /**
+   * **Der ART-Scope, der bisher nur dokumentiert war.** Die Rollen-Matrix
+   * schreibt für RTE und Feature Owner „Scope: ARTs"; der Code erteilte
+   * `feature.create` unbeschränkt. Ein Grant ohne Scope erlaubt sofort — der
+   * `artId` in der Ressource wurde also eingesammelt und nie geprüft.
+   *
+   * Der Portfolio Manager bleibt ausdrücklich unbeschränkt: er steuert über
+   * ARTs hinweg.
+   */
+  it("bindet das Anlegen eines Features an das ART des RTE", () => {
+    const rte = (artIds: string[]) =>
+      principal({ roles: [ROLES.RTE], scopes: { valueStreamIds: [], artIds, teamIds: [] } });
+
+    expect(authorize("feature.create", { artId: "art-1" }, rte(["art-1"])).allow).toBe(true);
+    expect(authorize("feature.create", { artId: "art-2" }, rte(["art-1"])).allow).toBe(false);
+    // Ohne eigene Eingrenzung bleibt alles in Reichweite — niemand verliert
+    // heute Zugriff.
+    expect(authorize("feature.create", { artId: "art-2" }, rte([])).allow).toBe(true);
+
+    const pm = principal({
+      roles: [ROLES.PORTFOLIO_MANAGER],
+      scopes: { valueStreamIds: [], artIds: ["art-1"], teamIds: [] },
+    });
+    expect(authorize("feature.create", { artId: "art-2" }, pm).allow).toBe(true);
+  });
+
+  it("verweigert ein elternloses Feature dem fremden Wertstrom", () => {
+    const orphanInFremdemStrom: AuthResource = {
+      tenantId: "t1",
+      artId: "art-1",
+      valueStreamId: resolveInitiativeValueStreamId({
+        parentValueStreamId: null, // kein Epic
+        ownValueStreamId: null, // Features tragen keinen eigenen
+        artValueStreamId: "vs1", // … aber ihr ART tut es
+      }),
+    };
+
+    expect(authorize("feature.owner.assign", orphanInFremdemStrom, vsOwner(["vs2"])).allow).toBe(
+      false,
+    );
+    expect(authorize("feature.owner.assign", orphanInFremdemStrom, vsOwner(["vs1"])).allow).toBe(
+      true,
+    );
+
+    // Der Gegenbeweis, damit der Test nicht nur behauptet, er halte etwas:
+    // **ohne** den ART-Halt bleibt das Feld leer, und derselbe Fremde kommt
+    // durch. Das war der Zustand vor dieser Etappe.
+    const ohneArtHalt: AuthResource = {
+      tenantId: "t1",
+      artId: "art-1",
+      valueStreamId: null,
+    };
+    expect(authorize("feature.owner.assign", ohneArtHalt, vsOwner(["vs2"])).allow).toBe(true);
   });
 });
 

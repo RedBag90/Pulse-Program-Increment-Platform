@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Principal } from "@/server/auth/principal";
+import { resolveInitiativeValueStreamId } from "@/modules/core/kernel/domain/initiative-value-stream";
 
 /**
  * "Meine Tasks" — the personal ownership inbox. Surfaces every Epic and
@@ -76,7 +77,7 @@ export async function listMyTasks(db: PrismaClient, principal: Principal): Promi
       valueStreamId: true,
       updatedAt: true,
       valueStream: { select: { id: true, name: true } },
-      art: { select: { id: true, name: true } },
+      art: { select: { id: true, name: true, valueStreamId: true } },
       // Pull the parent Epic's stageGate so we can label a Feature as "ready"
       // exactly when it's one click from in_progress (Epic in L4/L5).
       parent: { select: { id: true, title: true, stageGate: true, valueStreamId: true } },
@@ -106,8 +107,13 @@ export async function listMyTasks(db: PrismaClient, principal: Principal): Promi
 
     const bucket: MyTaskRow["bucket"] = isDone ? "done" : isReady ? "ready" : "open";
 
-    // Für Features ist Epic = parent → Wertstrom kommt vom Parent.
-    const vsId = isEpic ? r.valueStreamId : (r.parent?.valueStreamId ?? null);
+    // Ein Epic trägt seinen Wertstrom selbst; ein Feature erbt ihn vom Epic und,
+    // wenn es keins hat, von seinem ART.
+    const vsId = resolveInitiativeValueStreamId({
+      parentValueStreamId: r.parent?.valueStreamId ?? null,
+      ownValueStreamId: r.valueStreamId,
+      artValueStreamId: r.art?.valueStreamId ?? null,
+    });
     out.push({
       id: r.id,
       level: isEpic ? "epic" : "feature",
