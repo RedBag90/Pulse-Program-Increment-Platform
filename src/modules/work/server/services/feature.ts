@@ -1,10 +1,11 @@
-import type { PrismaClient } from "@/generated/prisma";
+import type { Prisma, PrismaClient } from "@/generated/prisma";
 import type {
   TenantId,
   FeatureId,
   EpicId,
   ArtId,
   PiId,
+  UserId,
   FibonacciValue,
 } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
@@ -25,8 +26,11 @@ import { canDeliveryTransition } from "@/modules/core/kernel/domain/initiative-s
 import { earliestStartFromBlockers } from "@/modules/core/kernel/domain/dependency-graph";
 import { blockerWindowsFromEdges } from "@/modules/work/domain/blocker-window";
 import { featurePiConsistent } from "@/modules/work/domain/feature-pi";
+import { featureStartBlockedReason } from "@/modules/work/domain/feature-start";
+import { planFeatureReparent } from "@/modules/work/domain/feature-parent";
 import type { FeatureType } from "@/modules/work/domain/portfolio-guardrails";
 import { createEdge, splitEdge } from "@/modules/work/server/services/dependency-edge";
+import { resolveInitiativeValueStreamId } from "@/modules/core/kernel/domain/initiative-value-stream";
 
 /** Non-fatal advisories surfaced alongside a successful mutation (e.g. setFeaturePi). */
 export interface MutationWarnings {
@@ -34,9 +38,24 @@ export interface MutationWarnings {
 }
 
 export interface CreateFeatureInput {
-  parentId: EpicId;
+  /**
+   * Das Eltern-Epic — **oder nichts**. Fehlt es, entsteht ein
+   * **eigenständiges Feature**: ART-eigene Arbeit unter keinem
+   * Portfolio-Vorhaben. Eine angegebene, aber unbekannte Id bleibt ein Fehler.
+   */
+  parentId?: EpicId | null | undefined;
   artId: ArtId;
   piId?: PiId | undefined;
+  /**
+   * Verantwortliche Person. Fehlt sie, bleibt es beim Anlegenden — das war
+   * bisher die einzige Möglichkeit und ist weiterhin die Vorgabe.
+   */
+  ownerId?: UserId | undefined;
+  /**
+   * Solution, in die dieses Feature geliefert wird. Fehlt sie, gilt die des
+   * Eltern-Epics — und ohne Epic hat es schlicht keine.
+   */
+  primarySolutionId?: string | null | undefined;
   title: string;
   description?: string | undefined;
   wsjfBusinessValue: FibonacciValue;
@@ -71,6 +90,8 @@ export async function createFeature(
     parentId,
     artId,
     piId,
+    ownerId,
+    primarySolutionId,
     title,
     description,
     wsjfBusinessValue,
@@ -82,21 +103,25 @@ export async function createFeature(
   } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const parentResult = await findValidatedParent(tx, mctx, InitiativeLevel.FEATURE, parentId);
+    const parentResult = await findValidatedParent(
+      tx,
+      mctx,
+      InitiativeLevel.FEATURE,
+      parentId ?? null,
+      { allowOrphan: true },
+    );
     if (isErr(parentResult)) return parentResult;
-    const epic = parentResult.value!; // non-null for a FEATURE's EPIC parent
+    const epic = parentResult.value; // `null` = eigenständiges Feature
 
-    // Der ART muss zum Tenant UND zum Wertstrom des Parent-Epics gehören (die UI
-    // kaskadiert bereits, der Service prüft am Seam final nach). Alt-Epics ohne
+    // **Erst das ART, dann der Abgleich.** Vorher hing die ART-Abfrage am
+    // Wertstrom des Epics — ohne Epic gäbe es keinen, aus dem man kaskadieren
+    // könnte. Die Regel ist unverändert: das ART gehört zum Mandanten, und wenn
+    // ein Epic da ist, müssen beide im selben Wertstrom liegen. Alt-Epics ohne
     // Wertstrom bleiben durchlässig — die Spalte ist nullable.
     const art = await tx.art.findFirst({
-      where: {
-        id: artId,
-        tenantId: mctx.tenantId,
-        ...(epic.valueStreamId ? { valueStreamId: epic.valueStreamId } : {}),
-      },
+      where: { id: artId, tenantId: mctx.tenantId },
     });
-    if (!art) {
+    if (!art || (epic?.valueStreamId != null && art.valueStreamId !== epic.valueStreamId)) {
       return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
     }
 
@@ -104,13 +129,13 @@ export async function createFeature(
       data: {
         tenantId: mctx.tenantId,
         level: InitiativeLevel.FEATURE,
-        parentId,
+        parentId: parentId ?? null,
         artId,
         title,
         // Features starten in der Delivery-Lane „Bereit". QA-Gate
         // (draft→in_review→approved) wurde 2026-06 entfernt.
         status: "approved",
-        ownerId: mctx.actorId,
+        ownerId: ownerId ?? mctx.actorId,
         assigneeIds: [],
         createdBy: mctx.actorId,
         updatedBy: mctx.actorId,
@@ -123,9 +148,12 @@ export async function createFeature(
         acceptanceCriteria: acceptanceCriteria ?? [],
         ...(description !== undefined && { description }),
         ...(piId !== undefined && { piId }),
+        ...(primarySolutionId != null && { primarySolutionId }),
         ...(featureType != null && { featureType }),
       },
-      parentPath: epic.path,
+      // Ohne Epic bleibt der Pfad die eigene Id — dieselbe Form, die ein Epic
+      // trägt. Die Ebene unterscheidet die beiden, nicht der Pfad.
+      ...(epic ? { parentPath: epic.path } : {}),
     });
 
     return ok({
@@ -369,11 +397,18 @@ export async function assignFeatureOwner(
             level: InitiativeLevel.FEATURE,
             deletedAt: null,
           },
-          include: { parent: { select: { valueStreamId: true } } },
+          include: {
+            parent: { select: { valueStreamId: true } },
+            art: { select: { valueStreamId: true } },
+          },
         }),
       toResource: (row) => ({
         tenantId: mctx.tenantId,
-        valueStreamId: row.parent?.valueStreamId ?? row.valueStreamId,
+        valueStreamId: resolveInitiativeValueStreamId({
+          parentValueStreamId: row.parent?.valueStreamId ?? null,
+          ownValueStreamId: row.valueStreamId,
+          artValueStreamId: row.art?.valueStreamId ?? null,
+        }),
         artId: row.artId,
       }),
     });
@@ -698,18 +733,251 @@ export async function getFeature(db: PrismaClient, tenantId: TenantId, id: Featu
 }
 
 /**
+ * **Ein Feature einem Epic zuordnen — oder daraus lösen.**
+ *
+ * Für Features gab es bis hierhin **keinen** Umhäng-Pfad: `parentId` wurde beim
+ * Anlegen geschrieben und nie wieder. Solange ein Feature zwingend unter einem
+ * Epic hing, war das nur unbequem; seit es eigenständig bestehen darf, wäre die
+ * Wahl beim Anlegen unumkehrbar — ein Fehlgriff liesse sich nur durch Löschen
+ * und Neuanlegen heilen, und dabei gingen Abhängigkeiten, PI, WSJF und der
+ * Verlauf verloren.
+ *
+ * Die Regel steht rein in `planFeatureReparent`. Hier wird nur geladen,
+ * geprüft, geschrieben.
+ *
+ * **Lösen senkt die Tor-Reife des bisherigen Epics** (`stage-gate-transition`
+ * zählt seine Features) — das ist gewollt: die Zählung folgt der Wirklichkeit,
+ * und die Tor-Abnahme ist namentlich (ADR-0018).
+ */
+export async function setFeatureParent(
+  ctx: RequestContext,
+  input: { id: string; parentId: string | null },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id, parentId } = input;
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const loaded = await loadAndAuthorize({
+      principal: ctx.principal,
+      action: "feature.update",
+      resourceType: "Feature",
+      id,
+      finder: () =>
+        tx.initiative.findFirst({
+          where: {
+            id,
+            tenantId: mctx.tenantId,
+            level: InitiativeLevel.FEATURE,
+            deletedAt: null,
+          },
+          include: {
+            parent: { select: { valueStreamId: true } },
+            art: { select: { valueStreamId: true } },
+          },
+        }),
+      toResource: (row) => ({
+        tenantId: mctx.tenantId,
+        valueStreamId: resolveInitiativeValueStreamId({
+          parentValueStreamId: row.parent?.valueStreamId ?? null,
+          ownValueStreamId: row.valueStreamId,
+          artValueStreamId: row.art?.valueStreamId ?? null,
+        }),
+        artId: row.artId,
+      }),
+    });
+    if (isErr(loaded)) return loaded;
+    const feature = loaded.value;
+
+    const artValueStreamId = feature.art?.valueStreamId ?? null;
+    if (artValueStreamId === null) {
+      // Ohne ART lässt sich die Zugehörigkeit nicht prüfen. Das ist kein
+      // erwarteter Zustand — jedes Feature hat ein ART —, aber lieber eine
+      // klare Ablehnung als eine ungeprüfte Zuordnung.
+      return err({
+        kind: "conflict" as const,
+        reason: "Dem Feature fehlt ein ART — die Zuordnung lässt sich nicht prüfen",
+      });
+    }
+
+    const newParent = parentId
+      ? await tx.initiative.findFirst({
+          where: {
+            id: parentId,
+            tenantId: mctx.tenantId,
+            level: InitiativeLevel.EPIC,
+            deletedAt: null,
+          },
+          select: { id: true, path: true, valueStreamId: true },
+        })
+      : null;
+    if (parentId && !newParent) {
+      return err({ kind: "not_found" as const, resourceType: "EPIC", id: parentId });
+    }
+
+    const plan = planFeatureReparent({ featureId: id, artValueStreamId, newParent });
+    if (isErr(plan)) return plan;
+
+    const { changes, data } = recordedUpdate({
+      existing: feature,
+      updates: { parentId: plan.value.parentId, path: plan.value.path },
+      fields: ["parentId", "path"] as const,
+    });
+    await tx.initiative.update({
+      where: { id },
+      data: { ...data, updatedBy: mctx.actorId },
+    });
+
+    return ok({
+      result: undefined,
+      audit: {
+        action: "feature.parent.set",
+        resourceType: "initiative",
+        resourceId: id,
+        changes,
+      },
+    });
+  });
+}
+
+/**
+ * **Die Solution eines Features setzen oder entfernen.**
+ *
+ * Eigener Service statt eines Feldes in `updateFeature` — aus demselben Grund,
+ * aus dem `setEpicSolutions` von `updateEpic` getrennt ist: die Zuordnung ist
+ * eine eigene Handlung mit eigener Prüfung. Sie muss es hier sogar sein:
+ * `updateFeature` hat **keinen** `loadAndAuthorize`-Seam, und die
+ * PATCH-Route führt als Ressource nur den Mandanten, nicht das ART. Ein Feld
+ * dort hinzuzufügen hiesse, die Zuordnung ungeprüft zu lassen.
+ *
+ * **Der Wertstrom kommt vom ART**, nicht vom Eltern-Epic — ein eigenständiges
+ * Feature hat keins, und das ART ist ohnehin die verlässlichere Quelle
+ * (`Art.valueStreamId` ist NOT NULL). Die Solution muss im selben Wertstrom
+ * liegen: Solutions hängen am Wertstrom, ein Feature über sein ART ebenso.
+ */
+export async function setFeatureSolution(
+  ctx: RequestContext,
+  input: { id: string; solutionId: string | null },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id, solutionId } = input;
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const loaded = await loadAndAuthorize({
+      principal: ctx.principal,
+      action: "feature.update",
+      resourceType: "Feature",
+      id,
+      finder: () =>
+        tx.initiative.findFirst({
+          where: {
+            id,
+            tenantId: mctx.tenantId,
+            level: InitiativeLevel.FEATURE,
+            deletedAt: null,
+          },
+          include: {
+            parent: { select: { valueStreamId: true } },
+            art: { select: { valueStreamId: true } },
+          },
+        }),
+      toResource: (row) => ({
+        tenantId: mctx.tenantId,
+        valueStreamId: resolveInitiativeValueStreamId({
+          parentValueStreamId: row.parent?.valueStreamId ?? null,
+          ownValueStreamId: row.valueStreamId,
+          artValueStreamId: row.art?.valueStreamId ?? null,
+        }),
+        artId: row.artId,
+      }),
+    });
+    if (isErr(loaded)) return loaded;
+    const feature = loaded.value;
+
+    if (solutionId !== null) {
+      const vsId = feature.art?.valueStreamId ?? null;
+      const solution = await tx.solution.findFirst({
+        where: { id: solutionId, tenantId: mctx.tenantId, deletedAt: null },
+        select: { id: true, valueStreamId: true },
+      });
+      if (!solution) {
+        return err({ kind: "not_found" as const, resourceType: "Solution", id: solutionId });
+      }
+      if (vsId !== null && solution.valueStreamId !== vsId) {
+        return err({
+          kind: "conflict" as const,
+          reason:
+            "Die Solution gehört zu einem anderen Wertstrom als das ART des Features — " +
+            "bitte eine Solution aus demselben Wertstrom wählen",
+        });
+      }
+    }
+
+    const { changes, data } = recordedUpdate({
+      existing: feature,
+      updates: { primarySolutionId: solutionId },
+      fields: ["primarySolutionId"] as const,
+    });
+    await tx.initiative.update({
+      where: { id },
+      data: { ...data, updatedBy: mctx.actorId },
+    });
+
+    return ok({
+      result: undefined,
+      audit: {
+        action: "feature.solution.set",
+        resourceType: "initiative",
+        resourceId: id,
+        changes,
+      },
+    });
+  });
+}
+
+/**
  * Tenant-wide open, PI-scheduled Features for the Portfolio-Übersicht
  * "Features fällig"-Liste. Planned completion = the assigned PI's `endDate`;
  * `completed`/`cancelled` and backlog (no PI) Features are excluded here so the
- * page-model only has to apply the date window. Value stream comes from the
- * parent Epic (Features have no own value stream).
+ * page-model only has to apply the date window.
  */
 /** Optionale Portfolio-Filter für die Overview-Feature-Liste. Stage Gate greift
- *  hier nicht (Features sind nicht gegatet); Wertstrom kommt über das Eltern-Epic. */
+ *  hier nicht (Features sind nicht gegatet). */
 export interface OverviewFeatureFilter {
   valueStreamIds?: string[] | undefined;
   statuses?: string[] | undefined;
   ownerIds?: string[] | undefined;
+}
+
+/**
+ * **Die Bedingung als reine Funktion** — damit die eine Zeile, auf die es
+ * ankommt, ohne Datenbank prüfbar ist.
+ *
+ * Der Wertstrom kommt über das **ART**, nicht über das Eltern-Epic. Bisher
+ * lautete die Klausel `parent: { is: { valueStreamId } }`; ein Feature ohne
+ * Epic hätte darunter **nie** gematcht und wäre aus der Liste verschwunden,
+ * sobald jemand nach Wertstrom filtert.
+ *
+ * Auf dem Bestand ändert das nichts — jedes der 425 Features sitzt im ART
+ * seines Epics. Und es bringt den Filter mit dem in Übereinstimmung, was die
+ * Seite **anzeigt**: `features-overview.ts` leitet den Wertstrom längst aus dem
+ * ART ab.
+ */
+export function overviewFeatureWhere(
+  tenantId: TenantId,
+  filter: OverviewFeatureFilter = {},
+): Prisma.InitiativeWhereInput {
+  const vs = filter.valueStreamIds ?? [];
+  const statuses = filter.statuses ?? [];
+  const owners = filter.ownerIds ?? [];
+  return {
+    tenantId,
+    level: InitiativeLevel.FEATURE,
+    deletedAt: null,
+    status: { notIn: ["completed", "cancelled"], ...(statuses.length ? { in: statuses } : {}) },
+    piId: { not: null },
+    ...(vs.length ? { art: { is: { valueStreamId: { in: vs } } } } : {}),
+    ...(owners.length ? { ownerId: { in: owners } } : {}),
+  };
 }
 
 export async function listOverviewFeatures(
@@ -717,21 +985,15 @@ export async function listOverviewFeatures(
   tenantId: TenantId,
   filter: OverviewFeatureFilter = {},
 ) {
-  const vs = filter.valueStreamIds ?? [];
-  const statuses = filter.statuses ?? [];
-  const owners = filter.ownerIds ?? [];
   return db.initiative.findMany({
-    where: {
-      tenantId,
-      level: InitiativeLevel.FEATURE,
-      deletedAt: null,
-      status: { notIn: ["completed", "cancelled"], ...(statuses.length ? { in: statuses } : {}) },
-      piId: { not: null },
-      ...(vs.length ? { parent: { is: { valueStreamId: { in: vs } } } } : {}),
-      ...(owners.length ? { ownerId: { in: owners } } : {}),
-    },
+    where: overviewFeatureWhere(tenantId, filter),
     include: {
       pi: { select: { endDate: true } },
+      // Eigene Solution des Features — sie gewinnt über die des Epics.
+      primarySolution: { select: { id: true, name: true } },
+      // Das ART trägt den Wertstrom: ein eigenständiges Feature hat kein Epic,
+      // von dem er kommen könnte.
+      art: { select: { id: true, valueStream: { select: { name: true } } } },
       parent: {
         select: { id: true, title: true, valueStream: { select: { name: true } } },
       },
@@ -795,26 +1057,23 @@ export async function setFeatureDeliveryStatus(
     // entfällt der manuelle „Implementing"-Klick durch den RTE und L3→L4 ist
     // der natürliche Übergang.
     if (to === "in_progress") {
-      if (feature.piId === null) {
-        return err({
-          kind: "conflict" as const,
-          reason: "Feature ist keinem PI zugewiesen — bitte erst einplanen",
-        });
-      }
-      if (feature.parentId) {
-        const epic = await tx.initiative.findFirst({
-          where: { id: feature.parentId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC },
-          select: { stageGate: true },
-        });
-        const gate = epic?.stageGate;
-        if (!epic || (gate !== "L3" && gate !== "L4" && gate !== "L5")) {
-          return err({
-            kind: "conflict" as const,
-            reason:
-              "Epic noch nicht in Implementation (mind. L3 Budget alloziert nötig) — Feature kann noch nicht gestartet werden",
-          });
-        }
-      }
+      // Ein eigenständiges Feature hat kein Tor, auf das es warten könnte — das
+      // Tor prüft eine Finanzierungsentscheidung, die es hier nicht gibt. Die
+      // Regel steht rein in `feature-start.ts` und ist dort durchgetestet;
+      // vorher lag sie als `if`-Verschachtelung hier und war für den
+      // elternlosen Fall nie erreichbar.
+      const epic = feature.parentId
+        ? await tx.initiative.findFirst({
+            where: { id: feature.parentId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC },
+            select: { stageGate: true },
+          })
+        : null;
+      const blocked = featureStartBlockedReason({
+        piId: feature.piId,
+        parentId: feature.parentId,
+        parentStageGate: epic?.stageGate ?? null,
+      });
+      if (blocked) return err({ kind: "conflict" as const, reason: blocked });
     }
 
     // Ist-Lieferdatum stempeln: Übergang nach "completed" setzt completedAt;

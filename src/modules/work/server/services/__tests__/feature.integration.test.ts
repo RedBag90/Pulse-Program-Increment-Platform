@@ -8,6 +8,8 @@ import {
   updateFeature,
   scoreFeature,
   assignFeatureOwner,
+  setFeatureParent,
+  setFeatureSolution,
 } from "@/modules/work/server/services/feature";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
@@ -63,6 +65,53 @@ describe("createFeature", () => {
     expect(feature).not.toBeNull();
     expect(feature!.title).toBe("Implement login");
     expect(feature!.wsjfComputed).not.toBeNull();
+  });
+
+  /**
+   * **Das eigenständige Feature.** Kein Epic, trotzdem ein Feature — der Pfad
+   * ist dann die eigene Id, dieselbe Form, die ein Epic trägt. Die Ebene
+   * unterscheidet die beiden, nicht der Pfad.
+   */
+  it("legt ein Feature ohne Eltern-Epic an", async () => {
+    const result = await createFeature(testRequestContext(db, seed), {
+      artId: seed.artId,
+      title: "Eigenständiges Feature",
+      wsjfBusinessValue: 5,
+      wsjfTimeCriticality: 3,
+      wsjfRiskReduction: 3,
+      wsjfJobSize: 5,
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+
+    const feature = await db.initiative.findFirst({ where: { id: result.value.id } });
+    expect(feature).not.toBeNull();
+    expect(feature!.parentId).toBeNull();
+    expect(feature!.path).toBe(feature!.id);
+    expect(feature!.artId).toBe(seed.artId);
+    // Ein Feature trägt nie einen eigenen Wertstrom — er kommt vom ART.
+    expect(feature!.valueStreamId).toBeNull();
+  });
+
+  /**
+   * „Ohne Epic" heisst **gar keine** Id, nicht eine falsche. Ein Tippfehler
+   * darf nicht stillschweigend zu einem eigenständigen Feature werden.
+   */
+  it("macht aus einer falschen parentId kein eigenständiges Feature", async () => {
+    const result = await createFeature(testRequestContext(db, seed), {
+      parentId: randomUUID() as EpicId,
+      artId: seed.artId,
+      title: "Tippfehler",
+      wsjfBusinessValue: 5,
+      wsjfTimeCriticality: 5,
+      wsjfRiskReduction: 5,
+      wsjfJobSize: 5,
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.kind).toBe("not_found");
   });
 
   it("returns not_found for unknown epic parentId", async () => {
@@ -602,5 +651,91 @@ describe("assignFeatureOwner", () => {
 
     const row = await db.initiative.findFirst({ where: { id } });
     expect(row?.ownerId).toBeNull();
+  });
+});
+
+/**
+ * Umhängen gab es für Features bisher überhaupt nicht. Die drei Fälle, die
+ * zählen: lösen, wieder zuordnen, und die Ablehnung eines Epics aus einem
+ * fremden Wertstrom.
+ */
+describe("setFeatureParent", () => {
+  async function makeFeature() {
+    const r = await createFeature(testRequestContext(db, seed), {
+      parentId: epicId,
+      artId: seed.artId,
+      title: "Umhäng-Kandidat",
+      wsjfBusinessValue: 3,
+      wsjfTimeCriticality: 3,
+      wsjfRiskReduction: 3,
+      wsjfJobSize: 3,
+    });
+    if (!isOk(r)) throw new Error("Anlegen fehlgeschlagen");
+    return r.value.id;
+  }
+
+  it("löst ein Feature aus seinem Epic — der Pfad wird zur Wurzel", async () => {
+    const id = await makeFeature();
+    const res = await setFeatureParent(testRequestContext(db, seed), { id, parentId: null });
+    expect(isOk(res)).toBe(true);
+
+    const row = await db.initiative.findFirst({ where: { id } });
+    expect(row!.parentId).toBeNull();
+    expect(row!.path).toBe(id);
+  });
+
+  it("ordnet es wieder zu und stellt den Pfad her", async () => {
+    const id = await makeFeature();
+    await setFeatureParent(testRequestContext(db, seed), { id, parentId: null });
+    const res = await setFeatureParent(testRequestContext(db, seed), { id, parentId: epicId });
+    expect(isOk(res)).toBe(true);
+
+    const row = await db.initiative.findFirst({ where: { id } });
+    expect(row!.parentId).toBe(epicId);
+    expect(row!.path).toBe(`${epicId}.${id}`);
+  });
+
+  it("meldet not_found für ein unbekanntes Epic", async () => {
+    const id = await makeFeature();
+    const res = await setFeatureParent(testRequestContext(db, seed), {
+      id,
+      parentId: randomUUID(),
+    });
+    expect(isErr(res)).toBe(true);
+    if (!isErr(res)) return;
+    expect(res.error.kind).toBe("not_found");
+  });
+
+  /** Abhängigkeiten, PI und WSJF überleben das Umhängen — sonst wäre es wertlos. */
+  it("lässt PI und WSJF unberührt", async () => {
+    const id = await makeFeature();
+    const before = await db.initiative.findFirst({ where: { id } });
+    await setFeatureParent(testRequestContext(db, seed), { id, parentId: null });
+    const after = await db.initiative.findFirst({ where: { id } });
+    expect(after!.piId).toBe(before!.piId);
+    expect(after!.wsjfComputed?.toString()).toBe(before!.wsjfComputed?.toString());
+  });
+});
+
+describe("setFeatureSolution", () => {
+  it("weist eine Solution aus einem fremden Wertstrom ab", async () => {
+    const r = await createFeature(testRequestContext(db, seed), {
+      parentId: epicId,
+      artId: seed.artId,
+      title: "Solution-Kandidat",
+      wsjfBusinessValue: 3,
+      wsjfTimeCriticality: 3,
+      wsjfRiskReduction: 3,
+      wsjfJobSize: 3,
+    });
+    if (!isOk(r)) throw new Error("Anlegen fehlgeschlagen");
+
+    const res = await setFeatureSolution(testRequestContext(db, seed), {
+      id: r.value.id,
+      solutionId: randomUUID(),
+    });
+    expect(isErr(res)).toBe(true);
+    if (!isErr(res)) return;
+    expect(res.error.kind).toBe("not_found");
   });
 });

@@ -48,6 +48,7 @@ function rejectResearchHorizon(horizon: Horizon) {
       };
 }
 import type { Prisma } from "@/generated/prisma";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 
 export interface CreateSolutionInput {
   name: string;
@@ -258,8 +259,17 @@ export async function softDeleteSolution(
 
     // Epics, deren Primär diese Solution ist → nächste verknüpfte (aktive) Solution
     // als Primär nachrücken, sonst „Ohne" (null).
+    //
+    // **Ausdrücklich nur Epics.** Seit ein Feature seine Solution selbst tragen
+    // darf, trifft die Spalte auch Features — die haben aber keine
+    // Verknüpfungstabelle, aus der etwas nachrücken könnte. Sie werden weiter
+    // unten in einem Rutsch geleert.
     const affected = await tx.initiative.findMany({
-      where: { tenantId: mctx.tenantId, primarySolutionId: id },
+      where: {
+        tenantId: mctx.tenantId,
+        primarySolutionId: id,
+        level: InitiativeLevel.EPIC,
+      },
       select: { id: true },
     });
     for (const e of affected) {
@@ -272,6 +282,17 @@ export async function softDeleteSolution(
         data: { primarySolutionId: next?.solutionId ?? null, updatedBy: mctx.actorId },
       });
     }
+
+    // Features verlieren die Zuordnung ersatzlos: ein Feature wird in genau
+    // eine Solution geliefert, es gibt keine zweite, die nachrücken könnte.
+    await tx.initiative.updateMany({
+      where: {
+        tenantId: mctx.tenantId,
+        primarySolutionId: id,
+        level: InitiativeLevel.FEATURE,
+      },
+      data: { primarySolutionId: null, updatedBy: mctx.actorId },
+    });
 
     // Zuordnungen dieser Solution lösen + Solution soft-deleten.
     await tx.epicSolution.deleteMany({ where: { solutionId: id } });

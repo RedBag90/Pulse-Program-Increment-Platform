@@ -63,6 +63,8 @@ export type AuditAction =
   | "epic.revision.started"
   | "epic.owner.assigned"
   | "feature.owner.assigned"
+  | "feature.solution.set"
+  | "feature.parent.set"
   | "feature.delivery.transitioned"
   | "wsjf.scored"
   | "value_stream.created"

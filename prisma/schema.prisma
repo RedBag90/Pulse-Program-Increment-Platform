@@ -690,7 +690,7 @@ model Solution {
   valueStream    ValueStream          @relation(fields: [valueStreamId], references: [id])
   art            Art?                 @relation(fields: [artId], references: [id], onDelete: SetNull)
   epicLinks      EpicSolution[]
-  primaryOfEpics Initiative[]         @relation("EpicPrimarySolution")
+  primaryOfInitiatives Initiative[]   @relation("InitiativePrimarySolution")
   /// Betriebskosten dieser Solution — die **eine** Run-the-Business-Definition
   /// (Modul Budgeting). Grow wird weiterhin aus den Primär-Epics abgeleitet.
   rtbItems       RunTheBusinessItem[]
@@ -918,8 +918,10 @@ model Initiative {
   /// späterer Horizont-Wechsel der Solution die Geschichte nicht rückwirkend
   /// umschreibt. Die Auflösung liegt in `domain/epic-horizon.ts`.
   investmentHorizon String? @map("investment_horizon")
-  // EPIC only: Primär-Solution → liefert den abgeleiteten Horizont. Weitere
-  // Zuordnungen in EpicSolution; die Primär-Solution muss dort enthalten sein.
+  // Primär-Solution. Am EPIC liefert sie den abgeleiteten Horizont, und weitere
+  // Zuordnungen stehen in EpicSolution (die Primär-Solution muss dort enthalten
+  // sein). Ein FEATURE trägt sie ebenfalls — ohne Verknüpfungstabelle, denn es
+  // wird in genau eine Solution geliefert; fehlt sie, gilt die seines Epics.
   primarySolutionId String? @map("primary_solution_id") @db.Uuid
   // FEATURE-only: feature vs enabler (Architectural Runway etc.).
   featureType       String? @map("feature_type")
@@ -971,7 +973,7 @@ model Initiative {
   art         Art?              @relation("FeatureArt", fields: [artId], references: [id])
   pi          ProgramIncrement? @relation(fields: [piId], references: [id])
 
-  primarySolution Solution?      @relation("EpicPrimarySolution", fields: [primarySolutionId], references: [id], onDelete: SetNull)
+  primarySolution Solution?      @relation("InitiativePrimarySolution", fields: [primarySolutionId], references: [id], onDelete: SetNull)
   solutionLinks   EpicSolution[]
 
   dependenciesOut    Dependency[]          @relation("From")

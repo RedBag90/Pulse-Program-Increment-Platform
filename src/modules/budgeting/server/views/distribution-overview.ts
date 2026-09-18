@@ -8,6 +8,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { median } from "@/modules/budgeting/domain/finalize";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 
 export interface OverviewGroup {
   id: string;
@@ -85,7 +86,14 @@ export async function loadDistributionOverview(
         select: { id: true, name: true },
       }),
       db.initiative.findMany({
-        where: { tenantId: principal.tenantId, primarySolutionId: { not: null } },
+        // Nur Epics: die Kachel bildet Vorhaben ab. Seit auch Features eine
+        // Solution tragen dürfen, muss die Ebene dastehen — sonst wüchse die
+        // Abfrage still um die Features mit.
+        where: {
+          tenantId: principal.tenantId,
+          level: InitiativeLevel.EPIC,
+          primarySolutionId: { not: null },
+        },
         select: { id: true, primarySolution: { select: { name: true } } },
       }),
       db.runTheBusinessItem.findMany({

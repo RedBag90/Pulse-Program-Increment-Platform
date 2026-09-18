@@ -4,12 +4,17 @@ import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 import { parsePageParams } from "@/server/db/paginate";
 import { fibonacci } from "@/domain/schemas/initiative";
-import type { ArtId, EpicId, PiId } from "@/modules/core/kernel/domain/types";
+import type { ArtId, EpicId, PiId, UserId } from "@/modules/core/kernel/domain/types";
 
 const createSchema = z.object({
-  parentId: z.string().uuid(),
+  // Optional wie an der Formular-Kante: ohne Epic entsteht ein eigenständiges
+  // Feature. Beide Kanten validieren getrennt (ADR-0004), dürfen sich in dem,
+  // was sie *erlauben*, aber nicht unterscheiden.
+  parentId: z.string().uuid().optional(),
   artId: z.string().uuid(),
   piId: z.string().uuid().optional(),
+  ownerId: z.string().uuid().optional(),
+  primarySolutionId: z.string().uuid().optional(),
   title: z.string().min(1).max(200),
   description: z.string().max(10_000).optional(),
   wsjfBusinessValue: fibonacci,
@@ -42,7 +47,9 @@ export const POST = createMutationHandler({
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
   service: (ctx, input) =>
     createFeature(ctx, {
-      parentId: input.parentId as EpicId,
+      parentId: input.parentId as EpicId | undefined,
+      ownerId: input.ownerId as UserId | undefined,
+      primarySolutionId: input.primarySolutionId,
       artId: input.artId as ArtId,
       piId: input.piId as PiId | undefined,
       title: input.title,

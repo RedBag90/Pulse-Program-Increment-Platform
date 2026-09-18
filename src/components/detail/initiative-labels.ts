@@ -122,6 +122,8 @@ const ACTION_LABELS: Record<string, string> = {
   "epic.revision.started": "Neue Revision gestartet",
   "epic.owner.assigned": "Epic Owner zugewiesen",
   "feature.owner.assigned": "Feature-Owner zugewiesen",
+  "feature.solution.set": "Solution am Feature gesetzt",
+  "feature.parent.set": "Epic-Zuordnung geändert",
   "pi.capacity.updated": "PI-Kapazität gesetzt",
   "feature.delivery.transitioned": "Feature-Status geändert",
   "budget_plan.revision.captured": "Budget-Plan-Revision erfasst",

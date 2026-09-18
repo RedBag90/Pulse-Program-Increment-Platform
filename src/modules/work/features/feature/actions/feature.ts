@@ -3,6 +3,8 @@
 import { z } from "zod";
 import {
   assignFeatureOwner,
+  setFeatureSolution,
+  setFeatureParent,
   createFeature,
   updateFeature,
   scoreFeature,
@@ -16,7 +18,7 @@ import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import { fibonacci } from "@/domain/schemas/initiative";
-import type { EpicId, ArtId, FeatureId, PiId } from "@/modules/core/kernel/domain/types";
+import type { EpicId, ArtId, FeatureId, PiId, UserId } from "@/modules/core/kernel/domain/types";
 
 export interface FeatureActionState {
   error?: string;
@@ -31,7 +33,26 @@ export const createFeatureAction = createServerAction({
   }),
   schema: z.object({
     artId: z.string().uuid(),
-    parentId: z.string().uuid(),
+    /**
+     * Optional: fehlt es, entsteht ein **eigenständiges Feature**.
+     *
+     * Das `<select>` schickt einen leeren String, wenn „ohne Epic" gewählt ist.
+     * Die Abbildung `"" → nicht gesetzt` steht unten im Service-Aufruf, nicht
+     * als `.transform()` — ein `"use server"`-Modul darf keine nicht-asynchrone
+     * Funktion enthalten, der Bau lehnt sie als „Server Action" ab. Dasselbe
+     * Idiom benutzt `setFeaturePiAction` für den Backlog.
+     */
+    parentId: z.union([z.string().uuid(), z.literal("")]).optional(),
+    /**
+     * Optional; leer = Backlog. Die API-Kante kannte das Feld längst, das
+     * Formular nicht — ein im Cockpit angelegtes Feature landete deshalb
+     * **immer** im Backlog, auch wenn der Nutzer gerade in einem PI stand.
+     */
+    piId: z.union([z.string().uuid(), z.literal("")]).optional(),
+    /** Optional; leer = der Anlegende. Das Formular belegt ihn damit vor. */
+    ownerId: z.union([z.string().uuid(), z.literal("")]).optional(),
+    /** Optional; leer = die Solution des Epics, sonst keine. */
+    primarySolutionId: z.union([z.string().uuid(), z.literal("")]).optional(),
     title: z.string().min(1).max(200),
     description: z.string().max(10_000).optional(),
     wsjfBusinessValue: z.coerce.number().pipe(fibonacci),
@@ -52,8 +73,11 @@ export const createFeatureAction = createServerAction({
           .filter(Boolean)
       : [];
     return createFeature(ctx, {
-      parentId: input.parentId as EpicId,
+      parentId: input.parentId ? (input.parentId as EpicId) : undefined,
       artId: input.artId as ArtId,
+      ...(input.piId ? { piId: input.piId as PiId } : {}),
+      ...(input.ownerId ? { ownerId: input.ownerId as UserId } : {}),
+      ...(input.primarySolutionId ? { primarySolutionId: input.primarySolutionId } : {}),
       title: input.title,
       description: input.description,
       wsjfBusinessValue: input.wsjfBusinessValue,
@@ -266,6 +290,51 @@ export const setFeaturePiAction = createServerAction({
  * Owner eines Features setzen oder entfernen. Leerer String = „kein Owner" —
  * das Formular kann keinen echten `null`-Wert senden.
  */
+/**
+ * Ein Feature einem Epic zuordnen oder daraus lösen (`""` = lösen, das Feature
+ * wird eigenständig).
+ */
+export const setFeatureParentAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    artId: z.string().uuid(),
+    parentId: z.union([z.string().uuid(), z.literal("")]),
+  }),
+  action: "feature.update",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  service: (ctx, input) =>
+    setFeatureParent(ctx, {
+      id: input.id,
+      parentId: input.parentId === "" ? null : input.parentId,
+    }),
+  revalidate: "feature",
+  mapError: (e) =>
+    e.kind === "conflict" ? e.reason : "Epic-Zuordnung konnte nicht geändert werden",
+});
+
+/**
+ * Die Solution eines Features setzen oder entfernen (`""` = keine eigene, dann
+ * gilt wieder die des Epics). Eigene Aktion statt eines Feldes in
+ * `updateFeatureAction`: die Zuordnung braucht eine eigene Prüfung am Service —
+ * `updateFeature` hat keinen solchen Seam.
+ */
+export const setFeatureSolutionAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    artId: z.string().uuid(),
+    solutionId: z.union([z.string().uuid(), z.literal("")]),
+  }),
+  action: "feature.update",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  service: (ctx, input) =>
+    setFeatureSolution(ctx, {
+      id: input.id,
+      solutionId: input.solutionId === "" ? null : input.solutionId,
+    }),
+  revalidate: "feature",
+  mapError: (e) => (e.kind === "conflict" ? e.reason : "Solution konnte nicht gesetzt werden"),
+});
+
 export const assignFeatureOwnerAction = createServerAction({
   schema: z.object({
     id: z.string().uuid(),
