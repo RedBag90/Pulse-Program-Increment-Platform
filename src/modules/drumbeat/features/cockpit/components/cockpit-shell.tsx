@@ -68,7 +68,10 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
             <>
               <CockpitArtPicker availableArts={availableArts} selectedArt={selectedArt} />
               {permissions.canCreate && selectedArt && (
-                <CockpitCreateFeature artId={selectedArt.id} />
+                <CockpitCreateFeature
+                  artId={selectedArt.id}
+                  artValueStreamId={selectedArt.valueStreamId}
+                />
               )}
             </>
           }

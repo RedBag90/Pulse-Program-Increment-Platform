@@ -37,6 +37,8 @@ export default async function FeatureDetailPage({
         canTransition={detail.canTransition}
         canAssignOwner={detail.canAssignOwner}
         approvers={detail.approvers}
+        solutionOptions={detail.solutionOptions}
+        epicOptions={detail.epicOptions}
         canLinkDependency={detail.canLinkDependency}
         outgoing={detail.outgoing}
         incoming={detail.incoming}

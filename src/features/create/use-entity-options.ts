@@ -10,6 +10,7 @@ export type ParentKind =
   | "epic"
   | "feature"
   | "pi"
+  | "user"
   | "story"
   | "piStandard"
   | "timeline"
@@ -33,6 +34,8 @@ export function optionsEndpoint(
       return "/api/v1/solutions";
     case "epic":
       return "/api/v1/initiatives";
+    case "user":
+      return "/api/v1/users";
     case "feature":
       return params?.artId ? `/api/v1/features?artId=${params.artId}` : null;
     case "pi":

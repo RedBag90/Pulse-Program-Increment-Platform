@@ -15,6 +15,7 @@ import {
   type FeatureDetailModel,
 } from "@/modules/drumbeat/server/views/feature-detail";
 import type { ActivityItem } from "@/components/detail/initiative-activity-sidebar";
+import { resolveInitiativeValueStreamId } from "@/modules/core/kernel/domain/initiative-value-stream";
 
 /**
  * Eine Feature-Feature-Dependency-Kante aus Sicht *eines* Features. Der
@@ -43,6 +44,10 @@ export interface CockpitFeatureDetail {
   canAssignOwner: boolean;
   /** Auswählbare Personen für den Owner-Picker. */
   approvers: { userId: string; roles: string[] }[];
+  /** Wählbare Solutions — die des Wertstroms, den das ART trägt. */
+  solutionOptions: { id: string; name: string }[];
+  /** Wählbare Eltern-Epics — dieselbe Wertstrom-Bedingung wie beim Anlegen. */
+  epicOptions: { id: string; title: string }[];
   canLinkDependency: boolean;
   outgoing: DependencyEdge[];
   incoming: DependencyEdge[];
@@ -85,14 +90,28 @@ export async function loadCockpitFeatureDetail(
       featureType: true,
       createdAt: true,
       updatedAt: true,
-      parent: { select: { id: true, title: true, stageGate: true, valueStreamId: true } },
+      // Eigene Solution des Features und die seines Epics als Rückfall.
+      primarySolution: { select: { id: true, name: true } },
+      parent: {
+        select: {
+          id: true,
+          title: true,
+          stageGate: true,
+          valueStreamId: true,
+          primarySolution: { select: { id: true, name: true } },
+        },
+      },
       art: { select: { id: true, name: true, valueStreamId: true } },
       pi: { select: { id: true, name: true, startDate: true, endDate: true } },
     },
   });
   if (!feature) return null;
 
-  const valueStreamId = feature.parent?.valueStreamId ?? feature.art?.valueStreamId ?? null;
+  const valueStreamId = resolveInitiativeValueStreamId({
+    parentValueStreamId: feature.parent?.valueStreamId ?? null,
+    ownValueStreamId: null,
+    artValueStreamId: feature.art?.valueStreamId ?? null,
+  });
 
   const [
     valueStream,
@@ -103,6 +122,8 @@ export async function loadCockpitFeatureDetail(
     history,
     artFeatures,
     blockerMap,
+    solutionOptions,
+    epicOptions,
   ] = await Promise.all([
     valueStreamId
       ? db.valueStream.findFirst({
@@ -136,6 +157,29 @@ export async function loadCockpitFeatureDetail(
         })
       : Promise.resolve([]),
     getBlockerWindowsForFeatures(db, principal.tenantId, [feature.id]),
+    // Wählbare Solutions: die des Wertstroms, den das Feature über sein ART
+    // hat. Dieselbe Menge, die `setFeatureSolution` am Seam durchlässt.
+    valueStreamId
+      ? db.solution.findMany({
+          where: { tenantId: principal.tenantId, valueStreamId, deletedAt: null },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
+    // Wählbare Eltern-Epics: die des Wertstroms, den das Feature über sein ART
+    // hat — dieselbe Bedingung, die `setFeatureParent` am Seam durchsetzt.
+    valueStreamId
+      ? db.initiative.findMany({
+          where: {
+            tenantId: principal.tenantId,
+            level: InitiativeLevel.EPIC,
+            deletedAt: null,
+            valueStreamId,
+          },
+          select: { id: true, title: true },
+          orderBy: { title: "asc" },
+        })
+      : Promise.resolve([]),
   ]);
 
   const model = buildFeatureDetailModel({
@@ -151,6 +195,10 @@ export async function loadCockpitFeatureDetail(
     artName: feature.art?.name ?? null,
     valueStreamId: valueStream?.id ?? null,
     valueStreamName: valueStream?.name ?? null,
+    ownSolutionId: feature.primarySolution?.id ?? null,
+    ownSolutionName: feature.primarySolution?.name ?? null,
+    parentSolutionId: feature.parent?.primarySolution?.id ?? null,
+    parentSolutionName: feature.parent?.primarySolution?.name ?? null,
     piId: feature.pi?.id ?? null,
     piName: feature.pi?.name ?? null,
     piStartDate: feature.pi?.startDate ?? null,
@@ -210,6 +258,8 @@ export async function loadCockpitFeatureDetail(
     canTransition,
     canAssignOwner,
     approvers,
+    solutionOptions,
+    epicOptions,
     canLinkDependency,
     outgoing,
     incoming,

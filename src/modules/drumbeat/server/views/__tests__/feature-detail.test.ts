@@ -18,6 +18,10 @@ const base = (over: Partial<FeatureDetailInput> = {}): FeatureDetailInput => ({
   artName: null,
   valueStreamId: null,
   valueStreamName: null,
+  ownSolutionId: null,
+  ownSolutionName: null,
+  parentSolutionId: null,
+  parentSolutionName: null,
   piId: null,
   piName: null,
   piStartDate: null,
@@ -113,5 +117,38 @@ describe("buildFeatureDetailModel", () => {
 
     const unscored = buildFeatureDetailModel(base({ wsjfComputed: null }));
     expect(unscored.wsjf.tier).toBe("unscored");
+  });
+});
+
+/**
+ * Die geltende Solution ist die eigene, sonst die des Epics — und die
+ * **eigene** Zuordnung bleibt getrennt sichtbar, weil der Picker sonst nicht
+ * anbieten könnte, auf die des Epics zurückzufallen.
+ */
+describe("buildFeatureDetailModel — Solution", () => {
+  it("zeigt die eigene Solution und merkt sich, dass sie eigen ist", () => {
+    const m = buildFeatureDetailModel(
+      base({
+        ownSolutionId: "s-eigen",
+        ownSolutionName: "Betrieb",
+        parentSolutionId: "s-epic",
+        parentSolutionName: "Plattform",
+      }),
+    );
+    expect(m.solution).toEqual({ id: "s-eigen", name: "Betrieb" });
+    expect(m.ownSolutionId).toBe("s-eigen");
+  });
+
+  it("erbt die Solution des Epics, ohne sie als eigene auszugeben", () => {
+    const m = buildFeatureDetailModel(
+      base({ parentSolutionId: "s-epic", parentSolutionName: "Plattform" }),
+    );
+    expect(m.solution).toEqual({ id: "s-epic", name: "Plattform" });
+    expect(m.ownSolutionId).toBeNull();
+  });
+
+  it("lässt sie leer, wenn es weder eigene noch geerbte gibt", () => {
+    const m = buildFeatureDetailModel(base());
+    expect(m.solution).toBeNull();
   });
 });

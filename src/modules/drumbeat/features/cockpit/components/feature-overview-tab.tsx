@@ -3,6 +3,8 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { FeatureOwnerAssign } from "@/modules/work/features/feature/components/feature-owner-assign";
+import { FeatureSolutionAssign } from "@/modules/work/features/feature/components/feature-solution-assign";
+import { FeatureParentAssign } from "@/modules/work/features/feature/components/feature-parent-assign";
 import { FeatureEditForm } from "@/modules/work/features/feature/components/feature-edit-form";
 import { WsjfScoreDialog } from "@/modules/work/features/feature/components/wsjf-score-dialog";
 import { FeatureClassificationForm } from "./feature-classification-form";
@@ -23,6 +25,8 @@ interface Props {
   canEdit: boolean;
   canAssignOwner: boolean;
   approvers: ReadonlyArray<{ userId: string; roles: string[] }>;
+  solutionOptions: ReadonlyArray<{ id: string; name: string }>;
+  epicOptions: ReadonlyArray<{ id: string; title: string }>;
   userLabels: Record<string, string>;
 }
 
@@ -42,6 +46,8 @@ export function FeatureOverviewTab({
   canEdit,
   canAssignOwner,
   approvers,
+  solutionOptions,
+  epicOptions,
   userLabels,
 }: Props) {
   return (
@@ -57,23 +63,24 @@ export function FeatureOverviewTab({
         <Field label="Reifegrad">
           {model.stageGate ? (STAGE_GATE_LABELS[model.stageGate] ?? model.stageGate) : "—"}
         </Field>
-        <Field label="Parent-Epic">
-          {model.parent ? (
-            <Link
-              href={`/portfolio/epics/${model.parent.id}` as never}
-              className="inline-flex items-center gap-1 text-primary hover:underline"
-            >
-              {model.parent.title}
-              {model.parent.stageGate && (
-                <span className="ml-1 rounded-sm bg-muted px-1 text-label text-muted-foreground">
-                  {model.parent.stageGate}
-                </span>
-              )}
-              <ArrowRight className="size-3" />
-            </Link>
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          )}
+        <Field label="Solution">
+          <FeatureSolutionAssign
+            featureId={model.id}
+            artId={model.art?.id ?? ""}
+            ownSolutionId={model.ownSolutionId}
+            inheritedName={model.ownSolutionId === null ? (model.solution?.name ?? null) : null}
+            options={solutionOptions}
+            canEdit={canEdit && model.art !== null}
+          />
+        </Field>
+        <Field label="Epic">
+          <FeatureParentAssign
+            featureId={model.id}
+            artId={model.art?.id ?? ""}
+            parent={model.parent}
+            options={epicOptions}
+            canEdit={canEdit && model.art !== null}
+          />
         </Field>
         <Field label="Wertstrom · ART">
           <span className="text-sm">

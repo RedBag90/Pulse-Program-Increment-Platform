@@ -31,6 +31,8 @@ interface Props {
   canTransition: boolean;
   canAssignOwner: boolean;
   approvers: ReadonlyArray<{ userId: string; roles: string[] }>;
+  solutionOptions: ReadonlyArray<{ id: string; name: string }>;
+  epicOptions: ReadonlyArray<{ id: string; title: string }>;
   canLinkDependency: boolean;
   outgoing: DependencyEdge[];
   incoming: DependencyEdge[];
@@ -70,6 +72,8 @@ export function FeatureDetailShell({
   canTransition,
   canAssignOwner,
   approvers,
+  solutionOptions,
+  epicOptions,
   canLinkDependency,
   outgoing,
   incoming,
@@ -155,6 +159,8 @@ export function FeatureDetailShell({
           canEdit={canEdit}
           canAssignOwner={canAssignOwner}
           approvers={approvers}
+          solutionOptions={solutionOptions}
+          epicOptions={epicOptions}
           userLabels={userLabels}
         />
       )}
