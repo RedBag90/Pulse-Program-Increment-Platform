@@ -193,11 +193,22 @@ export const setEpicHelpRequestedAction = createServerAction({
 });
 
 export const deleteEpicAction = createServerAction({
-  schema: z.object({ id: z.string().uuid() }),
+  schema: z.object({
+    id: z.string().uuid(),
+    /** Was mit den Features geschieht. Vorgabe = mitlöschen, das alte Verhalten. */
+    children: z.enum(["delete", "release"]).optional(),
+  }),
   action: "epic.delete",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({ id: fields(fd).string("id") }),
-  service: (ctx, input) => softDeleteEpic(ctx, { id: input.id as EpicId }),
+  parseFormData: (fd) => {
+    const children = fields(fd).string("children");
+    return { id: fields(fd).string("id"), ...(children ? { children } : {}) };
+  },
+  service: (ctx, input) =>
+    softDeleteEpic(ctx, {
+      id: input.id as EpicId,
+      ...(input.children ? { children: input.children } : {}),
+    }),
   revalidate: "epic",
   mapError: (e) =>
     formatDomainError(e, { notFound: "Epic not found", fallback: "Failed to delete epic" }),

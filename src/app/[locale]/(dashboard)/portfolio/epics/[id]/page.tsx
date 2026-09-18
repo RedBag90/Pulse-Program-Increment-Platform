@@ -328,7 +328,13 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
         activeTab={activeTab}
         basePath={`/portfolio/epics/${epic.id}`}
         headerActions={
-          model.canEdit ? <DeleteEpicButton id={epic.id} title={epic.title} /> : undefined
+          model.canEdit ? (
+            <DeleteEpicButton
+              id={epic.id}
+              title={epic.title}
+              featureCount={model.breakdownFeatures.length}
+            />
+          ) : undefined
         }
         /**
          * **Ein Band statt dreier Karten.**

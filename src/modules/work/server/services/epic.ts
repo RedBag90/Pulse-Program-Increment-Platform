@@ -28,6 +28,7 @@ import {
 import { parseTimeline, type TimelineFields } from "@/modules/work/domain/timeline";
 import { timelinePlannedWindow } from "@/modules/work/domain/epic-schedule";
 import { isPbEligible } from "@/modules/work/domain/pb-submission";
+import { derivedInitiativePath } from "@/modules/core/kernel/domain/initiative-path";
 
 // ---------------------------------------------------------------------------
 // Create Epic (level 0)
@@ -607,10 +608,10 @@ export async function assignEpicOwner(
 
 export async function softDeleteEpic(
   ctx: RequestContext,
-  input: { id: EpicId },
+  input: { id: EpicId; children?: "delete" | "release" },
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id } = input;
+  const { id, children = "delete" } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     // Scope-aware seam check (ADR-0002): authorize against the loaded Epic
@@ -622,7 +623,11 @@ export async function softDeleteEpic(
     });
     if (isErr(loaded)) return loaded;
 
-    // Cascade soft-delete to all child features.
+    // Die Kinder: mitlöschen (Vorgabe, das bisherige Verhalten) oder
+    // **freigeben**. Freigeben macht sie zu eigenständigen Features — seit das
+    // ein erlaubter Zustand ist, muss man Arbeit nicht mehr wegwerfen, nur weil
+    // das Vorhaben darüber verschwindet. Der Pfad wird dabei zur eigenen Id,
+    // nach derselben Regel wie beim Anlegen.
     const features = await tx.initiative.findMany({
       where: {
         parentId: id,
@@ -635,10 +640,23 @@ export async function softDeleteEpic(
     const featureIds = features.map((f) => f.id);
 
     if (featureIds.length > 0) {
-      await tx.initiative.updateMany({
-        where: { id: { in: featureIds }, tenantId: mctx.tenantId },
-        data: { deletedAt: new Date(), updatedBy: mctx.actorId },
-      });
+      if (children === "release") {
+        for (const fid of featureIds) {
+          await tx.initiative.update({
+            where: { id: fid },
+            data: {
+              parentId: null,
+              path: derivedInitiativePath(null, fid),
+              updatedBy: mctx.actorId,
+            },
+          });
+        }
+      } else {
+        await tx.initiative.updateMany({
+          where: { id: { in: featureIds }, tenantId: mctx.tenantId },
+          data: { deletedAt: new Date(), updatedBy: mctx.actorId },
+        });
+      }
     }
 
     await tx.initiative.update({
@@ -648,7 +666,19 @@ export async function softDeleteEpic(
 
     return ok({
       result: undefined,
-      audit: { action: "initiative.deleted", resourceType: "initiative", resourceId: id },
+      audit: {
+        action: "initiative.deleted",
+        resourceType: "initiative",
+        resourceId: id,
+        // Im Verlauf muss stehen, was mit den Kindern geschah — sonst ist
+        // später nicht mehr zu klären, warum Features ohne Epic dastehen.
+        changes: {
+          features: {
+            before: featureIds.length,
+            after: children === "release" ? "freigegeben" : "mitgelöscht",
+          },
+        },
+      },
     });
   });
 }
