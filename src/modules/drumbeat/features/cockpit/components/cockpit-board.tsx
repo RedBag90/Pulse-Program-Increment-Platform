@@ -18,20 +18,13 @@ import {
   buildBoardMatrix,
   normalizePiKey,
   type BoardMatrix,
+  type BoardLane,
+  splitCell,
 } from "@/modules/drumbeat/domain/board-matrix";
-import { FEATURE_STATUS_LABELS } from "@/modules/drumbeat/domain/status";
+import { FEATURE_STATUS_LABELS, needsReasonForStatus } from "@/modules/drumbeat/domain/status";
 import { FEATURE_STATUS_LANE } from "@/modules/drumbeat/features/lib/status-badges";
+import { StatusReasonDialog } from "@/modules/drumbeat/features/cockpit/components/status-reason-dialog";
 import { MoreVertical } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -50,8 +43,8 @@ interface OptimisticPatch {
 }
 
 /**
- * Delivery-Board — 5 PI-Spalten × 4 Status-Lanes
- * (Bereit · In Umsetzung · Blockiert · Fertig). Drag horizontal terminiert
+ * Delivery-Board — Backlog + PI-Spalten × vier Status-Bahnen
+ * (Freigegeben · In Umsetzung · Blockiert · Abgeschlossen). Drag horizontal terminiert
  * (PI-Wechsel), Drag vertikal aendert den Status. Beides gleichzeitig
  * (Diagonal-Drag) feuert beide Actions hintereinander.
  *
@@ -71,15 +64,26 @@ interface Props {
   canSetDelivery: boolean;
 }
 
-interface LaneDef {
-  value: FeatureStatus;
-  label: string;
-  color: string;
-}
+type LaneDef = BoardLane;
+
+/**
+ * Wie viele Karten eine **Haufen**-Bahn je Zelle zeigt. Gemessen trug eine Zelle
+ * 44 Karten — rund 3800 px Bahnhöhe, während die Nachbarzellen leer waren und
+ * dieselbe Höhe mitgingen.
+ */
+const PILE_LIMIT = 5;
 
 const LANES: ReadonlyArray<LaneDef> = [
   // Lane-Tint kommt aus der Status-Registry — nicht mehr als Kopie hier.
-  { value: "approved", label: FEATURE_STATUS_LABELS.approved, color: FEATURE_STATUS_LANE.approved },
+  // Die Grenzen sind gestaffelt, nicht einheitlich: „Blockiert" ist die
+  // Tagesordnung und „In Umsetzung" die laufende Arbeit — beide bleiben ganz.
+  // Eine lange Bahn ist dort kein Anzeigefehler, sondern ein WIP-Signal.
+  {
+    value: "approved",
+    label: FEATURE_STATUS_LABELS.approved,
+    color: FEATURE_STATUS_LANE.approved,
+    limit: PILE_LIMIT,
+  },
   {
     value: "in_progress",
     label: FEATURE_STATUS_LABELS.in_progress,
@@ -90,6 +94,7 @@ const LANES: ReadonlyArray<LaneDef> = [
     value: "completed",
     label: FEATURE_STATUS_LABELS.completed,
     color: FEATURE_STATUS_LANE.completed,
+    limit: PILE_LIMIT,
   },
 ];
 
@@ -131,7 +136,6 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
     movePi: boolean;
     targetStatus: FeatureStatus;
   } | null>(null);
-  const [reason, setReason] = useState("");
 
   function performDrop(
     ctx: {
@@ -197,8 +201,7 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
     // Governance-Gate: Wechsel nach Blockiert/Verworfen braucht einen Grund —
     // dieselbe Regel wie im Detail. Statt sofort zu committen, öffnet der Drop
     // den Grund-Dialog; erst nach Bestätigung läuft die Transition.
-    if (moveStatus && (targetStatus === "blocked" || targetStatus === "cancelled")) {
-      setReason("");
+    if (moveStatus && needsReasonForStatus(targetStatus)) {
       setBlockPrompt({ id, targetPiId, movePi, targetStatus });
       return;
     }
@@ -222,8 +225,7 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
     const targetPiId = target.targetPiId ?? normalizePiKey(feature.piId);
     const targetStatus = target.targetStatus ?? feature.status;
 
-    if (moveStatus && (targetStatus === "blocked" || targetStatus === "cancelled")) {
-      setReason("");
+    if (moveStatus && needsReasonForStatus(targetStatus)) {
       setBlockPrompt({ id, targetPiId, movePi, targetStatus });
       return;
     }
@@ -246,14 +248,16 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
           gridTemplateColumns: `minmax(120px, 0.6fr) repeat(${columns.length}, minmax(180px, 1fr))`,
         }}
       >
-        {/* Header-Zeile: leeres Eck + Spalten-Namen */}
-        <div />
+        {/* Header-Zeile: leeres Eck + Spalten-Namen. Klebend — nach zwei
+            Bildschirmen wusste sonst niemand mehr, welche Spalte welches PI
+            ist. `bg-background`, damit die Karten nicht durchscheinen. */}
+        <div className="sticky top-0 z-10 bg-background" />
         {columns.map((p) => {
           const isBacklog = p.id === "";
           return (
             <div
               key={p.id || "__backlog__"}
-              className={`rounded-md border px-2 py-1 text-xs font-medium ${
+              className={`sticky top-0 z-10 rounded-md border px-2 py-1 text-xs font-medium ${
                 isBacklog
                   ? "border-dashed border-border bg-muted/30 text-muted-foreground"
                   : p.isCurrent
@@ -284,45 +288,15 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
         ))}
       </div>
 
-      <Dialog
-        open={blockPrompt != null}
-        onOpenChange={(o) => {
-          if (!o) setBlockPrompt(null);
+      <StatusReasonDialog
+        targetStatus={blockPrompt?.targetStatus ?? null}
+        onCancel={() => setBlockPrompt(null)}
+        onConfirm={(grund: string) => {
+          if (!blockPrompt) return;
+          performDrop({ ...blockPrompt, moveStatus: true }, grund);
+          setBlockPrompt(null);
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Grund erforderlich</DialogTitle>
-            <DialogDescription>
-              Ein Wechsel nach „{blockPrompt ? FEATURE_STATUS_LABELS[blockPrompt.targetStatus] : ""}
-              " braucht einen Grund — wie im Feature-Detail.
-            </DialogDescription>
-          </DialogHeader>
-          <Textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            rows={3}
-            autoFocus
-            placeholder="Warum wird das Feature blockiert bzw. verworfen?"
-          />
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setBlockPrompt(null)}>
-              Abbrechen
-            </Button>
-            <Button
-              type="button"
-              disabled={reason.trim() === ""}
-              onClick={() => {
-                if (!blockPrompt) return;
-                performDrop({ ...blockPrompt, moveStatus: true }, reason.trim());
-                setBlockPrompt(null);
-              }}
-            >
-              {blockPrompt?.targetStatus === "cancelled" ? "Verwerfen" : "Blockieren"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      />
     </div>
   );
 }
@@ -346,11 +320,15 @@ function LaneRow({
 }) {
   return (
     <>
-      <div className="flex items-center pr-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {lane.label}
+      {/* Die Beschriftung stand mittig in einer bis zu 1560 px hohen Zeile —
+          beim Scrollen sah man sie nie. Oben und klebend. */}
+      <div className="pr-2 pt-2">
+        <span className="sticky top-16 block text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          {lane.label}
+        </span>
       </div>
       {pis.map((p) => {
-        const cell = matrix.cell(p.id, lane.value);
+        const { shown, rest } = splitCell(matrix.cell(p.id, lane.value), lane.limit);
         return (
           <div
             key={`${p.id}:${lane.value}`}
@@ -363,21 +341,39 @@ function LaneRow({
               e.currentTarget.classList.remove(...HIGHLIGHT_DROP);
               onDrop(p.id, lane.value);
             }}
-            className={`min-h-20 space-y-1.5 rounded-md p-1.5 transition-shadow ${lane.color}`}
+            /* Leer war ein 64-px-Kasten mit dem Wort „leer" — bei sechs Spalten
+               und vier Bahnen bis zu 24 davon, die nichts sagen. Jetzt eine
+               flache Ablagefläche. */
+            className={`space-y-1.5 rounded-md p-1.5 transition-shadow ${
+              shown.length === 0 ? "min-h-10" : "min-h-20"
+            } ${lane.color}`}
           >
-            {cell.length === 0 ? (
-              <div className="grid h-16 place-items-center rounded-md border border-dashed border-border/40">
-                <span className="text-label text-muted-foreground/50">leer</span>
+            {shown.map((f) => (
+              <div key={f.id} className="group/card relative">
+                <FeatureCard feature={f} canDrag={canDrag} draggingId={draggingId} />
+                {canDrag && <FeatureMoveMenu feature={f} pis={pis} lanes={LANES} onMove={onMove} />}
               </div>
-            ) : (
-              cell.map((f) => (
-                <div key={f.id} className="group/card relative">
-                  <FeatureCard feature={f} canDrag={canDrag} draggingId={draggingId} />
-                  {canDrag && (
-                    <FeatureMoveMenu feature={f} pis={pis} lanes={LANES} onMove={onMove} />
-                  )}
+            ))}
+
+            {/* Der gekappte Rest. `<details>` statt `useState`: keyboard-bedienbar
+                ohne eigenen Zustand — dasselbe Muster wie an den Risiken. */}
+            {rest.length > 0 && (
+              <details className="group/rest">
+                <summary className="cursor-pointer list-none rounded-md px-1.5 py-1 text-label text-muted-foreground hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+                  <span className="group-open/rest:hidden">+ {rest.length} weitere</span>
+                  <span className="hidden group-open/rest:inline">weniger zeigen</span>
+                </summary>
+                <div className="mt-1.5 space-y-1.5">
+                  {rest.map((f) => (
+                    <div key={f.id} className="group/card relative">
+                      <FeatureCard feature={f} canDrag={canDrag} draggingId={draggingId} />
+                      {canDrag && (
+                        <FeatureMoveMenu feature={f} pis={pis} lanes={LANES} onMove={onMove} />
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))
+              </details>
             )}
           </div>
         );

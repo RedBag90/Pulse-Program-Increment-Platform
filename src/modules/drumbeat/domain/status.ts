@@ -49,6 +49,22 @@ export const FEATURE_STATUS_LABELS: Record<FeatureStatus, string> = {
   cancelled: "Verworfen",
 };
 
+/**
+ * **Braucht dieser Statuswechsel eine Begründung?**
+ *
+ * „Blockiert" und „Verworfen" halten Arbeit an. Wer das tut, schuldet dem Rest
+ * des Zuges einen Satz dazu — sonst steht später eine tote Karte im Board und
+ * niemand weiß mehr, warum.
+ *
+ * Die Regel stand zweimal wörtlich im Board (Drop und Tastatur-Menü) und
+ * **fehlte** in der Tabelle und in der Bulk-Leiste. Dieselbe Handlung folgte je
+ * nach Weg zwei verschiedenen Regeln — kein Komfort, sondern ein Loch: wer den
+ * Grund nicht angeben wollte, nahm die Tabelle.
+ */
+export function needsReasonForStatus(next: FeatureStatus): boolean {
+  return next === "blocked" || next === "cancelled";
+}
+
 // ── PI-Status ─────────────────────────────────────────────────────────────────
 
 export const PI_STATUS_LABELS: Record<PiStatus, string> = {

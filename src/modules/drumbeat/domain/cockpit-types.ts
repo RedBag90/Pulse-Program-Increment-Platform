@@ -14,8 +14,16 @@ export type { FeatureStatus } from "@/modules/drumbeat/domain/status";
 import type { PiStatus } from "@/modules/drumbeat/domain/pi-rules";
 import type { FeatureBreakdown } from "@/modules/work/domain/feature-breakdown";
 
-/** Status einer Board-Spalte: PI-Status oder die synthetische Backlog-Spalte. */
-export type BoardColumnStatus = PiStatus | "backlog";
+/**
+ * Status einer Board-Spalte: PI-Status oder eine der beiden synthetischen
+ * Spalten.
+ *
+ * `"overflow"` sammelt Features, deren PI **außerhalb des Fünf-PI-Fensters**
+ * liegt. Ohne sie fielen sie zwischen `columns` und `features` hindurch und
+ * verschwanden stumm vom Board — während der Zähler daneben sie mitzählte. Eine
+ * Arbeit, die niemand sieht, ist schlimmer als eine, die schlecht aussieht.
+ */
+export type BoardColumnStatus = PiStatus | "backlog" | "overflow";
 
 export interface CockpitPiSlot {
   id: string;
@@ -46,4 +54,13 @@ export interface CockpitFeature extends FeatureBreakdown {
   hasBlocker: boolean;
   /** Erste blockierende Quelle, fuer den Karten-Hinweis „blockt durch X". */
   blockerHint: string | null;
+  /**
+   * Name der **Primär-Solution des Epics**, an dem dieses Feature hängt;
+   * `null`, wenn das Epic keine trägt (gemessen 40 % der Features).
+   *
+   * Die Solution hängt am Epic (`Initiative.primarySolutionId`), nicht am
+   * Feature — auf der Karte steht sie trotzdem: im Betrieb muss man sehen, zu
+   * welchem Produkt die Arbeit gehört, nicht nur zu welchem Vorhaben.
+   */
+  solutionName: string | null;
 }

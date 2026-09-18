@@ -18,10 +18,11 @@ import type {
   FeatureStatus,
 } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { normalizePiKey, BACKLOG_COLUMN_ID } from "@/modules/drumbeat/domain/board-matrix";
-import { FEATURE_STATUS_LABELS } from "@/modules/drumbeat/domain/status";
+import { FEATURE_STATUS_LABELS, needsReasonForStatus } from "@/modules/drumbeat/domain/status";
 import { StatusBadge, WsjfBadge } from "@/modules/drumbeat/features/lib/status-badges";
 import { SearchSelect, type SearchSelectOption } from "@/components/ui/search-select";
 import { CockpitBulkBar } from "./cockpit-bulk-bar";
+import { StatusReasonDialog } from "./status-reason-dialog";
 
 /**
  * Tabelle-Sicht des Delivery-Cockpits. Inline-Dropdowns auf jeder Zeile
@@ -52,6 +53,12 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  /** Offene Grund-Rückfrage: welche Features, welcher Ziel-Status, ggf. welches PI. */
+  const [pendingStatus, setPendingStatus] = useState<{
+    ids: string[];
+    status: FeatureStatus;
+    piId?: string;
+  } | null>(null);
 
   function openSlideOver(id: string) {
     setParam("featureId", id);
@@ -89,19 +96,56 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
     });
   }
 
-  function setStatus(id: string, status: FeatureStatus) {
+  /**
+   * Der Statuswechsel — für eine Zeile wie für eine Auswahl derselbe Weg.
+   *
+   * „Blockiert" und „Verworfen" halten Arbeit an und brauchen einen Grund
+   * (`needsReasonForStatus`). Vorher rief die Tabelle die Action **ohne**
+   * `reason` auf, während das Board nachfragte: dieselbe Handlung, zwei Regeln —
+   * wer den Grund nicht angeben wollte, nahm die Tabelle.
+   */
+  function commitStatus(ids: string[], status: FeatureStatus, reason?: string) {
     startTransition(async () => {
-      const res = await setFeatureDeliveryStatus(setFeatureDeliveryStatusAction, {
-        id,
-        to: status,
-      });
+      const res =
+        ids.length === 1
+          ? await setFeatureDeliveryStatus(setFeatureDeliveryStatusAction, {
+              id: ids[0]!,
+              to: status,
+              ...(reason ? { reason } : {}),
+            })
+          : await bulkSetFeatureDeliveryStatus(bulkSetFeatureDeliveryStatusAction, {
+              featureIds: ids,
+              to: status,
+              ...(reason ? { reason } : {}),
+            });
       setError(res.error ?? null);
+      if (!res.error && ids.length > 1) setSelected(new Set());
     });
+  }
+
+  function setStatus(id: string, status: FeatureStatus) {
+    if (needsReasonForStatus(status)) {
+      setPendingStatus({ ids: [id], status });
+      return;
+    }
+    commitStatus([id], status);
   }
 
   function applyBulk(patch: { piId?: string; status?: FeatureStatus }) {
     if (selected.size === 0) return;
     const ids = [...selected];
+
+    if (patch.status !== undefined && needsReasonForStatus(patch.status)) {
+      // Das PI zuerst — es braucht keine Rückfrage und soll nicht am Dialog
+      // hängen bleiben, falls jemand abbricht.
+      setPendingStatus({
+        ids,
+        status: patch.status,
+        ...(patch.piId !== undefined ? { piId: patch.piId } : {}),
+      });
+      return;
+    }
+
     startTransition(async () => {
       try {
         if (patch.piId !== undefined) {
@@ -251,6 +295,33 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
         canSetDelivery={canSetDelivery}
         onApply={applyBulk}
         onClear={() => setSelected(new Set())}
+      />
+
+      <StatusReasonDialog
+        targetStatus={pendingStatus?.status ?? null}
+        count={pendingStatus?.ids.length ?? 1}
+        onCancel={() => setPendingStatus(null)}
+        onConfirm={(grund: string) => {
+          if (!pendingStatus) return;
+          const { ids, status, piId } = pendingStatus;
+          setPendingStatus(null);
+          if (piId !== undefined) {
+            startTransition(async () => {
+              const res = await setFeaturePi(setFeaturePiAction, {
+                featureIds: ids,
+                piId,
+                artId,
+              });
+              if (res.error) {
+                setError(res.error);
+                return;
+              }
+              commitStatus(ids, status, grund);
+            });
+            return;
+          }
+          commitStatus(ids, status, grund);
+        }}
       />
     </div>
   );

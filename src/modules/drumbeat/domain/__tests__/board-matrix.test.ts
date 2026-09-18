@@ -4,6 +4,8 @@ import {
   normalizePiKey,
   BACKLOG_COLUMN_ID,
   type BoardLane,
+  OVERFLOW_COLUMN_ID,
+  splitCell,
 } from "@/modules/drumbeat/domain/board-matrix";
 import type {
   CockpitFeature,
@@ -33,6 +35,7 @@ function feature(id: string, piId: string | null, status: FeatureStatus): Cockpi
     wsjfComputed: null,
     hasBlocker: false,
     blockerHint: null,
+    solutionName: null,
   };
 }
 
@@ -112,5 +115,98 @@ describe("buildBoardMatrix", () => {
     const matrix = buildBoardMatrix([f], pis, LANES);
     expect(matrix.columns[0]!.featureCount).toBe(1);
     expect(matrix.cell(BACKLOG_COLUMN_ID, "in_progress")).toEqual([f]);
+  });
+});
+
+/**
+ * **Kein Feature verschwindet stumm.**
+ *
+ * Das Board zeigt fünf PIs. Wer links oder rechts davon liegt, hatte vorher
+ * keine Zelle — und fiel zwischen `columns` und `features` hindurch: nicht
+ * gerendert, nicht gemeldet, aber im Zähler der Toolbar mitgezählt. Wer eine
+ * Karte ins übernächste PI schob, sah sie nie wieder.
+ */
+describe("buildBoardMatrix — die Überlauf-Spalte", () => {
+  const lanes = [{ value: "approved" as const, label: "Bereit", color: "" }];
+  const pi = (id: string): CockpitPiSlot => ({
+    id,
+    name: id,
+    startDate: new Date(0),
+    endDate: new Date(0),
+    status: "planned",
+    featureCount: 0,
+    isCurrent: false,
+  });
+  const feat = (id: string, piId: string | null): CockpitFeature =>
+    ({ id, title: id, status: "approved", piId }) as CockpitFeature;
+
+  it("fängt ein Feature aus einem PI außerhalb des Fensters", () => {
+    const m = buildBoardMatrix([feat("a", "q1"), feat("weit-weg", "q9")], [pi("q1")], lanes);
+    expect(m.columns.map((c) => c.id)).toEqual(["", "q1", OVERFLOW_COLUMN_ID]);
+    expect(m.cell(OVERFLOW_COLUMN_ID, "approved").map((f) => f.id)).toEqual(["weit-weg"]);
+  });
+
+  it("zeigt die Spalte nicht, wenn sie niemanden trägt", () => {
+    const m = buildBoardMatrix([feat("a", "q1"), feat("b", null)], [pi("q1")], lanes);
+    expect(m.columns.map((c) => c.id)).toEqual(["", "q1"]);
+  });
+
+  it("zählt Überlauf und Backlog getrennt", () => {
+    const m = buildBoardMatrix(
+      [feat("a", null), feat("b", "q9"), feat("c", "q9")],
+      [pi("q1")],
+      lanes,
+    );
+    expect(m.columns.find((c) => c.id === "")?.featureCount).toBe(1);
+    expect(m.columns.find((c) => c.id === OVERFLOW_COLUMN_ID)?.featureCount).toBe(2);
+  });
+
+  /** Die Zusicherung, um die es geht: die Summe über alle Zellen ist vollständig. */
+  it("verliert kein einziges Feature", () => {
+    const features = [feat("a", null), feat("b", "q1"), feat("c", "q8"), feat("d", "q9")];
+    const m = buildBoardMatrix(features, [pi("q1")], lanes);
+    const gezeigt = m.columns.flatMap((c) => m.cell(c.id, "approved")).map((f) => f.id);
+    expect(gezeigt.sort()).toEqual(["a", "b", "c", "d"]);
+  });
+});
+
+/**
+ * **Die Kappung gehört der Bahn, nicht der Fläche.**
+ *
+ * Eine Zelle trug gemessen bis zu 44 Karten — rund 3800 px Bahnhöhe, während
+ * die Nachbarzellen leer waren und dieselbe Höhe mitgingen. Gekappt wird
+ * gestaffelt: „Blockiert" und „In Umsetzung" bleiben ganz (Tagesordnung und
+ * laufende Arbeit), „Freigegeben" und „Abgeschlossen" sind Haufen.
+ */
+describe("splitCell", () => {
+  const feat = (id: string): CockpitFeature => ({ id, title: id }) as CockpitFeature;
+  const zwanzig = Array.from({ length: 20 }, (_, i) => feat(`f${i}`));
+
+  it("ohne Grenze bleibt alles sichtbar", () => {
+    const { shown, rest } = splitCell(zwanzig, undefined);
+    expect(shown).toHaveLength(20);
+    expect(rest).toEqual([]);
+  });
+
+  it("mit Grenze zeigt die ersten N und hält den Rest zurück", () => {
+    const { shown, rest } = splitCell(zwanzig, 5);
+    expect(shown.map((f) => f.id)).toEqual(["f0", "f1", "f2", "f3", "f4"]);
+    expect(rest).toHaveLength(15);
+  });
+
+  /** Keine „+0 weitere"-Zeile unter einer Zelle, die ohnehin vollständig ist. */
+  it("kappt nicht, wenn die Zelle in die Grenze passt", () => {
+    const { shown, rest } = splitCell(zwanzig.slice(0, 5), 5);
+    expect(shown).toHaveLength(5);
+    expect(rest).toEqual([]);
+  });
+
+  it("verliert nichts", () => {
+    const { shown, rest } = splitCell(zwanzig, 3);
+    expect([...shown, ...rest].map((f) => f.id)).toEqual(zwanzig.map((f) => f.id));
+  });
+
+  it("kommt mit einer leeren Zelle zurecht", () => {
+    expect(splitCell([], 5)).toEqual({ shown: [], rest: [] });
   });
 });

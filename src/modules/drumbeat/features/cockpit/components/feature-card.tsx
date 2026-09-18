@@ -7,13 +7,17 @@ import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
 import { initials } from "@/components/detail/initiative-labels";
 
 /**
- * Feature-Karte fuer das Board (und spaeter den Slide-Over). Memoisiert
- * mit Custom-Compare auf den ID + den drei aenderbaren Feldern, damit ein
- * Drag-Drop nur die zwei betroffenen Karten neu rendert (und nicht das
- * ganze 5×4-Grid).
+ * Feature-Karte für das Board. Memoisiert mit Custom-Compare auf die Id und die
+ * änderbaren Felder, damit ein Drag-Drop nur die zwei betroffenen Karten neu
+ * rendert statt der ganzen Matrix.
  *
- * Klick auf die Karte oeffnet den Slide-Over (P5); aktuell ist es ein
- * No-Op-Hook, der `onOpen` aufruft.
+ * **Vier Signale an fester Stelle** — Epic, Solution, Owner, WSJF. Im Betrieb
+ * muss man sehen, zu welchem Vorhaben und zu welchem Produkt eine Arbeit
+ * gehört, wer sie führt und wie sie eingeordnet ist; die Spalte sagt nur das
+ * PI, die Bahn nur den Status. Die Karte wächst dadurch um eine Zeile — die
+ * Seite wird trotzdem kürzer, weil die Bahnen gekappt sind (`splitCell`).
+ *
+ * Ein Klick öffnet den Slide-Over.
  */
 interface Props {
   feature: CockpitFeature;
@@ -49,7 +53,7 @@ function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
           openSlideOver();
         }
       }}
-      title={canDrag ? "Drag fuer PI/Status-Wechsel" : "Lese-Modus"}
+      title={canDrag ? "Ziehen für PI-/Status-Wechsel" : "Nur lesen"}
       className={`group relative flex flex-col gap-1 overflow-hidden rounded-md bg-card p-2 pl-2.5 text-left shadow-card transition-shadow hover:shadow-md ${
         feature.hasBlocker ? "border-amber-300" : "border-border"
       } ${canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
@@ -60,19 +64,48 @@ function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
         className={`absolute inset-y-0 left-0 w-1 ${FEATURE_STATUS_DOT[feature.status]}`}
       />
       <p className="line-clamp-2 text-xs font-medium leading-snug">{feature.title}</p>
-      <div className="flex items-center justify-between gap-2 text-label text-muted-foreground">
-        <div className="flex min-w-0 items-center gap-1.5">
-          {feature.ownerName && (
-            <span
-              title={feature.ownerName}
-              aria-label={`Owner: ${feature.ownerName}`}
-              className="flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-label font-semibold text-foreground/70"
-            >
-              {initials(feature.ownerName)}
-            </span>
+
+      {/* Epic ▸ Solution. Fehlt die Solution (gemessen 40 % der Features), steht
+          dort nur das Epic — kein „—", kein leerer Platzhalter. */}
+      {feature.parentTitle && (
+        <p
+          className="truncate text-label text-muted-foreground"
+          title={
+            feature.solutionName
+              ? `${feature.parentTitle} ▸ ${feature.solutionName}`
+              : feature.parentTitle
+          }
+        >
+          {feature.parentTitle}
+          {feature.solutionName && (
+            <>
+              <span aria-hidden className="mx-1 text-muted-foreground/60">
+                ▸
+              </span>
+              {feature.solutionName}
+            </>
           )}
-          <span className="truncate">{feature.parentTitle ?? "ohne Epic"}</span>
-        </div>
+        </p>
+      )}
+
+      <div className="flex items-center justify-between gap-2 text-label text-muted-foreground">
+        <span className="flex min-w-0 items-center gap-1.5">
+          {feature.ownerName ? (
+            <>
+              <span
+                aria-hidden
+                className="flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-label font-semibold text-foreground/70"
+              >
+                {initials(feature.ownerName)}
+              </span>
+              <span className="truncate" title={feature.ownerName}>
+                {feature.ownerName}
+              </span>
+            </>
+          ) : (
+            <span className="truncate text-muted-foreground/60">ohne Owner</span>
+          )}
+        </span>
         {feature.wsjfComputed != null && (
           <WsjfBadge
             value={feature.wsjfComputed}
@@ -80,6 +113,7 @@ function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
           />
         )}
       </div>
+
       {feature.hasBlocker && feature.blockerHint && (
         <p className="line-clamp-1 text-label text-warning">
           ⚠ blockt durch <span className="font-medium">{feature.blockerHint}</span>
