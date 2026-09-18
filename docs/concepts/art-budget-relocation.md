@@ -555,3 +555,25 @@ eine Datei zu verschieben, die man gleich zerlegt, verdoppelt den Diff.
 - [art-epic-budget-walkthrough.md](art-epic-budget-walkthrough.md) — der gelebte
   Ablauf, nach dem Umzug nachzuziehen
 - ADR-0013 (Modul-Schichtung), ADR-0018 (Stage-Gates)
+
+---
+
+## Nachtrag 2026-09-19 — die Relocation hat zwei Gestalten erzeugt, die jetzt eine sind
+
+Diese Spec hat beide Flächen aus `/structure` in den Budgeting-Bereich geholt
+und dabei **je eine eigene Gestalt** gegeben. Genau daraus entstand die
+Doppelung, die [`art-budget-consolidation.md`](art-budget-consolidation.md)
+auflöst: derselbe Halbjahres-Umschalter zweimal, `FundingRail` zweimal
+zeichengleich, zwei Lader auf dieselbe Zahl.
+
+Was von dieser Spec bleibt und was nicht:
+
+- **Der Schnitt nach Modus bleibt** — „zum Lesen" gegen „zum Arbeiten". Er ist
+  jetzt der Schnitt der beiden Reiter _einer_ Fläche statt zweier Seiten.
+- **Die fünfschrittige Kette ist vierschrittig.** „Aufteilen" und „Verteilen"
+  lagen auf zwei Seiten und waren deshalb zwei Schritte; seit beides im Reiter
+  „Betrieb" steht, sind sie einer — mit einem Handelnden, der **innerhalb** des
+  Schritts wandert.
+- **`/budgeting/arts/[artId]` ist keine Fläche mehr**, sondern ein Redirect. Die
+  Liste `/budgeting/arts` bleibt: sie beantwortet „alle meine ARTs über
+  Wertströme hinweg", was die Wertstromseite nicht tut.

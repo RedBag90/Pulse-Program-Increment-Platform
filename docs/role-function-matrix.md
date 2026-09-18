@@ -89,6 +89,21 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 | `epic.create`         | Epic anlegen         |
 | `epic.update`         | Epic bearbeiten      |
 
+### Geld
+
+| Funktion                       | Beschreibung                                                |
+| ------------------------------ | ----------------------------------------------------------- |
+| `budget.read`                  | Die Geld-Flächen eines Wertstroms oder ARTs überhaupt sehen |
+| `budget.manage`                | Den Portfolio-Rahmen und die Zuteilung auf Epics führen     |
+| `budget.round.manage`          | Eine Budgeting-Kachel führen (Rahmen, Gruppen, Erfassung)   |
+| `budget.round.decide`          | Die Streuzone einer Kachel entscheiden                      |
+| `budget.group.contribute`      | In der eigenen Gruppe verteilen und einreichen              |
+| `budget.cycle.advance`         | Das Halbjahr weiterschalten                                 |
+| `budget_plan.revision.capture` | Den lebenden Plan als Halbjahres-Beleg einfrieren           |
+| `art_budget.manage`            | Das Wertstrom-Budget auf seine ARTs herunterführen          |
+| `art_budget.distribute`        | Den ART-Rahmen auf die ART-Epics verteilen                  |
+| `rtb_item.manage`              | Betriebspositionen pflegen und den Zuspruch aufteilen       |
+
 ### Epic-Freigabe-Workflow (mehrstufig, Mehrparteien)
 
 Sequenzieller Workflow über `initiative.approvalPhase`
@@ -223,6 +238,72 @@ einen Scope.
   Ressource keine `valueStreamId` — der Scope degradiert dort auf „unskopiert"
   (gleiches Verhalten wie `art`/`team`-Scopes). Eine strikte Durchsetzung auf
   der Service-Ebene ist eine offene Folge-Aufgabe.
+
+### Ebene 2b — Geld
+
+Die Matrix hatte **320 Zeilen und kein einziges „budget"**. Vier Capabilities
+hatten damit keinen dokumentierten Eigentümer — und das fiel erst auf, als eine
+Spec neu zeichnete, wer welche Zahl sieht (`art-budget-consolidation.md` §1.8).
+Dieser Abschnitt ist aus `src/server/auth/policies/index.ts` **abgelesen**, nicht
+entworfen; wer ihn ändert, ändert zuerst dort.
+
+Das Geld hat eine Eigenheit, die es sonst nirgends gibt: **zwei Wege führen an
+den Rollen vorbei.** Beide sind Benennungen, keine App-Rollen, und beide prüft
+der Service, nicht die Capability-Tabelle:
+
+- **Die Finance-Partei des Wertstroms** (`ValueStream.financeApproverId`) darf
+  lesen, ARTs beliefern, Positionen pflegen und den Zuspruch aufteilen — ohne
+  eine einzige Rolle dafür zu tragen.
+- **Der Produkt-Manager einer Solution** (`Solution.productManagerId`) darf aus
+  dem ART-Rahmen den Epics **seiner** Solution zuteilen — und nur denen.
+
+#### `portfolio_manager` — Portfolio-Lead / LPM
+
+- `budget.manage`, `budget.round.manage`, `budget.round.decide`,
+  `budget.cycle.advance`, `budget_plan.revision.capture` — tenant-weit. Der
+  Rahmen und die Kachel gehören ihm.
+- `budget.read`, `art_budget.manage`, `art_budget.distribute`,
+  `rtb_item.manage` — tenant-weit, also auf jedem Wertstrom.
+- Scope: keiner. Wer den Portfolio-Rahmen setzt, sieht das ganze Portfolio.
+
+#### `value_stream_owner` — Wertstrom-Verantwortlicher
+
+- `budget.read` — **tenant-weit**, nicht wertstrom-skopiert. Eine bewusste
+  Grosszügigkeit: wer einen Wertstrom finanziert verantwortet, soll die Lage der
+  Nachbarn einordnen können.
+- `art_budget.manage` (value_stream), `rtb_item.manage` (value_stream) — nur der
+  eigene Strom. **Der Scope ist hier tragend**, nicht kosmetisch: ohne ihn wäre
+  der Grant vakuos erfüllt und der Verteil-Editor erschiene auf fremden
+  Wertströmen.
+- `art_budget.distribute` — tenant-weit. Er darf also auch selbst verteilen,
+  nicht nur beliefern.
+
+#### `rte` — Release Train Engineer
+
+- `budget.read` (art), `art_budget.distribute` (art) — **sein** ART.
+- Er sieht seine Last und seinen Rahmen und verteilt ihn auf seine Epics. Was er
+  **nicht** darf: den Rahmen setzen — der wird _für_ den ART entschieden, nicht
+  _von_ ihm.
+- Auf der Geldfläche seines Wertstroms sieht er deshalb seine ART-Zeile mit
+  Zahlen, die übrigen nur als Name, und die Summenzeilen des Stroms gar nicht.
+
+#### `tenant_admin` — Mandanten-Administrator
+
+- Trägt jede Budget-Capability tenant-weit. Betreiber-Rolle, keine fachliche.
+
+#### Alle Rollen
+
+- `budget.group.contribute` — ein **grober Vorfilter**. Die maßgebliche Prüfung
+  ist die Gruppen-Zugehörigkeit im Service (`BudgetGroupMember`), und einreichen
+  darf nur der Sprecher. Eine Portfolio-Rolle entscheidet hier nichts.
+
+#### Wer gar nichts sieht
+
+`epic_owner`, `feature_owner`, `team_editor`, `story_owner`, `task_owner`,
+`vmo`, `transformation_lead` tragen **keine** Budget-Capability. Sie sehen Geld
+nur dort, wo es an ihrem Gegenstand hängt — der Betrag am eigenen Epic —, nicht
+als Fläche. Der Epic Owner erfährt über die Kachel, was ihm zugeteilt wurde;
+den Rahmen, aus dem es kam, sieht er nicht.
 
 ### Ebene 3 — Epic & Freigabe
 

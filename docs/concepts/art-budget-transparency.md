@@ -509,3 +509,28 @@ Tenant-Wert und die Lücke wird ohne empirischen Satz gezeigt.
 | Run-the-Business-Positionen              | `src/modules/budgeting/server/services/rtb-item-service.ts`  |
 | Seitenrahmen                             | `src/components/detail/entity-detail-shell.tsx`              |
 | Was welche Rolle darf                    | `src/server/auth/policies/index.ts`                          |
+
+---
+
+## Nachtrag 2026-09-19 — die zwei Flächen sind eine geworden
+
+[`art-budget-consolidation.md`](art-budget-consolidation.md) legt
+`/budgeting/value-streams/[id]` und `/budgeting/arts/[artId]` zusammen: die ARTs
+stehen jetzt als **aufklappbare Zeilen** in der Geldfläche ihres Wertstroms, die
+ART-Detailroute leitet dorthin um.
+
+**§8 dieser Spec bleibt unverändert in Kraft** — kein Umbuchen an der Fläche,
+keine Ist-Kosten, Bedarf bleibt abgeleitet. Die Zusammenlegung verschiebt
+Flächen und vereinheitlicht Wörter; sie eröffnet keinen weiteren Geldweg.
+
+Was sich am Inhalt dieser Spec ändert:
+
+- **Die Zustandsstaffel, der Verlauf und die zwei Ampeln** wandern unverändert
+  in den aufgeklappten Kasten. Neu ist nur: der Kasten spricht über **ein**
+  Halbjahr, die Zeile darüber über alle — und die Fläche sagt das.
+- **Die Wörter sind festgezurrt.** „ART-Epic-Budget" heißt für Leser jetzt
+  durchgängig **ART-Rahmen**, „Topf" ist als drittes Synonym verschwunden. Die
+  Typ- und Tabellennamen im Code bleiben, wie sie sind.
+- **Der €-Satz je Job-Size-Punkt bleibt Veränderungsgeld.** Betriebsgeld wird
+  seit der Zusammenlegung je ART ausgewiesen, fließt aber weder in `allocated`
+  noch in die Lücke noch in den Satz — ein Test hält das fest.
