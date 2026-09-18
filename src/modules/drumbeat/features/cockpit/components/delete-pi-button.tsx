@@ -12,18 +12,25 @@ interface Props {
   name: string;
 }
 
-/** Deletes a planned PI (cascading) and navigates back to the ART overview. */
+/**
+ * Löscht ein geplantes PI (kaskadierend) und bleibt im Cockpit.
+ *
+ * Vorher führte der Erfolg auf `/art/<id>` — **diese Route gibt es nicht** (die
+ * ART-Seite liegt unter `/structure/…/art/[id]`). Wer ein PI löschte, landete
+ * auf einer 404 und verlor Sicht, Filter und Scope. Jetzt bleibt er, wo er war;
+ * nur das gelöschte PI ist fort.
+ */
 export function DeletePiButton({ piId, artId, name }: Props) {
   const router = useRouter();
-  const onSuccess = useCallback(() => router.replace(`/art/${artId}`), [router, artId]);
+  const onSuccess = useCallback(() => router.replace(`/umsetzung?art=${artId}`), [router, artId]);
 
   return (
     <ConfirmMutateForm
       action={deletePiAction}
       fields={{ id: piId, artId }}
-      label="Delete PI"
-      pendingLabel="Deleting…"
-      confirmPrompt={`Delete "${name}"? Its sprints and objectives are removed and assigned features return to the backlog.`}
+      label="PI löschen"
+      pendingLabel="Löscht…"
+      confirmPrompt={`„${name}" wirklich löschen? Seine Sprints und Objectives werden mit entfernt; zugeordnete Features gehen zurück in den Backlog.`}
       variant="outline"
       destructive
       icon={<Trash2 className="size-4 mr-1.5" />}

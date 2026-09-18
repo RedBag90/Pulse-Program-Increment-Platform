@@ -4,22 +4,25 @@ import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
 import type {
-  CockpitArtRef,
   CockpitFilters,
   CockpitModel,
   CockpitView,
   FeatureStatus,
 } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { FEATURE_STATUS_LABELS } from "@/modules/drumbeat/domain/status";
-import { SearchSelect, type SearchSelectOption } from "@/components/ui/search-select";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { CockpitViewTabs } from "./cockpit-view-tabs";
 
 /**
- * Eine Toolbar-Zeile fuer das Cockpit (Wireframe §6.2): ART-Scope · Sicht-Toggle
- * · Filter-Chips (Status · Owner · Epic · Nur Blocker) · Scope-Zaehler. Ersetzt
- * die zuvor getrennten Zeilen (Top-Bar-Filter + eigene View-Tabs-Zeile). Alle
- * Filter sind eigene URL-Params, ueberleben also den Sicht-Wechsel.
+ * **Was sehe ich davon** — Sicht-Umschalter, Suche und Facetten.
+ *
+ * Das Cockpit hatte vier gestapelte graue Bänder, in denen Scope, Filter und
+ * Governance gleich aussahen: der ART-Wähler stand zwischen den Sicht-Reitern
+ * und den Filter-Chips, die PI-Wahl zwei Bänder weiter oben. Diese Leiste trägt
+ * jetzt nur noch **eine** Frage; wo man ist, sagt der Kopf, welcher Zeitraum
+ * gilt, sagt der Streifen.
+ *
+ * Alle Facetten sind eigene URL-Params und überleben den Sicht-Wechsel.
  */
 const STATUS_ORDER: readonly FeatureStatus[] = [
   "approved",
@@ -30,23 +33,14 @@ const STATUS_ORDER: readonly FeatureStatus[] = [
 ];
 
 interface Props {
-  availableArts: CockpitArtRef[];
-  selectedArt: CockpitArtRef | null;
   view: CockpitView;
   filters: CockpitFilters;
   filterOptions: CockpitModel["filterOptions"];
   featureCount: number;
 }
 
-export function CockpitToolbar({
-  availableArts,
-  selectedArt,
-  view,
-  filters,
-  filterOptions,
-  featureCount,
-}: Props) {
-  const { setParam } = useUrlState();
+export function CockpitToolbar({ view, filters, filterOptions, featureCount }: Props) {
+  const { setParam, setParams } = useUrlState();
 
   // Freitext-Suche: lokaler State, debounced in `?q=` geschrieben — jeder
   // Tastenanschlag würde sonst einen Server-Roundtrip auslösen.
@@ -67,34 +61,22 @@ export function CockpitToolbar({
     setParam(key, set.size > 0 ? [...set].join(",") : null);
   }
 
-  const artOptions: SearchSelectOption[] = availableArts.map((a) => ({
-    value: a.id,
-    label: `${a.name} (${a.activeFeatureCount})`,
-  }));
+  // Ein Filter ist an, sobald eine Facette etwas eingrenzt. Die Suche zählt mit
+  // — sie ist der Filter, den man am leichtesten vergisst.
+  const activeFilters =
+    filters.status.length +
+    filters.ownerIds.length +
+    filters.epicIds.length +
+    (filters.hasBlocker ? 1 : 0) +
+    (filters.q.trim() !== "" ? 1 : 0);
+
+  function resetAll() {
+    setQuery("");
+    setParams({ status: null, owner: null, epic: null, blocker: null, q: null });
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-b bg-surface-frame px-6 py-3">
-      {availableArts.length > 1 ? (
-        <SearchSelect
-          value={selectedArt?.id ?? ""}
-          onChange={(v) => setParam("art", v)}
-          options={artOptions}
-          placeholder="ART wählen"
-          ariaLabel="ART auswählen"
-          className="w-56"
-        />
-      ) : selectedArt ? (
-        <span className="text-sm font-medium">
-          {selectedArt.valueStreamName && (
-            <>
-              <span className="text-muted-foreground">{selectedArt.valueStreamName}</span>
-              <span className="mx-1.5 text-muted-foreground/60">▸</span>
-            </>
-          )}
-          {selectedArt.name}
-        </span>
-      ) : null}
-
       <CockpitViewTabs view={view} />
 
       <div className="relative min-w-48 flex-1">
@@ -150,8 +132,18 @@ export function CockpitToolbar({
         >
           Nur Blocker
         </button>
+        {activeFilters > 0 && (
+          <button
+            type="button"
+            onClick={resetAll}
+            className="text-xs text-muted-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            Filter zurücksetzen
+          </button>
+        )}
         <p className="whitespace-nowrap text-xs text-muted-foreground">
-          {featureCount} Features im Scope
+          {featureCount} {featureCount === 1 ? "Feature" : "Features"}
+          {activeFilters > 0 ? " gefiltert" : " im Scope"}
         </p>
       </div>
     </div>

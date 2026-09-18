@@ -249,12 +249,6 @@ export interface CockpitAllPiRow {
   status: string;
 }
 
-/** Raw per-PI feature count for the selected ART (query 5). */
-export interface CockpitWindowCountRow {
-  piId: string | null;
-  count: number;
-}
-
 /** Raw feature row of the selected ART (query 6). */
 export interface CockpitFeatureRow {
   id: string;
@@ -266,7 +260,7 @@ export interface CockpitFeatureRow {
   ownerId: string | null;
   wsjfComputed: unknown;
   art: { id: string; name: string } | null;
-  parent: { id: string; title: string } | null;
+  parent: { id: string; title: string; primarySolution: { name: string } | null } | null;
   dependenciesIn: ReadonlyArray<{
     id: string;
     from: { id: string; title: string; status: string } | null;
@@ -292,7 +286,6 @@ export interface CockpitRows {
    *  `selectedArt` ref from it. `null` when the user has no ART scope. */
   selectedArtId: string | null;
   allPis: ReadonlyArray<CockpitAllPiRow>;
-  windowCounts: ReadonlyArray<CockpitWindowCountRow>;
   featureRows: ReadonlyArray<CockpitFeatureRow>;
   depRows: ReadonlyArray<CockpitDepRow>;
   permissions: CockpitPermissions;
@@ -374,6 +367,7 @@ function buildScopeFeatures(
         wsjfComputed: r.wsjfComputed ? Number(r.wsjfComputed) : null,
         hasBlocker: !!openBlocker,
         blockerHint: openBlocker?.from?.title ?? null,
+        solutionName: r.parent?.primarySolution?.name ?? null,
       };
       return f;
     })
@@ -424,7 +418,6 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
     activeFeatureCounts,
     selectedArtId,
     allPis,
-    windowCounts,
     featureRows,
     depRows,
     permissions,
@@ -440,6 +433,16 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
 
   // Picker-Universum — ART-weit, ungefiltert. Aus dem Loader gereicht (optional,
   // damit reine Builder-Fixtures ohne diese Rows weiter durchlaufen).
+  // **Vor** dem PI-Block: die Kachel-Zähler entstehen aus derselben Menge, die
+  // die Zellen füllen. Vorher zählte eine eigene `groupBy`-Abfrage ohne jeden
+  // Filter — die Zahl neben einer gefilterten Liste log, sobald ein Filter an
+  // war, und niemand konnte sehen, warum.
+  const scopeFeatures = buildScopeFeatures(featureRows, filters.hasBlocker, userLabels);
+  const countByPi = new Map<string, number>();
+  for (const f of scopeFeatures) {
+    if (f.piId) countByPi.set(f.piId, (countByPi.get(f.piId) ?? 0) + 1);
+  }
+
   const filterOptions = {
     owners: (ownerIdsInArt ?? [])
       .map((id) => ({ value: id, label: userLabels[id] ?? id }))
@@ -504,7 +507,6 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
       canBack: winStart > 0,
       canForward: winEnd < allPis.length,
     };
-    const countByPi = new Map(windowCounts.map((c) => [c.piId, c.count]));
     piStrip = windowPis.map((p) => ({
       id: p.id,
       name: p.name,
@@ -537,7 +539,26 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
       : null;
   }
 
-  const features = buildScopeFeatures(featureRows, filters.hasBlocker, userLabels);
+  /*
+    Der PI-Scope, je Sicht verschieden — weil die Sichten verschiedene Fragen
+    beantworten:
+
+    - **Board**: vollständig. Dort *sind* die PIs die Spalten; eine Eingrenzung
+      dampfte es auf eine einzige ein. Es hebt die gewählte hervor.
+    - **Netz**: das **Fenster** (Backlog + die fünf PIs des Streifens). Eine
+      Abhängigkeit ist ihrem Wesen nach etwas zwischen Zeiträumen — gemessen
+      überquert die Mehrheit eine PI-Grenze. Eine Netzsicht, die nur ein PI
+      zeigt, kann genau das nicht darstellen und erst recht nicht anlegen.
+    - **Tabelle und Fahrplan**: das gewählte PI. Dort ist die Eingrenzung der
+      Zweck.
+  */
+  const windowPiIds = new Set(piStrip.map((p) => p.id));
+  const features =
+    view === "network"
+      ? scopeFeatures.filter((f) => f.piId === null || windowPiIds.has(f.piId))
+      : view !== "board" && selectedPiId !== null
+        ? scopeFeatures.filter((f) => f.piId === selectedPiId)
+        : scopeFeatures;
   const dependencies = buildScopeDependencies(depRows, features);
 
   return {
@@ -636,10 +657,13 @@ export async function loadCockpitModel(
       }));
     })(),
     // 4) PIs der Timeline (oder direkt der ART), chronologisch.
-    // 5) Feature-Count je PI im ART-Scope — ueber ALLE Strip-PIs, der Builder
-    //    fenstert. So braucht der Loader den `currentIdx` nicht.
-    (async (): Promise<{ allPis: CockpitAllPiRow[]; windowCounts: CockpitWindowCountRow[] }> => {
-      if (!selectedArtRow) return { allPis: [], windowCounts: [] };
+    // 5) Die PIs der Timeline. Die Feature-Zahl je PI zählt der Builder aus der
+    //    **gefilterten** Feature-Menge — früher stand hier eine eigene
+    //    `groupBy`-Abfrage ohne jeden Filter, deren Zahl neben gefilterten
+    //    Zellen stand und log. Eine Datenbankrunde weniger, und die beiden
+    //    können nicht mehr auseinanderlaufen.
+    (async (): Promise<{ allPis: CockpitAllPiRow[] }> => {
+      if (!selectedArtRow) return { allPis: [] };
       const allPis = await db.programIncrement.findMany({
         where: {
           tenantId,
@@ -650,22 +674,7 @@ export async function loadCockpitModel(
         select: { id: true, name: true, startDate: true, endDate: true, status: true },
         orderBy: { startDate: "asc" },
       });
-      let windowCounts: CockpitWindowCountRow[] = [];
-      if (allPis.length > 0) {
-        const counts = await db.initiative.groupBy({
-          by: ["piId"],
-          where: {
-            tenantId,
-            level: InitiativeLevel.FEATURE,
-            deletedAt: null,
-            artId: selectedArtRow.id,
-            piId: { in: allPis.map((p) => p.id) },
-          },
-          _count: { _all: true },
-        });
-        windowCounts = counts.map((c) => ({ piId: c.piId, count: c._count._all }));
-      }
-      return { allPis, windowCounts };
+      return { allPis };
     })(),
     // 6) Features im Scope (SQL-Filter fuer status/owner/epic; der `hasBlocker`-
     //    Filter + Blocker-Erkennung sitzt im Builder).
@@ -697,7 +706,11 @@ export async function loadCockpitModel(
           ownerId: true,
           wsjfComputed: true,
           art: { select: { id: true, name: true } },
-          parent: { select: { id: true, title: true } },
+          // Die Solution hängt am Epic, nicht am Feature — über den ohnehin
+          // vorhandenen `parent`-Select, also ohne zusätzliche Abfrage.
+          parent: {
+            select: { id: true, title: true, primarySolution: { select: { name: true } } },
+          },
           dependenciesIn: {
             where: { type: "blocks" },
             select: {
@@ -754,7 +767,7 @@ export async function loadCockpitModel(
     })(),
   ]);
 
-  const { allPis, windowCounts } = pisResult;
+  const { allPis } = pisResult;
   const { featureRows, depRows } = featuresResult;
   const { ownerIdsInArt, epicRows } = optionsResult;
 
@@ -777,7 +790,6 @@ export async function loadCockpitModel(
     activeFeatureCounts,
     selectedArtId,
     allPis,
-    windowCounts,
     featureRows,
     depRows,
     permissions,

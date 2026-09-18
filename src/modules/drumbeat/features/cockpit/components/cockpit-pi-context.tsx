@@ -2,6 +2,7 @@ import { PiTransitionButton } from "@/modules/drumbeat/features/cockpit/componen
 import { AdvanceCadenceButton } from "@/modules/drumbeat/features/cockpit/components/advance-cadence-button";
 import { DeletePiButton } from "@/modules/drumbeat/features/cockpit/components/delete-pi-button";
 import type { CockpitPiSlot } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
+import { PI_STATUS_LABELS } from "@/modules/drumbeat/domain/status";
 
 /**
  * PI-Kontext-Leiste des Cockpits — ersetzt die frühere eigenständige
@@ -17,8 +18,6 @@ import type { CockpitPiSlot } from "@/modules/drumbeat/server/views/umsetzung-co
 interface Props {
   pi: CockpitPiSlot;
   artId: string;
-  artName: string;
-  valueStreamName: string | null;
   canStart: boolean;
   canAdvance: boolean;
   canDelete: boolean;
@@ -30,19 +29,24 @@ const STATUS_BADGE: Record<string, string> = {
   completed: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
 };
 
-function formatDate(d: Date) {
-  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+/**
+ * Ein **gewähltes** PI trägt immer einen echten PI-Status; die synthetischen
+ * Board-Spalten (`backlog`, `overflow`) kommen hier nie an. Die Prüfung steht
+ * trotzdem da, weil `CockpitPiSlot` beide Welten trägt — und weil vorher der
+ * rohe englische Wert („planned") in der deutschen Oberfläche stand.
+ */
+function piStatusLabel(status: string): string {
+  return status in PI_STATUS_LABELS
+    ? PI_STATUS_LABELS[status as keyof typeof PI_STATUS_LABELS]
+    : status;
 }
 
-export function CockpitPiContext({
-  pi,
-  artId,
-  artName,
-  valueStreamName,
-  canStart,
-  canAdvance,
-  canDelete,
-}: Props) {
+/** Deutsche Oberfläche, deutsches Datum — hier stand `en-GB`. */
+function formatDate(d: Date) {
+  return d.toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+export function CockpitPiContext({ pi, artId, canStart, canAdvance, canDelete }: Props) {
   const badgeClass = STATUS_BADGE[pi.status] ?? "bg-muted text-muted-foreground";
   const totalDays = Math.round(
     (pi.endDate.getTime() - pi.startDate.getTime()) / (1000 * 60 * 60 * 24),
@@ -51,14 +55,14 @@ export function CockpitPiContext({
   return (
     <div
       data-tour="cockpit-pi-context"
-      className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-surface-frame px-6 py-2.5"
+      className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border/60 px-6 py-2.5"
     >
       <div className="flex items-center gap-2">
         <span className="text-sm font-semibold">{pi.name}</span>
         <span
           className={`inline-block rounded-full px-2.5 py-0.5 text-meta font-medium ${badgeClass}`}
         >
-          {pi.status}
+          {piStatusLabel(pi.status)}
         </span>
       </div>
 
@@ -66,9 +70,13 @@ export function CockpitPiContext({
         {formatDate(pi.startDate)} – {formatDate(pi.endDate)} ({totalDays} Tage)
       </span>
 
+      {/*
+        Wertstrom und ART standen hier noch einmal — sie stehen seit dem Umbau
+        im Kopf, und zweimal dasselbe zu lesen kostet Aufmerksamkeit, ohne etwas
+        zu sagen. Die Feature-Zahl bleibt: sie gehört zu diesem PI.
+      */}
       <span className="text-xs text-muted-foreground">
-        {valueStreamName ? `${valueStreamName} · ` : ""}
-        {artName} · {pi.featureCount} Feature{pi.featureCount === 1 ? "" : "s"}
+        {pi.featureCount} Feature{pi.featureCount === 1 ? "" : "s"} in diesem PI
       </span>
 
       <div className="ml-auto flex shrink-0 items-center gap-2">

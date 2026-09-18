@@ -46,13 +46,27 @@ export function ToggleGroup<T extends string>({
       aria-label={ariaLabel}
       className={cn("inline-flex overflow-hidden rounded-md border", className)}
     >
-      {options.map((opt) => {
+      {options.map((opt, i) => {
         const active = value === opt.id;
         return (
           <button
             key={opt.id}
             type="button"
             onClick={() => onChange(opt.id)}
+            // Pfeiltasten wandern durch die Gruppe — bei einer Reihe
+            // gleichrangiger Wahlmöglichkeiten erwartet man das, und mit der
+            // Tabulatortaste allein kommt man nur hinein und wieder heraus.
+            onKeyDown={(e) => {
+              const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+              if (step === 0) return;
+              e.preventDefault();
+              const next = options[(i + step + options.length) % options.length];
+              if (!next) return;
+              onChange(next.id);
+              const group = e.currentTarget.parentElement;
+              const buttons = group?.querySelectorAll("button");
+              buttons?.[(i + step + options.length) % options.length]?.focus();
+            }}
             aria-pressed={active}
             className={cn(
               "px-2 py-1",

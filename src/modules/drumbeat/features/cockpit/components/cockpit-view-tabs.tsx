@@ -37,7 +37,7 @@ export function CockpitViewTabs({ view }: Props) {
         options={TABS}
         onChange={setView}
         ariaLabel="Cockpit-Sicht"
-        className="bg-card text-sm"
+        className="h-9 bg-card text-sm"
       />
     </div>
   );

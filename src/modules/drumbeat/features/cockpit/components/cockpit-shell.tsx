@@ -3,6 +3,8 @@ import type { CockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockp
 import { PageHeader } from "@/components/layout";
 import { CockpitToolbar } from "./cockpit-toolbar";
 import { CockpitCreateFeature } from "./cockpit-create-feature";
+import { CockpitArtPicker } from "./cockpit-art-picker";
+import { CockpitEmpty } from "./cockpit-empty";
 import { CockpitPiStrip } from "./cockpit-pi-strip";
 import { CockpitPiContext } from "./cockpit-pi-context";
 import { CockpitBoard } from "./cockpit-board";
@@ -50,30 +52,47 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
   return (
     <div className="flex min-h-[calc(100vh-3rem)] flex-col bg-background">
       <CockpitRealtimeSubscriber tenantId={tenantId} />
+      {/*
+        **Wo bin ich.** Der Titel nannte den Scope nicht — er sagte statisch
+        „Umsetzung · Delivery-Cockpit", während der ART-Wähler drei Bänder
+        tiefer zwischen Sicht-Reitern und Filter-Chips stand. Jetzt trägt der
+        Kopf den Scope: Wertstrom als Rubrik, ART als Titel, und der Wechsler
+        steht daneben statt in der Filterleiste.
+      */}
       <div className="border-b bg-surface-frame px-6 py-4">
         <PageHeader
-          title="Umsetzung · Delivery-Cockpit"
+          eyebrow={selectedArt?.valueStreamName ?? "Umsetzung"}
+          title={selectedArt ? selectedArt.name : "Delivery-Cockpit"}
           subtitle="Board, Tabelle, Fahrplan und Netzwerk in einer Fläche."
-          {...(permissions.canCreate && selectedArt
-            ? { actions: <CockpitCreateFeature artId={selectedArt.id} /> }
-            : {})}
+          actions={
+            <>
+              <CockpitArtPicker availableArts={availableArts} selectedArt={selectedArt} />
+              {permissions.canCreate && selectedArt && (
+                <CockpitCreateFeature artId={selectedArt.id} />
+              )}
+            </>
+          }
         />
       </div>
-      <CockpitPiStrip pis={piStrip} window={piWindow} selectedPiId={selectedPiId} />
-      {selectedArt && selectedPi && (
-        <CockpitPiContext
-          pi={selectedPi}
-          artId={selectedArt.id}
-          artName={selectedArt.name}
-          valueStreamName={selectedArt.valueStreamName}
-          canStart={permissions.canStart}
-          canAdvance={permissions.canAdvance}
-          canDelete={permissions.canDelete}
-        />
-      )}
+      {/*
+        **Welcher Zeitraum** — und was mit ihm ist. Beides waren zwei eigene
+        graue Bänder in Folge; sie handeln aber von derselben Sache: der
+        gewählten PI. Ein Band, zwei Zeilen — oben die Wahl, darunter die Fakten
+        und die Aktionen, die nur dieses PI betreffen.
+      */}
+      <div className="border-b bg-surface-frame">
+        <CockpitPiStrip pis={piStrip} window={piWindow} selectedPiId={selectedPiId} />
+        {selectedArt && selectedPi && (
+          <CockpitPiContext
+            pi={selectedPi}
+            artId={selectedArt.id}
+            canStart={permissions.canStart}
+            canAdvance={permissions.canAdvance}
+            canDelete={permissions.canDelete}
+          />
+        )}
+      </div>
       <CockpitToolbar
-        availableArts={availableArts}
-        selectedArt={selectedArt}
         view={view}
         filters={filters}
         filterOptions={filterOptions}
@@ -87,6 +106,13 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
             body="Dir ist noch kein ART zugeordnet. Bitte wende dich an deinen Tenant-Admin."
             className="h-[420px]"
           />
+        ) : features.length === 0 ? (
+          /*
+            Einmal für alle vier Sichten. Vorher hatte jede ihren eigenen
+            Leerzustand — im Board waren es 28 gestrichelte Kästchen mit „leer" —
+            und keiner sagte, ob Filter im Spiel sind.
+          */
+          <CockpitEmpty filters={filters} />
         ) : view === "board" ? (
           <CockpitBoard
             pis={piStrip}
@@ -117,6 +143,8 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
             dependencies={dependencies}
             artId={selectedArt.id}
             canLinkDependency={permissions.canLinkDependency}
+            pis={piStrip}
+            selectedPiId={selectedPiId}
           />
         )}
       </main>

@@ -59,7 +59,6 @@ function rows(partial: Partial<CockpitRows>): CockpitRows {
     activeFeatureCounts: [],
     selectedArtId: null,
     allPis: [],
-    windowCounts: [],
     featureRows: [],
     depRows: [],
     permissions: NO_PERMS,
@@ -219,7 +218,13 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
         arts: [{ id: "art-1", name: "ART 1", timelineId: "tl-1", valueStream: null }],
         selectedArtId: "art-1",
         allPis,
-        windowCounts: [{ piId: "q2", count: 3 }],
+        // Die Kachel-Zahl entsteht aus den Features selbst — nicht mehr aus
+        // einer eigenen, ungefilterten Abfrage.
+        featureRows: [
+          featureRow({ id: "f1", piId: "q2" }),
+          featureRow({ id: "f2", piId: "q2" }),
+          featureRow({ id: "f3", piId: "q2" }),
+        ],
         now: D("2026-05-15").getTime(), // inside q2
       }),
     );
@@ -268,7 +273,7 @@ describe("buildCockpitModel — selected-PI governance scope", () => {
     arts: [{ id: "art-1", name: "ART 1", timelineId: "tl-1", valueStream: null }],
     selectedArtId: "art-1",
     allPis,
-    windowCounts: [{ piId: "q2", count: 5 }],
+    featureRows: Array.from({ length: 5 }, (_, i) => featureRow({ id: `f${i}`, piId: "q2" })),
     now: D("2026-05-15").getTime(),
   };
 
@@ -445,5 +450,191 @@ describe("buildCockpitModel — off-scope dependency classification", () => {
     expect(model.dependencies.map((d) => d.id)).toEqual(["in-scope"]);
     expect(model.dependencies[0]!.offScopeRole).toBeNull();
     expect(model.dependencies[0]!.offScopeLabel).toBeNull();
+  });
+});
+
+/**
+ * **Der PI-Scope.** `?pi=` sah aus wie ein Selektor — Ring, `aria-pressed`, im
+ * eigenen Docstring so genannt — und filterte nichts. Die Spec begründete das
+ * damit, dass das Board schon nach PIs gespalten ist; für Tabelle, Fahrplan und
+ * Netz trug das Argument nie.
+ */
+describe("buildCockpitModel — der PI-Scope grenzt ein, außer im Board", () => {
+  const allPis = [
+    {
+      id: "q1",
+      name: "PI 1",
+      startDate: D("2026-01-01"),
+      endDate: D("2026-03-31"),
+      status: "completed",
+    },
+    {
+      id: "q2",
+      name: "PI 2",
+      startDate: D("2026-04-01"),
+      endDate: D("2026-06-30"),
+      status: "active",
+    },
+  ];
+  const base = {
+    arts: [{ id: "art-1", name: "ART 1", timelineId: "tl-1", valueStream: null }],
+    selectedArtId: "art-1",
+    allPis,
+    featureRows: [
+      featureRow({ id: "a", piId: "q1" }),
+      featureRow({ id: "b", piId: "q2" }),
+      featureRow({ id: "c", piId: null }),
+    ],
+    now: D("2026-05-15").getTime(),
+  };
+
+  it("das Board behält alle Features — die PIs sind dort die Spalten", () => {
+    const model = buildCockpitModel(rows({ ...base, view: "board", selectedPiId: "q1" }));
+    expect(model.features.map((f) => f.id).sort()).toEqual(["a", "b", "c"]);
+  });
+
+  for (const view of ["table", "roadmap"] as const) {
+    it(`die Sicht „${view}" zeigt nur die Features der gewählten PI`, () => {
+      const model = buildCockpitModel(rows({ ...base, view, selectedPiId: "q1" }));
+      expect(model.features.map((f) => f.id)).toEqual(["a"]);
+    });
+  }
+
+  /**
+   * **Das Netz ist die Ausnahme.** Eine Abhängigkeit ist ihrem Wesen nach etwas
+   * zwischen Zeiträumen — gemessen überquert die Mehrheit eine PI-Grenze. Eine
+   * Netzsicht auf ein einzelnes PI kann genau das weder zeigen noch anlegen.
+   * Diese Zusicherung steht gegen den Rückfall.
+   */
+  it("die Sicht \u201enetwork\u201c zeigt das ganze Fenster plus Backlog", () => {
+    const model = buildCockpitModel(rows({ ...base, view: "network", selectedPiId: "q1" }));
+    expect(model.features.map((f) => f.id).sort()).toEqual(["a", "b", "c"]);
+  });
+
+  it("das Netz lässt weg, was außerhalb des Fensters liegt", () => {
+    const model = buildCockpitModel(
+      rows({
+        ...base,
+        view: "network",
+        selectedPiId: "q1",
+        featureRows: [...base.featureRows, featureRow({ id: "weit-weg", piId: "q99" })],
+      }),
+    );
+    expect(model.features.map((f) => f.id)).not.toContain("weit-weg");
+  });
+
+  it("ohne gewählte PI bleibt alles stehen", () => {
+    // Ohne aktives PI und ohne `?pi=` gibt es keinen Scope.
+    const model = buildCockpitModel(
+      rows({
+        ...base,
+        allPis: [{ ...allPis[0]!, status: "completed" }],
+        view: "table",
+        selectedPiId: null,
+        now: D("2020-01-01").getTime(),
+      }),
+    );
+    expect(model.features).toHaveLength(3);
+  });
+});
+
+/**
+ * **Die Zähler und die Zellen sagen dasselbe.** Vorher zählte eine eigene
+ * `groupBy`-Abfrage ohne jeden Filter: neben einer gefilterten Liste stand eine
+ * ungefilterte Zahl, und niemand konnte sehen, warum sie nicht zusammenpassten.
+ */
+describe("buildCockpitModel — die Kachel-Zahl folgt den Filtern", () => {
+  const allPis = [
+    {
+      id: "q1",
+      name: "PI 1",
+      startDate: D("2026-01-01"),
+      endDate: D("2026-03-31"),
+      status: "active",
+    },
+  ];
+  const base = {
+    arts: [{ id: "art-1", name: "ART 1", timelineId: "tl-1", valueStream: null }],
+    selectedArtId: "art-1",
+    allPis,
+    now: D("2026-02-15").getTime(),
+  };
+
+  it("zählt, was der Filter übrig lässt", () => {
+    const featureRows = [
+      featureRow({ id: "a", piId: "q1", status: "approved" }),
+      featureRow({ id: "b", piId: "q1", status: "approved" }),
+      featureRow({ id: "c", piId: "q1", status: "completed" }),
+    ];
+    const ohne = buildCockpitModel(rows({ ...base, featureRows }));
+    expect(ohne.piStrip[0]?.featureCount).toBe(3);
+
+    // Derselbe Bestand, aber der Loader hat schon auf `approved` eingegrenzt.
+    const mit = buildCockpitModel(
+      rows({
+        ...base,
+        featureRows: featureRows.filter((f) => f.status === "approved"),
+        filters: { ...EMPTY_FILTERS, status: ["approved"] },
+      }),
+    );
+    expect(mit.piStrip[0]?.featureCount).toBe(2);
+  });
+
+  it("die Kontext-Leiste zählt wie die Kachel", () => {
+    const model = buildCockpitModel(
+      rows({ ...base, featureRows: [featureRow({ id: "a", piId: "q1" })] }),
+    );
+    expect(model.selectedPi?.featureCount).toBe(model.piStrip[0]?.featureCount);
+  });
+});
+
+/**
+ * **Die Solution hängt am Epic, nicht am Feature.** Auf der Karte steht sie
+ * trotzdem: im Betrieb muss man sehen, zu welchem Produkt die Arbeit gehört.
+ * Gemessen tragen 40 % der Features ein Epic **ohne** Primär-Solution — das
+ * darf nicht als leerer Platzhalter durchschlagen.
+ */
+describe("buildCockpitModel — die Solution des Epics", () => {
+  const base = {
+    arts: [{ id: "art-1", name: "ART 1", timelineId: "tl-1", valueStream: null }],
+    selectedArtId: "art-1",
+  };
+
+  it("reicht den Namen der Primär-Solution an das Feature durch", () => {
+    const model = buildCockpitModel(
+      rows({
+        ...base,
+        featureRows: [
+          featureRow({
+            id: "f1",
+            parentId: "e1",
+            parent: { id: "e1", title: "Mein Epic", primarySolution: { name: "Logistik Betrieb" } },
+          }),
+        ],
+      }),
+    );
+    expect(model.features[0]?.parentTitle).toBe("Mein Epic");
+    expect(model.features[0]?.solutionName).toBe("Logistik Betrieb");
+  });
+
+  it("liefert null, wenn das Epic keine Primär-Solution trägt", () => {
+    const model = buildCockpitModel(
+      rows({
+        ...base,
+        featureRows: [
+          featureRow({
+            id: "f1",
+            parentId: "e1",
+            parent: { id: "e1", title: "Mein Epic", primarySolution: null },
+          }),
+        ],
+      }),
+    );
+    expect(model.features[0]?.solutionName).toBeNull();
+  });
+
+  it("liefert null, wenn das Feature gar kein Epic hat", () => {
+    const model = buildCockpitModel(rows({ ...base, featureRows: [featureRow({ id: "f1" })] }));
+    expect(model.features[0]?.solutionName).toBeNull();
   });
 });
