@@ -8,3 +8,27 @@ import { cleanup } from "@testing-library/react";
 afterEach(() => {
   cleanup();
 });
+
+/**
+ * jsdom kennt `ResizeObserver` nicht. Alles, was seine Größe selbst misst,
+ * bricht daran — React Flow (Netzplan, Ziel-Netz, Epic-Breakdown) und der
+ * Horizont-Trichter. Die Attrappe misst nichts; sie sorgt nur dafür, dass der
+ * Aufruf nicht wirft, damit sich solche Flächen überhaupt rendern lassen.
+ */
+if (!("ResizeObserver" in globalThis)) {
+  class ResizeObserverStub {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+  (globalThis as { ResizeObserver?: unknown }).ResizeObserver = ResizeObserverStub;
+}
+
+/** Dasselbe für die Matrix, die React Flow zum Umrechnen des Viewports nutzt. */
+if (!("DOMMatrixReadOnly" in globalThis)) {
+  class DOMMatrixReadOnlyStub {
+    m22 = 1;
+    constructor(_transform?: string) {}
+  }
+  (globalThis as { DOMMatrixReadOnly?: unknown }).DOMMatrixReadOnly = DOMMatrixReadOnlyStub;
+}

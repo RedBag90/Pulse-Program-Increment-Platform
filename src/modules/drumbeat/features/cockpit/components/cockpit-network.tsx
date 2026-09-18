@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import dagre from "@dagrejs/dagre";
 import {
@@ -14,9 +14,11 @@ import {
   MarkerType,
   Controls,
   MiniMap,
+  useNodesState,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type {
+  CockpitPiSlot,
   CockpitDependency,
   CockpitFeature,
 } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
@@ -27,6 +29,9 @@ import { EdgeTypeMenu } from "@/modules/drumbeat/features/dependencies/component
 import { FeaturePickerPopover } from "@/modules/drumbeat/features/dependencies/components/feature-picker-popover";
 import type { DependencyEdgeType } from "@/modules/drumbeat/server/views/breakdown-network-view";
 import { NODE_W_COCKPIT } from "@/modules/drumbeat/domain/graph-constants";
+import { swimlaneLayout, pointsBackwards } from "@/modules/drumbeat/domain/graph-layout";
+import { ToggleGroup } from "@/components/ui/toggle-group";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   EDGE_COLOR,
   STATUS_DOT_COCKPIT as STATUS_DOT,
@@ -48,10 +53,49 @@ interface Props {
   dependencies: CockpitDependency[];
   artId: string;
   canLinkDependency: boolean;
+  /** Die PIs des Fensters — die Spalten der Zeitachse. */
+  pis: CockpitPiSlot[];
+  /** Das gewählte PI; seine Spalte wird hervorgehoben. */
+  selectedPiId: string | null;
 }
+
+/**
+ * **Zwei Layouts, zwei Fragen.** Die Zeitachse beantwortet „wann" — x ist der
+ * PI, und eine rückwärts laufende Kante ist sofort zu sehen. Die Topologie
+ * beantwortet „welche Kette" und lässt dagre ordnen. Vorgabe ist die Zeitachse:
+ * eine Abhängigkeit ist ihrem Wesen nach etwas zwischen Zeiträumen.
+ */
+export type NetworkLayout = "pi" | "topology";
+
+interface PiHeaderData {
+  label: string;
+  selected: boolean;
+}
+
+const LAYOUT_TABS = [
+  { id: "pi" as const, label: "Zeitachse" },
+  { id: "topology" as const, label: "Topologie" },
+];
 
 const NODE_W = NODE_W_COCKPIT;
 const NODE_H = 64;
+
+/**
+ * Wie viele Knoten eine PI-Spalte untereinander stapelt, bevor sie eine
+ * Nebenkolonne aufmacht. Acht Reihen sind gut 1000 px — eine Höhe, die auf
+ * einen Bildschirm passt. Das vollste PI im Bestand hat 49 Features; ohne diese
+ * Grenze wäre seine Spalte 6000 px hoch.
+ */
+const COLUMN_MAX_ROWS = 8;
+
+/**
+ * React Flow hat einen Zoom-Boden, und der liegt von Haus aus bei 0.5. Er war
+ * hier nie gesetzt — solange das Netz ein einzelnes PI zeigte, fiel das kaum
+ * auf. Mit dem Zeitfenster reicht er nicht mehr: `fitView` kann die Leinwand
+ * dann nicht auf den Schirm holen, und der Zoom-Knopf ist am Anschlag **grau**.
+ * Genau das sieht aus, als sei die Sicht eingefroren.
+ */
+const MIN_ZOOM = 0.1;
 
 type FeatureNodeData = {
   feature: CockpitFeature;
@@ -141,7 +185,28 @@ const GhostNode = memo(function GhostNode({ data }: { data: GhostNodeData }) {
   );
 });
 
+/**
+ * Der Spaltenkopf der Zeitachse — ein gewöhnlicher Knoten, nicht ziehbar und
+ * nicht wählbar, wie im Epic-Breakdown. Die Spalte des gewählten PI wird
+ * hervorgehoben, damit „wo bin ich" über Board und Netz gleich aussieht.
+ */
+const PiHeaderNode = memo(function PiHeaderNode({ data }: { data: PiHeaderData }) {
+  return (
+    <div
+      className={`rounded-md px-3 py-1 text-center text-meta font-medium uppercase tracking-[0.1em] ${
+        data.selected
+          ? "bg-primary/10 text-foreground ring-1 ring-primary"
+          : "bg-muted/60 text-muted-foreground"
+      }`}
+      style={{ width: NODE_W }}
+    >
+      {data.label}
+    </div>
+  );
+});
+
 const NODE_TYPES = {
+  "pi-header": PiHeaderNode,
   feature: FeatureNode,
   ghost: GhostNode,
 };
@@ -149,7 +214,14 @@ const NODE_TYPES = {
 type EdgeAnchor = { depId: string; type: DependencyEdgeType; x: number; y: number };
 type AddState = { sourceId: string; anchorX: number; anchorY: number };
 
-export function CockpitNetwork({ features, dependencies, artId, canLinkDependency }: Props) {
+export function CockpitNetwork({
+  features,
+  dependencies,
+  artId,
+  canLinkDependency,
+  pis,
+  selectedPiId,
+}: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -181,16 +253,46 @@ export function CockpitNetwork({ features, dependencies, artId, canLinkDependenc
   // dagre.layout ist der Hotspot — nur re-layouten, wenn sich Features,
   // Dependencies, der (stabile) openSlideOver-Handler oder die Link-Berechtigung
   // aendern.
-  const { nodes, edges } = useMemo(
-    () => buildLayoutedGraph(features, dependencies, openSlideOver, canLinkDependency),
-    [features, dependencies, openSlideOver, canLinkDependency],
+  const layout: NetworkLayout = searchParams.get("nlayout") === "topology" ? "topology" : "pi";
+  function setLayout(next: NetworkLayout) {
+    const params = new URLSearchParams(searchParams.toString());
+    // „pi" ist die Vorgabe — dann bleibt der Parameter aus der URL.
+    if (next === "pi") params.delete("nlayout");
+    else params.set("nlayout", next);
+    router.replace(`${pathname}?${params.toString()}` as never, { scroll: false });
+  }
+
+  const { nodes: baseNodes, edges } = useMemo(
+    () =>
+      buildLayoutedGraph(
+        features,
+        dependencies,
+        openSlideOver,
+        canLinkDependency,
+        pis,
+        selectedPiId,
+        layout,
+      ),
+    [features, dependencies, openSlideOver, canLinkDependency, pis, selectedPiId, layout],
   );
+
+  /**
+   * **Ohne `onNodesChange` bewegt React Flow keinen Knoten.** Die Sicht reichte
+   * `nodes` als reine Requisite herein; damit war der Graph fest verdrahtet —
+   * Ziehen war nie möglich, auch nicht vor der Zeitachse. Dasselbe Muster wie im
+   * Epic-Breakdown: `useNodesState` hält die Positionen, der Layout-Memo setzt
+   * sie zurück, sobald sich Daten oder Anordnung ändern.
+   */
+  const [nodes, setNodes, onNodesChange] = useNodesState(baseNodes);
+  useEffect(() => setNodes(baseNodes), [baseNodes, setNodes]);
 
   if (features.length === 0) {
     return (
-      <div className="grid h-[420px] place-items-center rounded-lg border bg-muted/10">
-        <p className="text-sm text-muted-foreground">Keine Features im Scope.</p>
-      </div>
+      <EmptyState
+        title="Keine Features im Zeitfenster"
+        body="In den PIs dieses Fensters liegt nichts, das sich verknüpfen ließe. Verschiebe das Fenster im PI-Streifen oder nimm die Filter heraus."
+        className="h-[420px]"
+      />
     );
   }
 
@@ -201,6 +303,18 @@ export function CockpitNetwork({ features, dependencies, artId, canLinkDependenc
           {error}
         </div>
       )}
+      {/* Der Umschalter sitzt links oben über der Leinwand — dieselbe Stelle,
+          an der der Epic-Breakdown seinen hat. */}
+      <div className="absolute left-3 top-3 z-20">
+        <ToggleGroup
+          value={layout}
+          options={LAYOUT_TABS}
+          onChange={setLayout}
+          ariaLabel="Anordnung des Netzes"
+          className="h-8 bg-card text-xs"
+        />
+      </div>
+
       {canLinkDependency && (
         <button
           type="button"
@@ -214,11 +328,17 @@ export function CockpitNetwork({ features, dependencies, artId, canLinkDependenc
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        onNodesChange={onNodesChange}
         nodeTypes={NODE_TYPES}
-        nodesDraggable={false}
+        // In der Zeitachse **ist** die Position die Aussage — dort wird nicht
+        // gezogen. In der Topologie ordnet dagre nur vor; wer umräumen will,
+        // darf. Dieselbe Regel wie im Epic-Breakdown.
+        nodesDraggable={layout === "topology"}
         nodesConnectable={canLinkDependency}
         elementsSelectable
         fitView
+        fitViewOptions={{ padding: 0.15, minZoom: MIN_ZOOM }}
+        minZoom={MIN_ZOOM}
         proOptions={{ hideAttribution: true }}
         onConnect={(c: Connection) => {
           if (!canLinkDependency) return;
@@ -288,8 +408,23 @@ function buildLayoutedGraph(
   dependencies: CockpitDependency[],
   onOpen: (id: string) => void,
   connectable: boolean,
+  pis: CockpitPiSlot[],
+  selectedPiId: string | null,
+  layout: NetworkLayout,
 ): { nodes: Node[]; edges: Edge[] } {
   const featureIds = new Set(features.map((f) => f.id));
+
+  /**
+   * Spalte je Feature — Backlog ist 0, die PIs folgen in Zeitreihenfolge.
+   * Zugleich die Grundlage für `pointsBackwards`: sobald die x-Achse die Zeit
+   * ist, hat jede Kante eine Richtung darin.
+   */
+  const colByPi = new Map(pis.map((p, i) => [p.id, i + 1]));
+  const columnOf = (id: string): number | null => {
+    const f = features.find((x) => x.id === id);
+    if (!f) return null;
+    return f.piId === null ? 0 : (colByPi.get(f.piId) ?? null);
+  };
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
   g.setGraph({ rankdir: "LR", nodesep: 28, ranksep: 80 });
@@ -329,26 +464,71 @@ function buildLayoutedGraph(
     }
   }
 
-  dagre.layout(g);
-
   const nodes: Node[] = [];
-  for (const f of features) {
-    const pos = g.node(f.id);
-    nodes.push({
-      id: f.id,
-      type: "feature",
-      position: { x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2 },
-      data: { feature: f, onOpen, connectable } satisfies FeatureNodeData,
-    });
-  }
-  for (const [ghostId, info] of ghostIds) {
-    const pos = g.node(ghostId);
-    nodes.push({
-      id: ghostId,
-      type: "ghost",
-      position: { x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2 },
-      data: info satisfies GhostNodeData,
-    });
+
+  if (layout === "pi") {
+    // Die Zeitachse: x ist der PI. Dieselbe reine Spaltenmathematik, die der
+    // Epic-Breakdown für seinen Modus „PI-Bahnen" benutzt — nur mit den Maßen
+    // dieser Knoten und dem Wort, das auch die Überlauf-Spalte des Boards trägt.
+    const lay = swimlaneLayout(
+      features.map((f) => ({ id: f.id, piId: f.piId })),
+      [...ghostIds.keys()].map((id) => ({ id })),
+      pis.map((p) => ({ id: p.id, name: p.name, startDate: p.startDate.toISOString() })),
+      {
+        nodeWidth: NODE_W,
+        nodeHeight: NODE_H,
+        externLabel: "Außerhalb des Fensters",
+        maxRows: COLUMN_MAX_ROWS,
+      },
+    );
+    const featureById = new Map(features.map((f) => [f.id, f]));
+
+    for (const h of lay.headers) {
+      const piId = h.col === 0 || h.col > pis.length ? null : pis[h.col - 1]?.id;
+      nodes.push({
+        id: `pihead:${h.col}`,
+        type: "pi-header",
+        position: { x: h.x, y: h.y },
+        draggable: false,
+        selectable: false,
+        data: { label: h.label, selected: piId != null && piId === selectedPiId },
+      });
+    }
+    for (const p of lay.features) {
+      const f = featureById.get(p.id);
+      if (!f) continue;
+      nodes.push({
+        id: f.id,
+        type: "feature",
+        position: { x: p.x, y: p.y },
+        data: { feature: f, onOpen, connectable } satisfies FeatureNodeData,
+      });
+    }
+    for (const gp of lay.ghosts) {
+      const info = ghostIds.get(gp.id);
+      if (!info) continue;
+      nodes.push({ id: gp.id, type: "ghost", position: { x: gp.x, y: gp.y }, data: info });
+    }
+  } else {
+    dagre.layout(g);
+    for (const f of features) {
+      const pos = g.node(f.id);
+      nodes.push({
+        id: f.id,
+        type: "feature",
+        position: { x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2 },
+        data: { feature: f, onOpen, connectable } satisfies FeatureNodeData,
+      });
+    }
+    for (const [ghostId, info] of ghostIds) {
+      const pos = g.node(ghostId);
+      nodes.push({
+        id: ghostId,
+        type: "ghost",
+        position: { x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2 },
+        data: info satisfies GhostNodeData,
+      });
+    }
   }
 
   const edges: Edge[] = [];
@@ -365,18 +545,26 @@ function buildLayoutedGraph(
       source = d.fromId;
       target = d.toId;
     }
+    // Eine Kante, die gegen die Zeit läuft, ist ein Planungsfehler: etwas, das
+    // später gebaut wird, hält etwas auf, das früher fertig sein soll. In der
+    // Zeitachse fällt das ohnehin auf — hier bekommt es zusätzlich Gewicht.
+    const backwards = layout === "pi" && pointsBackwards(d, columnOf);
     edges.push({
       id: d.id,
       source,
       target,
       type: "smoothstep",
       animated: d.type === "blocks",
+      ...(backwards ? { label: "rückwärts" } : {}),
       style: {
-        stroke: EDGE_COLOR[d.type],
-        strokeWidth: 1.5,
+        stroke: backwards ? "var(--destructive)" : EDGE_COLOR[d.type],
+        strokeWidth: backwards ? 2.5 : 1.5,
         strokeDasharray: d.type === "relates_to" ? "4 4" : undefined,
       },
-      markerEnd: { type: MarkerType.ArrowClosed, color: EDGE_COLOR[d.type] },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: backwards ? "var(--destructive)" : EDGE_COLOR[d.type],
+      },
     });
   }
 
