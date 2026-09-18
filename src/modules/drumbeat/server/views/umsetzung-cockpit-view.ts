@@ -30,12 +30,16 @@ import type {
   CockpitPiSlot,
   CockpitFeature,
 } from "@/modules/drumbeat/domain/cockpit-types";
+import { resolveFeatureSolution } from "@/modules/work/domain/feature-solution";
+import { epicFilterWhere, NO_EPIC } from "@/modules/drumbeat/domain/epic-filter";
 export type { FeatureStatus, CockpitPiSlot, CockpitFeature };
 
 export interface CockpitArtRef {
   id: string;
   name: string;
   valueStreamName: string | null;
+  /** Wertstrom-Id — der Anlege-Dialog filtert Epics und Solutions darüber. */
+  valueStreamId: string;
   /** Anzahl Features im aktiven PI dieser ART — fuer den Multi-ART-Picker. */
   activeFeatureCount: number;
 }
@@ -223,6 +227,8 @@ export interface CockpitArtRow {
   id: string;
   name: string;
   timelineId: string | null;
+  /** `Art.valueStreamId` ist NOT NULL — jedes ART gehört zu genau einem Wertstrom. */
+  valueStreamId: string;
   valueStream: { name: string } | null;
 }
 
@@ -260,6 +266,8 @@ export interface CockpitFeatureRow {
   ownerId: string | null;
   wsjfComputed: unknown;
   art: { id: string; name: string } | null;
+  /** Eigene Solution des Features; `null` = die des Epics gilt. */
+  primarySolution: { name: string } | null;
   parent: { id: string; title: string; primarySolution: { name: string } | null } | null;
   dependenciesIn: ReadonlyArray<{
     id: string;
@@ -367,7 +375,10 @@ function buildScopeFeatures(
         wsjfComputed: r.wsjfComputed ? Number(r.wsjfComputed) : null,
         hasBlocker: !!openBlocker,
         blockerHint: openBlocker?.from?.title ?? null,
-        solutionName: r.parent?.primarySolution?.name ?? null,
+        solutionName: resolveFeatureSolution({
+          own: r.primarySolution?.name,
+          parent: r.parent?.primarySolution?.name,
+        }),
       };
       return f;
     })
@@ -447,9 +458,14 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
     owners: (ownerIdsInArt ?? [])
       .map((id) => ({ value: id, label: userLabels[id] ?? id }))
       .sort((a, b) => a.label.localeCompare(b.label)),
-    epics: (epicRows ?? [])
-      .map((e) => ({ value: e.id, label: e.title }))
-      .sort((a, b) => a.label.localeCompare(b.label)),
+    // „Ohne Epic" steht **vorn**: es ist keine Alternative unter vielen,
+    // sondern die Gegenfrage — „was hängt an gar keinem Vorhaben".
+    epics: [
+      { value: NO_EPIC, label: "Ohne Epic" },
+      ...(epicRows ?? [])
+        .map((e) => ({ value: e.id, label: e.title }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    ],
   };
 
   // availableArts — active-PI fallback + per-ART count (formerly two queries'
@@ -471,6 +487,7 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
       id: a.id,
       name: a.name,
       valueStreamName: a.valueStream?.name ?? null,
+      valueStreamId: a.valueStreamId,
       activeFeatureCount,
     };
   });
@@ -608,6 +625,7 @@ export async function loadCockpitModel(
         id: true,
         name: true,
         timelineId: true,
+        valueStreamId: true,
         valueStream: { select: { name: true } },
       },
       orderBy: { name: "asc" },
@@ -691,7 +709,7 @@ export async function loadCockpitModel(
           artId: selectedArtRow.id,
           ...(filters.status.length > 0 ? { status: { in: filters.status } } : {}),
           ...(filters.ownerIds.length > 0 ? { ownerId: { in: filters.ownerIds } } : {}),
-          ...(filters.epicIds.length > 0 ? { parentId: { in: filters.epicIds } } : {}),
+          ...epicFilterWhere(filters.epicIds),
           ...(filters.q.trim() !== ""
             ? { title: { contains: filters.q.trim(), mode: "insensitive" as const } }
             : {}),
@@ -706,8 +724,9 @@ export async function loadCockpitModel(
           ownerId: true,
           wsjfComputed: true,
           art: { select: { id: true, name: true } },
-          // Die Solution hängt am Epic, nicht am Feature — über den ohnehin
-          // vorhandenen `parent`-Select, also ohne zusätzliche Abfrage.
+          // Die eigene Solution des Features — und die seines Epics als
+          // Rückfall, über den ohnehin vorhandenen `parent`-Select.
+          primarySolution: { select: { name: true } },
           parent: {
             select: { id: true, title: true, primarySolution: { select: { name: true } } },
           },

@@ -77,6 +77,7 @@ function featureRow(partial: Partial<CockpitFeatureRow> & { id: string }): Cockp
     title: partial.id,
     status: "approved",
     piId: null,
+    primarySolution: null,
     artId: "art-1",
     parentId: null,
     ownerId: null,
@@ -147,7 +148,15 @@ describe("buildCockpitModel — active-PI fallback (availableArts counts)", () =
   it("counts via a direct ART-scoped active PI", () => {
     const model = buildCockpitModel(
       rows({
-        arts: [{ id: "art-1", name: "ART 1", timelineId: null, valueStream: null }],
+        arts: [
+          {
+            id: "art-1",
+            name: "ART 1",
+            valueStreamId: "vs-1",
+            timelineId: null,
+            valueStream: null,
+          },
+        ],
         activePis: [{ id: "pi-direct", artId: "art-1", timelineId: null }],
         activeFeatureCounts: [{ artId: "art-1", piId: "pi-direct", count: 4 }],
       }),
@@ -159,7 +168,15 @@ describe("buildCockpitModel — active-PI fallback (availableArts counts)", () =
   it("falls back to the timeline's active PI when the ART has no direct PI", () => {
     const model = buildCockpitModel(
       rows({
-        arts: [{ id: "art-1", name: "ART 1", timelineId: "tl-1", valueStream: null }],
+        arts: [
+          {
+            id: "art-1",
+            name: "ART 1",
+            valueStreamId: "vs-1",
+            timelineId: "tl-1",
+            valueStream: null,
+          },
+        ],
         // No PI with artId === art-1 — only a timeline-scoped active PI.
         activePis: [{ id: "pi-tl", artId: null, timelineId: "tl-1" }],
         activeFeatureCounts: [{ artId: "art-1", piId: "pi-tl", count: 7 }],
@@ -171,7 +188,15 @@ describe("buildCockpitModel — active-PI fallback (availableArts counts)", () =
   it("gives an ART with no resolvable active PI a zero count", () => {
     const model = buildCockpitModel(
       rows({
-        arts: [{ id: "art-1", name: "ART 1", timelineId: null, valueStream: null }],
+        arts: [
+          {
+            id: "art-1",
+            name: "ART 1",
+            valueStreamId: "vs-1",
+            timelineId: null,
+            valueStream: null,
+          },
+        ],
         activePis: [], // nothing resolves
         activeFeatureCounts: [{ artId: "art-1", piId: "pi-x", count: 9 }],
       }),
@@ -215,7 +240,15 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
   it("windows around the current PI and flags isCurrent by id (not array identity)", () => {
     const model = buildCockpitModel(
       rows({
-        arts: [{ id: "art-1", name: "ART 1", timelineId: "tl-1", valueStream: null }],
+        arts: [
+          {
+            id: "art-1",
+            name: "ART 1",
+            valueStreamId: "vs-1",
+            timelineId: "tl-1",
+            valueStream: null,
+          },
+        ],
         selectedArtId: "art-1",
         allPis,
         // Die Kachel-Zahl entsteht aus den Features selbst — nicht mehr aus
@@ -270,7 +303,9 @@ describe("buildCockpitModel — selected-PI governance scope", () => {
     },
   ];
   const base = {
-    arts: [{ id: "art-1", name: "ART 1", timelineId: "tl-1", valueStream: null }],
+    arts: [
+      { id: "art-1", name: "ART 1", valueStreamId: "vs-1", timelineId: "tl-1", valueStream: null },
+    ],
     selectedArtId: "art-1",
     allPis,
     featureRows: Array.from({ length: 5 }, (_, i) => featureRow({ id: `f${i}`, piId: "q2" })),
@@ -307,7 +342,15 @@ describe("buildCockpitModel — blocker detection", () => {
     const model = buildCockpitModel(
       rows({
         selectedArtId: "art-1",
-        arts: [{ id: "art-1", name: "ART 1", timelineId: null, valueStream: null }],
+        arts: [
+          {
+            id: "art-1",
+            name: "ART 1",
+            valueStreamId: "vs-1",
+            timelineId: null,
+            valueStream: null,
+          },
+        ],
         featureRows: [
           featureRow({
             id: "f1",
@@ -326,7 +369,15 @@ describe("buildCockpitModel — blocker detection", () => {
     const model = buildCockpitModel(
       rows({
         selectedArtId: "art-1",
-        arts: [{ id: "art-1", name: "ART 1", timelineId: null, valueStream: null }],
+        arts: [
+          {
+            id: "art-1",
+            name: "ART 1",
+            valueStreamId: "vs-1",
+            timelineId: null,
+            valueStream: null,
+          },
+        ],
         featureRows: [
           featureRow({
             id: "f1",
@@ -346,7 +397,9 @@ describe("buildCockpitModel — owner label resolution", () => {
   const withOwner = (partial: Parameters<typeof rows>[0]) =>
     rows({
       selectedArtId: "art-1",
-      arts: [{ id: "art-1", name: "ART 1", timelineId: null, valueStream: null }],
+      arts: [
+        { id: "art-1", name: "ART 1", valueStreamId: "vs-1", timelineId: null, valueStream: null },
+      ],
       ...partial,
     });
 
@@ -374,7 +427,9 @@ describe("buildCockpitModel — owner label resolution", () => {
 });
 
 describe("buildCockpitModel — off-scope dependency classification", () => {
-  const baseArts = [{ id: "art-1", name: "ART 1", timelineId: null, valueStream: null }];
+  const baseArts = [
+    { id: "art-1", name: "ART 1", valueStreamId: "vs-1", timelineId: null, valueStream: null },
+  ];
 
   it("classifies an off-scope predecessor (from side) with its label", () => {
     const model = buildCockpitModel(
@@ -477,7 +532,9 @@ describe("buildCockpitModel — der PI-Scope grenzt ein, außer im Board", () =>
     },
   ];
   const base = {
-    arts: [{ id: "art-1", name: "ART 1", timelineId: "tl-1", valueStream: null }],
+    arts: [
+      { id: "art-1", name: "ART 1", valueStreamId: "vs-1", timelineId: "tl-1", valueStream: null },
+    ],
     selectedArtId: "art-1",
     allPis,
     featureRows: [
@@ -554,7 +611,9 @@ describe("buildCockpitModel — die Kachel-Zahl folgt den Filtern", () => {
     },
   ];
   const base = {
-    arts: [{ id: "art-1", name: "ART 1", timelineId: "tl-1", valueStream: null }],
+    arts: [
+      { id: "art-1", name: "ART 1", valueStreamId: "vs-1", timelineId: "tl-1", valueStream: null },
+    ],
     selectedArtId: "art-1",
     allPis,
     now: D("2026-02-15").getTime(),
@@ -596,7 +655,9 @@ describe("buildCockpitModel — die Kachel-Zahl folgt den Filtern", () => {
  */
 describe("buildCockpitModel — die Solution des Epics", () => {
   const base = {
-    arts: [{ id: "art-1", name: "ART 1", timelineId: "tl-1", valueStream: null }],
+    arts: [
+      { id: "art-1", name: "ART 1", valueStreamId: "vs-1", timelineId: "tl-1", valueStream: null },
+    ],
     selectedArtId: "art-1",
   };
 
