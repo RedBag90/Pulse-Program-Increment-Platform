@@ -72,6 +72,13 @@ export const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     // Owner-Wechsel blieb dort sichtbar veraltet, obwohl er gespeichert war.
     "/umsetzung/feature/[id]",
     "/my-tasks",
+    // Dieselbe Lücke, eine Runde später: ein Feature erscheint inzwischen auf
+    // Flächen, die hier nicht standen. `/portfolio/epics/[id]` trifft zudem ein
+    // **eigenständiges** Feature gar nicht — es hat keine solche Seite.
+    "/umsetzung",
+    "/implementation/features",
+    "/portfolio",
+    "/structure/solution/[id]",
   ],
   epic: [
     "/portfolio",

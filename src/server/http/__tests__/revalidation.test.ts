@@ -60,4 +60,21 @@ describe("revalidateFor", () => {
       ).toContain("/structure/rollen");
     }
   });
+
+  /**
+   * **Die Flächen, auf denen ein eigenständiges Feature erscheint.** Für es ist
+   * `/portfolio/epics/[id]` wirkungslos — es hat keine solche Seite. Ohne diese
+   * vier Pfade bliebe es nach dem Anlegen sichtbar veraltet; genau das ist im
+   * Haus schon zweimal passiert.
+   */
+  it("revalidiert für ein Feature auch die Flächen ohne Epic-Bezug", () => {
+    for (const p of [
+      "/umsetzung",
+      "/implementation/features",
+      "/portfolio",
+      "/structure/solution/[id]",
+    ]) {
+      expect(REGISTRY.feature).toContain(p);
+    }
+  });
 });
