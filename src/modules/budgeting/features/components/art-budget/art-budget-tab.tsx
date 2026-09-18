@@ -570,6 +570,19 @@ function CoverageSection({ coverage }: { coverage: ArtCoverage }) {
             — Ø Budget aus {rate.cycles.map((c) => c.cycleKey).join(" und ")} (
             {formatEUR(rate.budgetSum)}) ÷ {rate.jobSizeSum} Job-Size-Punkte aus {rate.featureCount}{" "}
             fertiggestellten Features. Empirisch aus der Historie dieses ARTs.
+            {/*
+              Herkunft, nicht Rechnung: der Satz bleibt unverändert — das
+              ART-Budget finanziert alles, was das ART tut. Die Zeile
+              beantwortet die andere Frage: wie viel unserer Lieferung hing an
+              keinem Vorhaben.
+            */}
+            {rate.standaloneFeatureCount > 0 && (
+              <>
+                {" "}
+                Davon {rate.standaloneJobSizeSum} Punkte aus {rate.standaloneFeatureCount}{" "}
+                eigenständigen Features — ART-eigene Arbeit ohne Epic.
+              </>
+            )}
           </>
         ) : rate.source === "tenantDefault" ? (
           <>— der tenant-weite Vorgabewert, weil sich kein Satz aus der Historie ableiten lässt.</>

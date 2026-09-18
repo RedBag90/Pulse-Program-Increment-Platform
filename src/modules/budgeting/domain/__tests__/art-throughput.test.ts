@@ -12,11 +12,15 @@ const cycle = (
   budget: number,
   jobSize: number,
   featureCount = 10,
+  standaloneJobSize = 0,
+  standaloneFeatureCount = 0,
 ): ThroughputCycle => ({
   cycleKey,
   budget,
   jobSize,
   featureCount,
+  standaloneJobSize,
+  standaloneFeatureCount,
 });
 
 const input = (over: Partial<Parameters<typeof deriveJobSizeRate>[0]> = {}) => ({
@@ -114,5 +118,33 @@ describe("loadInEuro", () => {
 
   it("bleibt ohne Satz null, statt eine Zahl zu erfinden", () => {
     expect(loadInEuro(142, deriveJobSizeRate(input()))).toBeNull();
+  });
+});
+
+/**
+ * **Der Anteil ist Herkunft, nicht Rechnung.** Eigenständige Features stehen im
+ * Nenner wie jedes andere — das ART-Budget finanziert alles, was das ART tut.
+ * Die Zahl daneben beantwortet nur, wie viel davon an keinem Vorhaben hing.
+ */
+describe("deriveJobSizeRate — eigenständiger Anteil", () => {
+  it("summiert den Anteil, ohne den Satz zu verändern", () => {
+    const mitAnteil = deriveJobSizeRate({
+      cycles: [cycle("2026-H1", 100_000, 200, 20, 50, 5)],
+      tenantDefault: null,
+      undatedFeatures: 0,
+      placeholderJobSize: 0,
+    });
+    const ohneAnteil = deriveJobSizeRate({
+      cycles: [cycle("2026-H1", 100_000, 200, 20)],
+      tenantDefault: null,
+      undatedFeatures: 0,
+      placeholderJobSize: 0,
+    });
+
+    expect(mitAnteil.rate).toBe(ohneAnteil.rate);
+    expect(mitAnteil.caveats).toEqual(ohneAnteil.caveats);
+    expect(mitAnteil.standaloneJobSizeSum).toBe(50);
+    expect(mitAnteil.standaloneFeatureCount).toBe(5);
+    expect(ohneAnteil.standaloneJobSizeSum).toBe(0);
   });
 });

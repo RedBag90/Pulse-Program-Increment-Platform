@@ -50,6 +50,8 @@ export async function loadArtCoverage(
         status: true,
         completedAt: true,
         wsjfJobSize: true,
+        // Für die Herkunft des Nenners: hängt dieses Feature an einem Epic?
+        parentId: true,
         pi: { select: { startDate: true, endDate: true } },
       },
     }),
@@ -69,7 +71,10 @@ export async function loadArtCoverage(
   const plannedCount = planned.count;
 
   // Nenner: fertiggestellte Features je Abschluss-Halbjahr.
-  const doneByCycle = new Map<string, { jobSize: number; count: number }>();
+  const doneByCycle = new Map<
+    string,
+    { jobSize: number; count: number; standaloneJobSize: number; standaloneCount: number }
+  >();
   let undated = 0;
   let placeholder = 0;
 
@@ -84,8 +89,19 @@ export async function loadArtCoverage(
       continue;
     }
     const key = halfYearKey(at);
-    const cur = doneByCycle.get(key) ?? { jobSize: 0, count: 0 };
-    doneByCycle.set(key, { jobSize: cur.jobSize + jobSize, count: cur.count + 1 });
+    const cur = doneByCycle.get(key) ?? {
+      jobSize: 0,
+      count: 0,
+      standaloneJobSize: 0,
+      standaloneCount: 0,
+    };
+    const standalone = f.parentId === null;
+    doneByCycle.set(key, {
+      jobSize: cur.jobSize + jobSize,
+      count: cur.count + 1,
+      standaloneJobSize: cur.standaloneJobSize + (standalone ? jobSize : 0),
+      standaloneCount: cur.standaloneCount + (standalone ? 1 : 0),
+    });
   }
 
   // Nur Zyklen, die vor dem gewählten liegen — der laufende ist nicht abgeschlossen.
@@ -96,6 +112,8 @@ export async function loadArtCoverage(
       budget: allocatedByCycle[key] ?? 0,
       jobSize: v.jobSize,
       featureCount: v.count,
+      standaloneJobSize: v.standaloneJobSize,
+      standaloneFeatureCount: v.standaloneCount,
     }));
 
   const rate = deriveJobSizeRate({

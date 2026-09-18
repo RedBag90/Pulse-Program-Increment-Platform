@@ -200,6 +200,8 @@ describe("coverageVerdict", () => {
       budgetSum: 0,
       jobSizeSum: 0,
       featureCount: 0,
+      standaloneJobSizeSum: 0,
+      standaloneFeatureCount: 0,
     },
     loadEuro: null,
     allocated: over.allocated ?? 0,

@@ -27,6 +27,16 @@ export interface ThroughputCycle {
   /** Σ Job Size der in diesem Zyklus fertiggestellten Features. */
   jobSize: number;
   featureCount: number;
+  /**
+   * Der Anteil davon, der an **keinem Epic** hängt — eigenständige Features.
+   *
+   * Er verändert den Satz **nicht**: das ART-Budget finanziert alles, was das
+   * ART tut, also gehört auch alles in den Nenner. Die Zahl beantwortet eine
+   * andere Frage — „wie viel unserer Lieferung hängt an keinem Vorhaben" — und
+   * steht deshalb daneben, nicht darin.
+   */
+  standaloneJobSize: number;
+  standaloneFeatureCount: number;
 }
 
 export type RateSource = "empirical" | "tenantDefault" | "none";
@@ -40,6 +50,9 @@ export interface JobSizeRate {
   budgetSum: number;
   jobSizeSum: number;
   featureCount: number;
+  /** Herkunft, nicht Rechnung: wie viel des Nenners eigenständig war. */
+  standaloneJobSizeSum: number;
+  standaloneFeatureCount: number;
   /**
    * Warum der Satz mit Vorsicht zu lesen ist. Leer heißt nicht „belastbar",
    * sondern nur „keine der bekannten Verzerrungen".
@@ -77,6 +90,8 @@ export function deriveJobSizeRate(input: RateInput): JobSizeRate {
   const budgetSum = cycles.reduce((s, c) => s + c.budget, 0);
   const jobSizeSum = cycles.reduce((s, c) => s + c.jobSize, 0);
   const featureCount = cycles.reduce((s, c) => s + c.featureCount, 0);
+  const standaloneJobSizeSum = cycles.reduce((s, c) => s + c.standaloneJobSize, 0);
+  const standaloneFeatureCount = cycles.reduce((s, c) => s + c.standaloneFeatureCount, 0);
 
   const caveats: string[] = [];
   if (input.undatedFeatures > 0) {
@@ -98,6 +113,8 @@ export function deriveJobSizeRate(input: RateInput): JobSizeRate {
       budgetSum: 0,
       jobSizeSum: 0,
       featureCount: 0,
+      standaloneJobSizeSum: 0,
+      standaloneFeatureCount: 0,
       caveats: [
         cycles.length === 0
           ? "Kein abgeschlossener Zyklus — der Satz lässt sich nicht aus der Historie ableiten."
@@ -123,6 +140,8 @@ export function deriveJobSizeRate(input: RateInput): JobSizeRate {
     budgetSum,
     jobSizeSum,
     featureCount,
+    standaloneJobSizeSum,
+    standaloneFeatureCount,
     caveats,
   };
 }
