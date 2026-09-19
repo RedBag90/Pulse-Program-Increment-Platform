@@ -21,6 +21,7 @@ import {
   readBudgetCandidates,
   readRtbItems,
   readRtbAwards,
+  readSolutions,
 } from "@/modules/budgeting/server/services/budget-reads";
 import { potWindowClosedReason } from "@/modules/budgeting/domain/art-pot-window";
 import { proportionalAwards, awardSplitDeniedReason } from "@/modules/budgeting/domain/rtb-award";
@@ -31,6 +32,23 @@ export interface RtbAwardRow {
   name: string;
   kind: string;
   artId: string | null;
+  solutionId: string | null;
+  /** Monatlich · je Halbjahr · jährlich — woher der Richtwert kommt. */
+  interval: string;
+  /**
+   * **Die Namen kommen aus dem Seitenmodell, nicht aus der Fläche.**
+   *
+   * Die Aufteil-Liste zeigte 13 Zeilen, darunter zweimal „ART-Rollen" mit je
+   * 7.500 € — ununterscheidbar. Wer hier Geld verteilt, muss sehen, wem es
+   * zufällt. Die Alternative wäre, ARTs und Solutions als zwei weitere Listen
+   * durch die Seite zu reichen und in der Fläche aufzulösen, was der Lader
+   * längst weiss.
+   */
+  artName: string | null;
+  solutionName: string | null;
+  /** Der ART **hinter** der Solution — er entscheidet, wo das Geld landet. */
+  solutionArtId: string | null;
+  solutionArtName: string | null;
   /** Richtwert dieser Position im Halbjahr. */
   ask: number;
   /** Zugeteilt — oder die anteilige Vorbelegung, solange nichts gesetzt ist. */
@@ -71,13 +89,23 @@ export async function loadRtbAwards(
   cycleKey: string,
   now: Date = new Date(),
 ): Promise<RtbAwardView> {
-  const [allItems, allCandidates, allAwards] = await Promise.all([
+  const [allItems, allCandidates, allAwards, solutions, arts] = await Promise.all([
     readRtbItems(db, tenantId),
     // Über den geteilten Lader (REQ-5): dieselbe Zeile sucht die Finanzierungs-
     // kette eine Ebene höher noch einmal, nur über `roundId` statt `cycleKey`.
     readBudgetCandidates(db, tenantId),
     readRtbAwards(db, tenantId),
+    // Beide über die geteilten Lader; `readSolutions` liegt auf dieser Seite
+    // ohnehin. Die ARTs kosten eine Abfrage, die der Reiter „Einrichten" für
+    // dieselbe Seite bereits macht.
+    readSolutions(db, tenantId),
+    db.art.findMany({
+      where: { tenantId, valueStreamId, deletedAt: null },
+      select: { id: true, name: true },
+    }),
   ]);
+  const artName = new Map(arts.map((a) => [a.id, a.name]));
+  const solution = new Map(solutions.map((so) => [so.id, so]));
 
   // Die aktiven Positionen dieses Wertstroms. **Die Ordnung steht hier von
   // Hand**, weil sie die Reihenfolge der Tabelle ist: erst Betrieb, dann
@@ -117,14 +145,23 @@ export async function loadRtbAwards(
     requested,
     saved,
     closedReason: potWindowClosedReason(cycleKey, now),
-    rows: items.map((i, n) => ({
-      rtbItemId: i.id,
-      name: i.name,
-      kind: i.kind,
-      artId: i.artId,
-      ask: asks[n]!.ask,
-      amount: savedBy.get(i.id) ?? prefill[i.id] ?? 0,
-    })),
+    rows: items.map((i, n) => {
+      const so = i.solutionId == null ? null : (solution.get(i.solutionId) ?? null);
+      return {
+        rtbItemId: i.id,
+        name: i.name,
+        kind: i.kind,
+        artId: i.artId,
+        solutionId: i.solutionId,
+        interval: i.interval,
+        artName: i.artId == null ? null : (artName.get(i.artId) ?? null),
+        solutionName: so?.name ?? null,
+        solutionArtId: so?.artId ?? null,
+        solutionArtName: so?.artId == null ? null : (artName.get(so.artId) ?? null),
+        ask: asks[n]!.ask,
+        amount: savedBy.get(i.id) ?? prefill[i.id] ?? 0,
+      };
+    }),
   };
 }
 

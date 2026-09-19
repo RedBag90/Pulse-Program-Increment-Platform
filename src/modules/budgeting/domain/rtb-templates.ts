@@ -53,12 +53,6 @@ export interface RtbTemplate {
 const KAPAZITAET =
   "Zählt als Betrieb und damit nicht in Deckung, Lücke und €-Satz — obwohl dieses Geld die Teams bezahlt, die die Features bauen.";
 
-export const RTB_TEMPLATE_GROUP_LABELS: Record<RtbAssignmentGroup, string> = {
-  stream: "Wertstrom-übergreifend",
-  art: "ART-übergreifend",
-  solution: "Solution-individuell",
-};
-
 /** Was das Formular an Zurechnung verlangt, damit die Position richtig landet. */
 export const RTB_TEMPLATE_GROUP_HINTS: Record<RtbAssignmentGroup, string> = {
   stream: "Ohne ART und ohne Solution — wird gleichmässig auf die ARTs geschlüsselt.",

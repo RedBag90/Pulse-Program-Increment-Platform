@@ -103,3 +103,59 @@ describe("loadRtbAwards", () => {
     expect(amounts(view)).toEqual({ A: 0 });
   });
 });
+
+/**
+ * **Die Zeile trägt, wem das Geld zufällt.** Die Aufteil-Fläche zeigte 13
+ * Positionen flach, darunter zweimal „ART-Rollen" mit je 7.500 € — wer
+ * verteilt, konnte sie nicht unterscheiden. Die Namen kommen deshalb aus dem
+ * Seitenmodell und nicht aus zwei weiteren Listen, die die Fläche selbst
+ * auflösen müsste.
+ */
+describe("die Zurechnung in der Zeile", () => {
+  const mitZurechnung = () =>
+    budgetingStore({
+      runTheBusinessItem: [
+        { ...item("direkt", 100), artId: "a1" },
+        { ...item("ueberSolution", 200), solutionId: "s1" },
+        item("uebergreifend", 300),
+      ],
+      budgetRound: [{ id: "r1", tenantId: T, cycleKey: CYCLE }],
+      budgetCandidate: [],
+      rtbItemAward: [],
+      solution: [
+        { id: "s1", tenantId: T, name: "Produktion Betrieb", artId: "a2", deletedAt: null },
+      ],
+      art: [
+        { id: "a1", tenantId: T, valueStreamId: VS, name: "Materials & Energy", deletedAt: null },
+        { id: "a2", tenantId: T, valueStreamId: VS, name: "Plant Efficiency", deletedAt: null },
+      ],
+    });
+
+  it("nennt den ART einer direkt zugerechneten Position", async () => {
+    const view = await loadRtbAwards(mitZurechnung().db, T, VS, CYCLE, NOW);
+    expect(view.rows.find((r) => r.name === "direkt")).toMatchObject({
+      artName: "Materials & Energy",
+      solutionName: null,
+      interval: "half_yearly",
+    });
+  });
+
+  /** Beide Stationen: die Solution **und** der ART, bei dem ihr Geld landet. */
+  it("nennt bei einer Solution auch ihren ART", async () => {
+    const view = await loadRtbAwards(mitZurechnung().db, T, VS, CYCLE, NOW);
+    expect(view.rows.find((r) => r.name === "ueberSolution")).toMatchObject({
+      artName: null,
+      solutionName: "Produktion Betrieb",
+      solutionArtName: "Plant Efficiency",
+    });
+  });
+
+  it("lässt die übergreifende Position ohne beides", async () => {
+    const view = await loadRtbAwards(mitZurechnung().db, T, VS, CYCLE, NOW);
+    expect(view.rows.find((r) => r.name === "uebergreifend")).toMatchObject({
+      artName: null,
+      solutionName: null,
+      solutionArtName: null,
+    });
+  });
+});

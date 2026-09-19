@@ -1,11 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
   RTB_TEMPLATES,
-  RTB_TEMPLATE_GROUP_LABELS,
   templatesOfGroup,
   templateById,
 } from "@/modules/budgeting/domain/rtb-templates";
-import { rtbAssignmentGroup } from "@/modules/budgeting/domain/rtb-art-resolution";
+import {
+  rtbAssignmentGroup,
+  RTB_ASSIGNMENT_GROUPS,
+  RTB_ASSIGNMENT_GROUP_LABELS,
+} from "@/modules/budgeting/domain/rtb-art-resolution";
 import { isRtbInterval } from "@/modules/budgeting/domain/rtb-interval";
 import { RTB_KINDS } from "@/modules/budgeting/domain/rtb-kind";
 
@@ -24,8 +27,8 @@ describe("RTB_TEMPLATES", () => {
   });
 
   it("hat zu jeder Zurechnungsebene mindestens eine Vorlage", () => {
-    for (const g of ["stream", "art", "solution"] as const) {
-      expect(templatesOfGroup(g).length, RTB_TEMPLATE_GROUP_LABELS[g]).toBeGreaterThan(0);
+    for (const g of RTB_ASSIGNMENT_GROUPS) {
+      expect(templatesOfGroup(g).length, RTB_ASSIGNMENT_GROUP_LABELS[g]).toBeGreaterThan(0);
     }
   });
 

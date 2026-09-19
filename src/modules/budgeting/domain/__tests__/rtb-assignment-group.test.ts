@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   rtbAssignmentGroup,
   zaehltBeiAnderemArt,
+  RTB_ASSIGNMENT_GROUPS,
+  RTB_ASSIGNMENT_GROUP_LABELS,
 } from "@/modules/budgeting/domain/rtb-art-resolution";
 
 /**
@@ -50,5 +52,43 @@ describe("zaehltBeiAnderemArt", () => {
 
   it("schweigt ohne Solution", () => {
     expect(zaehltBeiAnderemArt({ artId: "a1", solutionId: null }, {})).toBeNull();
+  });
+});
+
+/**
+ * **Ein Wort je Ebene, an einem Ort.** Die drei Namen standen in der
+ * Einrichten-Fläche und bei den Vorlagen; mit der Aufteil-Fläche wären es drei
+ * Kopien geworden. Dieser Test hält fest, dass es bei einer bleibt — und dass
+ * die Reihenfolge von der breitesten Zurechnung zur engsten läuft, weil die
+ * Flächen sie so lesen.
+ */
+describe("die Gruppen als gemeinsames Vokabular", () => {
+  it("führt genau drei Ebenen, von breit nach eng", () => {
+    expect(RTB_ASSIGNMENT_GROUPS).toEqual(["stream", "art", "solution"]);
+  });
+
+  it("hat zu jeder Ebene ein Wort", () => {
+    for (const g of RTB_ASSIGNMENT_GROUPS) {
+      expect(RTB_ASSIGNMENT_GROUP_LABELS[g], g).toBeTruthy();
+    }
+    expect(new Set(Object.values(RTB_ASSIGNMENT_GROUP_LABELS)).size).toBe(3);
+  });
+
+  /**
+   * Die Probe für die Aufteil-Fläche: jede Position fällt in genau **einen**
+   * Block und **eine** Gruppe — keine verschwindet, keine steht zweimal.
+   */
+  it("teilt eine Liste vollständig und überschneidungsfrei auf", () => {
+    const zeilen = [
+      { name: "übergreifend", artId: null, solutionId: null },
+      { name: "am ART", artId: "a1", solutionId: null },
+      { name: "an Solution", artId: null, solutionId: "s1" },
+      { name: "beides", artId: "a1", solutionId: "s1" },
+    ];
+    const verteilt = RTB_ASSIGNMENT_GROUPS.flatMap((g) =>
+      zeilen.filter((z) => rtbAssignmentGroup(z) === g),
+    );
+    expect(verteilt).toHaveLength(zeilen.length);
+    expect(new Set(verteilt.map((z) => z.name)).size).toBe(zeilen.length);
   });
 });

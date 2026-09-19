@@ -22,7 +22,6 @@ import {
 } from "@/modules/budgeting/domain/rtb-kind";
 import { Link } from "@/i18n/navigation";
 import {
-  RTB_TEMPLATE_GROUP_LABELS,
   RTB_TEMPLATE_GROUP_HINTS,
   templatesOfGroup,
   templateById,
@@ -30,7 +29,8 @@ import {
 import {
   rtbAssignmentGroup,
   zaehltBeiAnderemArt,
-  type RtbAssignmentGroup,
+  RTB_ASSIGNMENT_GROUPS,
+  RTB_ASSIGNMENT_GROUP_LABELS,
 } from "@/modules/budgeting/domain/rtb-art-resolution";
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { SectionCard } from "@/components/ui/section-card";
@@ -306,12 +306,6 @@ function RtbGroupTable({
   */
   const secondCol = p.scoped ? "ART" : "Zurechnung";
 
-  /** Die drei Ebenen, von der breitesten Zurechnung zur engsten. */
-  const GRUPPEN: { key: RtbAssignmentGroup; label: string }[] = [
-    { key: "stream", label: "Wertstrom-übergreifend" },
-    { key: "art", label: "ART-übergreifend" },
-    { key: "solution", label: "Solution-individuell" },
-  ];
   const spalten = p.canManage ? 6 : 5;
 
   return (
@@ -359,7 +353,7 @@ function RtbGroupTable({
             </tr>
           </thead>
           <tbody>
-            {GRUPPEN.map(({ key, label }) => {
+            {RTB_ASSIGNMENT_GROUPS.map((key) => {
               const drin = p.scoped
                 ? key === "solution"
                   ? group.items
@@ -369,7 +363,7 @@ function RtbGroupTable({
               return (
                 <RtbAssignmentGroupRows
                   key={key}
-                  label={p.scoped ? null : label}
+                  label={p.scoped ? null : RTB_ASSIGNMENT_GROUP_LABELS[key]}
                   items={drin}
                   spalten={spalten}
                   {...p}
@@ -683,8 +677,8 @@ function AddForm({
             className={`block ${input} w-72`}
           >
             <option value="">— eigene Position</option>
-            {(["stream", "art", "solution"] as const).map((g) => (
-              <optgroup key={g} label={RTB_TEMPLATE_GROUP_LABELS[g]}>
+            {RTB_ASSIGNMENT_GROUPS.map((g) => (
+              <optgroup key={g} label={RTB_ASSIGNMENT_GROUP_LABELS[g]}>
                 {templatesOfGroup(g).map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.label}

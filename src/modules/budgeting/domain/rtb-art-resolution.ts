@@ -169,6 +169,21 @@ export function resolvedTotal(r: RtbArtResolution): number {
  */
 export type RtbAssignmentGroup = "stream" | "art" | "solution";
 
+/**
+ * **Ein Wort je Ebene, an einem Ort.** Die drei Namen standen in der
+ * Einrichten-Fläche und bei den Vorlagen — mit der Aufteil-Fläche wären es drei
+ * Kopien geworden, und die erste, die jemand ändert, hätte die anderen zu
+ * Lügen gemacht. Sie stehen hier, wo die Einteilung selbst wohnt.
+ */
+export const RTB_ASSIGNMENT_GROUP_LABELS: Record<RtbAssignmentGroup, string> = {
+  stream: "Wertstrom-übergreifend",
+  art: "ART-übergreifend",
+  solution: "Solution-individuell",
+};
+
+/** Von der breitesten Zurechnung zur engsten — die Lesereihenfolge der Flächen. */
+export const RTB_ASSIGNMENT_GROUPS = ["stream", "art", "solution"] as const;
+
 export function rtbAssignmentGroup(item: {
   artId?: string | null | undefined;
   solutionId?: string | null | undefined;

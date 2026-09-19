@@ -336,6 +336,21 @@ Wertstrom-Prüfung für **jede** Art: ein fremder ART wurde vorher stillschweige
 gespeichert und von `resolveRtbToArts` übergangen — das Geld fiel aus jeder
 Gruppe, ohne dass es jemand meldete.
 
+**REQ-15a · Dieselbe Ordnung, wo Positionen stehen.** _Ergänzt am 2026-09-20._
+Die Gliederung gilt auch für **„Dieses Halbjahr"**: die Aufteil-Fläche zeigt
+dieselben zwei Blöcke und drei Gruppen, dazu Zurechnung und Periode. Sie listete
+13 Positionen flach — zweimal „ART-Rollen" mit je 7.500 €, ohne dass man sah,
+welchem ART sie gelten. Wer dort Geld verteilt, entschied über Zeilen, die er
+nicht unterscheiden konnte.
+
+**Ohne „p. a."**: hier wird ein **Halbjahr** aufgeteilt, und eine Jahreszahl
+daneben lüde zum Vergleich der falschen Grössen ein.
+
+**Die Spalte „Art" ist entfallen.** Sie enthielt „Betrieb" / „ART-Rahmen", und
+die Kopfzeile setzt Versalien — gelesen wurde **„ART"**, während dasselbe Wort
+auf der Nachbarfläche den Agile Release Train nennt. Was sie sagte, sagt jetzt
+der Block.
+
 **REQ-15b · Vorlagen beim Anlegen.** „+ Position" bietet die üblichen
 Positionen eines Wertstroms an, gegliedert nach denselben drei Gruppen
 (`domain/rtb-templates.ts`). Eine Vorlage setzt **Name, Art und Periode** vor,
