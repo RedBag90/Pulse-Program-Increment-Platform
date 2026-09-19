@@ -5,8 +5,8 @@ import { createPrismaClient } from "@/server/db/prisma";
 /**
  * **Der Einsprung auf ein ART-Budget** — die Seite selbst gibt es nicht mehr.
  *
- * Ihr Inhalt steht jetzt als aufklappbare Zeile auf der Geldfläche ihres
- * Wertstroms (`art-budget-consolidation.md`, §2.1). Die Route bleibt trotzdem,
+ * Ihr Inhalt steht jetzt als eigener Reiter auf der Geldfläche ihres Wertstroms
+ * (`art-budget-process-layout.md`, §2). Die Route bleibt trotzdem,
  * und zwar nicht aus Nostalgie: auf sie zeigen die persönliche Inbox, die
  * Finanzierungskette, der Hinweiskasten der Struktur-Fläche und vermutlich
  * einige Lesezeichen. Ein 404 hätte dort stillschweigend ins Leere geführt.
@@ -26,13 +26,14 @@ export default async function ArtBudgetRedirectPage({
   searchParams,
 }: {
   params: Promise<{ artId: string }>;
+  // `tab` kommt aus alten Adressen noch an und wird bewusst nicht gelesen.
   searchParams: Promise<{ tab?: string; cycle?: string }>;
 }) {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
   const { artId } = await params;
-  const { tab, cycle } = await searchParams;
+  const { cycle } = await searchParams;
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
   const art = await db.art.findFirst({
@@ -41,11 +42,13 @@ export default async function ArtBudgetRedirectPage({
   });
   if (!art) notFound();
 
-  // `?tab=verteilen` war die Arbeitsfläche — sie heisst jetzt „Betrieb".
-  const query = new URLSearchParams({
-    tab: tab === "verteilen" ? "betrieb" : "budget",
-    art: art.id,
-  });
+  /**
+   * **Beide alten Reiter landen im selben neuen.** `?tab=verteilen` war die
+   * Arbeitsfläche, `?tab=budget` die Lesefläche — seit die Wertstrom-Seite nach
+   * Eigentümer geschnitten ist, sind das die zwei Hälften **eines** Reiters:
+   * dem dieses ARTs. Der Parameter wird damit bedeutungslos und fällt weg.
+   */
+  const query = new URLSearchParams({ tab: `art:${art.id}` });
   if (cycle != null) query.set("cycle", cycle);
 
   redirect(`/budgeting/value-streams/${art.valueStreamId}?${query.toString()}`);

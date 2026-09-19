@@ -60,10 +60,10 @@ export interface FundingPhaseFacts {
   /** Je ART sein zugesprochenes Budget und was davon verteilt ist. */
   arts: readonly ArtPotFacts[];
   /**
-   * Gesetzt, wenn eine ART-Zeile aufgeklappt ist: dann ist der letzte Schritt
-   * „sein" Schritt und springt an genau diese Zeile. Leer, wenn keine offen ist
-   * — dann fasst er alle ARTs zusammen („2 von 3") und springt in den Reiter
-   * „Betrieb", wo die Zeilen stehen.
+   * Gesetzt, wenn der Reiter **eines** ARTs offen ist: dann ist der letzte
+   * Schritt „sein" Schritt und zeigt auf genau diesen Reiter. Leer auf einem
+   * Wertstrom-Reiter — dann fasst er alle ARTs zusammen („2 von 3") und zeigt
+   * auf „Dieses Halbjahr", wo der Zuspruch aufgeteilt wird.
    */
   focusArtId?: string | undefined;
 }
@@ -74,7 +74,19 @@ export interface FundingPhaseFacts {
  * dass irgendwo ein Zeiger gespeichert werden müsste.
  */
 export function artFundingPhases(f: FundingPhaseFacts): FundingPhase[] {
-  const vsHref = `/budgeting/value-streams/${f.valueStreamId}?tab=betrieb`;
+  /**
+   * **Ein Schritt, ein Reiter.** Seit die Wertstrom-Fläche nach Prozess und
+   * Eigentümer geschnitten ist, liegt jeder Schritt der Kette auf einer eigenen
+   * Adresse: der Rahmen wird in „Einrichten" angelegt, der Zuspruch in „Dieses
+   * Halbjahr" aufgeteilt, verteilt wird im Reiter des ARTs. Vorher zeigten
+   * beide Schritte auf `?tab=betrieb` — eine Fläche, zwei Kästchen.
+   *
+   * Das Halbjahr reist mit: die Kette spricht über `f.cycleKey`, und ohne den
+   * Parameter landete man auf dem laufenden. Solange alles auf einer Fläche lag,
+   * fiel das nicht auf.
+   */
+  const vsHref = (tab: string) =>
+    `/budgeting/value-streams/${f.valueStreamId}?tab=${tab}&cycle=${f.cycleKey}`;
   const roundHref = (tab: string) =>
     f.roundId == null ? null : `/budgeting/periods/${f.roundId}?tab=${tab}`;
 
@@ -93,7 +105,7 @@ export function artFundingPhases(f: FundingPhaseFacts): FundingPhase[] {
       key: "budget",
       label: "ART-Rahmen",
       actor: "value_stream",
-      href: vsHref,
+      href: vsHref("einrichten"),
       done: f.hasBudgetItem,
     },
     {
@@ -121,8 +133,10 @@ export function artFundingPhases(f: FundingPhaseFacts): FundingPhase[] {
      *
      * Sie waren zwei, weil sie auf zwei Seiten lagen: der Wertstrom teilte den
      * Zuspruch auf seine Positionen auf, das ART verteilte seinen Rahmen auf
-     * seine Epics. Seit beides im Reiter „Betrieb" derselben Fläche steht, wäre
-     * das zwei Kästchen für eine Fläche.
+     * seine Epics. Seit beides auf derselben Fläche steht, wäre das zwei
+     * Kästchen für einen Weg — auch wenn die beiden Hälften heute in zwei
+     * Reitern liegen: der Schritt ist einer, der Handelnde wechselt mittendrin,
+     * und das Ziel des Sprungs wechselt mit ihm.
      *
      * **Der Handelnde wandert dafür innerhalb des Schritts.** `FundingPhase`
      * trägt genau einen `actor`, und der beantwortet die Frage, für die es die
@@ -135,7 +149,7 @@ export function artFundingPhases(f: FundingPhaseFacts): FundingPhase[] {
       key: "distribute",
       label: f.splitDone ? "Verteilen" : "Aufteilen und verteilen",
       actor: f.splitDone ? "art" : "value_stream",
-      href: focus != null ? `${vsHref}&art=${focus.artId}` : vsHref,
+      href: focus != null ? vsHref(`art:${focus.artId}`) : vsHref("halbjahr"),
       done: f.splitDone && distributed,
       ...(f.awarded ? {} : { blockedBy: "Die Kachel ist noch nicht abgeschlossen." }),
       ...(f.splitDone && focus == null && withBudget.length > 0

@@ -49,10 +49,19 @@ export const ART_EPIC_BUDGET: Guide = {
       kind: "paragraph",
       text: "Das ist kein Versehen, sondern eine Festlegung: die Investitionsentscheidung soll ein **eigener, beantragter Schritt** sein und nicht die Nebenwirkung einer Budgetzuteilung. Die Abnahme genehmigt deshalb kein Geld — **sie stellt fest, dass welches da ist.**",
     },
-    { kind: "quote", text: "Reserviert wird nichts." },
+    { kind: "quote", text: "Zugeteilt ist zugeteilt." },
     {
       kind: "paragraph",
-      text: "Einen Zwischenzustand „vorgemerkt, aber noch nicht wirksam“ kennt das Modell nicht. **Zugeteilt ist zugeteilt**: die Zeile am ART entsteht, der Rest des Rahmens sinkt sofort, und am Epic steht dieselbe Summe, die auch eine Kachel geschrieben hätte.",
+      text: "Einen Zwischenzustand „vorgemerkt, aber noch nicht wirksam“ kennt das Modell nicht: die Zeile am ART entsteht, der Rest des Rahmens sinkt sofort, und am Epic steht dieselbe Summe, die auch eine Kachel geschrieben hätte.",
+    },
+    { kind: "quote", text: "Der Rahmen bezahlt auch Arbeit ohne Epic." },
+    {
+      kind: "paragraph",
+      text: "Ein ART liefert nicht nur Epic-Features. Was an keinem Epic hängt, wird ebenfalls aus dem Rahmen bezahlt — dafür steht in der Verteilliste **eine** Zeile: „ART-eigene Arbeit (ohne Epic)“. Der RTE beziffert sie einmal je Halbjahr; einzelne Features werden **nicht** budgetiert.",
+    },
+    {
+      kind: "aside",
+      text: "Daneben steht ein **Richtwert**: die eingeplante eigenständige Feature-Last mal dem €-Satz dieses ARTs. Er ist eine Schätzung und wird nie vorbelegt — liegt kein Satz vor, steht dort „—“. Übersteigt er den offenen Rahmen, sagt Pulse das; gehindert wird niemand.",
     },
   ],
 
@@ -178,7 +187,7 @@ export const ART_EPIC_BUDGET: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Im Reiter _Betrieb_ lege ich **je ART** eine Position mit der Art _ART-Rahmen_ an. Sie geht denselben Weg wie jede Run-the-Business-Position: sie wird Kandidat auf der Liste der Halbjahres-Kachel, und was dort festgeschrieben wird, ist der Rahmen.",
+              text: "Im Reiter _Einrichten_ lege ich **je ART** eine Position mit der Art _ART-Rahmen_ an. Sie geht denselben Weg wie jede Run-the-Business-Position: sie wird Kandidat auf der Liste der Halbjahres-Kachel, und was dort festgeschrieben wird, ist der Rahmen.",
             },
             {
               kind: "note",
@@ -192,7 +201,7 @@ export const ART_EPIC_BUDGET: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Im Reiter _Betrieb_ steht unter den Positionen eine Zeile je ART mit drei Zahlen: **ART-Rahmen, aus dem Rahmen verteilt, Rahmen offen**. Ein Klick auf die Zeile klappt das Verteilformular auf. Darunter die vorgemerkten ART-Epics mit ihrem Richtwert — **der friert beim ersten Zuteilen ein**, sonst verschöbe sich die Liste zwischen zwei Besuchen dem Business Case hinterher, ohne dass jemand etwas getan hat.",
+              text: "**Jedes ART hat einen eigenen Reiter** — sein Name steht in der Schiene, und daneben, was von seinem Rahmen offen ist. Dort finde ich die drei Zahlen **ART-Rahmen, aus dem Rahmen vergeben, Rahmen offen** und darunter die Verteilliste: die vorgemerkten ART-Epics mit ihrem Richtwert — **der friert beim ersten Zuteilen ein**, sonst verschöbe sich die Liste zwischen zwei Besuchen dem Business Case hinterher, ohne dass jemand etwas getan hat.",
             },
             {
               kind: "paragraph",

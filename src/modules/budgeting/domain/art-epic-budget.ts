@@ -18,8 +18,16 @@ export interface ArtEpicBudget {
   cycleKey: string;
   /** Zugesprochen: Σ der Awards auf den aktiven ART-Epic-Budget-Positionen. */
   total: number;
-  /** Verteilt: Σ der Zuteilungen an die Epics dieses ARTs. */
+  /**
+   * Vergeben: Σ der Zuteilungen an Epics **plus** der Reservierung für
+   * ART-eigene Arbeit. Beides zehrt denselben Rahmen auf; eine Summe, die nur
+   * die Epics zählte, wies „noch zu verteilen" zu hoch aus.
+   */
   distributed: number;
+  /** Davon an ART-Epics — `ArtEpicAllocation`. */
+  distributedToEpics: number;
+  /** Davon für ART-eigene Arbeit ohne Epic — `ArtOwnWorkAllocation`. */
+  distributedToOwnWork: number;
   /** Rest — verfällt nicht und wandert nicht; er wird ausgewiesen. */
   remaining: number;
   /** Warum gerade nicht verteilt werden darf; `null` = offen. */

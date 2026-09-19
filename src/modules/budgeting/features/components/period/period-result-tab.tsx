@@ -265,11 +265,11 @@ export function PeriodResultTab({
                       <tr key={art.artId ?? "noart"} className="border-b">
                         <td className="px-3 py-1.5 pl-8 text-muted-foreground">
                           {art.artId != null && vs.valueStreamId != null ? (
-                            // In die aufgeklappte Zeile desselben ARTs, im
-                            // selben Halbjahr — dieselbe Adresse, die auch die
-                            // Kette und die Inbox benutzen.
+                            // In den Reiter desselben ARTs, im selben Halbjahr
+                            // — dieselbe Adresse, die auch die Kette und die
+                            // Inbox benutzen.
                             <Link
-                              href={`/budgeting/value-streams/${vs.valueStreamId}?tab=budget&cycle=${cycleKey}&art=${art.artId}`}
+                              href={`/budgeting/value-streams/${vs.valueStreamId}?tab=art:${art.artId}&cycle=${cycleKey}`}
                               className="hover:underline"
                             >
                               ART {art.artName}

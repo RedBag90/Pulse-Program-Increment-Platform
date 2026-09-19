@@ -50,6 +50,54 @@ function scan(check: (src: string, file: string) => string[]): string[] {
 
 const at = (src: string, index: number) => src.slice(0, index).split("\n").length;
 
+/**
+ * **Verspricht dieser `<SectionCard …>` eine Arbeitsfläche, ohne eine zu sein?**
+ *
+ * Als benannte Funktion, damit der Detektor selbst geprüft werden kann — ohne
+ * das wäre „keine Verstöße" von „Regex kaputt" nicht zu unterscheiden
+ * (dasselbe Muster wie in `rsc-boundary.test.tsx`).
+ */
+/**
+ * **Die Props eines Tags, vollständig.**
+ *
+ * Hier stand `/<SectionCard\b([\s\S]*?)>/` — und das war zu kurz gesprungen:
+ * das erste `>` beendete den Fund, auch wenn es mitten in einem Prop-Wert
+ * stand. Eine `description={<>…</>}` schnitt damit alle Props ab, die danach
+ * kamen; eine Karte mit `action` galt als eine ohne. Der Fehler war still: der
+ * Wächter meldete einen Verstoß, den es nicht gab, und hätte umgekehrt genauso
+ * gut einen echten übersehen.
+ *
+ * Deshalb ein Durchlauf statt eines Musters: er zählt geschweifte Klammern und
+ * überspringt Zeichenketten; das schliessende `>` ist das erste auf Tiefe 0.
+ */
+export function propsOfTag(src: string, start: number): string {
+  let i = src.indexOf(" ", start);
+  if (i < 0) return "";
+  let depth = 0;
+  let quote: string | null = null;
+  for (; i < src.length; i++) {
+    const c = src[i]!;
+    if (quote != null) {
+      if (c === quote) quote = null;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === "`") {
+      quote = c;
+      continue;
+    }
+    if (c === "{") depth++;
+    else if (c === "}") depth--;
+    else if (c === ">" && depth === 0) return src.slice(start, i);
+  }
+  return src.slice(start);
+}
+
+export function schieneOhneAufgabe(props: string): boolean {
+  const istArbeit = /\bwork\b/.test(props) || /\bstep=/.test(props);
+  const hatAufgabe = /\bstep=/.test(props) || /\baction=/.test(props);
+  return istArbeit && !hatAufgabe;
+}
+
 describe("Die Geldflächen behalten ihre Gliederung", () => {
   /**
    * `--muted` und `--background` liegen rund **2 % Helligkeit** auseinander. Ein
@@ -94,6 +142,57 @@ describe("Die Geldflächen behalten ihre Gliederung", () => {
       `${treffer.length} zu große Überschrift(en):\n  · ${treffer.join("\n  · ")}\n\n` +
         "Abschnitt = SectionCard (SectionLabel). Unterabschnitt = h3.text-sm font-medium.",
     ).toEqual([]);
+  });
+
+  /**
+   * **Die Akzentschiene ist ein Versprechen** (REQ-17 der Prozess-Spec): sie
+   * sagt „hier tue ich etwas". Eine `SectionCard` mit `work`, aber ohne
+   * Schrittnummer und ohne Aktion, verspricht eine Arbeitsfläche und hält
+   * nichts — dann wäre die Schiene wieder Dekoration, und der Unterschied,
+   * für den es sie gibt, verschwände zum zweiten Mal.
+   *
+   * `step` allein genügt: es macht die Karte implizit zur Arbeitsfläche und
+   * benennt zugleich, wozu.
+   */
+  it("verspricht keine Arbeitsfläche ohne Aufgabe", () => {
+    const treffer = scan((src, file) =>
+      [...src.matchAll(/<SectionCard\b/g)]
+        .filter((m) => schieneOhneAufgabe(propsOfTag(src, m.index ?? 0)))
+        .map((m) => `${file}:${at(src, m.index ?? 0)}  <SectionCard work …>`),
+    );
+    expect(
+      treffer,
+      `${treffer.length} Schiene(n) ohne Aufgabe:\n  · ${treffer.join("\n  · ")}\n\n` +
+        "Eine Arbeitsfläche trägt eine Schrittnummer (step) oder eine Aktion (action).",
+    ).toEqual([]);
+  });
+
+  /**
+   * Der Ausschnitt des Tags — der Teil, der zuletzt falsch war. Ohne diese
+   * Fälle wäre der gemeldete Phantom-Verstoß nicht von einem echten zu
+   * unterscheiden gewesen.
+   */
+  it("liest die Props bis zum schliessenden > der Tags, nicht bis zum ersten", () => {
+    const mitFragment = `<SectionCard\n  work\n  description={<>a &gt; b</>}\n  action={<b />}\n>`;
+    expect(propsOfTag(mitFragment, 0)).toContain("action=");
+    expect(schieneOhneAufgabe(propsOfTag(mitFragment, 0))).toBe(false);
+
+    // Ein `>` in einer Zeichenkette beendet das Tag ebenso wenig.
+    const mitText = `<SectionCard work title="a > b" action={<b />}>`;
+    expect(schieneOhneAufgabe(propsOfTag(mitText, 0))).toBe(false);
+
+    // Und der echte Verstoß wird weiterhin gefunden.
+    const ohne = `<SectionCard work title={x}>\n  <p>action={y}</p>\n</SectionCard>`;
+    expect(schieneOhneAufgabe(propsOfTag(ohne, 0))).toBe(true);
+  });
+
+  /** Der Detektor selbst — sonst ist „grün" nicht von „Regex kaputt" zu trennen. */
+  it("erkennt eine Schiene ohne Aufgabe und lässt die mit Aufgabe in Ruhe", () => {
+    expect(schieneOhneAufgabe(' work title="X"')).toBe(true);
+    expect(schieneOhneAufgabe("\n  work\n  title={x}\n")).toBe(true);
+    expect(schieneOhneAufgabe(" step={4} title={x}")).toBe(false);
+    expect(schieneOhneAufgabe(" work action={<button />} title={x}")).toBe(false);
+    expect(schieneOhneAufgabe(" title={x}")).toBe(false);
   });
 
   /**

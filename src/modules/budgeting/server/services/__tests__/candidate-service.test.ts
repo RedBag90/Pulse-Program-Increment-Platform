@@ -69,7 +69,7 @@ const basis = (over: Partial<ClassificationBasis> = {}): ClassificationBasis => 
 });
 
 describe("addEpicCandidate — die Einordnung als Port", () => {
-  it("weist ein ART-Epic ab: es wird aus dem ART-Epic-Budget finanziert", async () => {
+  it("weist ein ART-Epic ab: es wird aus dem ART-Rahmen finanziert", async () => {
     const tx = txWith(40_000); // unter dem Limit ⇒ ART-Epic
     const res = await addEpicCandidate(ctxWith(tx), { roundId: ROUND, epicId: EPIC }, basis());
     expect(res.ok).toBe(false);

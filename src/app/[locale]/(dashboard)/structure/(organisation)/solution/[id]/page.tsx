@@ -88,23 +88,16 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
         loadSolutionFeatures(db, principal.tenantId, model.id),
       ])
     : [null, []];
-  // Betriebskosten pflegt, wer den Wertstrom verantwortet — nicht, wer die
-  // Solution verwaltet. **Einschließlich der Finance-Partei:** der Service lässt
-  // sie durch (`assertRtbManage`), die Fläche tat es bisher nicht, und dieselbe
-  // Person sah dieselben Zeilen im Wertstrom bedienbar und hier als Text.
-  const vsFinance = budgetingEnabled
-    ? await db.valueStream.findFirst({
-        where: { id: model.valueStreamId, tenantId: principal.tenantId },
-        select: { financeApproverId: true },
-      })
-    : null;
-  const canManageRtb =
-    budgetingEnabled &&
-    (vsFinance?.financeApproverId === principal.id ||
-      hasCapability(principal, "rtb_item.manage", {
-        tenantId: principal.tenantId,
-        valueStreamId: model.valueStreamId,
-      }));
+  /**
+   * **Hier wird nichts mehr gepflegt** (2026-09-19). Betriebspositionen gehören
+   * dem Wertstrom, und er hat dafür einen Ort: den Reiter „Einrichten" seiner
+   * Geldfläche. Zwei Pflegeorte für dieselben Zeilen hiessen zwei Stellen, an
+   * denen Rechte, Formular und Wortwahl auseinanderlaufen können.
+   *
+   * Mit dem Schreibweg ist auch die Rechteprüfung entfallen — sie holte eigens
+   * den Finance-Verantwortlichen des Wertstroms und stand damit neben der
+   * Prüfung, die der Service ohnehin macht (`assertRtbManage`).
+   */
 
   const [history, rtbItems] = await Promise.all([
     listAuditHistory(db, principal.tenantId, "solution", id),
@@ -153,8 +146,20 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
             <RtbSection
               valueStreamId={model.valueStreamId}
               items={rtbItems}
-              canManage={canManageRtb}
+              canManage={false}
               solutionId={model.id}
+              /*
+                Beides nur, damit die Spalte den **ART** benennen kann, auf dem
+                das Geld dieser Solution landet — vorher stand dort „—", weil
+                die Fläche weder ARTs noch Solutions kannte. Zusätzliche
+                Abfragen kostet das nicht: `loadSolutionDetail` trägt beides.
+              */
+              arts={
+                model.artId != null && model.artName != null
+                  ? [{ id: model.artId, name: model.artName }]
+                  : []
+              }
+              solutions={[{ id: model.id, name: model.name, artId: model.artId }]}
             />
           )}
         </div>

@@ -144,16 +144,28 @@ export async function setArtEpicAllocation(
       });
     } else {
       // Deckel gegen den Rahmen — mit dem Stand aus derselben Transaktion.
-      const others = await tx.artEpicAllocation.findMany({
-        where: {
-          tenantId: mctx.tenantId,
-          artId: input.artId,
-          cycleKey: input.cycleKey,
-          ...(existing ? { NOT: { id: existing.id } } : {}),
-        },
-        select: { amount: true },
-      });
-      const sum = others.reduce((s, a) => s + Number(a.amount), 0) + input.amount;
+      const [others, ownWork] = await Promise.all([
+        tx.artEpicAllocation.findMany({
+          where: {
+            tenantId: mctx.tenantId,
+            artId: input.artId,
+            cycleKey: input.cycleKey,
+            ...(existing ? { NOT: { id: existing.id } } : {}),
+          },
+          select: { amount: true },
+        }),
+        // **Die Reservierung zählt mit.** Sie ist keine Epic-Zeile, zehrt aber
+        // denselben Rahmen auf; ohne sie liesse sich der Deckel über den
+        // zeilenweisen Weg umgehen, während die Sammelspeicherung ihn hält.
+        tx.artOwnWorkAllocation.findFirst({
+          where: { tenantId: mctx.tenantId, artId: input.artId, cycleKey: input.cycleKey },
+          select: { amount: true },
+        }),
+      ]);
+      const sum =
+        others.reduce((s, a) => s + Number(a.amount), 0) +
+        (ownWork ? Number(ownWork.amount) : 0) +
+        input.amount;
       if (sum > pot) {
         return err({
           kind: "conflict" as const,
@@ -191,18 +203,14 @@ export async function setArtEpicAllocation(
       });
     }
 
-    const after = await tx.artEpicAllocation.findMany({
-      where: { tenantId: mctx.tenantId, artId: input.artId, cycleKey: input.cycleKey },
-      select: { amount: true },
-    });
+    // Rahmen minus Vergebenes — dieselbe Rechnung wie `loadArtEpicBudget`,
+    // Reservierung eingeschlossen. Stand hier einmal nur `-verteilt`: von keiner
+    // Fläche gelesen (die UI nimmt `pot.remaining`), aber falsch, sobald es
+    // jemand getan hätte.
+    const after = await loadArtEpicBudget(tx, mctx.tenantId, input.artId, input.cycleKey);
 
     return ok({
-      // Rahmen minus Verteiltes. Stand hier nur `-verteilt` — der Wert wurde von
-      // keiner Fläche gelesen (die UI nimmt `pot.remaining` aus `loadArtEpicBudget`),
-      // war aber falsch, sobald jemand ihn benutzt hätte.
-      result: {
-        remaining: pot - after.reduce((s, a) => s + Number(a.amount), 0),
-      },
+      result: { remaining: after.remaining },
       audit: {
         action: "art.epic_allocation.set" as const,
         resourceType: "art" as const,
@@ -222,6 +230,15 @@ export interface SaveArtEpicAllocationsInput {
   artId: string;
   cycleKey: string;
   amounts: { epicId: string; amount: number; ask: number }[];
+  /**
+   * Was das ART von seinem Rahmen für **eigene Arbeit ohne Epic** reserviert —
+   * genau ein Betrag, keine Liste. Fehlt das Feld, bleibt eine bestehende
+   * Reservierung unangetastet; `amount: 0` löscht sie.
+   *
+   * `ask` ist der Richtwert, der beim ersten Reservieren einfriert: er kommt
+   * aus Feature-Last × €-Satz und wanderte sonst mit jeder neuen Lieferung.
+   */
+  ownWork?: { amount: number; ask: number } | undefined;
 }
 
 /**
@@ -235,6 +252,10 @@ export interface SaveArtEpicAllocationsInput {
  *
  * Die Einzelfunktion bleibt: sie trägt die Rechte- und Fenster-Prüfung, und die
  * Actions-Schicht ruft für einen einzelnen Betrag weiterhin sie.
+ *
+ * **Seit 2026-09-19 gehört die Reservierung für ART-eigene Arbeit dazu.** Sie
+ * ist keine Epic-Zeile, zehrt aber denselben Rahmen auf — deshalb derselbe
+ * Aufruf, derselbe Deckel, dieselbe Transaktion.
  */
 export async function saveArtEpicAllocations(
   ctx: RequestContext,
@@ -273,11 +294,30 @@ export async function saveArtEpicAllocations(
     if (denied) return err({ kind: "forbidden" as const, reason: denied });
 
     const pot = (await loadArtEpicBudget(tx, mctx.tenantId, input.artId, input.cycleKey)).total;
-    const sum = input.amounts.reduce((s, a) => s + a.amount, 0);
+
+    /**
+     * **Ein Deckel für beides.** Epic-Zuteilungen und die Reservierung für
+     * ART-eigene Arbeit zehren denselben Rahmen auf; getrennt geprüft liesse
+     * sich er zweimal ausschöpfen.
+     *
+     * Ist `ownWork` nicht mitgeschickt, zählt die **bestehende** Reservierung
+     * mit — sonst liesse ein Formular ohne das Feld sie stillschweigend
+     * überbuchen.
+     */
+    const bestehend = await tx.artOwnWorkAllocation.findFirst({
+      where: { tenantId: mctx.tenantId, artId: input.artId, cycleKey: input.cycleKey },
+      select: { id: true, amount: true },
+    });
+    const ownWorkAmount = input.ownWork?.amount ?? (bestehend ? Number(bestehend.amount) : 0);
+    if (!Number.isFinite(ownWorkAmount) || ownWorkAmount < 0) {
+      return err({ kind: "conflict" as const, reason: "Betrag muss eine Zahl ≥ 0 sein." });
+    }
+
+    const sum = input.amounts.reduce((s, a) => s + a.amount, 0) + ownWorkAmount;
     if (sum > pot) {
       return err({
         kind: "conflict" as const,
-        reason: `Die Summe überschreitet das ART-Epic-Budget um ${Math.round(sum - pot)} €.`,
+        reason: `Die Summe überschreitet den ART-Rahmen um ${Math.round(sum - pot)} €.`,
       });
     }
 
@@ -318,6 +358,35 @@ export async function saveArtEpicAllocations(
         amount: a.amount,
         actorId: mctx.actorId,
       });
+    }
+
+    /**
+     * Die Reservierung — **ohne** `mergeEpicAllocation`. Das schreibt die
+     * Zyklus-Karte eines Epics fort; hier gibt es keins. Sie taucht deshalb in
+     * keiner Epic-Sicht auf, und das ist richtig: sie finanziert Arbeit, die an
+     * keinem Vorhaben hängt.
+     */
+    if (input.ownWork != null) {
+      if (input.ownWork.amount === 0) {
+        if (bestehend) await tx.artOwnWorkAllocation.delete({ where: { id: bestehend.id } });
+      } else if (bestehend) {
+        await tx.artOwnWorkAllocation.update({
+          where: { id: bestehend.id },
+          data: { amount: input.ownWork.amount, updatedBy: mctx.actorId },
+        });
+      } else {
+        await tx.artOwnWorkAllocation.create({
+          data: {
+            tenantId: mctx.tenantId,
+            artId: input.artId,
+            cycleKey: input.cycleKey,
+            amount: input.ownWork.amount,
+            ask: input.ownWork.ask,
+            createdBy: mctx.actorId,
+            updatedBy: mctx.actorId,
+          },
+        });
+      }
     }
 
     return ok({

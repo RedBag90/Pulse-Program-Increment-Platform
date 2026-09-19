@@ -129,10 +129,10 @@ export async function listMyArtFundingTasks(
       cycleKey,
       cycleLabel: halfYearLabel(cycleKey),
       remaining: budgets.get(artId)?.remaining ?? 0,
-      // Direkt an die aufgeklappte Zeile im Reiter „Betrieb" — die alte Route
+      // Direkt in den Reiter dieses ARTs — die alte Route
       // `/budgeting/arts/<id>?tab=verteilen` leitet zwar dorthin um, aber eine
       // Aufgabenliste soll nicht über einen Umweg zeigen.
-      href: `/budgeting/value-streams/${art.valueStreamId}?tab=betrieb&cycle=${cycleKey}&art=${artId}`,
+      href: `/budgeting/value-streams/${art.valueStreamId}?tab=art:${artId}&cycle=${cycleKey}`,
     }))
     .filter((t) => t.remaining > 0);
 }

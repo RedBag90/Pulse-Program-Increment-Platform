@@ -24,8 +24,6 @@ import {
   parseHalfYearKey,
   addHalfYears,
   buildHalfYearAxis,
-  addMonths,
-  MONTH_LABELS_DE,
   type HalfYearAxis,
 } from "@/modules/core/kernel/domain/calendar";
 import type { PeriodAmounts } from "@/modules/budgeting/domain/period-map";
@@ -217,22 +215,9 @@ export function computeDisplayPeriods(snapshot: {
   return periodsFromKeys(keys).map((p) => ({ ...p, isCurrent: p.key === snapshot.cycleKey }));
 }
 
-/**
- * Die sechs Monate eines Halbjahres, ab seinem ersten Tag.
- *
- * Lag als handgeschriebene Achse samt eigener Monatsnamen-Liste in
- * `art-budget-detail.ts` — eine von neun Stellen, die eine Zeitachse bauten,
- * und die einzige, die ihre Beschriftungen selbst mitbrachte.
+/*
+ * Hier stand `monthsOfCycle` — die sechs Monate eines Halbjahres als Achse.
+ * Einziger Nutzer war der Monatsverlauf der Budget-Flächen; mit ihm ist sie
+ * entfallen. Wer wieder eine Monatsachse braucht, baut sie hier, nicht in
+ * seiner Fläche: das war der Grund, aus dem sie einmal hierher gehoben wurde.
  */
-export function monthsOfCycle(cycleKey: string): { key: string; label: string; date: Date }[] {
-  const start = parseHalfYearKey(cycleKey);
-  if (!start) return [];
-  return Array.from({ length: 6 }, (_, i) => {
-    const date = addMonths(start, i);
-    return {
-      key: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`,
-      label: MONTH_LABELS_DE[date.getUTCMonth()]!,
-      date,
-    };
-  });
-}

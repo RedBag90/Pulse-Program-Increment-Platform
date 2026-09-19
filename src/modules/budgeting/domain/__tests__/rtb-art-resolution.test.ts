@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   resolveRtbToArts,
   resolvedTotal,
+  pathTotal,
   type ResolvableRtbPosition,
 } from "@/modules/budgeting/domain/rtb-art-resolution";
 
@@ -102,5 +103,38 @@ describe("resolveRtbToArts", () => {
     );
     expect(r.byArt).toEqual({ [A1]: 30, [A2]: 40 });
     expect(r.unresolved).toEqual([{ id: "luecke", amount: 5, reason: "solutionWithoutArt" }]);
+  });
+
+  /**
+   * **Der Weg ist die Aussage, nicht die Summe.** Bei A1 stehen dieselben 30 €
+   * einmal als „zugeordnet" (10 €) und einmal als „geschätzt" (20 €) da; wer
+   * nur die Summe sieht, hält beides für gleich belastbar. Der Business Case
+   * weist sie deshalb getrennt aus.
+   */
+  it("gibt je ART aus, auf welchem Weg das Geld kam", () => {
+    const r = resolveRtbToArts(
+      [
+        pos({ id: "direkt", artId: A1, amount: 10 }),
+        pos({ id: "solution", solutionId: "s1", amount: 20 }),
+        pos({ id: "strom", amount: 40 }),
+      ],
+      { s1: A2 },
+      STREAM,
+    );
+    expect(r.byPath).toEqual({
+      [A1]: { direct: 10, viaSolution: 0, keyed: 20 },
+      [A2]: { direct: 0, viaSolution: 20, keyed: 20 },
+    });
+  });
+
+  it("hält `byArt` und `byPath` zusammen — die Summe ist abgeleitet", () => {
+    const r = resolveRtbToArts(
+      [pos({ artId: A1, amount: 7 }), pos({ id: "s", solutionId: "s1", amount: 13 })],
+      { s1: A1 },
+      STREAM,
+    );
+    for (const [artId, betrag] of Object.entries(r.byArt)) {
+      expect(betrag).toBe(pathTotal(r.byPath[artId]!));
+    }
   });
 });

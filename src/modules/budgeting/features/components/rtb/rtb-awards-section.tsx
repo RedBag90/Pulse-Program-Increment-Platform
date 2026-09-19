@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { saveRtbAwardsAction } from "@/modules/budgeting/features/actions/rtb";
+import { Link } from "@/i18n/navigation";
 import { formatEUR } from "@/lib/formatting";
 import { SectionCard } from "@/components/ui/section-card";
 import { RTB_KIND_LABELS, rtbKindOrDefault } from "@/modules/budgeting/domain/rtb-kind";
@@ -19,10 +20,13 @@ export function RtbAwardsSection({
   valueStreamId,
   view,
   canManage,
+  setupHref,
 }: {
   valueStreamId: string;
   view: RtbAwardView;
   canManage: boolean;
+  /** Wohin man geht, wenn es noch keine Position gibt — der Reiter „Einrichten". */
+  setupHref: string;
 }) {
   const [state, action, pending] = useActionState(saveRtbAwardsAction, {});
   const [draft, setDraft] = useState<Record<string, string>>(() =>
@@ -34,11 +38,30 @@ export function RtbAwardsSection({
   const rest = awarded - assigned;
   const editable = canManage && view.awarded != null && view.closedReason == null;
 
-  if (view.rows.length === 0) return null;
+  /**
+   * **Die Schiene bleibt, der Knopf geht** (REQ-12). Hier stand `return null` —
+   * und damit sah ein Wertstrom ohne Positionen genauso aus wie einer, dessen
+   * Aufteilung erledigt ist: gar nicht. Die Karte bleibt der Ort, an dem
+   * aufgeteilt wird, und sagt, was dafür fehlt.
+   */
+  if (view.rows.length === 0) {
+    return (
+      <SectionCard title={`Zuspruch aufteilen · ${view.cycleKey}`} step={4}>
+        <p className="text-sm text-muted-foreground">
+          Dieser Wertstrom hat keine aktive Position — es gibt nichts, worauf sich ein Zuspruch
+          aufteilen liesse.{" "}
+          <Link href={setupHref} className="text-primary hover:underline">
+            Positionen einrichten →
+          </Link>
+        </p>
+      </SectionCard>
+    );
+  }
 
   return (
     <SectionCard
       title={`Zuspruch aufteilen · ${view.cycleKey}`}
+      step={4}
       description="Die Runde spricht dem Wertstrom eine Summe zu; wie sie sich auf Betrieb und die ART-Rahmen der ARTs verteilt, entscheidet er hier. Aus den Rahmen entsteht der Rahmen, den ein ART auf seine ART-Epics verteilen darf."
       contentClassName="space-y-3"
     >

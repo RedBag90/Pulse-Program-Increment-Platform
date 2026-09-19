@@ -82,6 +82,7 @@ model Tenant {
   epicSolutions         EpicSolution[]
   guardrailTargetRows   ValueStreamGuardrailTargets[]
   artEpicAllocations    ArtEpicAllocation[]
+  artOwnWorkAllocations ArtOwnWorkAllocation[]
 
   @@index([status])
   @@map("tenants")
@@ -644,16 +645,17 @@ model Art {
   createdAt       DateTime  @default(now()) @map("created_at")
   deletedAt       DateTime? @map("deleted_at")
 
-  tenant          Tenant               @relation(fields: [tenantId], references: [id])
-  valueStream     ValueStream          @relation(fields: [valueStreamId], references: [id])
-  timeline        Timeline?            @relation(fields: [timelineId], references: [id], onDelete: SetNull)
-  pis             ProgramIncrement[]
-  features        Initiative[]         @relation("FeatureArt")
-  issues          Issue[]
-  goalLinks       GoalArtLink[]
-  solutions       Solution[]
-  rtbItems        RunTheBusinessItem[]
-  epicAllocations ArtEpicAllocation[]
+  tenant             Tenant                 @relation(fields: [tenantId], references: [id])
+  valueStream        ValueStream            @relation(fields: [valueStreamId], references: [id])
+  timeline           Timeline?              @relation(fields: [timelineId], references: [id], onDelete: SetNull)
+  pis                ProgramIncrement[]
+  features           Initiative[]           @relation("FeatureArt")
+  issues             Issue[]
+  goalLinks          GoalArtLink[]
+  solutions          Solution[]
+  rtbItems           RunTheBusinessItem[]
+  epicAllocations    ArtEpicAllocation[]
+  ownWorkAllocations ArtOwnWorkAllocation[]
 
   // Active-row uniqueness via a partial unique index (see prisma/manual-indexes.sql).
   @@index([timelineId])
@@ -691,17 +693,17 @@ model Solution {
   updatedBy        String    @map("updated_by") @db.Uuid
   deletedAt        DateTime? @map("deleted_at")
 
-  tenant         Tenant               @relation(fields: [tenantId], references: [id])
-  valueStream    ValueStream          @relation(fields: [valueStreamId], references: [id])
+  tenant               Tenant               @relation(fields: [tenantId], references: [id])
+  valueStream          ValueStream          @relation(fields: [valueStreamId], references: [id])
   /// `Restrict`, nicht `SetNull`: letzteres setzte die Pflichtspalte beim harten
   /// Löschen eines ARTs auf NULL und verletzte die Bedingung im selben Atemzug.
   /// Das übliche Löschen im Haus ist weich (`deletedAt`).
-  art            Art                  @relation(fields: [artId], references: [id], onDelete: Restrict)
-  epicLinks      EpicSolution[]
-  primaryOfInitiatives Initiative[]   @relation("InitiativePrimarySolution")
+  art                  Art                  @relation(fields: [artId], references: [id], onDelete: Restrict)
+  epicLinks            EpicSolution[]
+  primaryOfInitiatives Initiative[]         @relation("InitiativePrimarySolution")
   /// Betriebskosten dieser Solution — die **eine** Run-the-Business-Definition
   /// (Modul Budgeting). Grow wird weiterhin aus den Primär-Epics abgeleitet.
-  rtbItems       RunTheBusinessItem[]
+  rtbItems             RunTheBusinessItem[]
 
   @@index([tenantId, valueStreamId])
   @@index([tenantId, horizon])
@@ -1172,11 +1174,11 @@ model Kpi {
 /// für Epics, die erst eine Benefit-Hypothese hatten — damit budgetierte das
 /// Portfolio die Erarbeitung des Business Case selbst. Der Weg ist entfallen.
 model BudgetAllocation {
-  id               String   @id @default(uuid()) @db.Uuid
-  tenantId         String   @map("tenant_id") @db.Uuid
-  epicId           String   @unique @map("epic_id") @db.Uuid
-  priority         Int      @default(0)
-  allocations      Json     @default("{}")
+  id          String @id @default(uuid()) @db.Uuid
+  tenantId    String @map("tenant_id") @db.Uuid
+  epicId      String @unique @map("epic_id") @db.Uuid
+  priority    Int    @default(0)
+  allocations Json   @default("{}")
 
   createdAt DateTime @default(now()) @map("created_at")
   createdBy String   @map("created_by") @db.Uuid
@@ -1865,4 +1867,44 @@ model ArtEpicAllocation {
   @@index([tenantId, cycleKey])
   @@index([tenantId, artId, cycleKey])
   @@map("art_epic_allocations")
+}
+
+/// Was ein ART von seinem Rahmen für **eigene Arbeit ohne Epic** reserviert —
+/// genau ein Betrag je ART und Halbjahr.
+///
+/// Der ART-Rahmen finanziert alles, was das ART tut; bis hierhin liess sich nur
+/// an ART-Epics verteilen, und „noch zu verteilen" behauptete deshalb mehr
+/// Freiheit, als da war. Einzelne Features zu budgetieren ist ausgeschlossen —
+/// deshalb eine Zeile, keine Liste.
+///
+/// **Eigene Tabelle statt `epic_id = NULL` in `art_epic_allocations`:** dort
+/// hängt ein Fremdschlüssel dran und ein `unique(art_id, epic_id, cycle_key)`,
+/// das mit NULL nicht mehr greift. Beides hätte jede bestehende Abfrage um
+/// einen Sonderfall erweitert.
+///
+/// **Kein Eintrag in `budget_allocations`:** die Epic-Zuteilung schreibt dort
+/// zusätzlich fort — dafür braucht es ein Epic. Diese Reservierung hat keins
+/// und taucht deshalb in keiner Epic-Sicht auf.
+model ArtOwnWorkAllocation {
+  id       String  @id @default(uuid()) @db.Uuid
+  tenantId String  @map("tenant_id") @db.Uuid
+  artId    String  @map("art_id") @db.Uuid
+  /// Halbjahr der Reservierung, "YYYY-H1" | "YYYY-H2".
+  cycleKey String  @map("cycle_key")
+  amount   Decimal @default(0) @db.Decimal(14, 2)
+  /// Richtwert, eingefroren beim ersten Reservieren — wie bei `ArtEpicAllocation`.
+  /// Er kommt aus Feature-Last × €-Satz und wandert sonst mit jedem Satz.
+  ask      Decimal @default(0) @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String   @map("updated_by") @db.Uuid
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  art    Art    @relation(fields: [artId], references: [id], onDelete: Cascade)
+
+  @@unique([artId, cycleKey])
+  @@index([tenantId, cycleKey])
+  @@map("art_own_work_allocations")
 }

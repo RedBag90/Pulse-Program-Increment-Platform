@@ -76,7 +76,7 @@ async function budgetOfSeedArt(): Promise<{ total: number; distributed: number }
 }
 
 describe("loadArtEpicBudgets — gegen eine echte Datenbank", () => {
-  it("zählt eine aktive ART-Epic-Budget-Position", async () => {
+  it("zählt eine aktive ART-Rahmen-Position", async () => {
     await givePosition({ kind: "art_change", active: true, awarded: 100_000 });
     expect((await budgetOfSeedArt()).total).toBe(100_000);
   });

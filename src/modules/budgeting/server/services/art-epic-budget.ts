@@ -10,12 +10,13 @@
  * jede Schleife kostete zwei bis drei Abfragen **je ART**. Der Einzelfall ist
  * hier der Sonderfall der Menge, nicht umgekehrt.
  *
- * Zwei Abfragen, unabhängig davon, wie viele ARTs gefragt werden:
+ * Drei Abfragen, unabhängig davon, wie viele ARTs gefragt werden:
  *
  *  1. die Awards der **aktiven** `art_change`-Positionen dieser ARTs im Zyklus
  *     — der Filter über die Relation, damit die Positionen nicht erst einzeln
  *     geholt werden müssen;
- *  2. die Zuteilungen dieser ARTs im Zyklus.
+ *  2. die Zuteilungen dieser ARTs im Zyklus;
+ *  3. ihre Reservierungen für ART-eigene Arbeit ohne Epic.
  *
  * Vorher stand die Rechnung *zugesprochen − verteilt = Rest* an **vier**
  * Stellen: hier, im Leitfaden, in den offenen Aufgaben und noch einmal inline
@@ -36,12 +37,21 @@ import { readRtbItems, readRtbAwards } from "@/modules/budgeting/server/services
 /** Der Ausschnitt des Clients, den dieses Modul braucht — auch ein `tx` erfüllt ihn. */
 export type BudgetReader = Pick<
   PrismaClient,
-  "rtbItemAward" | "artEpicAllocation" | "runTheBusinessItem"
+  "rtbItemAward" | "artEpicAllocation" | "artOwnWorkAllocation" | "runTheBusinessItem"
 >;
 
 /** Ein ART ohne Budget — damit Aufrufer nicht auf `undefined` prüfen müssen. */
 function empty(artId: string, cycleKey: string, closedReason: string | null): ArtEpicBudget {
-  return { artId, cycleKey, total: 0, distributed: 0, remaining: 0, closedReason };
+  return {
+    artId,
+    cycleKey,
+    total: 0,
+    distributed: 0,
+    distributedToEpics: 0,
+    distributedToOwnWork: 0,
+    remaining: 0,
+    closedReason,
+  };
 }
 
 /**
@@ -80,10 +90,18 @@ export async function loadArtEpicBudgets(
   // Schreibvorgang derselben Transaktion bekäme den Stand von vorher. Beide
   // Schreibwege rufen genau einmal, vor ihrem Schreibvorgang. Wer das ändert,
   // ändert einen Geld-Deckel — deshalb steht es hier.
-  const [items, awards, allocations] = await Promise.all([
+  const [items, awards, allocations, ownWork] = await Promise.all([
     readRtbItems(db, tenantId),
     readRtbAwards(db, tenantId),
     db.artEpicAllocation.findMany({
+      where: { tenantId, cycleKey, artId: { in: [...ids] } },
+      select: { artId: true, amount: true },
+    }),
+    // Die Reservierung für ART-eigene Arbeit zehrt denselben Rahmen auf. Sie
+    // gehört deshalb hierher und nicht in die Fläche: `remaining` speist die
+    // Reiterschiene, die Kette und die Inbox — alle drei sollen dieselbe Zahl
+    // sehen.
+    db.artOwnWorkAllocation.findMany({
       where: { tenantId, cycleKey, artId: { in: [...ids] } },
       select: { artId: true, amount: true },
     }),
@@ -104,9 +122,16 @@ export async function loadArtEpicBudgets(
   }
   for (const a of allocations) {
     const row = out.get(a.artId);
-    if (row) row.distributed += Number(a.amount);
+    if (row) row.distributedToEpics += Number(a.amount);
   }
-  for (const row of out.values()) row.remaining = row.total - row.distributed;
+  for (const a of ownWork) {
+    const row = out.get(a.artId);
+    if (row) row.distributedToOwnWork += Number(a.amount);
+  }
+  for (const row of out.values()) {
+    row.distributed = row.distributedToEpics + row.distributedToOwnWork;
+    row.remaining = row.total - row.distributed;
+  }
 
   return out;
 }

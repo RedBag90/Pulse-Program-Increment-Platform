@@ -21,12 +21,25 @@ import { SectionLabel } from "@/components/ui/section-label";
  * Überschrift. Genau so machen es die dreizehn Portfolio-Blöcke, und genau
  * daran erkennt man auf einer dichten Zahlenfläche, wo ein Abschnitt beginnt.
  *
+ * **Zwei Sorten, ohne Lesen unterscheidbar** (`art-budget-process-layout.md`
+ * REQ-3). Eine Fläche aus lauter gleichen Karten ist keine Gliederung: sie
+ * tilgt den Unterschied zwischen *hier tue ich etwas* und *hier sehe ich nach*.
+ * Deshalb trägt eine **Arbeitsfläche** eine linke Akzentschiene, die Nummer
+ * ihres Prozessschritts und ihre Aktion; ein **Nachschlagewerk** trägt nichts
+ * davon und bleibt still.
+ *
+ * Die Schiene ist mit ADR-0021 vereinbar: `border-l-*` ist dort ausdrücklich
+ * als **Akzentschiene** erlaubt und vom `HAND_CARD`-Wächter ausgenommen —
+ * verboten ist nur der `border` als Kartenumriss.
+ *
  * Server-Komponente: keine Hooks, damit sie Server-Inhalt umschließen kann.
  */
 export function SectionCard({
   title,
   description,
   action,
+  step,
+  work = false,
   bleed = false,
   className,
   contentClassName,
@@ -39,6 +52,21 @@ export function SectionCard({
   /** Knopf oder Link rechts im Kopf. */
   action?: ReactNode;
   /**
+   * Nummer des Prozessschritts, den diese Fläche bedient — erscheint als
+   * „Schritt n ·" vor dem Titel und macht die Fläche zur **Arbeitsfläche**.
+   *
+   * Die Nummer ist dieselbe wie in der Finanzierungsleiste
+   * (`art-funding-phases.ts`). Damit muss man nichts lesen, um sich zu
+   * orientieren — man gleicht die Nummer mit der Leiste ab.
+   */
+  step?: number;
+  /**
+   * Arbeitsfläche **ohne** Schrittnummer — für Handlungen ausserhalb einer
+   * Kette. `step` setzt das implizit; beides zugleich ist erlaubt und meint
+   * dasselbe.
+   */
+  work?: boolean;
+  /**
    * Inhalt bis an die Kartenkante — für breite Zahlentabellen, die sonst 32 px
    * Breite an das Kartenpolster verlieren.
    */
@@ -47,10 +75,17 @@ export function SectionCard({
   contentClassName?: string;
   children: ReactNode;
 }) {
+  const isWork = work || step != null;
   return (
-    <Card size="sm" className={className}>
+    <Card
+      size="sm"
+      className={`${isWork ? "border-l-2 border-l-primary" : ""} ${className ?? ""}`.trim()}
+    >
       <CardHeader>
-        <SectionLabel>{title}</SectionLabel>
+        <SectionLabel>
+          {step != null && <span className="text-primary">Schritt {step} · </span>}
+          {title}
+        </SectionLabel>
         {description != null && (
           <CardDescription className="text-xs">{description}</CardDescription>
         )}

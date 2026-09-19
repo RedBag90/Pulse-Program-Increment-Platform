@@ -56,13 +56,22 @@ export async function listRtbItems(
 }
 
 /**
- * Ein ART-Epic-Budget braucht einen ART, und der muss zu diesem Wertstrom
- * gehören.
+ * **Zwei Regeln, die lange eine waren.**
  *
- * Ohne ART hätte das Budget niemanden, der es verteilen darf — `loadArtEpicBudget`
- * gruppiert die Awards nach `artId`, eine Position ohne ART fiele lautlos aus
- * jeder Sicht. Und ein ART aus einem fremden Wertstrom bekäme Geld aus einem
- * Zuspruch, der ihm nicht gilt.
+ * 1. **Ein ART-Rahmen braucht einen ART** — ohne ihn hätte er niemanden, der
+ *    ihn verteilen darf: `loadArtEpicBudget` gruppiert die Zusprüche nach
+ *    `artId`, eine Position ohne ART fiele lautlos aus jeder Sicht. Gilt nur
+ *    für `art_change`.
+ * 2. **Ein gesetzter ART muss zu diesem Wertstrom gehören** — sonst bekäme ein
+ *    fremder ART Geld aus einem Zuspruch, der ihm nicht gilt. Gilt **für jede
+ *    Art**.
+ *
+ * Regel 2 stand bis 2026-09-19 hinter Regel 1 und lief deshalb nur für den
+ * Rahmen. Folgenlos war das, solange das Formular an Betriebspositionen gar
+ * keinen ART anbot; mit dem freigegebenen Feld wäre es eine stille Lücke
+ * geworden — `resolveRtbToArts` übergeht einen fremden ART (Weg 1 verlangt
+ * `known.has(artId)`), das Geld fiele aus **jeder** Gruppe, ohne dass es
+ * jemand meldet.
  *
  * `null` = in Ordnung.
  */
@@ -73,12 +82,16 @@ async function assertArtFits(
   kind: string,
   artId: string | null,
 ): Promise<Result<never> | null> {
-  if (!isChangeKind(kind)) return null;
-  if (artId == null)
-    return err({
-      kind: "conflict" as const,
-      reason: "Ein ART-Epic-Budget braucht den ART, für den es reserviert wird.",
-    });
+  if (artId == null) {
+    return isChangeKind(kind)
+      ? err({
+          kind: "conflict" as const,
+          reason: "Ein ART-Rahmen braucht den ART, für den er reserviert wird.",
+        })
+      : // Betrieb ohne ART ist der Normalfall: die Position wird dann über ihre
+        // Solution aufgelöst oder gleichmässig geschlüsselt.
+        null;
+  }
   const art = await tx.art.findFirst({
     where: { id: artId, tenantId, valueStreamId },
     select: { id: true },

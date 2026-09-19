@@ -1,21 +1,20 @@
 /**
- * Die Epics hinter den Kandidaten, samt rekonstruierter Reifegrad-Historie.
+ * Die Epics hinter den Kandidaten — Titel, Reifegrad, ART, Abschluss.
  *
- * Eigene Datei, weil zwei Sichten sie brauchen: die ART-Budgetfläche und der
- * Wertstrom-Verlauf. Vorher lag sie in der ART-Sicht, und der Wertstrom
- * importierte quer hinein.
+ * Eigene Datei, weil zwei Sichten sie brauchten: die ART-Budgetfläche und der
+ * Wertstrom-Verlauf. Den Verlauf gibt es seit dem 19.09.2026 nicht mehr; die
+ * Datei bleibt trotzdem, weil sie ein Vorgang ist und kein Seitenmodell (der
+ * Ordner `views/` trägt Lader **plus** Falter — hier fehlt der Falter).
  *
- * Lag bis September 2026 in `server/views/`. Die Epics hinter den Kandidaten — ein Ladevorgang, den zwei Sichten teilen. Der Ordner `views/`
- * trägt Seitenmodelle — impurer Loader **plus** reiner Falter; wo der Falter
- * fehlt, ist es ein Vorgang und gehört zu den Services.
+ * **Sie lud bis dahin die Reifegrad-Historie mit:** acht zusätzliche Spalten
+ * je Epic samt dem JSON-Feld `timeline`, aus denen `buildEpicStageTimeline`
+ * rekonstruierte, in welchem Zustand ein Epic in einem gegebenen Monat stand.
+ * Gelesen hat das ausschliesslich der Verlauf. Mit ihm ist es entfallen — und
+ * damit die einzige Stelle, an der Budgeting die Historie aus Work zog.
  */
 
 import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel, type TenantId } from "@/modules/core/kernel/domain/types";
-import {
-  buildEpicStageTimeline,
-  type StageTransition,
-} from "@/modules/work/domain/epic-stage-timeline";
 
 export interface CandidateRow {
   epicId: string;
@@ -34,11 +33,9 @@ export interface EpicRow {
   stageGate: string;
   artId: string | null;
   implementationCompletedAt: Date | null;
-  /** Reifegrad-Verlauf, sofern geladen — sonst bleibt der Kurs leer. */
-  stageTimeline?: StageTransition[] | undefined;
 }
 
-/** Lädt die Epics der Kandidaten samt rekonstruierter Reifegrad-Historie. */
+/** Lädt die Epics der Kandidaten. */
 export async function loadEpicRows(
   db: PrismaClient,
   tenantId: TenantId,
@@ -51,41 +48,16 @@ export async function loadEpicRows(
       deletedAt: null,
       id: { in: [...new Set(candidates.map((c) => c.epicId))] },
     },
+    // Fünf Spalten. Die Zustandsstaffel braucht den Reifegrad und den
+    // L4.2-Stempel, die Fläche den Titel, die Abweichungs-Anmerkung den ART.
     select: {
       id: true,
       title: true,
       stageGate: true,
       artId: true,
       implementationCompletedAt: true,
-      // Reifegrad-Historie: aus diesen Stempeln rekonstruiert `buildEpicStageTimeline`,
-      // in welchem Zustand das Epic in einem gegebenen Monat stand.
-      createdAt: true,
-      selectedForDetailingAt: true,
-      hypothesisApprovedAt: true,
-      selectedForAnalyzingAt: true,
-      businessCaseApprovedAt: true,
-      implementationStartedAt: true,
-      impactRecognizedAt: true,
-      timeline: true,
     },
   });
 
-  const iso = (d: Date | null): string | null => (d == null ? null : d.toISOString());
-  return rows.map((e) => ({
-    id: e.id,
-    title: e.title,
-    stageGate: e.stageGate,
-    artId: e.artId,
-    implementationCompletedAt: e.implementationCompletedAt,
-    stageTimeline: buildEpicStageTimeline({
-      createdAt: e.createdAt.toISOString(),
-      selectedForDetailingAt: iso(e.selectedForDetailingAt),
-      hypothesisApprovedAt: iso(e.hypothesisApprovedAt),
-      selectedForAnalyzingAt: iso(e.selectedForAnalyzingAt),
-      businessCaseApprovedAt: iso(e.businessCaseApprovedAt),
-      implementationStartedAt: iso(e.implementationStartedAt),
-      impactRecognizedAt: iso(e.impactRecognizedAt),
-      timeline: e.timeline,
-    }),
-  }));
+  return rows;
 }

@@ -131,7 +131,10 @@ const PROBES: Probe[] = [
     },
   },
   {
-    label: "C · /budgeting/value-streams/[id] · Reiter Budget",
+    // Hiess „Reiter Budget", solange es ihn gab; die Fläche heisst jetzt
+    // „Nachsehen" und hat mit dem Verlauf ihre zweite Karte verloren — und
+    // damit die Lesung, die hier den dritten Aufruf ausmachte.
+    label: "C · /budgeting/value-streams/[id] · Reiter Nachsehen",
     run: async (db, c) => {
       const { loadFundingPhases } =
         await import("../../src/modules/budgeting/server/views/art-funding");
@@ -139,15 +142,10 @@ const PROBES: Probe[] = [
         await import("../../src/modules/budgeting/server/services/budgeting");
       const { loadArtGridModel } =
         await import("../../src/modules/budgeting/server/views/art-budget-breakdown");
-      const { loadValueStreamCourse } =
-        await import("../../src/modules/budgeting/server/views/value-stream-course");
       await loadFundingPhases(db, c.tenantId as never, c.valueStreamId, c.cycleKey);
       return Promise.all([
         getValueStreamBudget(db, c.tenantId as never, c.valueStreamId as never),
         loadArtGridModel(db, c.tenantId as never, c.valueStreamId as never),
-        loadValueStreamCourse(db, c.tenantId as never, c.valueStreamId, {
-          cycleKey: c.cycleKey,
-        }),
       ]);
     },
   },

@@ -130,7 +130,7 @@ function assertNotArtEpic(
   return err({
     kind: "conflict" as const,
     reason:
-      `„${epic.title}" ist ein ART-Epic und wird aus dem ART-Epic-Budget seines ARTs ` +
+      `„${epic.title}" ist ein ART-Epic und wird aus dem ART-Rahmen seines ARTs ` +
       "finanziert — es steht deshalb nicht auf der PB-Liste.",
   });
 }

@@ -11,6 +11,8 @@ const pot = (over: Partial<ArtEpicBudget> = {}): ArtEpicBudget => ({
   cycleKey: "2026-H2",
   total: 100_000,
   distributed: 80_000,
+  distributedToEpics: 80_000,
+  distributedToOwnWork: 0,
   remaining: 20_000,
   closedReason: null,
   ...over,

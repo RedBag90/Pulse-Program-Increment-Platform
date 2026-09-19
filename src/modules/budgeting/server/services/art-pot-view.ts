@@ -14,7 +14,10 @@
 import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel, type TenantId } from "@/modules/core/kernel/domain/types";
 import { classifyEpic } from "@/modules/work/domain/pb-submission";
-import { mayDistributeToEpic } from "@/modules/budgeting/domain/budget-access";
+import {
+  mayDistributeToEpic,
+  mayDistributeToOwnWork,
+} from "@/modules/budgeting/domain/budget-access";
 import { summarizeAllocations } from "@/modules/budgeting/domain/allocation-state";
 import { loadArtEpicAllocations } from "@/modules/budgeting/server/services/art-pot";
 import { loadArtEpicBudget } from "@/modules/budgeting/server/services/art-epic-budget";
@@ -51,9 +54,13 @@ export async function loadArtEpicBudgetView(
   now: Date = new Date(),
   viewer?: ArtPotViewer,
 ): Promise<ArtPotView> {
-  const [pot, allocations, candidates, onPbList] = await Promise.all([
+  const [pot, allocations, ownWork, candidates, onPbList] = await Promise.all([
     loadArtEpicBudget(db, tenantId, art.id, cycleKey, now),
     loadArtEpicAllocations(db, tenantId, art.id, cycleKey),
+    db.artOwnWorkAllocation.findFirst({
+      where: { tenantId, artId: art.id, cycleKey },
+      select: { amount: true, ask: true },
+    }),
     db.initiative.findMany({
       where: {
         tenantId,
@@ -140,6 +147,24 @@ export async function loadArtEpicBudgetView(
   return {
     pot,
     rows,
+    /**
+     * **Ein Betrag je ART und Halbjahr** — die Zeile für ART-eigene Arbeit.
+     *
+     * Der Produkt-Manager-Weg fehlt hier bewusst: er verantwortet **eine
+     * Solution**, und die eigenständige Arbeit eines ARTs ist keine. Es bleiben
+     * die drei Wege, die für den ganzen Rahmen gelten.
+     */
+    ownWork: {
+      amount: ownWork == null ? 0 : Number(ownWork.amount),
+      ask: ownWork == null ? 0 : Number(ownWork.ask),
+      canDistribute:
+        viewer != null &&
+        mayDistributeToOwnWork({
+          isValueStreamFinance: viewer.isValueStreamFinance,
+          hasRtbCapability: viewer.hasRtbCapability,
+          hasArtDistributeCapability: viewer.hasArtDistributeCapability,
+        }),
+    },
     breakdown,
     titles: Object.fromEntries(rows.map((r) => [r.epicId, r.title])),
   };

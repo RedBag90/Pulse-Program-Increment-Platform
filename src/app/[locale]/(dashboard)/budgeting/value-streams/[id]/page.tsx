@@ -11,39 +11,92 @@ import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-servi
 import { loadRtbAwards } from "@/modules/budgeting/server/services/rtb-award-service";
 import { loadArtGridModel } from "@/modules/budgeting/server/views/art-budget-breakdown";
 import { loadArtBudgetDetail } from "@/modules/budgeting/server/views/art-budget-detail";
+import { loadArtBusinessCase } from "@/modules/budgeting/server/views/art-business-case";
+import { loadValueStreamRoundResult } from "@/modules/budgeting/server/views/value-stream-round-result";
+import { loadBudgetKpis } from "@/modules/budgeting/server/views/budget-kpis";
 import { artDetailIsEmpty } from "@/modules/budgeting/domain/art-budget-model";
 import { getTenantPractices } from "@/server/services/target-model";
 import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
 import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
 import { getTenantBudgetSettings } from "@/modules/budgeting/server/services/tenant-budget-settings";
-import { loadValueStreamCourse } from "@/modules/budgeting/server/views/value-stream-course";
 import { loadFundingPhases } from "@/modules/budgeting/server/views/art-funding";
 import { RtbSection } from "@/modules/budgeting/features/components/rtb/rtb-section";
 import { RtbAwardsSection } from "@/modules/budgeting/features/components/rtb/rtb-awards-section";
 import { ArtBudgetBreakdown } from "@/modules/budgeting/features/components/art-budget/art-budget-breakdown";
 import { ArtBudgetTab } from "@/modules/budgeting/features/components/art-budget/art-budget-tab";
-import { ArtPotRows } from "@/modules/budgeting/features/components/art-budget/art-pot-rows";
+import { ArtBusinessCase } from "@/modules/budgeting/features/components/art-budget/art-business-case";
+import { RoundResult } from "@/modules/budgeting/features/components/art-budget/round-result";
+import {
+  ArtCoverageCard,
+  StreamCoverageCard,
+} from "@/modules/budgeting/features/components/art-budget/coverage-card";
 import { loadArtEpicBudgets } from "@/modules/budgeting/server/services/art-epic-budget";
 import { readSolutions } from "@/modules/budgeting/server/services/budget-reads";
-import { AllocationCourseChart } from "@/modules/budgeting/features/components/art-budget/allocation-course-chart";
 import { ArtFundingRail } from "@/modules/budgeting/features/components/art-funding-rail";
-import { EntityDetailShell, resolveTab } from "@/components/detail/entity-detail-shell";
+import {
+  EntityDetailShell,
+  resolveTab,
+  type DetailTab,
+} from "@/components/detail/entity-detail-shell";
 import { SectionCard } from "@/components/ui/section-card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { formatCompactEUR } from "@/lib/formatting";
 
 /**
  * Das Budget **eines** Wertstroms — und die Fläche, auf der ein ART-Epic-Budget
  * entsteht.
  *
- * Zwei Reiter: **Budget** ist das Abgeleitete zum Lesen, **Run the Business**
- * trägt die Positionen und die Aufteilung des Zuspruchs. Beide Hälften der
- * Kette liegen damit nebeneinander; vorher erzeugte sie `components/rtb/` und
- * verteilte sie `components/art-budget/` — zwei Ordner auf zwei Seiten.
+ * **Geschnitten nach Prozessschritt und Eigentümer** — nicht nach Geldsorte
+ * (`art-budget-process-layout.md`). Vier Reiter gehören dem Wertstrom
+ * (Einrichten · Dieses Halbjahr · Nachsehen · Budget-KPIs), je einer jedem
+ * sichtbaren ART. Die Schiene bildet damit ab, wer handelt.
+ *
+ * Vorher waren es zwei: **Budget** zum Lesen, **Run the Business** zum
+ * Arbeiten. Das war der Schnitt nach *Modus* — und er legte Navigationskacheln
+ * neben Eingabekacheln, zeitlose Stammdaten unter einen Halbjahr-Umschalter und
+ * drei Zeitbezüge auf eine Fläche. Wer etwas suchte, musste jede Kachel lesen,
+ * um zu erkennen, ob sie etwas von ihm will.
  */
 
-const TABS = [
-  { key: "budget", label: "Budget" },
-  { key: "betrieb", label: "Run the Business" },
-] as const;
+/** Der ART-Reiter trägt seine Id im Schlüssel. */
+const ART_TAB = (artId: string) => `art:${artId}`;
+const artIdOfTab = (key: string) => (key.startsWith("art:") ? key.slice(4) : null);
+
+/**
+ * Die Reiter — **nach Eigentümer, nicht nach Geldsorte**.
+ *
+ * Vier gehören dem Wertstrom, je einer jedem sichtbaren ART. Die Schiene bildet
+ * damit die Handelnden des Prozesses ab: wer den Rahmen anlegt und den Zuspruch
+ * aufteilt, ist der Wertstrom; wer ihn auf Epics verteilt, ist das ART. Genau
+ * dort wechselt auch die Finanzierungskette ihren Handelnden.
+ *
+ * Die Reihenfolge ist die des Prozesses — „Einrichten" zuerst. Der **Landeplatz**
+ * ist ein anderer (`LANDEPLATZ`): wer die Adresse ohne `?tab=` öffnet, kommt, um
+ * zu sehen.
+ */
+const LANDEPLATZ = "nachsehen";
+
+function buildTabs(
+  arts: readonly { id: string; name: string }[],
+  offenJeArt: ReadonlyMap<string, number>,
+): DetailTab[] {
+  return [
+    { key: "einrichten", label: "Einrichten", group: "Wertstrom" },
+    { key: "halbjahr", label: "Dieses Halbjahr", group: "Wertstrom" },
+    { key: LANDEPLATZ, label: "Nachsehen", group: "Wertstrom" },
+    { key: "kpi", label: "Budget-KPIs", group: "Wertstrom" },
+    ...arts.map((a) => {
+      const offen = offenJeArt.get(a.id) ?? 0;
+      return {
+        key: ART_TAB(a.id),
+        label: a.name,
+        group: "ARTs",
+        // Die einzige Zahl in der Navigation — und nur, wenn sie etwas sagt.
+        ...(offen > 0 ? { badge: formatCompactEUR(offen) } : {}),
+      };
+    }),
+  ];
+}
 
 export default async function BudgetingValueStreamPage({
   params,
@@ -76,22 +129,14 @@ export default async function BudgetingValueStreamPage({
    */
   const arts = await db.art.findMany({
     where: { valueStreamId: vs.id, tenantId: principal.tenantId, deletedAt: null },
-    select: { id: true },
+    select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
   const access = await loadValueStreamBudgetAccess(db, principal, vs, arts);
   if (access.deniedReason !== null) notFound();
 
-  /**
-   * **Welche Zeile ist offen** — und darf sie es sein.
-   *
-   * `?art=` kommt aus der Adresszeile, also aus fremder Hand. Ein ART eines
-   * anderen Wertstroms oder eines, dessen Zahlen der Betrachter nicht sehen
-   * darf, wird hier zu „keine Zeile offen" — nicht zu einem Fehler: die
-   * Einsprünge aus Kette und Inbox sollen auch dann auf einer brauchbaren Seite
-   * landen, wenn sich das Recht inzwischen geändert hat.
-   */
-  const expandedArtId = art != null && access.visibleArtIds.has(art) ? art : null;
+  /** Nur ARTs, deren Zahlen der Betrachter sehen darf, bekommen einen Reiter. */
+  const sichtbareArts = arts.filter((a) => access.visibleArtIds.has(a.id));
 
   const canManage =
     vs.financeApproverId === principal.id ||
@@ -101,8 +146,40 @@ export default async function BudgetingValueStreamPage({
     });
 
   const { cycleKey, options: cycles } = resolveCycle(cycle, new Date());
-  const active = resolveTab(TABS, tab);
   const basePath = `/budgeting/value-streams/${vs.id}`;
+
+  /**
+   * Der offene Rahmen je ART — die Zahl neben dem Reiternamen.
+   *
+   * Sie steht in der **Navigation**, also wird sie hier geladen und nicht im
+   * Reiterinhalt: man soll ohne Klick sehen, wo etwas liegt. Über die geteilten
+   * Lader (`budget-reads.ts`) kostet das eine Abfrage.
+   */
+  const rahmen = await loadArtEpicBudgets(
+    db,
+    principal.tenantId as never,
+    sichtbareArts.map((a) => a.id),
+    cycleKey,
+  );
+  const tabs = buildTabs(sichtbareArts, new Map([...rahmen].map(([id, b]) => [id, b.remaining])));
+
+  /**
+   * **Alte Adressen halten.** `?art=` war bis 2026-09-19 der aufgeklappte ART;
+   * jetzt ist er ein Reiter. Kette, Inbox und Lesezeichen zeigen noch darauf —
+   * ein Verweis auf ein sichtbares ART gewinnt deshalb gegen `?tab=`.
+   */
+  const ausAltemArt =
+    art != null && sichtbareArts.some((a) => a.id === art) ? ART_TAB(art) : undefined;
+  const active = resolveTab(tabs, ausAltemArt ?? tab, LANDEPLATZ);
+  const offenerArt = artIdOfTab(active);
+  const offenerArtName = sichtbareArts.find((a) => a.id === offenerArt)?.name ?? "";
+
+  /**
+   * **„Einrichten" trägt keinen Halbjahr-Umschalter.** Was dort steht, gilt über
+   * alle Halbjahre; ein Umschalter behauptete einen Zeitbezug, den es nicht gibt
+   * — und beim Umschalten änderte sich nichts, während alles andere spränge.
+   */
+  const zeigtHalbjahr = active !== "einrichten";
 
   return (
     <EntityDetailShell
@@ -110,32 +187,31 @@ export default async function BudgetingValueStreamPage({
       backLabel="Wertströme"
       title={vs.name}
       badge="Wertstrom"
-      tabs={TABS}
+      tabs={tabs}
       activeTab={active}
       basePath={basePath}
-      // `art` reist mit: sonst fiele die aufgeklappte Zeile beim Reiterwechsel zu.
-      tabQuery={
-        expandedArtId != null ? { cycle: cycleKey, art: expandedArtId } : { cycle: cycleKey }
-      }
+      // Das Halbjahr reist mit — auch nach „Einrichten", wo es niemand sieht:
+      // wer von dort zurückkommt, soll dasselbe Halbjahr vorfinden.
+      tabQuery={{ cycle: cycleKey }}
       headerActions={
-        <nav className="flex items-center gap-1" aria-label="Halbjahr">
-          {cycles.map((c) => (
-            <Link
-              key={c.key}
-              href={`${basePath}?tab=${active}&cycle=${c.key}${
-                expandedArtId != null ? `&art=${expandedArtId}` : ""
-              }`}
-              aria-current={c.key === cycleKey ? "page" : undefined}
-              className={`rounded-md border px-2.5 py-1 text-sm ${
-                c.key === cycleKey
-                  ? "border-primary bg-primary/10 font-medium text-primary"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              {c.label}
-            </Link>
-          ))}
-        </nav>
+        zeigtHalbjahr ? (
+          <nav className="flex items-center gap-1" aria-label="Halbjahr">
+            {cycles.map((c) => (
+              <Link
+                key={c.key}
+                href={`${basePath}?tab=${active}&cycle=${c.key}`}
+                aria-current={c.key === cycleKey ? "page" : undefined}
+                className={`rounded-md border px-2.5 py-1 text-sm ${
+                  c.key === cycleKey
+                    ? "border-primary bg-primary/10 font-medium text-primary"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {c.label}
+              </Link>
+            ))}
+          </nav>
+        ) : undefined
       }
       subHeader={
         // Eigene Insel: der Leitfaden braucht sechs Abfragen, die niemand sonst
@@ -147,31 +223,52 @@ export default async function BudgetingValueStreamPage({
             tenantId={principal.tenantId}
             vsId={vs.id}
             cycleKey={cycleKey}
-            focusArtId={expandedArtId}
+            focusArtId={offenerArt}
           />
         </Suspense>
       }
     >
-      {active === "budget" ? (
-        <BudgetTab
+      {offenerArt != null ? (
+        <Suspense fallback={<PanelSkeleton />}>
+          <ArtTab
+            db={db}
+            principal={principal}
+            vs={vs}
+            artId={offenerArt}
+            artName={offenerArtName}
+            cycleKey={cycleKey}
+            basePath={basePath}
+          />
+        </Suspense>
+      ) : active === "einrichten" ? (
+        <SetupTab db={db} principal={principal} vs={vs} canManage={canManage} />
+      ) : active === "halbjahr" ? (
+        <CycleTab
           db={db}
           principal={principal}
           vs={vs}
           cycleKey={cycleKey}
+          arts={sichtbareArts}
           basePath={basePath}
-          expandedArtId={expandedArtId}
-          access={access}
+          canManage={canManage}
+        />
+      ) : active === "kpi" ? (
+        <KpiTab
+          db={db}
+          principal={principal}
+          arts={sichtbareArts}
+          cycleKey={cycleKey}
+          vsName={vs.name}
+          showTotals={access.showTotals}
         />
       ) : (
-        <OperationsTab
+        <ReviewTab
           db={db}
           principal={principal}
           vs={vs}
           cycleKey={cycleKey}
           basePath={basePath}
-          expandedArtId={expandedArtId}
           access={access}
-          canManage={canManage}
         />
       )}
     </EntityDetailShell>
@@ -190,7 +287,7 @@ async function FundingRail({
   tenantId: string;
   vsId: string;
   cycleKey: string;
-  /** Die aufgeklappte Zeile, falls eine offen ist. */
+  /** Der ART, dessen Reiter offen ist — sonst `null`. */
   focusArtId: string | null;
 }) {
   const phases = await loadFundingPhases(
@@ -201,10 +298,13 @@ async function FundingRail({
     focusArtId ?? undefined,
   );
   /**
-   * **Die Fläche wechselt die Rolle mit der aufgeklappten Zeile.** `surface`
-   * entscheidet, ob ein Schritt „dran · Sie" oder „wartet auf: ART" sagt. Ohne
-   * offene Zeile steht man als Wertstrom davor; mit einer offenen sieht man die
-   * Kette **dieses** ARTs, und dann ist sein Schritt der eigene.
+   * **Die Leiste wechselt die Rolle mit dem Reiter.** `surface` entscheidet, ob
+   * ein Schritt „dran · Sie" oder „wartet auf: ART" sagt. Auf einem
+   * Wertstrom-Reiter steht man als Wertstrom davor; auf einem ART-Reiter sieht
+   * man die Kette **dieses** ARTs, und dann ist sein Schritt der eigene.
+   *
+   * Der Schritt der Leiste ist dabei **nicht** der Schritt des Reiters: sie
+   * sagt, wo der Prozess steht, der Reiter, wo man steht.
    */
   return <ArtFundingRail phases={phases} surface={focusArtId != null ? "art" : "value_stream"} />;
 }
@@ -218,21 +318,23 @@ function RailSkeleton() {
 }
 
 /**
- * Der Reiter „Budget" — **eine** Tabelle, deren ART-Zeilen aufklappen.
+ * Der Reiter **„Nachsehen"** — kein Schreibweg, kein Prozessschritt.
+ *
+ * Er beantwortet die eine Frage des Wertstrom-Owners aus dem Leitfaden:
+ * *„Reicht das Geld, das ich habe, für das, was ansteht?"* — über alle
+ * Halbjahre, nicht nur das gewählte.
  *
  * Hier stand zusätzlich `ValueStreamBudgetPlan`: eine eigene Tabelle mit dem
  * Budgetplan je Halbjahr — dieselben Zahlen aus derselben Quelle, die die
- * ART-Matrix als ihre erste Zeile ohnehin schon trägt
- * (`getArtBudgetBreakdown` liest `vsBudget.budget.byPeriod`). Zwei Tabellen mit
+ * ART-Matrix als ihre erste Zeile ohnehin schon trägt. Zwei Tabellen mit
  * derselben Kopfzeile untereinander; die zweite ist entfallen.
  */
-async function BudgetTab({
+async function ReviewTab({
   db,
   principal,
   vs,
   cycleKey,
   basePath,
-  expandedArtId,
   access,
 }: {
   db: ReturnType<typeof createPrismaClient>;
@@ -240,65 +342,26 @@ async function BudgetTab({
   vs: { id: string; name: string; financeApproverId: string | null };
   cycleKey: string;
   basePath: string;
-  expandedArtId: string | null;
   access: Awaited<ReturnType<typeof loadValueStreamBudgetAccess>>;
 }) {
-  const [model, course] = await Promise.all([
-    loadArtGridModel(db, principal.tenantId as never, vs.id as never),
-    loadValueStreamCourse(db, principal.tenantId as never, vs.id, { cycleKey }),
-  ]);
+  // Das Halbjahr reicht bis in die Matrix: ihre Betriebsspalte zeigt einen
+  // Betrag, keine Reihe, und „zugesprochen" gibt es nur je Halbjahr (REQ-8).
+  const model = await loadArtGridModel(db, principal.tenantId as never, vs.id as never, cycleKey);
 
   return (
     <div className="space-y-6">
       {/*
-        **Die Matrix führt.** Sie ist das, wofür man kommt; der Verlauf ist
-        Zusammenhang. Bis 2026-09-19 stand er oben und schob die Zahlen unter
-        die Falz.
+        **Die Matrix ist der Reiter.** Neben ihr stand bis 2026-09-19 der
+        Verlauf des Wertstroms; er ist entfallen, und damit steht hier genau
+        eine Karte. Das ist kein Mangel: sie ist das, wofür man kommt.
       */}
       <ArtBudgetBreakdown
         model={model}
-        basePath={basePath}
-        tab="budget"
+        artHref={(artId, cycle) => `${basePath}?tab=${ART_TAB(artId)}&cycle=${cycle}`}
         cycleKey={cycleKey}
-        expandedArtId={expandedArtId}
         visibleArtIds={access.visibleArtIds}
         showTotals={access.showTotals}
       />
-
-      {/*
-        Der Falter steht **unter** der Tabelle, nicht darin. Als
-        `<tr><td colSpan={9}>` konnte er keine eigene Fläche tragen — eine ganze
-        Seite in einer leicht getönten Tabellenzeile. Die Spalten hat er ohnehin
-        nie benutzt.
-
-        Eigene Insel: er kostet rund ein Dutzend Abfragen; ohne sie stünde die
-        Tabelle erst, wenn auch der Kasten steht.
-      */}
-      {expandedArtId != null && (
-        <Suspense fallback={<PanelSkeleton />}>
-          <ArtDetailPanel
-            db={db}
-            principal={principal}
-            vs={vs}
-            artId={expandedArtId}
-            artName={model.rows.find((r) => r.artId === expandedArtId)?.name ?? "ART"}
-            cycleKey={cycleKey}
-            basePath={basePath}
-            tab="budget"
-            view="overview"
-          />
-        </Suspense>
-      )}
-
-      {/* Der Verlauf ist eine Wertstrom-Summe — ohne das Wertstrom-Recht entfällt er (REQ-3). */}
-      {access.showTotals && course.course && (
-        <SectionCard
-          title={`Verlauf · ${halfYearLabel(course.cycleKey)}`}
-          description="Alle Zuteilungen dieses Wertstroms, auf die Monate des Halbjahres verteilt."
-        >
-          <AllocationCourseChart course={course.course} todayIndex={course.todayIndex} />
-        </SectionCard>
-      )}
     </div>
   );
 }
@@ -309,14 +372,15 @@ function PanelSkeleton() {
 }
 
 /**
- * Was bisher die ART-Seite war — jetzt der Inhalt einer aufgeklappten Zeile.
+ * Der Reiter **eines ARTs** — was bisher die ART-Seite war, dann ein Falter, und
+ * jetzt wieder eine Fläche mit eigener Adresse.
  *
- * Es ist **dieselbe** Komponente: `ArtBudgetTab` teilt sich schon immer nach
- * `view` in „alles zum Lesen" und „die Arbeit", und das ist genau der Schnitt
- * der beiden Reiter dieser Seite. Zusammenlegen heißt hier also nicht
- * nachbauen, sondern nur noch anders aufhängen.
+ * Er beantwortet zwei Fragen: *woher kommt das Geld dieses Zuges* und *was mache
+ * ich mit dem Teil, über den ich entscheide*. Deshalb `view="all"` — der Schnitt
+ * nach „lesen" und „arbeiten" war der Schnitt **zweier Reiter**; hier gehört
+ * beides demselben Handelnden.
  */
-async function ArtDetailPanel({
+async function ArtTab({
   db,
   principal,
   vs,
@@ -324,8 +388,6 @@ async function ArtDetailPanel({
   artName,
   cycleKey,
   basePath,
-  tab,
-  view,
 }: {
   db: ReturnType<typeof createPrismaClient>;
   principal: Awaited<ReturnType<typeof requirePrincipal>>;
@@ -334,8 +396,6 @@ async function ArtDetailPanel({
   artName: string;
   cycleKey: string;
   basePath: string;
-  tab: string;
-  view: "overview" | "distribute";
 }) {
   const [practices, guardrailRows, tenantRow] = await Promise.all([
     getTenantPractices(db, principal.tenantId),
@@ -375,143 +435,227 @@ async function ArtDetailPanel({
     },
   );
 
+  /**
+   * **Nach `detail`, nicht daneben.** `buildArtBudgetDetail` darf auf ein
+   * anderes Halbjahr zurückfallen, wenn das gewählte auf seiner Achse fehlt —
+   * parallel geladen sprächen die beiden Karten dann über verschiedene
+   * Halbjahre. Teuer ist die zweite Runde nicht: der Lader liest über die
+   * geteilten Lader, die `detail` ohnehin schon gefüllt hat.
+   */
+  const origin = await loadArtBusinessCase(
+    db,
+    principal.tenantId as never,
+    { id: artId, valueStreamId: vs.id },
+    detail.cycleKey,
+  );
+
   const canDistribute =
     isValueStreamFinance ||
     hasRtbCapability ||
     hasArtDistributeCapability ||
     (detail.pot?.rows.some((r) => r.canDistribute) ?? false);
 
-  // Der leere Kasten sagt, was fehlt — und das ist in den beiden Reitern nicht
-  // dasselbe: im Lesen fehlt die Zuteilung, im Arbeiten der Rahmen.
   if (artDetailIsEmpty(detail)) {
     return (
       <SectionCard title={`${artName} · ${halfYearLabel(cycleKey)}`}>
         <p className="text-sm text-muted-foreground">
-          {view === "distribute"
-            ? `Für ${halfYearLabel(cycleKey)} ist diesem ART kein Rahmen zugesprochen — es gibt nichts zu verteilen. Ein Rahmen entsteht aus einer Betriebsposition der Art „ART-Rahmen“ und dem Zuspruch der Kachel.`
-            : `Für ${halfYearLabel(cycleKey)} ist diesem ART nichts zugeteilt, und es sind keine Features eingeplant. Zuteilungen entstehen beim Festschreiben einer Budgeting-Kachel.`}
+          {`Für ${halfYearLabel(cycleKey)} ist diesem ART weder etwas zugeteilt noch ein Rahmen zugesprochen, und es sind keine Features eingeplant. Zuteilungen entstehen beim Festschreiben einer Budgeting-Kachel; ein Rahmen aus einer Betriebsposition der Art „ART-Rahmen“.`}
         </p>
       </SectionCard>
     );
   }
 
   return (
-    /*
-      **Die Zeile spricht über alle Halbjahre, der Kasten über eines.** Das ist
-      keine Unstimmigkeit, sondern die Rechnung: Deckung, Zustandsstaffel und
-      Rahmen gibt es nur je Halbjahr. Deshalb steht das Halbjahr im Titel.
-    */
-    <SectionCard
-      title={`${artName} · ${view === "distribute" ? "Verteilen" : "Detail"} ${halfYearLabel(cycleKey)}`}
-      action={
-        <Link
-          href={`${basePath}?tab=${tab}&cycle=${cycleKey}`}
-          className="rounded-md px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-        >
-          Schließen
-        </Link>
-      }
-    >
+    <div className="space-y-6">
+      {/*
+        **Nachschlagewerk vor Handlung** (REQ-4). Woher das Geld kommt, ist die
+        Begründung dessen, was darunter zu tun ist — und die einzige Fläche, die
+        das Betriebsgeld dieses ARTs auf **allen drei** Wegen zeigt.
+      */}
+      <ArtBusinessCase origin={origin} artName={artName} />
+
+      {/*
+        **Keine Karte um die Karten.** Hier stand eine `SectionCard`, in der
+        sechs weitere steckten — ein Rahmen um einen Rahmen, der die Gliederung
+        eher verwischte als sie zu stützen. Der ART und sein Halbjahr stehen im
+        Titel des Business Case; wo man ist, sagt ausserdem die Reiterschiene.
+      */}
       <ArtBudgetTab
         detail={detail}
-        // In den Reiter „Betrieb", **an dieselbe Zeile**: der Sprung soll nicht
-        // die aufgeklappte Stelle verlieren, an der man gerade steht.
-        distributeHref={`/budgeting/value-streams/${vs.id}?tab=betrieb&cycle=${detail.cycleKey}&art=${artId}`}
+        // Man ist schon da: der Reiter dieses ARTs **ist** die Verteilfläche.
+        distributeHref={`${basePath}?tab=${ART_TAB(artId)}&cycle=${detail.cycleKey}`}
+        kpiHref={`${basePath}?tab=kpi&cycle=${detail.cycleKey}`}
         canDistribute={canDistribute}
-        view={view}
       />
-    </SectionCard>
+    </div>
   );
 }
 
 /**
- * Der Reiter „Betrieb" — die Arbeit, von oben nach unten in der Reihenfolge, in
- * der sie anfällt: die Positionen anlegen, den Zuspruch der Kachel aufteilen,
- * und dann je ART seinen Rahmen verteilen.
+ * Der Reiter **„Einrichten"** — Schritt 1 der Kette, und das Einzige auf dieser
+ * Seite, das **zeitlos** ist.
  *
- * Der letzte Schritt war bis hierhin eine eigene Seite je ART. Er steht jetzt
- * als aufklappbare Zeile darunter — dieselbe Geste wie im Reiter „Budget", und
- * dasselbe `?art=`.
+ * Genau deshalb steht er allein: die Betriebspositionen ändern sich beim
+ * Halbjahrwechsel nicht, alles andere schon. Unter einem Halbjahr-Umschalter
+ * behaupteten sie einen Zeitbezug, den sie nicht haben — und der Reiter trägt
+ * deshalb keinen.
  */
-async function OperationsTab({
+async function SetupTab({
   db,
   principal,
   vs,
-  cycleKey,
-  basePath,
-  expandedArtId,
-  access,
   canManage,
 }: {
   db: ReturnType<typeof createPrismaClient>;
   principal: Awaited<ReturnType<typeof requirePrincipal>>;
-  vs: { id: string; name: string; financeApproverId: string | null };
-  cycleKey: string;
-  basePath: string;
-  expandedArtId: string | null;
-  access: Awaited<ReturnType<typeof loadValueStreamBudgetAccess>>;
+  vs: { id: string; name: string };
   canManage: boolean;
 }) {
   const tenantId = principal.tenantId;
-  const [items, solutions, arts, awards] = await Promise.all([
+  const [items, solutions, arts] = await Promise.all([
     listRtbItems(db, tenantId as never, { valueStreamId: vs.id }),
-    // Über den geteilten Lader: der Reiter „Budget" liest dieselben Solutions,
-    // um Betriebspositionen auf ihre ARTs aufzulösen (REQ-9).
+    // Über den geteilten Lader: der ART-Reiter liest dieselben Solutions, um
+    // Betriebspositionen auf ihre ARTs aufzulösen.
     readSolutions(db, tenantId as never).then((all) =>
-      all.filter((s) => s.valueStreamId === vs.id),
+      all.filter((x) => x.valueStreamId === vs.id),
     ),
     db.art.findMany({
       // Ein gelöschtes ART stand bis hierhin im Auswahlfeld der
-      // Betriebspositionen (REQ-11).
+      // Betriebspositionen (REQ-11 der Konsolidierungs-Spec).
       where: { tenantId, valueStreamId: vs.id, deletedAt: null },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    loadRtbAwards(db, tenantId as never, vs.id, cycleKey),
   ]);
 
-  const budgets = await loadArtEpicBudgets(
-    db,
-    tenantId as never,
-    arts.map((a) => a.id),
-    cycleKey,
+  return (
+    <RtbSection
+      valueStreamId={vs.id}
+      items={items}
+      canManage={canManage}
+      solutions={solutions}
+      arts={arts}
+    />
   );
+}
+
+/**
+ * Der Reiter **„Dieses Halbjahr"** — Schritt 4a der Kette.
+ *
+ * Der Wertstrom teilt den Zuspruch der Kachel auf seine Positionen auf. Das
+ * **Verteilen** an die Epics steht nicht mehr hier: es ist ART-Sache und hat je
+ * ART einen eigenen Reiter. Genau dort wechselt die Kette ihren Handelnden.
+ */
+async function CycleTab({
+  db,
+  principal,
+  vs,
+  cycleKey,
+  arts,
+  basePath,
+  canManage,
+}: {
+  db: ReturnType<typeof createPrismaClient>;
+  principal: Awaited<ReturnType<typeof requirePrincipal>>;
+  vs: { id: string };
+  cycleKey: string;
+  arts: readonly { id: string; name: string }[];
+  basePath: string;
+  canManage: boolean;
+}) {
+  const [ergebnis, awards] = await Promise.all([
+    loadValueStreamRoundResult(db, principal.tenantId as never, vs.id, cycleKey),
+    loadRtbAwards(db, principal.tenantId as never, vs.id, cycleKey),
+  ]);
 
   return (
     <div className="space-y-6">
-      <RtbSection
+      {/*
+        **Nachschlagewerk vor Handlung** (REQ-4): man teilt auf, was die Kachel
+        zugesprochen hat — also steht über der Aufteilung, was sie zugesprochen
+        hat.
+      */}
+      <RoundResult result={ergebnis} />
+      <RtbAwardsSection
         valueStreamId={vs.id}
-        items={items}
+        view={awards}
         canManage={canManage}
-        solutions={solutions}
-        arts={arts}
+        setupHref={`${basePath}?tab=einrichten&cycle=${cycleKey}`}
       />
-      <RtbAwardsSection valueStreamId={vs.id} view={awards} canManage={canManage} />
-      <ArtPotRows
-        arts={arts}
-        budgets={budgets}
-        basePath={basePath}
-        cycleKey={cycleKey}
-        expandedArtId={expandedArtId}
-        visibleArtIds={access.visibleArtIds}
-      />
-
-      {/* Wie im Reiter „Budget": das Detail steht unter seiner Tabelle, nicht darin. */}
-      {expandedArtId != null && (
-        <Suspense fallback={<PanelSkeleton />}>
-          <ArtDetailPanel
-            db={db}
-            principal={principal}
-            vs={vs}
-            artId={expandedArtId}
-            artName={arts.find((a) => a.id === expandedArtId)?.name ?? "ART"}
-            cycleKey={cycleKey}
-            basePath={basePath}
-            tab="betrieb"
-            view="distribute"
-          />
-        </Suspense>
+      {/*
+        **Jede Arbeitsfläche nennt ihren Nachfolger.** Die Leiste erklärt den
+        Prozess; dieser Satz übergibt konkret — an die Reiter, in denen der
+        nächste Schritt wirklich passiert.
+      */}
+      {arts.length > 0 && (
+        <p className="px-1 text-xs text-muted-foreground">
+          Aus den ART-Rahmen-Zeilen entsteht, was jedes ART auf seine Epics verteilen darf. Weiter
+          in{" "}
+          {arts.map((a, i) => (
+            <span key={a.id}>
+              {i > 0 && (i === arts.length - 1 ? " und " : ", ")}
+              <Link
+                href={`${basePath}?tab=${ART_TAB(a.id)}&cycle=${cycleKey}`}
+                className="text-primary hover:underline"
+              >
+                {a.name}
+              </Link>
+            </span>
+          ))}
+          .
+        </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * Der Reiter **„Budget-KPIs"** — kein Prozessschritt, sondern der Ort, an dem
+ * die Herleitung wohnt.
+ *
+ * Dieselbe Karte für den Wertstrom und für jedes sichtbare ART, untereinander.
+ * Es gibt ihn, damit die Arbeitsreiter die Rechnung **nicht** mitschleppen:
+ * dort steht das Ergebnis in einer Zeile, hier steht, wie es zustande kommt.
+ */
+async function KpiTab({
+  db,
+  principal,
+  arts,
+  cycleKey,
+  vsName,
+  showTotals,
+}: {
+  db: ReturnType<typeof createPrismaClient>;
+  principal: Awaited<ReturnType<typeof requirePrincipal>>;
+  arts: readonly { id: string; name: string }[];
+  cycleKey: string;
+  vsName: string;
+  /** Ohne Wertstrom-Recht entfällt die Summenzeile — wie in „Nachsehen" (REQ-3). */
+  showTotals: boolean;
+}) {
+  if (arts.length === 0) {
+    return (
+      <SectionCard title={`Wofür · eingeplant · ${halfYearLabel(cycleKey)}`}>
+        <EmptyState
+          title="Noch kein ART"
+          body="Die Rechnung „Last gegen Deckung“ wird je ART geführt. Ohne ART gibt es nichts zu decken."
+        />
+      </SectionCard>
+    );
+  }
+
+  const kpis = await loadBudgetKpis(db, principal.tenantId as never, arts, cycleKey);
+
+  return (
+    <div className="space-y-6">
+      {showTotals && <StreamCoverageCard name={`${vsName} · gesamt`} stream={kpis.stream} />}
+      {kpis.arts.map((a) => (
+        <ArtCoverageCard key={a.artId} name={a.name} coverage={a.coverage} />
+      ))}
+      <p className="px-1 text-meta text-muted-foreground">
+        Betrieb zählt in keiner dieser Rechnungen mit — er bezahlt kein Feature. Was an einem ART
+        insgesamt landet, steht in seinem Business Case.
+      </p>
     </div>
   );
 }

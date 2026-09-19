@@ -27,6 +27,8 @@ const NOW = new Date("2026-08-15T00:00:00Z"); // 2026-H2 ist offen
 function dbWith(
   awards: { amount: number; artId: string | null }[],
   allocations: { artId: string; amount: number }[],
+  /** Reservierungen für ART-eigene Arbeit — sie zehren denselben Rahmen auf. */
+  ownWork: { artId: string; amount: number }[] = [],
 ) {
   const items = awards.map((a, i) => ({
     id: `p${i}`,
@@ -44,17 +46,23 @@ function dbWith(
     awards.map((a, i) => ({ rtbItemId: `p${i}`, cycleKey: "2026-H2", amount: a.amount })),
   );
   const allocQuery = vi.fn(async (_args: { where: unknown }) => allocations);
+  const ownWorkQuery = vi.fn(async (_args: { where: unknown }) => ownWork);
   return {
     db: {
       runTheBusinessItem: { findMany: itemQuery },
       rtbItemAward: { findMany: awardQuery },
       artEpicAllocation: { findMany: allocQuery },
+      artOwnWorkAllocation: { findMany: ownWorkQuery },
     } as unknown as Parameters<typeof loadArtEpicBudgets>[0],
     itemQuery,
     awardQuery,
     allocQuery,
+    ownWorkQuery,
   };
 }
+
+/** Kurz für „der eine gefragte ART" — die Menge hat hier genau ein Element. */
+const m2 = (m: Map<string, unknown>) => m.get("art-1");
 
 describe("loadArtEpicBudgets", () => {
   it("beantwortet mehrere ARTs mit fester Abfragezahl — nicht mit zweien je ART", async () => {
@@ -73,6 +81,38 @@ describe("loadArtEpicBudgets", () => {
     expect(itemQuery).toHaveBeenCalledTimes(1);
     expect(awardQuery).toHaveBeenCalledTimes(1);
     expect(allocQuery).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * **Die Reservierung zehrt denselben Rahmen auf.** Zählte sie hier nicht mit,
+   * wiese jede Fläche „noch zu verteilen" zu hoch aus — die Kachel, die Zahl
+   * neben dem ART-Namen in der Reiterschiene, die Finanzierungskette und die
+   * Inbox-Aufgabe gleichermaßen, denn alle vier lesen `remaining`.
+   */
+  it("zählt die Reservierung für ART-eigene Arbeit gegen den Rahmen", async () => {
+    const { db, ownWorkQuery } = dbWith(
+      [{ amount: 100_000, artId: A1 }],
+      [{ artId: A1, amount: 40_000 }],
+      [{ artId: A1, amount: 25_000 }],
+    );
+    const m = await loadArtEpicBudgets(db, T, [A1], "2026-H2", NOW);
+    expect(ownWorkQuery).toHaveBeenCalledTimes(1);
+    expect(m.get(A1)).toMatchObject({
+      total: 100_000,
+      distributedToEpics: 40_000,
+      distributedToOwnWork: 25_000,
+      distributed: 65_000,
+      remaining: 35_000,
+    });
+  });
+
+  it("weist die beiden Wege auch dann getrennt aus, wenn einer leer ist", async () => {
+    const { db } = dbWith([{ amount: 50_000, artId: A1 }], [], [{ artId: A1, amount: 12_000 }]);
+    expect(m2(await loadArtEpicBudgets(db, T, [A1], "2026-H2", NOW))).toMatchObject({
+      distributedToEpics: 0,
+      distributedToOwnWork: 12_000,
+      remaining: 38_000,
+    });
   });
 
   it("summiert je ART und rechnet den Rest", async () => {

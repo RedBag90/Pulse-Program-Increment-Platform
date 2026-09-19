@@ -182,9 +182,10 @@ export const NAV_GROUPS: NavGroup[] = [
         capability: "budget.round.manage",
       },
       {
-        // **Die** Geldfläche eines Wertstroms: Budgetplan, Verlauf, die ARTs als
-        // aufklappbare Zeilen, die Betriebspositionen und der Zuspruch. Hier
-        // entsteht der ART-Rahmen und hier wird er verteilt.
+        // **Die** Geldfläche eines Wertstroms, nach Prozessschritt und
+        // Eigentümer geschnitten: Betriebspositionen einrichten, den Zuspruch
+        // aufteilen, nachsehen, Budget-KPIs — und je ART ein eigener Reiter.
+        // Hier entsteht der ART-Rahmen und hier wird er verteilt.
         href: "/budgeting/value-streams",
         labelKey: "budgetValueStreams",
         icon: Network,

@@ -56,9 +56,11 @@ describe("artFundingPhases", () => {
       focusArtId: "a1",
     };
     expect(keys(f)).toEqual(["budget:done", "pb_list:done", "award:done", "distribute:current"]);
-    // Der Sprung führt an **die aufgeklappte Zeile** dieses ARTs, nicht mehr
-    // auf eine eigene Seite.
-    expect(artFundingPhases(f)[3]!.href).toBe("/budgeting/value-streams/vs1?tab=betrieb&art=a1");
+    // Der Sprung führt in **den Reiter** dieses ARTs — samt Halbjahr, über das
+    // die Kette spricht.
+    expect(artFundingPhases(f)[3]!.href).toBe(
+      "/budgeting/value-streams/vs1?tab=art:a1&cycle=2026-H2",
+    );
   });
 
   /**
@@ -130,7 +132,8 @@ describe("artFundingPhases", () => {
     });
     // a3 hat kein Budget und zählt nicht mit.
     expect(phases[3]!.detail).toBe("1 von 2");
-    expect(phases[3]!.href).toBe("/budgeting/value-streams/vs1?tab=betrieb");
+    // Ohne Fokus: dorthin, wo der Wertstrom aufteilt — nicht in einen ART-Reiter.
+    expect(phases[3]!.href).toBe("/budgeting/value-streams/vs1?tab=halbjahr&cycle=2026-H2");
     expect(phases[3]!.state).toBe("current");
   });
 

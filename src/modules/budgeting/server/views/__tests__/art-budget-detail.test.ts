@@ -192,6 +192,7 @@ describe("coverageVerdict", () => {
   ) => ({
     plannedJobSize: over.plannedJobSize ?? 0,
     featureCount: 0,
+    plannedStandalone: { jobSize: 0, count: 0 },
     rate: {
       rate: 600,
       source: "tenantDefault" as const,

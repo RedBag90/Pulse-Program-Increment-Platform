@@ -193,7 +193,7 @@ export const EPIC_LIFECYCLE: Guide = {
               kind: "list",
               items: [
                 "**darüber** → Portfolio-Epic. Es geht den bekannten Weg über die Kandidatenliste einer Budget-Kachel.",
-                "**darunter** → ART-Epic. Es steht **nicht** auf der Kandidatenliste, sondern wird aus dem ART-Epic-Budget meines ARTs bedient.",
+                "**darunter** → ART-Epic. Es steht **nicht** auf der Kandidatenliste, sondern wird aus dem ART-Rahmen meines ARTs bedient.",
               ],
             },
             {

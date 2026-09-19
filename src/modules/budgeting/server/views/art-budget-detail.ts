@@ -15,11 +15,9 @@ import {
   loadArtEpicBudgetView,
   type ArtPotViewer,
 } from "@/modules/budgeting/server/services/art-pot-view";
-import { halfYearKey, monthStart } from "@/modules/core/kernel/domain/calendar";
-import { stageAtMonth, type StageTransition } from "@/modules/work/domain/epic-stage-timeline";
+import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
 import { readBudgetCandidates } from "@/modules/budgeting/server/services/budget-reads";
-import { monthsOfCycle } from "@/modules/budgeting/domain/period-window";
 import { sortCycles, currentCycle, cycleLabel } from "@/modules/budgeting/domain/cycle";
 import {
   loadEpicRows,
@@ -35,31 +33,9 @@ import { ALLOCATION_SOURCE_LABELS } from "@/modules/budgeting/domain/art-budget-
 import { isChangeKind } from "@/modules/budgeting/domain/rtb-kind";
 import { rtbAnnualAmount, rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 import {
-  buildAllocationCourse,
-  type CourseEpic,
-} from "@/modules/budgeting/domain/allocation-course";
-import {
   summarizeAllocations,
   type AllocatedEpic,
-  type AllocationState,
 } from "@/modules/budgeting/domain/allocation-state";
-
-/**
- * Der Zustand einer Zuteilung **in einem bestimmten Monat** — dieselbe Regel wie
- * `allocationState`, nur zeitbezogen: der L4.2-Stempel gewinnt vor dem
- * Reifegrad, sobald sein Monat erreicht ist.
- */
-function stateInMonth(
-  timeline: StageTransition[],
-  completedAt: Date | null,
-  month: Date,
-): AllocationState {
-  const done = completedAt != null && monthStart(completedAt).getTime() <= month.getTime();
-  const gate = stageAtMonth(timeline, month);
-  if (gate === "L5" || done) return "consumed";
-  if (gate === "L4") return "committed";
-  return "notStarted";
-}
 
 /**
  * Faltet Kandidaten und Epics in das Seitenmodell. Rein — der Server reicht
@@ -67,13 +43,13 @@ function stateInMonth(
  */
 export function buildArtBudgetDetail(input: {
   /**
-   * Der ART, um dessen Sicht es geht — oder `null` für eine Sicht **ohne** ART
-   * (der Wertstrom-Verlauf). Bei `null` entfällt die Aussage „gehört inzwischen
-   * zu einem anderen ART", weil es kein „hier" gibt, von dem etwas abweichen
-   * könnte. Vorher stand an dieser Stelle ein Sentinel-Wert, gegen den jedes
-   * Epic abwich — das Ergebnis war Unsinn, den der einzige Aufrufer wegwarf.
+   * Der ART, um dessen Sicht es geht.
+   *
+   * Stand bis 2026-09-19 als `string | null` da: `null` war die Sicht **ohne**
+   * ART, der Wertstrom-Verlauf. Mit ihm ist der Zweig entfallen — ein
+   * Kennzeichen, das nur noch einen Wert annimmt, ist keines.
    */
-  artId: string | null;
+  artId: string;
   now: Date;
   candidates: readonly CandidateRow[];
   epics: readonly EpicRow[];
@@ -143,22 +119,6 @@ export function buildArtBudgetDetail(input: {
 
   unfunded.sort((a, b) => b.ask - a.ask);
 
-  // Der Verlauf: je Epic ein Zustand pro Monat, aus seiner Reifegrad-Historie.
-  const months = monthsOfCycle(cycleKey);
-  const thisMonth = monthStart(input.now).getTime();
-  const todayIndex = months.findIndex((m) => m.date.getTime() === thisMonth);
-  const courseEpics: CourseEpic[] = allocated.flatMap((a) => {
-    const epic = byEpic.get(a.epicId);
-    const timeline = epic?.stageTimeline;
-    if (!timeline) return [];
-    return [
-      {
-        amount: a.amount,
-        states: months.map((m) => stateInMonth(timeline, epic.implementationCompletedAt, m.date)),
-      },
-    ];
-  });
-
   const sources: ArtBudgetSourceView[] = [
     {
       source: "portfolio",
@@ -171,7 +131,7 @@ export function buildArtBudgetDetail(input: {
   // Der ART der Kachel ist eingefroren; wechselt ein Epic danach, bleibt das
   // Budget hier — die Kachel hat es hier entschieden. Sichtbar machen, nicht
   // stillschweigend hinnehmen.
-  const switchedArt = (input.artId == null ? [] : allocated)
+  const switchedArt = allocated
     .map((a) => byEpic.get(a.epicId))
     .filter((e): e is EpicRow => e != null && e.artId !== input.artId)
     .map((e) => ({
@@ -193,17 +153,6 @@ export function buildArtBudgetDetail(input: {
     coverage: null,
     pot: null,
     rtb: { run: [], change: [] },
-    course: {
-      portfolio:
-        months.length > 0
-          ? buildAllocationCourse(
-              months.map((m) => ({ key: m.key, label: m.label })),
-              courseEpics,
-              todayIndex,
-            )
-          : null,
-    },
-    todayIndex,
   };
 }
 

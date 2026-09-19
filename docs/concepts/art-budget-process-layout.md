@@ -48,16 +48,16 @@ schneiden ist.**
 
 ### Jeder Block, sein Schritt, seine Art
 
-| Block                                       | Schritt         | Art        | Zeitbezug          |
-| ------------------------------------------- | --------------- | ---------- | ------------------ |
-| Betriebspositionen (beide Gruppen)          | **1**           | Eingabe    | **zeitlos**        |
-| Zuspruch aufteilen                          | **4a**          | Eingabe    | Halbjahr           |
-| Rahmen je ART                               | Wegweiser zu 4b | Navigation | Halbjahr           |
-| ART-Epics finanzieren                       | **4b**          | Eingabe    | Halbjahr           |
-| Was sich verschieben ließe                  | —               | Auskunft   | Halbjahr           |
-| Matrix „Zugeteilt je ART"                   | —               | Auskunft   | **alle Halbjahre** |
-| Deckung · Zustandsstaffel · Epics · Verlauf | —               | Auskunft   | Halbjahr           |
-| Anmerkungen zur Datenlage                   | —               | Auskunft   | **gemischt**       |
+| Block                              | Schritt         | Art        | Zeitbezug          |
+| ---------------------------------- | --------------- | ---------- | ------------------ |
+| Betriebspositionen (beide Gruppen) | **1**           | Eingabe    | **zeitlos**        |
+| Zuspruch aufteilen                 | **4a**          | Eingabe    | Halbjahr           |
+| Rahmen je ART                      | Wegweiser zu 4b | Navigation | Halbjahr           |
+| ART-Epics finanzieren              | **4b**          | Eingabe    | Halbjahr           |
+| Was sich verschieben ließe         | —               | Auskunft   | Halbjahr           |
+| Matrix „Zugeteilt je ART"          | —               | Auskunft   | **alle Halbjahre** |
+| Deckung · Zustandsstaffel · Epics  | —               | Auskunft   | Halbjahr           |
+| Anmerkungen zur Datenlage          | —               | Auskunft   | **gemischt**       |
 
 ### Drei Befunde
 
@@ -87,7 +87,7 @@ WERTSTROM              ARTS
 | ------------------- | ----------------------------------------------------------------------------------------- | ---------- |
 | **Einrichten**      | Betriebspositionen und ART-Rahmen — Stammdaten, Schritt 1                                 | **nein**   |
 | **Dieses Halbjahr** | Ergebnis der Kachel (Auskunft) + **Schritt 4a · Zuspruch aufteilen**                      | ja         |
-| **Nachsehen**       | Matrix über alle Halbjahre · Auslastung · Verlauf                                         | ja         |
+| **Nachsehen**       | Matrix über alle Halbjahre · Auslastung                                                   | ja         |
 | **Budget-KPIs**     | „Wofür · eingeplant" für den Wertstrom **und je ART**                                     | ja         |
 | **je ART**          | Business Case (Herkunft) · **Schritt 4b · Rahmen verteilen** · Was sich verschieben ließe | ja         |
 
@@ -102,11 +102,11 @@ der Matrix wird damit ein echter Wegweiser statt einer Klapptür.
 
 ### 2.2 · Drei Sorten — und die dritte ist keine Kachel
 
-| Sorte               | Gestalt                                                                             | Beispiele                                                                                                 |
-| ------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| **Arbeitsfläche**   | Karte · linke Akzentschiene `primary` · Schrittnummer im Titel · Aktion oben rechts | Schritt 1 · Betriebspositionen; Schritt 4 · Zuspruch aufteilen; Schritt 4 · Rahmen verteilen              |
-| **Nachschlagewerk** | Karte, ruhig — keine Schiene, keine Nummer, keine Aktion                            | Ergebnis der Kachel, Business Case, die drei „Wofür"-Kacheln, Matrix, Verlauf, Was sich verschieben ließe |
-| **Wegweiser**       | **keine Kachel** — Leiste, Zeile, Link                                              | Finanzierungs-Leiste, Reiterliste, ART-Name in der Matrix, „Zur Kachel →"                                 |
+| Sorte               | Gestalt                                                                             | Beispiele                                                                                        |
+| ------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| **Arbeitsfläche**   | Karte · linke Akzentschiene `primary` · Schrittnummer im Titel · Aktion oben rechts | Schritt 1 · Betriebspositionen; Schritt 4 · Zuspruch aufteilen; Schritt 4 · Rahmen verteilen     |
+| **Nachschlagewerk** | Karte, ruhig — keine Schiene, keine Nummer, keine Aktion                            | Ergebnis der Kachel, Business Case, die drei „Wofür"-Kacheln, Matrix, Was sich verschieben ließe |
+| **Wegweiser**       | **keine Kachel** — Leiste, Zeile, Link                                              | Finanzierungs-Leiste, Reiterliste, ART-Name in der Matrix, „Zur Kachel →"                        |
 
 > **Die dritte Sorte wurde als Kachelsorte verworfen.** „Rahmen je ART" ist kein
 > Nachbar des Verteilformulars, sondern **dessen Auswahl** — welches ART man
@@ -123,16 +123,17 @@ der Matrix wird damit ein echter Wegweiser statt einer Klapptür.
 
 **Die Frage:** woher kommt das Geld, das in diesem Halbjahr an diesem ART landet?
 
-| Herkunft                                  | Quelle                                                |
-| ----------------------------------------- | ----------------------------------------------------- |
-| **Veränderung** — finanziert Vorhaben     |                                                       |
-| Portfolio-Epics aus der Kachel            | `BudgetCandidate` `kind=epic`, `artId`, `finalAmount` |
-| ART-Epic-Rahmen · **verteilt**            | `ArtEpicAllocation` (`artId`, `cycleKey`)             |
-| ART-Epic-Rahmen · **noch nicht verteilt** | `RtbItemAward` − `ArtEpicAllocation`                  |
-| **Betrieb** — finanziert nie ein Epic     |                                                       |
-| Direkt am ART                             | `RunTheBusinessItem` `kind=run`, `artId` gesetzt      |
-| Über Solutions dieses ARTs                | `run` mit `solutionId` → `Solution.artId`             |
-| Wertstrom-übergreifend, geschlüsselt      | `run` ohne ART und ohne Solution ÷ Zahl der ARTs      |
+| Herkunft                               | Quelle                                                |
+| -------------------------------------- | ----------------------------------------------------- |
+| **Veränderung** — finanziert Vorhaben  |                                                       |
+| Portfolio-Epics aus der Kachel         | `BudgetCandidate` `kind=epic`, `artId`, `finalAmount` |
+| ART-Rahmen · **an ART-Epics**          | `ArtEpicAllocation` (`artId`, `cycleKey`)             |
+| ART-Rahmen · **für ART-eigene Arbeit** | `ArtOwnWorkAllocation` (`artId`, `cycleKey`)          |
+| ART-Rahmen · **noch nicht vergeben**   | `RtbItemAward` − beide Zuteilungen                    |
+| **Betrieb** — finanziert nie ein Epic  |                                                       |
+| Direkt am ART                          | `RunTheBusinessItem` `kind=run`, `artId` gesetzt      |
+| Über Solutions dieses ARTs             | `run` mit `solutionId` → `Solution.artId`             |
+| Wertstrom-übergreifend, geschlüsselt   | `run` ohne ART und ohne Solution ÷ Zahl der ARTs      |
 
 Vier Zeilen davon standen in der ursprünglichen Anforderung nicht und sind
 ergänzt, weil die Rechnung sonst nicht aufgeht:
@@ -219,7 +220,7 @@ Teilkosten-Budget.
 ### (b) `ArtEpicAllocation` fehlt in der Deckung
 
 `coverage.allocated` zählt nur die Portfolio-Zuteilungen
-(`server/views/art-budget-detail.ts:284-288`). Das aus dem ART-Epic-Rahmen an
+(`server/views/art-budget-detail.ts:284-288`). Das aus dem ART-Rahmen an
 Epics verteilte Geld fehlt — obwohl es dieselben Features finanziert. Für Plant ·
 2026-H2 sind das **76.250 €**: ausgewiesen wird eine Lücke von 5.695.682 €, bei
 Einbezug wären es 5.619.432 €. Derselbe Versatz steckt im Satz.
@@ -272,8 +273,13 @@ die Summe der ART-Rechnungen, und die Karte sagt es.
 **REQ-10 · Jede Arbeitsfläche nennt ihren Nachfolger.** Ein Fußsatz, der
 konkret übergibt („Weiter in den Reitern ⟨ART⟩ und ⟨ART⟩").
 
-**REQ-11 · Spalten ausserhalb der Summe sagen es.** „Betrieb · je HJ" steht
+**REQ-11 · Spalten ausserhalb der Summe sagen es.** Die Betriebsspalte steht
 rechts von Σ, durch eine Linie getrennt, und trägt „nicht in Σ" im Kopf.
+**Präzisiert 2026-09-19:** sie trägt zusätzlich ihr **Halbjahr** und ihre
+**Basis** — `Betrieb · H2 2026 · zugesprochen · nicht in Σ`. Sie hiess „je HJ"
+und rechnete mit dem geplanten Betrag, während der Business Case desselben ARTs
+den zugesprochenen zeigte: 24.500 € gegen 28.824 €, dieselbe Seite. „Zugesprochen
+schlägt beantragt" (REQ-8) gilt überall, wo ein Betriebsbetrag steht.
 
 **REQ-12 · Jede Karte hat eine leere Fassung.** Eine Arbeitsfläche verliert
 dabei ihren **Knopf, nicht ihre Schiene** — sie bleibt der Ort, an dem etwas zu
@@ -300,10 +306,48 @@ dem **Reiter** (`art` auf einem ART-Reiter, sonst `value_stream`) statt
 nicht der Schritt des Reiters** — sie sagt, wo der Prozess steht, der Reiter, wo
 man steht.
 
-**REQ-15 · Die Spalte „Zurechnung".** In „Einrichten" heißt die zweite Spalte
-nicht mehr „Solution", sondern zeigt den Weg: `ART · ⟨Name⟩` · `Solution ·
-⟨Name⟩` · `— übergreifend`. Der alte Name verschwieg zwei der drei Wege — und
-diese Spalte entscheidet über die Herkunftstabelle.
+**REQ-15 · Die Zurechnung gliedert, statt sich zu wiederholen.**
+_Ersetzt am 2026-09-19._ In „Einrichten" zerfallen **Betrieb** und **ART-Rahmen**
+jeweils in dieselben drei Gruppen, von der breitesten Zurechnung zur engsten:
+**Wertstrom-übergreifend** (geschlüsselt) · **ART-übergreifend** ·
+**Solution-individuell**. Jede Gruppe trägt ihre Zwischensumme; leere Gruppen
+erscheinen nicht.
+
+Die Spalte daneben nennt nur noch den **Namen** — in der Solution-Gruppe beide
+Stationen (`⟨Solution⟩ · ⟨ART⟩`), denn der ART der Solution entscheidet, wo das
+Geld landet.
+
+**Die Gruppe folgt der Eingabe, nicht der Auflösung:** eine Position mit ART
+**und** Solution steht bei der Solution, weil man sie dort sucht.
+`resolveRtbToArts` nimmt in diesem Fall den direkten ART — weicht er vom ART der
+Solution ab, sagt die Zeile das („zählt bei ⟨ART⟩"). Am Bestand stimmen beide
+bei allen vier betroffenen Positionen überein.
+
+Die ursprüngliche Fassung — **eine** Spalte, die den Weg im Text jeder Zeile
+trug — verschwieg jeweils die zweite Station: von 25 Betriebspositionen hängen
+15 an einer Solution, deren ART nirgends stand.
+
+**Weg 1 war bis 2026-09-19 gar nicht erreichbar.** Das Formular blendete das
+ART-Feld aus, sobald die Art nicht `art_change` war — eine Betriebsposition
+liess sich nur einer Solution zuordnen oder gar nichts. Dass **0 von 25**
+Positionen einen direkten ART tragen, war deshalb keine Aussage über die
+Nutzung, sondern über das Formular. Mit dem freigegebenen Feld gilt zugleich die
+Wertstrom-Prüfung für **jede** Art: ein fremder ART wurde vorher stillschweigend
+gespeichert und von `resolveRtbToArts` übergangen — das Geld fiel aus jeder
+Gruppe, ohne dass es jemand meldete.
+
+**REQ-15b · Vorlagen beim Anlegen.** „+ Position" bietet die üblichen
+Positionen eines Wertstroms an, gegliedert nach denselben drei Gruppen
+(`domain/rtb-templates.ts`). Eine Vorlage setzt **Name, Art und Periode** vor,
+**nie den Betrag**. Die Perioden folgen der Entscheidungsfrequenz: Kapazität und
+Laufkosten jährlich, der ART-Rahmen je Halbjahr. Vorlagen, die in die
+Kapazitätsfalle führen (§9.3), sagen das im Formular.
+
+**REQ-15c · Ein Pflegeort.** Betriebspositionen werden **nur** im Budget-Bereich
+gepflegt. Die Solution-Fläche im Struktur-Bereich zeigt sie lesend, mit dem ART,
+auf dem ihr Geld landet, und einem Weg zum Pflegeort. Zwei Schreibflächen für
+dieselben Zeilen hiessen zwei Stellen, an denen Rechte, Formular und Wortwahl
+auseinanderlaufen.
 
 **REQ-16 · Die Sprungziele halten.** `?tab=betrieb` → `?tab=halbjahr`,
 `?tab=budget` → `?tab=nachsehen`, `&art=<id>` → `?tab=art:<id>`. Kette, Inbox,
@@ -352,8 +396,17 @@ navigierbar, die Inhalte sind dieselben.
 - **Der „ART ohne Rahmen"-Hinweis bleibt aussen vor.** Der Leitfaden nennt ihn
   als die Falle von Schritt 1; ihn zu zeigen wäre **neues Verhalten**, nicht
   Gliederung.
+- **Der ART-Rahmen finanziert auch Arbeit ohne Epic** (2026-09-19, eigene Spec
+  [art-own-work-budget.md](art-own-work-budget.md)): der Business Case oben
+  zerlegt die verteilte Rahmen-Zeile seitdem in „an ART-Epics" und „für
+  ART-eigene Arbeit". Σ Veränderung und Σ gesamt ändern sich dadurch nicht.
+- **Der Verlauf ist entfallen** (2026-09-19, Nachtrag in
+  `art-budget-transparency.md`): sechs gleich hohe Balken, deren Höhe die
+  Rechnung selbst erzeugt. Die Zustandsstaffel sagt dasselbe ohne Monatsachse —
+  und ohne dass je Epic acht Spalten Reifegrad-Historie geladen werden müssen.
+  „Nachsehen" trägt seitdem genau eine Karte.
 - **Auslastung und Soll/Ist bleiben in „Nachsehen"**, nicht in den KPIs — sie
-  sind die Aussage der Matrix und des Verlaufs, keine Kennzahlen für sich.
+  sind die Aussage der Matrix, keine Kennzahlen für sich.
 - **Die Kachel-Fläche** (`features/components/period/`) bleibt unberührt. Sie
   hat denselben Befund; das ist eine eigene Spec.
 
@@ -368,6 +421,23 @@ navigierbar, die Inhalte sind dieselben.
    zurück in „Dieses Halbjahr" geschoben, entstünde genau der Befund wieder, der
    diese Spec ausgelöst hat. Ein dünner Reiter, der die Wahrheit sagt, ist
    besser als ein voller, der lügt.
+3. **Die Kapazität hat keine eigene Art.** Pulse teilt das Geld eines Wertstroms
+   in zwei: Veränderungsgeld, das Vorhaben finanziert, und Betrieb, der „nie ein
+   Epic bezahlt" (§2.6 der Konsolidierungs-Spec). Eine reale Wertstrom-Struktur
+   hat dazwischen einen dritten, **größten** Block — die Kapazität der Teams.
+   Heute muss sie als `run` geführt werden und fällt damit aus Deckung, Lücke
+   und €-Satz: die Ampel meldet „überbucht um 2386 %", während die Teams, die
+   die Features bauen, bezahlt sind.
+
+   Eine dritte Art neben `run` und `art_change` wäre die saubere Antwort und ist
+   SAFe-konform — ein Lean Budget finanziert Menschen, und Epics werden daraus
+   gedeckt, nicht zusätzlich bezahlt. **Dieselbe Wurzel** haben die beiden
+   zurückgestellten Rechenfragen aus §5: der Vollkostensatz (a) und die
+   fehlenden Rahmen-Zuteilungen in der Deckung (b). Wer eine von ihnen aufgreift,
+   sollte alle drei zusammen ansehen.
+
+   Bis dahin sagen die Vorlagen für Kapazität im Formular, was sie tun
+   (REQ-15b).
 
 ## 10 · Verifikation
 
@@ -398,8 +468,10 @@ navigierbar, die Inhalte sind dieselben.
 
 - [art-budget-consolidation.md](art-budget-consolidation.md) — die Zusammenlegung
   der zwei Flächen; §2.6 und REQ-10 bleiben in Kraft (§5 dieser Spec)
+- [art-own-work-budget.md](art-own-work-budget.md) — der ART-Rahmen finanziert
+  auch Features ohne Epic; die Reservierungszeile und ihr Richtwert
 - [art-budget-transparency.md](art-budget-transparency.md) — Zustandsstaffel,
-  Verlauf, €-Satz, die zwei Ampeln
+  €-Satz, die zwei Ampeln; ihr zweiter Nachtrag nimmt den Verlauf zurück
 - [art-budget-relocation.md](art-budget-relocation.md) — warum die Flächen unter
   `/budgeting` liegen
 - [art-epic-budget-walkthrough.md](art-epic-budget-walkthrough.md) — der Ablauf

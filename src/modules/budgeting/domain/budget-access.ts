@@ -87,7 +87,7 @@ export function artPotAccessDeniedReason(facts: ArtPotAccessFacts): string | nul
   if (facts.isEpicSolutionProductManager) return null;
   return (
     "Nur der RTE dieses ARTs, Wertstrom-Owner, Finance-Partei, Portfolio-Management " +
-    "oder der Produkt-Manager der Solution dieses Epics dürfen das ART-Epic-Budget verteilen."
+    "oder der Produkt-Manager der Solution dieses Epics dürfen den ART-Rahmen verteilen."
   );
 }
 
@@ -100,6 +100,20 @@ export function artPotAccessDeniedReason(facts: ArtPotAccessFacts): string | nul
  */
 export function mayDistributeToEpic(facts: ArtPotAccessFacts): boolean {
   return artPotAccessDeniedReason(facts) == null;
+}
+
+/**
+ * Darf der Aufrufer die Zeile **ART-eigene Arbeit** bedienen?
+ *
+ * Dieselbe Regel, **ohne** den Weg des Produkt-Managers: er verantwortet eine
+ * Solution, und die eigenständige Arbeit eines ARTs ist keine. Genau diese
+ * Einengung nimmt auch `saveArtEpicAllocations` vor — sie steht deshalb hier
+ * und nicht zweimal nachgebaut.
+ */
+export function mayDistributeToOwnWork(
+  facts: Omit<ArtPotAccessFacts, "isEpicSolutionProductManager">,
+): boolean {
+  return mayDistributeToEpic({ ...facts, isEpicSolutionProductManager: false });
 }
 
 // ---------------------------------------------------------------------------

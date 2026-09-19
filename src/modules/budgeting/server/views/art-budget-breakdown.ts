@@ -19,7 +19,10 @@ import { getArtBudgetBreakdown } from "@/modules/budgeting/server/services/art-b
 export interface ArtGridRow {
   artId: string;
   name: string;
+  /** Veränderungsgeld je Halbjahr — Portfolio-Zuteilung **plus** ART-Rahmen. */
   budgetByPeriod: PeriodAmounts;
+  /** Der Rahmenanteil daraus, für die Aufschlüsselung an der Zelle. */
+  frameByPeriod: PeriodAmounts;
   load: ArtFeatureLoad;
   /**
    * Betriebsgeld dieses ARTs je Halbjahr (REQ-9). **Steht neben der Rechnung,
@@ -32,7 +35,12 @@ export interface ArtGridRow {
 export interface ArtGridModel {
   /** Budget-Perioden ∪ Halbjahre der Feature-PIs (REQ-A4). */
   periods: Period[];
-  /** Das abgeleitete Wertstrom-Budget, gegen das die ARTs ziehen. */
+  /**
+   * Das Veränderungsgeld des Wertstroms, gegen das die ARTs ziehen — Σ der
+   * Epic-Zuteilungen **plus** Σ der ART-Rahmen. Auf der Fläche heißt die Zeile
+   * „Wertstrom · Veränderung"; „Wertstrom-Budget" ist anderswo die reine
+   * Epic-Summe und bleibt es (§2.5).
+   */
   vsByPeriod: PeriodAmounts;
   rows: ArtGridRow[];
   /** Σ der ART-Zeilen je Halbjahr — die Auslastung. */
@@ -46,6 +54,8 @@ export interface ArtGridModel {
   unassigned: PeriodAmounts;
   /** Kein ART im Wertstrom — die Sicht zeigt dann nur einen Hinweis. */
   isEmpty: boolean;
+  /** Woher die Betriebsbeträge stammen — die Spalte beschriftet sich danach. */
+  operatingBasis: "awarded" | "planned";
   /** Betriebsgeld, das keinem ART zuzuordnen war — die Fläche benennt es. */
   operatingUnresolved: number;
 }
@@ -54,6 +64,7 @@ export interface BuildArtGridInputs {
   periods: readonly Period[];
   vsByPeriod: PeriodAmounts;
   rows: readonly ArtGridRow[];
+  operatingBasis?: "awarded" | "planned";
   operatingUnresolved?: number;
 }
 
@@ -82,6 +93,7 @@ export function buildArtGridModel(inputs: BuildArtGridInputs): ArtGridModel {
       periods.map((p) => p.key),
     ),
     isEmpty: rows.length === 0,
+    operatingBasis: inputs.operatingBasis ?? "planned",
     operatingUnresolved: inputs.operatingUnresolved ?? 0,
   };
 }
@@ -91,12 +103,15 @@ export async function loadArtGridModel(
   db: PrismaClient,
   tenantId: TenantId,
   valueStreamId: ValueStreamId,
+  /** Das gewählte Halbjahr — nur die Betriebsspalte braucht es (REQ-8). */
+  cycleKey?: string,
 ): Promise<ArtGridModel> {
-  const breakdown = await getArtBudgetBreakdown(db, tenantId, valueStreamId);
+  const breakdown = await getArtBudgetBreakdown(db, tenantId, valueStreamId, cycleKey);
   return buildArtGridModel({
     periods: breakdown.periods,
     vsByPeriod: breakdown.vsByPeriod,
     rows: breakdown.arts,
+    operatingBasis: breakdown.operatingBasis,
     operatingUnresolved: breakdown.operatingUnresolved,
   });
 }

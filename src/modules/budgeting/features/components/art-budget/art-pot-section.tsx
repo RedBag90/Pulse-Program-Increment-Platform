@@ -5,6 +5,8 @@ import { useActionState, useState } from "react";
 import { formatEUR } from "@/lib/formatting";
 import { saveArtEpicAllocationsAction } from "@/modules/budgeting/features/actions/art-pot";
 import type { ArtPotView } from "@/modules/budgeting/domain/art-budget-model";
+import { ownWorkExceedsFrame, type OwnWorkGuide } from "@/modules/budgeting/domain/art-own-work";
+import { SectionCard } from "@/components/ui/section-card";
 
 /**
  * Der ART-Rahmen eines ARTs und seine Verteilung auf ART-Epics.
@@ -27,44 +29,64 @@ export function ArtPotSection({
   view,
   artId,
   canDistribute,
+  guide,
 }: {
   view: ArtPotView;
   artId: string;
   canDistribute: boolean;
+  /**
+   * Der Richtwert für ART-eigene Arbeit samt seiner Herleitung. Er kommt aus
+   * der Deckungsrechnung und wird deshalb hereingereicht, statt in `ArtPotView`
+   * ein zweites Mal gerechnet zu werden.
+   */
+  guide: OwnWorkGuide;
 }) {
-  const { pot, rows } = view;
+  const { pot, rows, ownWork } = view;
   const [state, formAction, pending] = useActionState(saveArtEpicAllocationsAction, {});
   const [draft, setDraft] = useState<Record<string, string>>(() =>
     Object.fromEntries(rows.map((r) => [r.epicId, String(r.amount)])),
   );
+  /**
+   * **Der Richtwert steht nicht im Feld.** Gemessen ergibt Plant Efficiency
+   * 169.559 € gegen 58.750 € offenen Rahmen — als Vorbelegung wäre er
+   * unbrauchbar. Das Feld startet mit dem, was reserviert ist.
+   */
+  const [ownWorkDraft, setOwnWorkDraft] = useState(String(ownWork.amount));
 
-  const sum = rows.reduce((s, r) => s + (Number(draft[r.epicId]) || 0), 0);
+  const ownWorkAmount = Number(ownWorkDraft) || 0;
+  const sum = rows.reduce((s, r) => s + (Number(draft[r.epicId]) || 0), 0) + ownWorkAmount;
   const over = sum > pot.total;
-  const askSum = rows.reduce((s, r) => s + r.ask, 0);
+  const askSum = rows.reduce((s, r) => s + r.ask, 0) + (guide.ask ?? 0);
+  const ownWorkEditable = canDistribute && ownWork.canDistribute && pot.closedReason == null;
 
+  /**
+   * **Die Schiene bleibt, der Knopf geht** (REQ-12). Ohne Rahmen gibt es nichts
+   * zu verteilen — aber die Karte bleibt erkennbar der Ort, an dem es zu tun
+   * wäre, und sagt, was dafür fehlt. Eine Fläche, die in diesem Fall
+   * verschwände, liesse den RTE ohne Auskunft zurück.
+   */
   if (pot.total === 0 && rows.length === 0) {
     return (
-      <section className="space-y-2">
-        <h3 className="text-sm font-medium">ART-Epics finanzieren</h3>
-        <p className="rounded-lg border px-3 py-2 text-sm text-muted-foreground">
+      <SectionCard title={`Rahmen verteilen · ${pot.cycleKey}`} step={4}>
+        <p className="text-sm text-muted-foreground">
           Für dieses Halbjahr ist diesem ART kein Rahmen zugesprochen. Ein Rahmen wird als
           Run-the-Business-Position im Wertstrom angelegt und in der Kachel mitverteilt.
         </p>
-      </section>
+      </SectionCard>
     );
   }
 
   return (
-    <section className="space-y-3">
-      <h3 className="text-sm font-medium">ART-Epics finanzieren · {pot.cycleKey}</h3>
-      <p className="text-sm text-muted-foreground">
-        Aus dem ART-Rahmen dieses ARTs. Portfolio-Epics laufen über die Kachel.
-      </p>
-
+    <SectionCard
+      title={`Rahmen verteilen · ${pot.cycleKey}`}
+      step={4}
+      description="Aus dem ART-Rahmen dieses ARTs. Portfolio-Epics laufen über die Kachel."
+      contentClassName="space-y-3"
+    >
       <div className="grid gap-4 md:grid-cols-3">
         {[
           { label: "ART-Rahmen", value: pot.total, tone: "" },
-          { label: "Aus dem Rahmen verteilt", value: sum, tone: "var(--primary)" },
+          { label: "Aus dem Rahmen vergeben", value: sum, tone: "var(--primary)" },
           {
             label: "Rahmen offen",
             value: pot.total - sum,
@@ -132,6 +154,13 @@ export function ArtPotSection({
                   </td>
                 </tr>
               ))}
+              <OwnWorkRow
+                guide={guide}
+                value={ownWorkDraft}
+                editable={ownWorkEditable}
+                amount={ownWork.amount}
+                onChange={setOwnWorkDraft}
+              />
             </tbody>
             <tfoot>
               <tr className="border-t bg-surface-frame font-semibold">
@@ -165,6 +194,20 @@ export function ArtPotSection({
                 })),
             )}
           />
+          {/*
+            Der Richtwert friert beim ersten Reservieren ein — danach gilt der
+            gespeicherte, sonst wanderte er mit jedem neuen €-Satz.
+          */}
+          {ownWorkEditable && (
+            <input
+              type="hidden"
+              name="ownWork"
+              value={JSON.stringify({
+                amount: ownWorkAmount,
+                ask: ownWork.amount > 0 ? ownWork.ask : (guide.ask ?? 0),
+              })}
+            />
+          )}
           <span className="text-sm text-muted-foreground">
             Summe <span className="font-medium tabular-nums text-foreground">{formatEUR(sum)}</span>{" "}
             von {formatEUR(pot.total)}
@@ -182,6 +225,20 @@ export function ArtPotSection({
       {over && (
         <p role="alert" className="text-sm text-destructive">
           Die Summe überschreitet den ART-Rahmen um {formatEUR(sum - pot.total)}.
+        </p>
+      )}
+      {/*
+        **Eine Auskunft, keine Sperre.** Dass die eingeplante eigenständige
+        Arbeit teurer wäre als der Rest des Rahmens, hindert niemanden am
+        Reservieren — es ist genau die Auskunft, die vorher fehlte. Der Grund
+        steht dabei, weil der Satz bei dünner Historie stark schwankt.
+      */}
+      {ownWorkExceedsFrame(guide, pot.remaining) && (
+        <p className="text-sm text-warning">
+          Der Richtwert für ART-eigene Arbeit ({formatEUR(guide.ask ?? 0)}) übersteigt, was vom
+          Rahmen offen ist ({formatEUR(pot.remaining)}).
+          {view.pot.total > 0 &&
+            " Entweder wird weniger eigenständig gearbeitet, oder der Rahmen des nächsten Halbjahres muss das tragen."}
         </p>
       )}
       {state.error && (
@@ -210,6 +267,73 @@ export function ArtPotSection({
           die übrigen entscheidet der Wertstrom.
         </p>
       )}
-    </section>
+    </SectionCard>
+  );
+}
+
+/**
+ * **Die Zeile für ART-eigene Arbeit** — dieselbe Mechanik wie eine Epic-Zeile,
+ * ein anderer Gegenstand.
+ *
+ * Sie steht auch dann da, wenn kein eigenständiges Feature eingeplant ist: ein
+ * RTE darf reservieren, bevor das erste angelegt wird. Was sie **nie** tut, ist
+ * den Richtwert ins Feld schreiben — er ist eine Schätzung aus einem Satz mit
+ * Vorbehalten, keine Vorgabe.
+ */
+function OwnWorkRow({
+  guide,
+  value,
+  editable,
+  amount,
+  onChange,
+}: {
+  guide: OwnWorkGuide;
+  value: string;
+  editable: boolean;
+  amount: number;
+  onChange: (v: string) => void;
+}) {
+  const herleitung =
+    guide.featureCount === 0
+      ? "Kein eigenständiges Feature in diesem Halbjahr eingeplant."
+      : guide.rate == null
+        ? `${guide.featureCount} ${guide.featureCount === 1 ? "Feature" : "Features"} · ${guide.jobSize} JS · kein €-Satz für dieses ART`
+        : `${guide.featureCount} ${guide.featureCount === 1 ? "Feature" : "Features"} · ${guide.jobSize} JS × ${formatEUR(guide.rate)}`;
+
+  return (
+    <tr className="border-b bg-primary/5 last:border-b-0">
+      <td className="p-2">
+        <span className="font-medium">ART-eigene Arbeit (ohne Epic)</span>
+        <div className="mt-0.5 text-xs text-muted-foreground">{herleitung}</div>
+      </td>
+      <td className="p-2">
+        <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">—</span>
+      </td>
+      <td className="p-2 text-right tabular-nums">
+        {guide.ask == null ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <>
+            {formatEUR(guide.ask)}
+            <span className="ml-1.5 rounded-sm bg-muted px-1.5 py-0.5 text-meta text-muted-foreground">
+              geschätzt
+            </span>
+          </>
+        )}
+      </td>
+      <td className="p-2 text-right">
+        {editable ? (
+          <input
+            value={value}
+            onChange={(ev) => onChange(ev.target.value)}
+            inputMode="numeric"
+            aria-label="Reservierung für ART-eigene Arbeit"
+            className="w-28 rounded-md border bg-background px-2 py-1 text-right tabular-nums"
+          />
+        ) : (
+          <span className="tabular-nums">{formatEUR(amount)}</span>
+        )}
+      </td>
+    </tr>
   );
 }

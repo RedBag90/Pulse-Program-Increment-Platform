@@ -14,10 +14,17 @@ const emptyLoad = (artId: string): ArtFeatureLoad => ({
   total: { count: 0, jobSize: 0 },
 });
 
-const row = (artId: string, budgetByPeriod: Record<string, number>, operatingPerCycle = 0) => ({
+const row = (
+  artId: string,
+  budgetByPeriod: Record<string, number>,
+  operatingPerCycle = 0,
+  /** Der Rahmenanteil, der in `budgetByPeriod` bereits **enthalten** ist. */
+  frameByPeriod: Record<string, number> = {},
+) => ({
   artId,
   name: `ART ${artId}`,
   budgetByPeriod,
+  frameByPeriod,
   load: emptyLoad(artId),
   operatingPerCycle,
 });
@@ -83,5 +90,42 @@ describe("REQ-10 — Betriebsgeld fasst die Rechnung nicht an", () => {
     });
     expect(mit.allocatedByPeriod).toEqual(ohne.allocatedByPeriod);
     expect(mit.unassigned).toEqual(ohne.unassigned);
+  });
+});
+
+/**
+ * **Die Bezugsgröße muss mit den Zeilen wachsen.**
+ *
+ * Der Fehler, den diese Fälle festhalten: nähme die ART-Zeile den ART-Rahmen
+ * auf und `vsByPeriod` nicht, stiege die Auslastung über 100 % und „Nicht
+ * zugeordnet" würde negativ — beides eine Auskunft, die es nicht gibt.
+ */
+describe("der ART-Rahmen steckt in den Zeilen", () => {
+  it("zählt Rahmen und Portfolio in derselben Zelle", () => {
+    const model = buildArtGridModel({
+      periods,
+      // Portfolio 236.050 + Rahmen 135.000 — so steht es am Bestand.
+      vsByPeriod: { "2026-H2": 371_050 },
+      rows: [row("a1", { "2026-H2": 371_050 }, 0, { "2026-H2": 135_000 })],
+    });
+    expect(model.allocatedByPeriod["2026-H2"]).toBe(371_050);
+    expect(model.unassigned["2026-H2"]).toBe(0);
+    // Der Rahmenanteil bleibt getrennt lesbar — die Zelle nennt ihn im Titel.
+    expect(model.rows[0]?.frameByPeriod["2026-H2"]).toBe(135_000);
+  });
+
+  it("meldet die Basis der Betriebsspalte", () => {
+    const model = buildArtGridModel({
+      periods,
+      vsByPeriod: {},
+      rows: [],
+      operatingBasis: "awarded",
+    });
+    expect(model.operatingBasis).toBe("awarded");
+  });
+
+  /** Ohne Angabe bleibt es beim geplanten Betrag — der Stand vor REQ-8. */
+  it("fällt ohne Angabe auf „beantragt“ zurück", () => {
+    expect(buildArtGridModel({ periods, vsByPeriod: {}, rows: [] }).operatingBasis).toBe("planned");
   });
 });

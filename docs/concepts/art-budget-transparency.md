@@ -534,3 +534,38 @@ Was sich am Inhalt dieser Spec ändert:
 - **Der €-Satz je Job-Size-Punkt bleibt Veränderungsgeld.** Betriebsgeld wird
   seit der Zusammenlegung je ART ausgewiesen, fließt aber weder in `allocated`
   noch in die Lücke noch in den Satz — ein Test hält das fest.
+
+---
+
+## Nachtrag 2026-09-19 (2) — der Verlauf ist entfallen
+
+**§2.2 „Der Verlauf" und die Requirements zu ihm sind ausser Kraft.** Die Kachel
+ist von beiden Flächen entfernt worden — aus dem ART-Reiter und aus „Nachsehen".
+
+**Der Anlass, wörtlich:** _„Die Kachel streichen. Ich sehe den Mehrwert nicht."_
+
+**Was gegen sie sprach.** Die Höhe der Balken ist konstruktionsbedingt konstant —
+die Halbjahres-Zuteilung wird gleichmässig auf sechs Monate geteilt; nur die
+Zusammensetzung wandert. Die Beschreibung der Kachel sagte das selbst. Dieselbe
+Aussage — verbraucht, gebunden, nicht begonnen — trägt die **Zustandsstaffel**
+in den Kacheln darüber, ohne Monatsachse.
+
+**Was mit ihr entfallen ist:**
+
+- `domain/allocation-course.ts` samt Test, `features/.../allocation-course-chart.tsx`,
+  `server/views/value-stream-course.ts`
+- die Felder `course` und `todayIndex` in `ArtBudgetDetail`, das Monatsraster und
+  `stateInMonth` in `art-budget-detail.ts`, `monthsOfCycle` in `period-window.ts`
+- der Satz über den **gleichmäßigen Abfluss** („Bis Sep sollten … 19.671 € je
+  Monat …") — er steckte in der Kachel und wurde nirgends sonst benutzt
+- **die Reifegrad-Historie im Budgeting-Lader.** `loadEpicRows` las je Epic acht
+  zusätzliche Spalten samt dem JSON-Feld `timeline`, nur um
+  `buildEpicStageTimeline` zu füttern. Gelesen hat das ausschliesslich der
+  Verlauf. Damit verliert Budgeting seine einzige Leitung zur Historie aus Work;
+  `epic-stage-timeline.ts` selbst lebt für das Portfolio-Dashboard weiter.
+
+**`ArtBudgetDetail.artId` ist nicht mehr `null`-fähig.** Das `null` gab es allein
+für die Wertstrom-Sicht des Verlaufs.
+
+**Was unverändert bleibt:** §8 dieser Spec (kein Umbuchen, keine Ist-Kosten), die
+Zustandsstaffel, die beiden Ampeln und der €-Satz samt seinen Vorbehalten.

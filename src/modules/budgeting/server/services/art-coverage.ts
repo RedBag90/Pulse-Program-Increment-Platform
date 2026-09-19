@@ -60,16 +60,31 @@ export async function loadArtCoverage(
   ]);
 
   // Zähler: das Primitiv, nicht von Hand.
-  const planned = aggregateArtFeatureLoad(
-    [artId],
-    features.map((f) => ({
-      artId,
-      jobSize: f.wsjfJobSize ?? 0,
-      piStart: f.pi?.startDate ?? null,
-    })),
-  )[0]?.byPeriod[cycleKey] ?? { jobSize: 0, count: 0 };
+  const zuLast = (f: (typeof features)[number]) => ({
+    artId,
+    jobSize: f.wsjfJobSize ?? 0,
+    piStart: f.pi?.startDate ?? null,
+  });
+  const planned = aggregateArtFeatureLoad([artId], features.map(zuLast))[0]?.byPeriod[cycleKey] ?? {
+    jobSize: 0,
+    count: 0,
+  };
   const plannedJobSize = planned.jobSize;
   const plannedCount = planned.count;
+
+  /**
+   * Derselbe Zähler, eingeengt auf Features **ohne Epic** — die eigenständige
+   * Arbeit dieses ARTs. Dasselbe Primitiv ein zweites Mal statt einer
+   * handgeschriebenen Zweitrechnung: sonst gäbe es zwei Stellen, an denen
+   * „eingeplant in diesem Halbjahr" definiert wird, und sie würden driften.
+   *
+   * Sie ist ein **Teil** von `plannedJobSize`, kein Abzug: das ART-Budget
+   * finanziert alles, was das ART tut.
+   */
+  const plannedStandalone = aggregateArtFeatureLoad(
+    [artId],
+    features.filter((f) => f.parentId === null).map(zuLast),
+  )[0]?.byPeriod[cycleKey] ?? { jobSize: 0, count: 0 };
 
   // Nenner: fertiggestellte Features je Abschluss-Halbjahr.
   const doneByCycle = new Map<
@@ -130,6 +145,7 @@ export async function loadArtCoverage(
   return {
     plannedJobSize,
     featureCount: plannedCount,
+    plannedStandalone: { jobSize: plannedStandalone.jobSize, count: plannedStandalone.count },
     rate,
     loadEuro,
     allocated,

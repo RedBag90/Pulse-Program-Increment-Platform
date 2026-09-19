@@ -100,7 +100,7 @@ export function ClassificationDriftDialog({
           ) : mayInsist ? (
             <>
               <p className="text-muted-foreground">
-                Es hängt künftig am ART-Epic-Budget seines ARTs statt an der PB-Liste. Wenn es aus
+                Es hängt künftig am ART-Rahmen seines ARTs statt an der PB-Liste. Wenn es aus
                 anderen Gründen Portfolio-Sache bleiben soll, halte den Grund fest.
               </p>
               <div className="space-y-1.5">
@@ -116,8 +116,8 @@ export function ClassificationDriftDialog({
             </>
           ) : (
             <p className="text-muted-foreground">
-              Es hängt künftig am ART-Epic-Budget seines ARTs statt an der PB-Liste. Eine Ausnahme
-              davon kann nur das Portfolio erklären.
+              Es hängt künftig am ART-Rahmen seines ARTs statt an der PB-Liste. Eine Ausnahme davon
+              kann nur das Portfolio erklären.
             </p>
           )}
 

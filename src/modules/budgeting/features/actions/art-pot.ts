@@ -65,6 +65,8 @@ export const saveArtEpicAllocationsAction = createServerAction({
         ask: z.number().min(0),
       }),
     ),
+    /** Die Reservierung für ART-eigene Arbeit — ein Betrag, keine Liste. */
+    ownWork: z.object({ amount: z.number().min(0), ask: z.number().min(0) }).optional(),
   }),
   action: "art_budget.distribute",
   authorizedInService: true,
@@ -79,6 +81,16 @@ export const saveArtEpicAllocationsAction = createServerAction({
         amount: number;
         ask: number;
       }[],
+      // Fehlt das Feld, bleibt eine bestehende Reservierung stehen — der
+      // Service zählt sie dann trotzdem gegen den Deckel.
+      ...(f.nonEmptyString("ownWork") != null
+        ? {
+            ownWork: JSON.parse(f.nonEmptyString("ownWork")!) as {
+              amount: number;
+              ask: number;
+            },
+          }
+        : {}),
     };
   },
   service: (ctx, i) => saveArtEpicAllocations(ctx, i),

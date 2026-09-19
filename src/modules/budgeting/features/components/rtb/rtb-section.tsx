@@ -7,6 +7,8 @@ import {
   deleteRtbItemAction,
 } from "@/modules/budgeting/features/actions/rtb";
 import {
+  sumRtbAnnual,
+  sumRtbCycle,
   RTB_INTERVALS,
   RTB_INTERVAL_LABELS,
   rtbAnnualAmount,
@@ -18,6 +20,18 @@ import {
   isChangeKind,
   splitRunAndChange,
 } from "@/modules/budgeting/domain/rtb-kind";
+import { Link } from "@/i18n/navigation";
+import {
+  RTB_TEMPLATE_GROUP_LABELS,
+  RTB_TEMPLATE_GROUP_HINTS,
+  templatesOfGroup,
+  templateById,
+} from "@/modules/budgeting/domain/rtb-templates";
+import {
+  rtbAssignmentGroup,
+  zaehltBeiAnderemArt,
+  type RtbAssignmentGroup,
+} from "@/modules/budgeting/domain/rtb-art-resolution";
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { SectionCard } from "@/components/ui/section-card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -47,6 +61,11 @@ export interface RtbItem {
 export interface RtbSolutionOption {
   id: string;
   name: string;
+  /**
+   * Der ART dieser Solution — seit `solutions.art_id NOT NULL` immer gesetzt.
+   * Ohne ihn zeigte die Fläche eine Solution, ohne zu sagen, wo ihr Geld landet.
+   */
+  artId?: string | null;
 }
 
 export interface RtbArtOption {
@@ -107,7 +126,44 @@ export function RtbSection({
   const artName = (id: string | null | undefined) =>
     id == null ? "—" : (arts.find((a) => a.id === id)?.name ?? "—");
 
+  /** `solutionId → artId`, für den ART hinter einer Solution. */
+  const artOfSolution: Record<string, string | null> = Object.fromEntries(
+    solutions.map((so) => [so.id, so.artId ?? null]),
+  );
+
+  /**
+   * **Was in der Zurechnungsspalte steht** — das, was die Gruppenüberschrift
+   * noch nicht gesagt hat.
+   *
+   * Die Spalte hiess einmal „Solution" und verschwieg zwei der drei Wege. Seit
+   * die Tabelle nach Ebene gegliedert ist, nennt die Überschrift den Weg und
+   * die Spalte den **Namen** — bei einer Solution beide Stationen, denn dort
+   * entscheidet der ART der Solution, wo das Geld landet.
+   */
+  const zurechnung = (it: RtbItem) => {
+    switch (rtbAssignmentGroup(it)) {
+      case "art":
+        return artName(it.artId);
+      case "solution": {
+        const via = it.solutionId == null ? null : (artOfSolution[it.solutionId] ?? null);
+        return `${solutionName(it.solutionId)} · ${artName(via)}`;
+      }
+      default:
+        return "—";
+    }
+  };
+
   const { run, change } = splitRunAndChange(items);
+
+  /**
+   * **Schritt 1 der Finanzierungskette** — aber nur auf der Wertstrom-Fläche.
+   * Auf der Solution-Fläche steht dieselbe Tabelle ausserhalb der Kette; eine
+   * Schrittnummer behauptete dort einen Prozess, in dem sie nicht steht.
+   *
+   * Als Streuung, weil `exactOptionalPropertyTypes` ein `step={undefined}`
+   * nicht erlaubt.
+   */
+  const schritt = scoped ? {} : { step: 1 };
 
   const groupProps = {
     canManage,
@@ -117,6 +173,9 @@ export function RtbSection({
     showSolution,
     solutionName,
     artName,
+    zurechnung,
+    artOfSolution,
+    scoped,
     arts,
     canUseArts,
   };
@@ -130,6 +189,8 @@ export function RtbSection({
     */
     <SectionCard
       title={scoped ? "Betriebskosten" : "Betriebspositionen"}
+      work={!scoped}
+      {...schritt}
       description={
         <>
           {scoped
@@ -155,16 +216,40 @@ export function RtbSection({
         />
       )}
 
-      {run.items.length > 0 && (
-        <RtbGroupTable title="Betrieb" group={run} kindOfGroup="run" {...groupProps} />
-      )}
+      {run.items.length > 0 && <RtbGroupTable title="Betrieb" group={run} {...groupProps} />}
       {change.items.length > 0 && (
-        <RtbGroupTable
-          title={`${RTB_KIND_LABELS.art_change}s`}
-          group={change}
-          kindOfGroup="art_change"
-          {...groupProps}
-        />
+        <RtbGroupTable title={`${RTB_KIND_LABELS.art_change}s`} group={change} {...groupProps} />
+      )}
+
+      {/*
+        **Jede Arbeitsfläche nennt ihren Nachfolger** (REQ-10). Die Leiste sagt,
+        wo der Prozess steht; dieser Satz übergibt konkret.
+      */}
+      {/*
+        **Die Lese-Fassung darf keine Sackgasse sein.** Auf der Solution-Fläche
+        wird seit 2026-09-19 nicht mehr gepflegt; der Weg dorthin muss dann
+        sichtbar sein.
+      */}
+      {scoped && (
+        <p className="text-xs text-muted-foreground">
+          Gepflegt werden diese Positionen im Budget-Bereich des Wertstroms.{" "}
+          <Link
+            href={`/budgeting/value-streams/${valueStreamId}?tab=einrichten`}
+            className="text-primary hover:underline"
+          >
+            Zu den Betriebspositionen →
+          </Link>
+        </p>
+      )}
+
+      {!scoped && items.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Aktive Positionen kommen als Kandidaten auf die PB-Liste der nächsten Kachel — dort
+          entscheidet sich, wie viel dieser Wertstrom bekommt.{" "}
+          <Link href="/budgeting/periods" className="text-primary hover:underline">
+            Zu den Kacheln →
+          </Link>
+        </p>
       )}
 
       {canManage && adding && (
@@ -190,6 +275,12 @@ interface GroupProps {
   showSolution: boolean;
   solutionName: (id: string | null) => string;
   artName: (id: string | null | undefined) => string;
+  /** Der Weg zum ART, als Text — siehe `zurechnung` oben. */
+  zurechnung: (it: RtbItem) => string;
+  /** `solutionId → artId`, für die Abweichungsprüfung in der Solution-Gruppe. */
+  artOfSolution: Record<string, string | null>;
+  /** Fläche einer einzelnen Solution: dort ist die Zurechnung fix und entfällt. */
+  scoped: boolean;
   arts: RtbArtOption[];
   canUseArts: boolean;
 }
@@ -198,24 +289,42 @@ interface GroupProps {
 function RtbGroupTable({
   title,
   group,
-  kindOfGroup,
   ...p
 }: GroupProps & {
   title: string;
   group: { items: RtbItem[]; annual: number; cycle: number };
-  kindOfGroup: "run" | "art_change";
 }) {
-  const isChange = kindOfGroup === "art_change";
-  // Die zweite Spalte trägt, was die Gruppe **nicht** schon sagt: bei Betrieb
-  // die Solution, bei einem ART-Rahmen den ART.
-  const secondCol = isChange ? "ART" : p.showSolution ? "Solution" : null;
+  /*
+    **Die Spalte nennt den Namen, die Gruppe den Weg.** Sie hiess einmal
+    „Solution" und verschwieg damit zwei der drei Wege; dann „Zurechnung" und
+    trug den Weg im Text jeder Zeile. Seit die Tabelle gegliedert ist, steht der
+    Weg einmal in der Überschrift — und in der Solution-Gruppe die Solution
+    **samt** ihrem ART, denn der entscheidet, wo das Geld landet.
+
+    Auf der Solution-Fläche ist ohnehin alles „Solution-individuell": dort
+    entfällt die Gliederung, und die eine sinnvolle Spalte ist der ART.
+  */
+  const secondCol = p.scoped ? "ART" : "Zurechnung";
+
+  /** Die drei Ebenen, von der breitesten Zurechnung zur engsten. */
+  const GRUPPEN: { key: RtbAssignmentGroup; label: string }[] = [
+    { key: "stream", label: "Wertstrom-übergreifend" },
+    { key: "art", label: "ART-übergreifend" },
+    { key: "solution", label: "Solution-individuell" },
+  ];
+  const spalten = p.canManage ? 6 : 5;
 
   return (
-    <div className="space-y-1.5 first:pt-0 [&+&]:border-t [&+&]:pt-4">
+    <div className="space-y-2 first:pt-0 [&+&]:border-t [&+&]:pt-5">
       <div className="flex flex-wrap items-baseline gap-2">
-        <h3 className="text-meta font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          {title}
-        </h3>
+        {/*
+          **Die Obergruppe führt.** Sie stand auf `text-meta` (11 px) und
+          gedämpft — kleiner als die Untergruppen darunter und kleiner als ihre
+          eigene Summe daneben. Grösser als `text-sm` darf eine Überschrift
+          nicht werden (der Wächter `section-structure` hält das fest), also
+          kommt die Prominenz aus Versalien, Gewicht und voller Textfarbe.
+        */}
+        <h3 className="text-sm font-semibold uppercase tracking-[0.08em]">{title}</h3>
         <span className="text-xs text-muted-foreground">
           <span className="font-medium text-foreground">{EUR(group.annual)}</span> p. a.
           <span className="mx-1.5">·</span>
@@ -224,7 +333,21 @@ function RtbGroupTable({
       </div>
 
       <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+        <table className="w-full table-fixed text-sm">
+          {/*
+            **Feste Spalten, damit Betrieb und ART-Rahmen fluchten.** Beide
+            Tabellen stehen untereinander und wirken als eine Fläche; mit
+            `table-auto` leitete jede ihre Breiten aus ihrem eigenen Inhalt ab,
+            und die Köpfe standen versetzt. Die erste Spalte nimmt den Rest.
+          */}
+          <colgroup>
+            <col />
+            <col className="w-[22rem]" />
+            <col className="w-32" />
+            <col className="w-32" />
+            <col className="w-32" />
+            {p.canManage && <col className="w-28" />}
+          </colgroup>
           <thead>
             <tr className="border-b bg-surface-frame text-left text-meta uppercase tracking-[0.1em] text-muted-foreground">
               <th className="px-3 py-2">Position</th>
@@ -236,49 +359,121 @@ function RtbGroupTable({
             </tr>
           </thead>
           <tbody>
-            {group.items.map((it) =>
-              p.editingId === it.id ? (
-                <tr key={it.id} className="border-b last:border-b-0 bg-primary/5">
-                  <td colSpan={secondCol ? 6 : 5} className="p-3">
-                    <RowEditor item={it} onClose={() => p.onEdit(null)} {...p} />
-                  </td>
-                </tr>
-              ) : (
-                <tr
-                  key={it.id}
-                  className={`border-b last:border-b-0 ${it.active ? "" : "opacity-55"}`}
-                >
-                  <td className={`px-3 py-2 ${it.active ? "" : "line-through"}`}>{it.name}</td>
-                  {secondCol && (
-                    <td className="px-3 py-2 text-muted-foreground">
-                      {isChange ? p.artName(it.artId) : p.solutionName(it.solutionId)}
-                    </td>
-                  )}
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {RTB_INTERVAL_LABELS[rtbIntervalOrDefault(it.interval)]}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums">{EUR(it.plannedAmount)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    {it.active ? (
-                      EUR(rtbAnnualAmount(it.plannedAmount, it.interval))
-                    ) : (
-                      <span className="text-muted-foreground">inaktiv</span>
-                    )}
-                  </td>
-                  {p.canManage && (
-                    <td className="px-3 py-2 text-right">
-                      <button type="button" onClick={() => p.onEdit(it.id)} className={btnGhost}>
-                        Bearbeiten
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ),
-            )}
+            {GRUPPEN.map(({ key, label }) => {
+              const drin = p.scoped
+                ? key === "solution"
+                  ? group.items
+                  : []
+                : group.items.filter((it) => rtbAssignmentGroup(it) === key);
+              if (drin.length === 0) return null;
+              return (
+                <RtbAssignmentGroupRows
+                  key={key}
+                  label={p.scoped ? null : label}
+                  items={drin}
+                  spalten={spalten}
+                  {...p}
+                />
+              );
+            })}
           </tbody>
         </table>
       </div>
     </div>
+  );
+}
+
+/**
+ * Eine Ebene innerhalb einer Tabelle — Überschrift mit Zwischensumme, dann ihre
+ * Zeilen.
+ *
+ * **Gruppenzeilen statt sechs getrennter Tabellen:** die Spalten bleiben über
+ * alle Ebenen ausgerichtet, und die beiden Obergruppen behalten je eine Summe
+ * im Kopf. Dasselbe Muster trägt der Business Case.
+ */
+function RtbAssignmentGroupRows({
+  label,
+  items,
+  spalten,
+  ...p
+}: GroupProps & {
+  label: string | null;
+  items: RtbItem[];
+  spalten: number;
+}) {
+  return (
+    <>
+      {label != null && (
+        <tr className="border-b bg-surface-frame/60">
+          {/*
+            **Drei Ebenen, eine Grösse, drei Gewichte.** Die Obergruppe ist
+            versal und `font-semibold`, diese Untergruppe `font-medium`, die
+            Zeilen normal. Hier stand das Label einmal auf `text-label` (10 px,
+            laut ADR-0021 für **Versal**-Mikrolabel) mit einer Summe auf
+            `text-xs` daneben — der Nebensatz war grösser als das, was er
+            erläutert.
+          */}
+          <td colSpan={spalten} className="px-3 pb-1.5 pt-3">
+            <span className="text-sm font-medium">{label}</span>
+            <span className="ml-2 text-meta text-muted-foreground">
+              {EUR(sumRtbAnnual(items))} p. a. · {EUR(sumRtbCycle(items))} je Kachel
+            </span>
+          </td>
+        </tr>
+      )}
+      {items.map((it) =>
+        p.editingId === it.id ? (
+          <tr key={it.id} className="border-b last:border-b-0 bg-primary/5">
+            <td colSpan={spalten} className="p-3">
+              <RowEditor item={it} onClose={() => p.onEdit(null)} {...p} />
+            </td>
+          </tr>
+        ) : (
+          <tr key={it.id} className={`border-b last:border-b-0 ${it.active ? "" : "opacity-55"}`}>
+            <td className={`px-3 py-2 ${it.active ? "" : "line-through"}`}>{it.name}</td>
+            <td className="px-3 py-2 text-muted-foreground">
+              {p.scoped
+                ? // Auf der Solution-Fläche zählt, **wo das Geld landet**: der
+                  // direkt gesetzte ART, sonst der ART der Solution.
+                  p.artName(
+                    it.artId ?? (it.solutionId != null ? p.artOfSolution[it.solutionId] : null),
+                  )
+                : p.zurechnung(it)}
+              {/*
+                      Steht die Zeile unter einer Solution, zählt ihr Geld aber
+                      bei einem anderen ART, ist die Überschrift nicht die ganze
+                      Wahrheit. Im Bestand kommt das nicht vor — der Fall ist
+                      aber möglich, und stumm wäre er eine falsche Auskunft.
+                    */}
+              {(() => {
+                const anderer = zaehltBeiAnderemArt(it, p.artOfSolution);
+                return anderer == null ? null : (
+                  <span className="ml-1.5 text-warning">· zählt bei {p.artName(anderer)}</span>
+                );
+              })()}
+            </td>
+            <td className="px-3 py-2 text-muted-foreground">
+              {RTB_INTERVAL_LABELS[rtbIntervalOrDefault(it.interval)]}
+            </td>
+            <td className="px-3 py-2 text-right tabular-nums">{EUR(it.plannedAmount)}</td>
+            <td className="px-3 py-2 text-right tabular-nums">
+              {it.active ? (
+                EUR(rtbAnnualAmount(it.plannedAmount, it.interval))
+              ) : (
+                <span className="text-muted-foreground">inaktiv</span>
+              )}
+            </td>
+            {p.canManage && (
+              <td className="px-3 py-2 text-right">
+                <button type="button" onClick={() => p.onEdit(it.id)} className={btnGhost}>
+                  Bearbeiten
+                </button>
+              </td>
+            )}
+          </tr>
+        ),
+      )}
+    </>
   );
 }
 
@@ -320,24 +515,29 @@ function RowEditor({
                 ))}
               </select>
             </label>
-            {isChangeKind(kind) && (
-              <label className="text-xs">
-                ART
-                <select
-                  name="artId"
-                  required
-                  defaultValue={item.artId ?? ""}
-                  className={`block ${input} w-40`}
-                >
-                  <option value="">— bitte wählen</option>
-                  {arts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
+            {/*
+              **Das Feld steht bei jeder Art** (2026-09-19). Es hing hinter
+              `isChangeKind`, und damit war Weg 1 der Auflösung — „steht ein ART
+              an der Position, gilt er" — für Betriebspositionen nicht
+              erreichbar: alle 25 im Bestand tragen `artId = null`, nicht aus
+              Wahl, sondern weil das Formular keinen anbot.
+            */}
+            <label className="text-xs">
+              ART
+              <select
+                name="artId"
+                required={isChangeKind(kind)}
+                defaultValue={item.artId ?? ""}
+                className={`block ${input} w-40`}
+              >
+                <option value="">{isChangeKind(kind) ? "— bitte wählen" : "— kein ART"}</option>
+                {arts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </label>
           </>
         )}
 
@@ -450,11 +650,62 @@ function AddForm({
 }) {
   const [state, action, pending] = useActionState(createRtbItemAction, {});
   const [kind, setKind] = useState<string>("run");
+  /**
+   * **Vorlage, nicht Vorgabe.** Die Auswahl setzt Name, Art und Periode vor —
+   * den **Betrag nie**, den weiß nur der Wertstrom. „— eigene Position" ist der
+   * Ausgangszustand und verhält sich wie vor den Vorlagen.
+   */
+  const [templateId, setTemplateId] = useState("");
+  const [name, setName] = useState("");
+  const [interval, setInterval] = useState<string>("yearly");
+  const template = templateById(templateId);
+
+  const waehle = (id: string) => {
+    setTemplateId(id);
+    const t = templateById(id);
+    if (t == null) return;
+    setName(t.label);
+    setKind(t.kind);
+    setInterval(t.interval);
+  };
 
   return (
     <form action={action} className="space-y-3 rounded-lg border bg-surface-frame p-3">
       <input type="hidden" name="valueStreamId" value={valueStreamId} />
       {solutionId != null && <input type="hidden" name="solutionId" value={solutionId} />}
+
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="text-xs">
+          Vorlage
+          <select
+            value={templateId}
+            onChange={(e) => waehle(e.target.value)}
+            className={`block ${input} w-72`}
+          >
+            <option value="">— eigene Position</option>
+            {(["stream", "art", "solution"] as const).map((g) => (
+              <optgroup key={g} label={RTB_TEMPLATE_GROUP_LABELS[g]}>
+                {templatesOfGroup(g).map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+        {template != null && (
+          <p className="max-w-md text-xs text-muted-foreground">
+            {RTB_TEMPLATE_GROUP_HINTS[template.group]}
+          </p>
+        )}
+      </div>
+
+      {/*
+        Der Vorbehalt steht **neben der Auswahl**, nicht in einem Tooltip: er
+        ändert, wie die Zahl später gelesen wird.
+      */}
+      {template?.caveat != null && <p className="text-xs text-warning">{template.caveat}</p>}
 
       {canUseArts && (
         <div className="flex flex-wrap items-end gap-2">
@@ -473,20 +724,35 @@ function AddForm({
               ))}
             </select>
           </label>
-          {isChangeKind(kind) && (
-            <label className="text-xs">
-              ART
-              <select name="artId" required defaultValue="" className={`block ${input} w-40`}>
-                <option value="">— bitte wählen</option>
-                {arts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+          <label className="text-xs">
+            ART
+            <select
+              name="artId"
+              required={isChangeKind(kind)}
+              defaultValue=""
+              className={`block ${input} w-40`}
+            >
+              <option value="">{isChangeKind(kind) ? "— bitte wählen" : "— kein ART"}</option>
+              {arts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
+      )}
+
+      {/*
+        Was der ART bewirkt — der Unterschied, für den es das Feld gibt. Ohne
+        ihn verteilt sich eine Betriebsposition gleichmässig auf alle ARTs des
+        Stroms; mit ihm zählt sie bei genau einem.
+      */}
+      {canUseArts && !isChangeKind(kind) && (
+        <p className="text-xs text-muted-foreground">
+          Mit ART zählt die Position direkt bei ihm. Ohne ART und ohne Solution wird sie
+          gleichmässig auf alle ARTs des Wertstroms geschlüsselt.
+        </p>
       )}
 
       <div className="flex flex-wrap items-end gap-2">
@@ -495,6 +761,8 @@ function AddForm({
           <input
             name="name"
             required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             placeholder="z. B. Betrieb / Lizenzen"
             className={`block ${input} w-52`}
           />
@@ -513,7 +781,12 @@ function AddForm({
         <label className="text-xs">
           Periode
           {/* Default `yearly`: Betriebskosten werden im Jahr geplant. */}
-          <select name="interval" defaultValue="yearly" className={`block ${input} w-32`}>
+          <select
+            name="interval"
+            value={interval}
+            onChange={(e) => setInterval(e.target.value)}
+            className={`block ${input} w-32`}
+          >
             {RTB_INTERVALS.map((i) => (
               <option key={i} value={i}>
                 {RTB_INTERVAL_LABELS[i]}

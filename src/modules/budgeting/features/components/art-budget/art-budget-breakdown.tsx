@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import type { PeriodAmounts } from "@/modules/budgeting/domain/period-map";
 import type { Period } from "@/modules/budgeting/domain/period-window";
@@ -10,14 +10,14 @@ import { SectionCard } from "@/components/ui/section-card";
 import { EmptyState } from "@/components/ui/empty-state";
 
 /**
- * **Das Geld eines Wertstroms, aufgeschlüsselt je ART** — eine Tabelle, in der
- * die Zeilen aufklappen.
+ * **Das Geld eines Wertstroms, aufgeschlüsselt je ART** — eine Tabelle, deren
+ * Zeilen in den Reiter ihres ARTs führen.
  *
  * Die Form kommt aus der Frage, für die es die Fläche gibt: wer einen Business
  * Case für einen Wertstrom rechnet, baut sich eine Tabelle mit **Halbjahren als
  * Spalten**. Niemand baut eine Übersicht mit einer Zeitspalte. Und eine
- * Excel-Gruppe klappt **in denselben Spalten** auf — deshalb bleibt die Matrix,
- * und das Detail hängt darunter, statt sie zu ersetzen.
+ * Excel-Gruppe hat **dieselben Spalten** über alle Zeilen — deshalb bleibt die
+ * Matrix eine Matrix und trägt kein Detail in sich.
  *
  * Hier standen **zwei** Tabellen untereinander: „Zugeteilt je ART" mit dem Geld
  * und „Feature-Last je ART" mit der Last, beide mit denselben Spalten und
@@ -25,29 +25,23 @@ import { EmptyState } from "@/components/ui/empty-state";
  * interessante Frage —, sprang zwischen ihnen hin und her. Jetzt steht die Last
  * klein unter dem Betrag, in derselben Zelle.
  *
- * **Server-Komponente, kein Client-State.** Der Schalter ist ein `<Link>` auf
- * `?art=`, wie Reiter und Halbjahr es auf dieser Seite ohnehin sind. Damit
- * überlebt der aufgeklappte Zustand das Teilen einer Adresse, den Zurück-Knopf
- * und den Reiterwechsel — und der Server lädt das Detail nur, wenn wirklich
- * eine Zeile offen ist.
+ * **Sie ist ein Wegweiser, kein Falter.** Bis 2026-09-19 klappte eine Zeile das
+ * ART-Detail auf — erst mitten in der Tabelle, dann als Karte darunter. Seit
+ * jedes ART einen eigenen Reiter hat, führt die Zeile dorthin: ein `›` führt,
+ * ein `▸` klappt, und in dieser Tabelle klappt nichts mehr. Eine Zelle nimmt
+ * ihr Halbjahr mit — man landet im Reiter bei dem Halbjahr, dessen Zahl man
+ * angeklickt hat.
  */
 interface Props {
   model: ArtGridModel;
-  /** Wohin die Links zeigen — ohne Query, die baut diese Fläche selbst. */
-  basePath: string;
-  /** Der Reiter, der erhalten bleiben soll. */
-  tab: string;
-  /** Das gewählte Halbjahr: seine Spalte ist markiert, sein Detail steht im Kasten. */
-  cycleKey: string;
-  /** Welche Zeile offen ist — `null`, wenn keine. */
   /**
-   * Welche Zeile gerade offen ist — **nur zur Markierung**. Das Detail selbst
-   * stand bis 2026-09-19 als `<tr><td colSpan={9}>` mitten in dieser Tabelle
-   * und konnte deshalb keine eigene Fläche tragen: eine ganze Seite in einer
-   * leicht getönten Tabellenzeile. Es steht jetzt als eigene Karte unter der
-   * Tabelle — die Spalten hat es ohnehin nie benutzt.
+   * Wohin eine Zeile führt — der Reiter **dieses** ARTs, bei **diesem**
+   * Halbjahr. Die Fläche baut die Adresse nicht selbst: wie ein ART-Reiter
+   * heisst, weiss die Seite, nicht die Tabelle.
    */
-  expandedArtId: string | null;
+  artHref: (artId: string, cycleKey: string) => string;
+  /** Das gewählte Halbjahr: seine Spalte ist markiert. */
+  cycleKey: string;
   /**
    * ARTs, für die der Betrachter Beträge sehen darf (REQ-3). Die übrigen Zeilen
    * stehen mit Namen da: **dass** es sie gibt, ist keine Geheimhaltung wert,
@@ -58,23 +52,8 @@ interface Props {
   showTotals: boolean;
 }
 
-export function ArtBudgetBreakdown({
-  model,
-  basePath,
-  tab,
-  cycleKey,
-  expandedArtId,
-  visibleArtIds,
-  showTotals,
-}: Props) {
+export function ArtBudgetBreakdown({ model, artHref, cycleKey, visibleArtIds, showTotals }: Props) {
   const { periods } = model;
-
-  /** Zeile auf- oder zuklappen; eine Zelle wählt zusätzlich ihr Halbjahr. */
-  const href = (artId: string | null, cycle: string = cycleKey) => {
-    const q = new URLSearchParams({ tab, cycle });
-    if (artId != null) q.set("art", artId);
-    return `${basePath}?${q.toString()}`;
-  };
 
   if (model.isEmpty) {
     return (
@@ -90,7 +69,7 @@ export function ArtBudgetBreakdown({
   return (
     <SectionCard
       title="Zugeteilt je ART"
-      description="Je Halbjahr der zugeteilte Betrag, darunter klein die Feature-Last. Eine Zeile öffnet das Halbjahr der angeklickten Spalte."
+      description="Je Halbjahr das Veränderungsgeld eines ARTs — Zuteilung aus der Kachel und zugesprochener ART-Rahmen zusammen —, darunter klein die Feature-Last. Eine Zeile führt in den Reiter ihres ARTs; eine Zelle nimmt ihr Halbjahr mit."
       bleed
       contentClassName="space-y-3"
     >
@@ -119,14 +98,31 @@ export function ArtBudgetBreakdown({
                 der €-Satz je Job-Size-Punkt rechnen ohne es (REQ-10). Deshalb
                 eine eigene Spalte, abgesetzt, mit eigener Überschrift — und
                 nicht ein zweiter Summand in einer bestehenden.
+
+                Die Trennlinie allein trägt das nicht: sie sagt „abgesetzt",
+                nicht „zählt nicht mit". Deshalb steht es im Kopf (REQ-11) —
+                sonst addiert jemand Σ und diese Spalte.
               */}
-              <th className="border-l p-2 text-right font-medium">Betrieb · je HJ</th>
+              <th className="border-l p-2 text-right font-medium">
+                Betrieb · {periods.find((p) => p.key === cycleKey)?.label ?? cycleKey}
+                <span className="ml-1 normal-case tracking-normal">
+                  · {model.operatingBasis === "awarded" ? "zugesprochen" : "beantragt"} · nicht in Σ
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {showTotals && (
               <tr className="border-b text-xs text-muted-foreground">
-                <td className="p-2">Wertstrom-Budget</td>
+                {/*
+                  **„Wertstrom · Veränderung", nicht „Wertstrom-Budget".** Die
+                  Zahl enthält seit 2026-09-19 auch die zugesprochenen
+                  ART-Rahmen; `getValueStreamBudgets` nennt „Budget" weiterhin
+                  die reine Epic-Summe und hat Nutzer ausserhalb dieser Fläche.
+                  Zwei Zahlen unter einem Namen ist der Fehler, den §2.5
+                  abstellt.
+                */}
+                <td className="p-2">Wertstrom · Veränderung</td>
                 {periods.map((p) => (
                   <td
                     key={p.key}
@@ -146,22 +142,16 @@ export function ArtBudgetBreakdown({
             )}
 
             {model.rows.map((a) => {
-              const open = expandedArtId === a.artId;
               const maySeeNumbers = visibleArtIds.has(a.artId);
               return (
-                <tr key={a.artId} className={`border-b align-top ${open ? "bg-primary/5" : ""}`}>
+                <tr key={a.artId} className="border-b align-top">
                   <td className="p-2 font-medium">
                     {maySeeNumbers ? (
                       <Link
-                        href={href(open ? null : a.artId)}
-                        aria-expanded={open}
+                        href={artHref(a.artId, cycleKey)}
                         className="-mx-1 inline-flex items-center gap-1 rounded-md px-1 py-0.5 hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                       >
-                        {open ? (
-                          <ChevronDown className="size-3.5 shrink-0" aria-hidden />
-                        ) : (
-                          <ChevronRight className="size-3.5 shrink-0" aria-hidden />
-                        )}
+                        <ChevronRight className="size-3.5 shrink-0" aria-hidden />
                         {a.name}
                       </Link>
                     ) : (
@@ -184,7 +174,18 @@ export function ArtBudgetBreakdown({
                         <span className="text-muted-foreground">·</span>
                       ) : (
                         <Link
-                          href={href(open && p.key === cycleKey ? null : a.artId, p.key)}
+                          href={artHref(a.artId, p.key)}
+                          /*
+                            Der Rahmenanteil steht im Titel, nicht als dritte
+                            Zeile: die Zelle trägt schon Betrag und Feature-Last.
+                            Die vollständige Aufschlüsselung zeigt der Business
+                            Case, in den diese Zeile führt.
+                          */
+                          title={
+                            (a.frameByPeriod[p.key] ?? 0) > 0
+                              ? `davon ${formatEUR(a.frameByPeriod[p.key] ?? 0)} ART-Rahmen`
+                              : undefined
+                          }
                           className="-mx-1 block rounded-md px-1 hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                         >
                           <MoneyAndLoad

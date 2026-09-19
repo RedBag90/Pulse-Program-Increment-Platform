@@ -29,8 +29,6 @@ const LEER: ArtBudgetDetail = {
   switchedArt: [],
   epicsWithoutArt: { count: 0, amount: 0 },
   unfunded: [],
-  course: { portfolio: null },
-  todayIndex: -1,
   coverage: null,
   pot: null,
   rtb: { run: [], change: [] },
@@ -55,6 +53,7 @@ describe("artDetailIsEmpty", () => {
         coverage: {
           plannedJobSize: 240,
           featureCount: 22,
+          plannedStandalone: { jobSize: 0, count: 0 },
           rate: {
             source: "none",
             rate: null,

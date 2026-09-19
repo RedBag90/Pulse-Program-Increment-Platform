@@ -30,7 +30,7 @@ export default async function BudgetingValueStreamsPage() {
       <PageHeader
         eyebrow="Participatory Budgeting"
         title="Wertströme"
-        subtitle="Betriebskosten und ART-Epic-Budgets pflegen, und den Zuspruch einer abgeschlossenen Kachel darauf aufteilen."
+        subtitle="Betriebskosten und ART-Rahmen pflegen, und den Zuspruch einer abgeschlossenen Kachel darauf aufteilen."
       />
 
       {valueStreams.length === 0 ? (

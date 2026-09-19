@@ -6,12 +6,40 @@ import { Breadcrumbs, type Crumb } from "@/components/nav/breadcrumbs";
 export interface DetailTab {
   key: string;
   label: string;
+  /**
+   * Überschrift der Gruppe, zu der dieser Reiter gehört. Wechselt sie, zieht die
+   * Schiene eine Linie und setzt das Etikett.
+   *
+   * Gedacht für Flächen, deren Reiter **verschiedenen Eigentümern** gehören —
+   * die Geldfläche eines Wertstroms führt seine eigenen Reiter und je einen je
+   * ART. Ohne die Trennung stünde „Nachsehen" neben „Plant Efficiency (OEE)",
+   * als wäre das dasselbe.
+   */
+  group?: string;
+  /** Kleine Zahl rechts im Reiter — „hier liegt etwas". Nur setzen, wenn es stimmt. */
+  badge?: string;
 }
 
-/** Narrows an arbitrary `?tab=` value to a known tab key, defaulting to the first tab. */
-export function resolveTab(tabs: readonly DetailTab[], raw: string | undefined): string {
-  return tabs.some((t) => t.key === raw) ? (raw as string) : (tabs[0]?.key ?? "");
+/**
+ * Engt ein beliebiges `?tab=` auf einen bekannten Schlüssel ein.
+ *
+ * **Lesereihenfolge ist nicht Landeplatz.** Ohne `fallback` gewinnt der erste
+ * Reiter — das stimmt, solange die Reihenfolge auch die Ankunft meint. Wo die
+ * Reiter einem Prozess folgen („Einrichten" zuerst), will man aber woanders
+ * landen: man kommt, um zu sehen, nicht um einzurichten.
+ */
+export function resolveTab(
+  tabs: readonly DetailTab[],
+  raw: string | undefined,
+  fallback?: string,
+): string {
+  if (tabs.some((t) => t.key === raw)) return raw as string;
+  if (fallback != null && tabs.some((t) => t.key === fallback)) return fallback;
+  return tabs[0]?.key ?? "";
 }
+
+/** „Hier liegt etwas" — die einzige Zahl in der Navigation, deshalb leise. */
+const BADGE = "ml-1.5 float-right text-meta font-semibold text-primary";
 
 interface Props {
   /** Where the "back" link points, e.g. `/capacity`. Omit on a top-level hub. */
@@ -132,8 +160,14 @@ export function EntityDetailShell({
               langer Name verschwände in einem Bereich, den niemand als
               scrollbar erkennt. */}
           <ul className="flex gap-1 overflow-x-auto lg:block lg:space-y-0.5 lg:overflow-x-visible">
-            {tabs.map((tab) => {
+            {tabs.map((tab, i) => {
               const active = tab.key === activeTab;
+              // Erster Reiter seiner Gruppe? Dann Linie und Etikett davor.
+              // Unterhalb von `lg` ist die Schiene eine waagerechte Reihe —
+              // dort entfällt beides, ein Etikett zwischen Reitern wäre in
+              // einer Zeile kein Zwischentitel, sondern ein Fremdkörper.
+              const gruppenkopf =
+                tab.group != null && tab.group !== tabs[i - 1]?.group ? tab.group : null;
               // `lg:truncate` statt `truncate`: unterhalb von `lg` sind die
               // Reiter Flex-Elemente, und ein `overflow-hidden` setzte dort
               // ihr `min-width: auto` auf 0 — sie quetschten sich zu
@@ -148,6 +182,15 @@ export function EntityDetailShell({
               }`;
               return (
                 <li key={tab.key}>
+                  {gruppenkopf != null && (
+                    <p
+                      className={`hidden px-3 pb-1 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground lg:block ${
+                        i > 0 ? "mt-3 border-t pt-3" : ""
+                      }`}
+                    >
+                      {gruppenkopf}
+                    </p>
+                  )}
                   {onTabChange ? (
                     <button
                       type="button"
@@ -157,6 +200,7 @@ export function EntityDetailShell({
                       className={cls}
                     >
                       {tab.label}
+                      {tab.badge != null && <span className={BADGE}>{tab.badge}</span>}
                     </button>
                   ) : (
                     <Link
@@ -166,6 +210,7 @@ export function EntityDetailShell({
                       className={cls}
                     >
                       {tab.label}
+                      {tab.badge != null && <span className={BADGE}>{tab.badge}</span>}
                     </Link>
                   )}
                 </li>

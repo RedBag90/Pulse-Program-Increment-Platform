@@ -8,7 +8,10 @@ import { describe, it, expect, vi } from "vitest";
  * saßen der fehlende `active`-Filter und die zweite, wortgleiche Topfrechnung.
  */
 
-import { setArtEpicAllocation } from "@/modules/budgeting/server/services/art-pot";
+import {
+  setArtEpicAllocation,
+  saveArtEpicAllocations,
+} from "@/modules/budgeting/server/services/art-pot";
 
 type Tx = Record<string, Record<string, ReturnType<typeof vi.fn>>>;
 
@@ -87,6 +90,15 @@ function txWith(over: Partial<Tx> = {}, awardAmounts: number[] = [100_000]): Tx 
       create: vi.fn(async () => ({ id: "a1" })),
       update: vi.fn(async () => ({ id: "a1" })),
       delete: vi.fn(async () => ({ id: "a1" })),
+    },
+    // Ohne Reservierung für ART-eigene Arbeit — sie zehrt denselben Rahmen auf
+    // und wird deshalb von `loadArtEpicBudgets` mitgelesen.
+    artOwnWorkAllocation: {
+      findFirst: vi.fn(async () => null),
+      findMany: vi.fn(async () => []),
+      create: vi.fn(async () => ({ id: "o1" })),
+      update: vi.fn(async () => ({ id: "o1" })),
+      delete: vi.fn(async () => ({ id: "o1" })),
     },
     budgetAllocation: {
       findUnique: vi.fn(async () => null),
@@ -175,5 +187,92 @@ describe("setArtEpicAllocation", () => {
     );
     expect(res.ok).toBe(true);
     expect(tx.artEpicAllocation!.create).toHaveBeenCalled();
+  });
+});
+
+/**
+ * **Die Reservierung für ART-eigene Arbeit** — sie ist keine Epic-Zeile, zehrt
+ * aber denselben Rahmen auf. Geprüft wird genau das Zusammenspiel: ein Deckel
+ * für beides, und **kein** Eintrag in der Zyklus-Karte eines Epics.
+ */
+describe("saveArtEpicAllocations — ART-eigene Arbeit", () => {
+  const now = new Date();
+  const cycle = openCycle(now);
+
+  const eingabe = (over: Partial<Parameters<typeof saveArtEpicAllocations>[1]> = {}) => ({
+    artId: ART,
+    cycleKey: cycle,
+    amounts: [],
+    ...over,
+  });
+
+  it("legt die Reservierung an und schreibt keine Epic-Zuteilung fort", async () => {
+    const tx = txWith();
+    const res = await saveArtEpicAllocations(
+      ctxWith(tx),
+      eingabe({ ownWork: { amount: 20_000, ask: 169_559 } }),
+      now,
+    );
+    expect(res.ok).toBe(true);
+    expect(tx.artOwnWorkAllocation!.create).toHaveBeenCalled();
+    // Kein Epic, keine Zyklus-Karte — sie finanziert Arbeit ohne Vorhaben.
+    expect(tx.budgetAllocation!.upsert).not.toHaveBeenCalled();
+  });
+
+  it("prüft den Deckel gegen Epics **und** Reservierung zusammen", async () => {
+    const tx = txWith();
+    const res = await saveArtEpicAllocations(
+      ctxWith(tx),
+      eingabe({
+        amounts: [{ epicId: EPIC, amount: 90_000, ask: 90_000 }],
+        ownWork: { amount: 20_000, ask: 0 },
+      }),
+      now,
+    );
+    // 90.000 + 20.000 gegen einen Rahmen von 100.000.
+    expect(res.ok).toBe(false);
+    expect(tx.artOwnWorkAllocation!.create).not.toHaveBeenCalled();
+    expect(tx.artEpicAllocation!.create).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Ein Formular ohne das Feld darf eine bestehende Reservierung nicht
+   * stillschweigend überbuchbar machen.
+   */
+  it("zählt eine bestehende Reservierung mit, auch wenn sie nicht mitgeschickt wird", async () => {
+    const tx = txWith({
+      artOwnWorkAllocation: {
+        findFirst: vi.fn(async () => ({ id: "o1", amount: 30_000 })),
+        findMany: vi.fn(async () => []),
+        create: vi.fn(async () => ({ id: "o1" })),
+        update: vi.fn(async () => ({ id: "o1" })),
+        delete: vi.fn(async () => ({ id: "o1" })),
+      },
+    });
+    const res = await saveArtEpicAllocations(
+      ctxWith(tx),
+      eingabe({ amounts: [{ epicId: EPIC, amount: 80_000, ask: 80_000 }] }),
+      now,
+    );
+    expect(res.ok).toBe(false);
+  });
+
+  it("löscht die Reservierung bei Betrag 0", async () => {
+    const tx = txWith({
+      artOwnWorkAllocation: {
+        findFirst: vi.fn(async () => ({ id: "o1", amount: 30_000 })),
+        findMany: vi.fn(async () => []),
+        create: vi.fn(async () => ({ id: "o1" })),
+        update: vi.fn(async () => ({ id: "o1" })),
+        delete: vi.fn(async () => ({ id: "o1" })),
+      },
+    });
+    const res = await saveArtEpicAllocations(
+      ctxWith(tx),
+      eingabe({ ownWork: { amount: 0, ask: 0 } }),
+      now,
+    );
+    expect(res.ok).toBe(true);
+    expect(tx.artOwnWorkAllocation!.delete).toHaveBeenCalled();
   });
 });

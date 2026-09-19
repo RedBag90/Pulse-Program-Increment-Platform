@@ -437,7 +437,7 @@ Portfolio-Guardrails ── tenant-weit, jederzeit`,
               head: ["Art", "Was hineingehört"],
               rows: [
                 ["Betrieb", "Lizenzen, Wartung, alles, was den Bestand hält"],
-                ["ART-Epic-Budget", "der Rahmen für die Weiterentwicklung, den der ART verteilt"],
+                ["ART-Rahmen", "der Rahmen für die Weiterentwicklung, den der ART verteilt"],
               ],
               caption: "Zwei Arten, eine Liste — und die Unterscheidung ist keine Formalie.",
             },

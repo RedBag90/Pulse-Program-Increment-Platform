@@ -15,7 +15,6 @@
  */
 
 import type { AllocationBreakdown } from "@/modules/budgeting/domain/allocation-state";
-import type { AllocationCourse } from "@/modules/budgeting/domain/allocation-course";
 import type { JobSizeRate } from "@/modules/budgeting/domain/art-throughput";
 import type { ArtEpicBudget } from "@/modules/budgeting/domain/art-epic-budget";
 
@@ -72,8 +71,7 @@ export interface ArtBudgetSourceView {
 }
 
 export interface ArtBudgetDetail {
-  /** `null` bei einer Sicht ohne ART — dem Wertstrom-Verlauf. */
-  artId: string | null;
+  artId: string;
   /** Halbjahre mit Zuteilung, neueste zuerst — die Auswahl des Umschalters. */
   cycles: { key: string; label: string }[];
   cycleKey: string;
@@ -84,15 +82,6 @@ export interface ArtBudgetDetail {
   epicsWithoutArt: { count: number; amount: number };
   /** Beantragt und leer ausgegangen — die Gegenseite der Reallokations-Sicht. */
   unfunded: UnfundedCandidate[];
-  /** Der Monatsverlauf des gewählten Halbjahres, je Quelle. */
-  /**
-   * Der Verlauf — **nur** für das Portfolio-Budget. Der Schlüssel `art` stand
-   * hier als Teil eines `Record<AllocationSource, …>`, war aber konstant `null`
-   * und wurde nie gelesen: eine Zusage, die niemand einlöste (REQ-13).
-   */
-  course: { portfolio: AllocationCourse | null };
-  /** Index des laufenden Monats auf der Achse; −1 = außerhalb des Halbjahres. */
-  todayIndex: number;
   /** Last gegen Deckung — `null`, solange kein ART-Budget geladen wurde. */
   coverage: ArtCoverage | null;
   /** Der ART-Epic-Budget und seine Verteilung — `null`, wenn Practice aus. */
@@ -126,6 +115,25 @@ export interface ArtPotView {
      */
     canDistribute: boolean;
   }[];
+  /**
+   * **ART-eigene Arbeit ohne Epic** — eine Zeile, kein Epic.
+   *
+   * Sie steht immer da, auch ohne eingeplantes eigenständiges Feature: ein RTE
+   * darf reservieren, bevor das erste angelegt ist.
+   *
+   * **Ohne Richtwert.** Der kommt aus Feature-Last × €-Satz und damit aus der
+   * Deckungsrechnung (`ArtCoverage`), die neben dieser Sicht geladen wird. Ihn
+   * hier zu führen hiesse, ihn entweder ein zweites Mal zu rechnen oder mit
+   * einem Platzhalter zu füllen, den ein anderer Aufrufer für echt hält. Die
+   * Fläche legt beides zusammen — `ownWorkGuide(coverage.plannedStandalone,
+   * coverage.rate.rate)`.
+   */
+  ownWork: {
+    amount: number;
+    /** Eingefrorener Richtwert der bestehenden Reservierung; 0, solange keine da ist. */
+    ask: number;
+    canDistribute: boolean;
+  };
   /** Die Zustandsstaffel der ART-finanzierten Zuteilungen — die zweite Quelle. */
   breakdown: AllocationBreakdown;
   titles: Record<string, string>;
@@ -135,6 +143,15 @@ export interface ArtCoverage {
   /** Σ Job Size der Features, die im gewählten Halbjahr eingeplant sind. */
   plannedJobSize: number;
   featureCount: number;
+  /**
+   * Der Teil davon, der an **keinem Epic** hängt — die eigenständige Arbeit
+   * dieses ARTs im gewählten Halbjahr.
+   *
+   * Sie steckt in `plannedJobSize` **mit drin** und wird nicht abgezogen: das
+   * ART-Budget finanziert alles, was das ART tut. Getrennt ausgewiesen wird sie
+   * für den Richtwert der Reservierungszeile (`domain/art-own-work.ts`).
+   */
+  plannedStandalone: { jobSize: number; count: number };
   rate: JobSizeRate;
   /** Last in Geld — `null`, wenn kein Satz vorliegt. */
   loadEuro: number | null;

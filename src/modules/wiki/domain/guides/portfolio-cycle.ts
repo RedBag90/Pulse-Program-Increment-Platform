@@ -215,7 +215,7 @@ export const PORTFOLIO_CYCLE: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "An meinem Wertstrom liegen zwei Reiter, und man erwischt leicht den falschen: **Budget** ist **lesend** — der Plan, der Verlauf, die ART-Sicht. **Run the Business** ist die Fläche, auf der gepflegt wird, was beantragt werden soll.",
+              text: "Die Geldfläche meines Wertstroms ist nach Prozessschritt geschnitten, nicht nach Geldsorte. **Einrichten** trägt die Positionen, die beantragt werden sollen — dort arbeite ich hier. **Dieses Halbjahr** teilt den Zuspruch auf, **Nachsehen** zeigt, was wo gelandet ist, **Budget-KPIs** die Deckung. Jedes ART hat einen eigenen Reiter.",
             },
             {
               kind: "paragraph",
@@ -232,7 +232,7 @@ export const PORTFOLIO_CYCLE: Guide = {
               rows: [
                 ["**Betrieb**", "Lizenzen, Wartung — alles, was den Bestand hält"],
                 [
-                  "**ART-Epic-Budget**",
+                  "**ART-Rahmen**",
                   "der Rahmen für die Weiterentwicklung, den der ART später verteilt",
                 ],
               ],
@@ -329,7 +329,7 @@ export const PORTFOLIO_CYCLE: Guide = {
     },
     {
       claim: "Betriebskosten und Weiterentwicklung trage ich zusammen ein.",
-      why: "Zwei Arten: **Betrieb** und **ART-Epic-Budget**. Vermischt zahlt der Betrieb die Veränderung.",
+      why: "Zwei Arten: **Betrieb** und **ART-Rahmen**. Vermischt zahlt der Betrieb die Veränderung.",
     },
     {
       claim: "Der Rahmen im Run-the-Business-Reiter ist das Geld des ARTs.",

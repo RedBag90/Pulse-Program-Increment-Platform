@@ -215,12 +215,29 @@ führt auf dieselbe Seite, aber an verschiedene Stellen.
 
 ### 2.5 Ein Vokabular
 
-| Heute                      | Künftig                                        | Was es ist                                 |
-| -------------------------- | ---------------------------------------------- | ------------------------------------------ |
-| „ART-Budgets" (Tabelle)    | **Zugeteilt je ART**                           | abgeleitet aus Epic-Zuteilungen der Kachel |
-| „ART-Epic-Budget" (Rahmen) | **ART-Rahmen**                                 | zugesprochen aus RTB-Positionen            |
-| „Verteilt" / „Rest"        | **Aus dem Rahmen verteilt** / **Rahmen offen** | nur am Rahmen                              |
-| „Zugeteilt" (RTB)          | **Zugesprochen**                               | Ergebnis der Kachel                        |
+| Heute                       | Künftig                                        | Was es ist                                 |
+| --------------------------- | ---------------------------------------------- | ------------------------------------------ |
+| „ART-Budgets" (Tabelle)     | **Zugeteilt je ART**                           | abgeleitet aus Epic-Zuteilungen der Kachel |
+| „ART-Epic-Budget" (Rahmen)  | **ART-Rahmen**                                 | zugesprochen aus RTB-Positionen            |
+| „Wertstrom-Budget" (Matrix) | **Wertstrom · Veränderung**                    | Σ Epic-Zuteilungen **+** Σ ART-Rahmen      |
+| „Verteilt" / „Rest"         | **Aus dem Rahmen verteilt** / **Rahmen offen** | nur am Rahmen                              |
+| „Zugeteilt" (RTB)           | **Zugesprochen**                               | Ergebnis der Kachel                        |
+
+**Zur neuen Zeile:** „Wertstrom-Budget" heißt in `getValueStreamBudgets` die
+reine Summe der finalen Epic-Zuteilungen, und dabei bleibt es — der Lader hat
+Nutzer in Struktur-, Timeline- und Reporting-Sichten. Die Matrix in „Nachsehen"
+zeigt seit 2026-09-19 eine **andere** Zahl: dieselbe Summe **plus** die
+zugesprochenen ART-Rahmen, weil die ART-Zeilen darunter beides enthalten. Zwei
+Zahlen unter einem Namen wäre genau der Befund, den dieser Abschnitt abstellt —
+deshalb zwei Namen.
+
+**Nachtrag 2026-09-19.** Die Regel wurde zuletzt in der **Herkunftstabelle** des
+Business Case gebrochen: dort stand „ART-Epic-Rahmen". Aufgefallen ist es erst,
+als die Zeile für **ART-eigene Arbeit ohne Epic** danebenstand
+([art-own-work-budget.md](art-own-work-budget.md)) — ein „ART-Epic-Rahmen", aus
+dem Arbeit ohne Epic bezahlt wird, widerspricht sich selbst. Bei der Gelegenheit
+ist „ART-Epic-Budget" auch aus den Wiki-Leitfäden, den Seitentexten, zwei
+Epic-Dialogen und vier Fehlermeldungen verschwunden.
 
 **Der Code behält seine Namen.** `ArtEpicBudget`, `loadArtEpicBudgets`,
 `ArtEpicAllocation` heissen weiter so — das sind Typ- und Tabellennamen, und die
