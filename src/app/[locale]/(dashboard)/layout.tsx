@@ -92,7 +92,28 @@ export default async function DashboardLayout({
         isPlatformAdmin={principal.isPlatformAdmin}
         createSlot={<CreateMenu />}
       />
-      <main className="min-h-0 flex-1 overflow-y-auto print:overflow-visible">{children}</main>
+      {/*
+        **`relative` ist hier keine Kosmetik, sondern die Klammer.**
+
+        Tailwinds `.sr-only` setzt `position: absolute`. Ein absolut
+        positioniertes Element hängt an seinem nächsten **positionierten**
+        Vorfahren — gibt es keinen, ist das der Dokument-Block, und dann
+        beschneidet weder das `overflow-y-auto` dieses Rahmens noch das
+        `overflow-hidden` darüber. Die Marke landet an ihrer statischen Stelle
+        tief im gescrollten Inhalt und verlängert **das Dokument**.
+
+        Folge: ein zweiter, unsichtbarer Rollbalken über dem echten. Auf
+        `/structure/rollen` waren es 26 solcher Marken und 1431 px Phantom-Weg,
+        auf `/structure` 224 px — gemessen im Browser. Wer scrollte, bewegte
+        mal den Inhalt und mal die ganze Seite.
+
+        `relative` macht diesen Rahmen zum umschließenden Block: die Marken
+        werden wieder mitgescrollt und mitbeschnitten, statt die Seite zu
+        strecken. Eine Zeile für jede Fläche der Anwendung.
+      */}
+      <main className="relative min-h-0 flex-1 overflow-y-auto print:overflow-visible">
+        {children}
+      </main>
       {/* Rollen-Onboarding (ADR-0017): hängt im Layout, weil das über die
           Client-Navigation montiert bleibt — nur so überlebt eine Tour den
           Seitenwechsel. Sein Datenmodell (bis zu 7 Existenz-Probes) sitzt jetzt
