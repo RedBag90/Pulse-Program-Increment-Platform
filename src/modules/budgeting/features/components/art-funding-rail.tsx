@@ -86,7 +86,7 @@ export function ArtFundingRail({
             key={p.key}
             href={p.href}
             aria-current={p.state === "current" ? "step" : undefined}
-            className={`${shell} transition-colors hover:bg-muted/50`}
+            className={`${shell} transition-colors hover:bg-muted`}
           >
             {inner}
           </Link>

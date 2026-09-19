@@ -127,14 +127,20 @@ export function ArtBudgetTab({
   const showRead = view !== "distribute";
   const showWork = view !== "overview";
   return (
-    <div className="space-y-8">
+    /*
+      `space-y-4`, nicht `space-y-8`. Der Falter steckt jetzt in einer Karte —
+      und trennte seine Unterabschnitte vorher **stärker** (32 px) als die Seite
+      ihre Hauptabschnitte (24 px). Die Leiter stand auf dem Kopf: das
+      Untergeordnete wirkte gewichtiger als das Übergeordnete.
+    */
+    <div className="space-y-4">
       {showRead && detail.coverage && <CoverageSection coverage={detail.coverage} />}
 
       {showRead &&
         detail.sources.map((s) => (
           <section key={s.source} className="space-y-3">
             <div className="flex items-baseline gap-3">
-              <h2 className="text-lg font-medium">{s.label}</h2>
+              <h3 className="text-sm font-medium">{s.label}</h3>
               <span className="text-sm text-muted-foreground">
                 {detail.cycles.find((c) => c.key === detail.cycleKey)?.label}
               </span>
@@ -242,12 +248,14 @@ export function ArtBudgetTab({
         ))}
 
       {showRead && detail.course.portfolio && (
-        <AllocationCourseChart
-          course={detail.course.portfolio}
-          todayIndex={detail.todayIndex}
-          title="Verlauf"
-          subtitle="Die Halbjahres-Zuteilung auf ihre Monate verteilt — die Höhe ist konstant, die Zusammensetzung wandert."
-        />
+        <section className="space-y-2">
+          <h3 className="text-sm font-medium">Verlauf</h3>
+          <p className="text-xs text-muted-foreground">
+            Die Halbjahres-Zuteilung auf ihre Monate verteilt — die Höhe ist konstant, die
+            Zusammensetzung wandert.
+          </p>
+          <AllocationCourseChart course={detail.course.portfolio} todayIndex={detail.todayIndex} />
+        </section>
       )}
 
       {/* Einen ART-Rahmen gibt es nur in einer ART-Sicht — dort trägt
@@ -260,7 +268,7 @@ export function ArtBudgetTab({
 
       {showRead && (detail.rtb.run.length > 0 || detail.rtb.change.length > 0) && (
         <section className="space-y-3">
-          <h2 className="text-lg font-medium">Run the Business</h2>
+          <h3 className="text-sm font-medium">Run the Business</h3>
           <p className="text-sm text-muted-foreground">
             Diesem ART zugerechnet. Verantwortet wird das Budget im Wertstrom. Betrieb und
             ART-Rahmen stehen getrennt — das eine ist Run, das andere Grow.
@@ -303,20 +311,29 @@ export function ArtBudgetTab({
       )}
 
       {(detail.switchedArt.length > 0 || detail.epicsWithoutArt.count > 0) && (
-        <section className="space-y-3">
-          <h2 className="text-base font-medium">Anmerkungen zur Datenlage</h2>
+        /*
+          **Zugeklappt.** Das sind Vorbehalte zur Datenlage, keine Zahlen — sie
+          standen gleichrangig neben der Deckung und haben die Fläche mit grauen
+          Kästen gefüllt. Wer sie braucht, klappt sie auf; `<details>` ist im
+          Haus das Mittel dafür, weil es ohne Client-Zustand tastaturbedienbar
+          ist.
+        */
+        <details className="group/notes space-y-3 border-t pt-3">
+          <summary className="cursor-pointer list-none text-sm font-medium text-muted-foreground marker:content-[''] hover:text-foreground">
+            <span className="group-open/notes:hidden">▸ </span>
+            <span className="hidden group-open/notes:inline">▾ </span>
+            Anmerkungen zur Datenlage (
+            {detail.switchedArt.length + (detail.epicsWithoutArt.count > 0 ? 1 : 0)})
+          </summary>
           {detail.switchedArt.map((e) => (
-            <p
-              key={e.epicId}
-              className="rounded-r-md border-l-2 bg-surface-frame px-3 py-2 text-sm text-muted-foreground"
-            >
+            <p key={e.epicId} className="text-sm text-muted-foreground">
               <strong className="font-medium text-foreground">{e.title}</strong> gehört inzwischen
               {e.currentArtName ? ` zum ART ${e.currentArtName}` : " keinem ART mehr"}. Das Budget
               zählt weiterhin hier — die Kachel hat es hier entschieden.
             </p>
           ))}
           {detail.epicsWithoutArt.count > 0 && (
-            <p className="rounded-r-md border-l-2 bg-surface-frame px-3 py-2 text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               <strong className="font-medium text-foreground">
                 {formatEUR(detail.epicsWithoutArt.amount)}
               </strong>{" "}
@@ -325,10 +342,10 @@ export function ArtBudgetTab({
               und erscheinen in keiner ART-Sicht.
             </p>
           )}
-        </section>
+        </details>
       )}
 
-      <p className="text-xs text-muted-foreground">
+      <p className="border-t pt-3 text-meta text-muted-foreground">
         Abgeleitet aus den finalisierten Budget-Kacheln. Pulse führt keine Ist-Kosten — der Zustand
         kommt aus den Reifegrad-Stempeln der Epics.
       </p>
@@ -360,7 +377,7 @@ function ReallocationView({ detail }: { detail: ArtBudgetDetail }) {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-lg font-medium">Was sich verschieben ließe</h2>
+      <h3 className="text-sm font-medium">Was sich verschieben ließe</h3>
 
       <div className="grid overflow-hidden rounded-lg border md:grid-cols-2">
         <div className="border-b md:border-b-0 md:border-r">
@@ -408,7 +425,7 @@ function ReallocationView({ detail }: { detail: ArtBudgetDetail }) {
           ) : (
             [...byReason.entries()].map(([reason, items]) => (
               <div key={reason}>
-                <div className="border-b bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
+                <div className="border-b bg-surface-frame px-3 py-1.5 text-meta uppercase tracking-[0.1em] text-muted-foreground">
                   {UNFUNDED_REASON_LABELS[reason]} · {UNFUNDED_REMEDIES[reason]}
                 </div>
                 {items.map((u) => (
@@ -520,12 +537,15 @@ function CoverageSection({ coverage }: { coverage: ArtCoverage }) {
         </p>
       </div>
 
-      <div
-        className="rounded-r-lg border border-l-[3px] bg-card p-4"
-        style={{ borderLeftColor: accent }}
-      >
-        <dl className="space-y-1 text-sm">
-          <div className="flex justify-between gap-4 border-b py-1.5">
+      {/*
+        **Kein eigener Behälter mehr.** Hier stand eine Karte mit einer inline
+        gefärbten 3-px-Kante — ein Container-Stil, den es genau einmal im ganzen
+        Haus gab. Die Ampelfarbe trägt jetzt der Punkt oben und die Lücke unten;
+        eine Farbe braucht keinen Kasten, um zu sprechen.
+      */}
+      <div className="rounded-lg border">
+        <dl className="divide-y text-sm">
+          <div className="flex justify-between gap-4 px-3 py-2">
             <dt>
               Eingeplante Feature-Last{" "}
               <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
@@ -537,11 +557,11 @@ function CoverageSection({ coverage }: { coverage: ArtCoverage }) {
               {coverage.loadEuro == null ? "—" : formatEUR(coverage.loadEuro)}
             </dd>
           </div>
-          <div className="flex justify-between gap-4 border-b py-1.5">
+          <div className="flex justify-between gap-4 px-3 py-2">
             <dt>Zugeteiltes Budget</dt>
             <dd className="font-semibold tabular-nums">{formatEUR(coverage.allocated)}</dd>
           </div>
-          <div className="flex justify-between gap-4 py-1.5">
+          <div className="flex justify-between gap-4 px-3 py-2">
             <dt className={over ? "font-semibold text-destructive" : "font-semibold"}>Lücke</dt>
             <dd className={`font-semibold tabular-nums ${over ? "text-destructive" : ""}`}>
               {under == null ? "—" : formatEUR(under)}
@@ -550,45 +570,63 @@ function CoverageSection({ coverage }: { coverage: ArtCoverage }) {
         </dl>
       </div>
 
-      <p className="rounded-r-md border-l-2 bg-surface-frame px-3 py-2 text-sm text-muted-foreground">
-        <strong className="font-medium text-foreground">
-          {rate.rate == null
-            ? "Kein Satz je Job Size"
-            : `Satz je Job Size · ${formatEUR(rate.rate)}`}
-        </strong>{" "}
-        {rate.source === "empirical" ? (
-          <>
-            — Ø Budget aus {rate.cycles.map((c) => c.cycleKey).join(" und ")} (
-            {formatEUR(rate.budgetSum)}) ÷ {rate.jobSizeSum} Job-Size-Punkte aus {rate.featureCount}{" "}
-            fertiggestellten Features. Empirisch aus der Historie dieses ARTs.
-            {/*
+      {/*
+        **Die Herleitung ist zugeklappt, der Satz steht im Deckel.** Drei graue
+        und gelbe Kästen untereinander erklärten eine Zahl, die eine Zeile höher
+        schon stand. Wer wissen will, woher sie kommt, klappt auf.
+      */}
+      <details className="group/rate rounded-lg border">
+        <summary className="cursor-pointer list-none px-3 py-2 text-sm text-muted-foreground marker:content-[''] hover:text-foreground">
+          <span className="group-open/rate:hidden">▸ </span>
+          <span className="hidden group-open/rate:inline">▾ </span>
+          <strong className="font-medium text-foreground">
+            {rate.rate == null
+              ? "Kein Satz je Job Size"
+              : `Satz je Job Size · ${formatEUR(rate.rate)}`}
+          </strong>
+          {rate.caveats.length > 0 && (
+            <span className="ml-1.5 text-warning">
+              · {rate.caveats.length} {rate.caveats.length === 1 ? "Vorbehalt" : "Vorbehalte"}
+            </span>
+          )}
+        </summary>
+        <p className="border-t px-3 py-2 text-sm text-muted-foreground">
+          {rate.source === "empirical" ? (
+            <>
+              — Ø Budget aus {rate.cycles.map((c) => c.cycleKey).join(" und ")} (
+              {formatEUR(rate.budgetSum)}) ÷ {rate.jobSizeSum} Job-Size-Punkte aus{" "}
+              {rate.featureCount} fertiggestellten Features. Empirisch aus der Historie dieses ARTs.
+              {/*
               Herkunft, nicht Rechnung: der Satz bleibt unverändert — das
               ART-Budget finanziert alles, was das ART tut. Die Zeile
               beantwortet die andere Frage: wie viel unserer Lieferung hing an
               keinem Vorhaben.
             */}
-            {rate.standaloneFeatureCount > 0 && (
-              <>
-                {" "}
-                Davon {rate.standaloneJobSizeSum} Punkte aus {rate.standaloneFeatureCount}{" "}
-                eigenständigen Features — ART-eigene Arbeit ohne Epic.
-              </>
-            )}
-          </>
-        ) : rate.source === "tenantDefault" ? (
-          <>— der tenant-weite Vorgabewert, weil sich kein Satz aus der Historie ableiten lässt.</>
-        ) : (
-          <>— weder aus der Historie ableitbar noch als Vorgabewert gesetzt.</>
-        )}
-      </p>
+              {rate.standaloneFeatureCount > 0 && (
+                <>
+                  {" "}
+                  Davon {rate.standaloneJobSizeSum} Punkte aus {rate.standaloneFeatureCount}{" "}
+                  eigenständigen Features — ART-eigene Arbeit ohne Epic.
+                </>
+              )}
+            </>
+          ) : rate.source === "tenantDefault" ? (
+            <>
+              — der tenant-weite Vorgabewert, weil sich kein Satz aus der Historie ableiten lässt.
+            </>
+          ) : (
+            <>— weder aus der Historie ableitbar noch als Vorgabewert gesetzt.</>
+          )}
+        </p>
 
-      {rate.caveats.length > 0 && (
-        <ul className="space-y-1 rounded-r-md border-l-2 border-l-amber-600 bg-amber-500/[0.07] px-3 py-2 text-sm text-warning dark:text-amber-400">
-          {rate.caveats.map((c) => (
-            <li key={c}>{c}</li>
-          ))}
-        </ul>
-      )}
+        {rate.caveats.length > 0 && (
+          <ul className="space-y-1 border-t px-3 py-2 text-sm text-warning">
+            {rate.caveats.map((c) => (
+              <li key={c}>{c}</li>
+            ))}
+          </ul>
+        )}
+      </details>
     </section>
   );
 }

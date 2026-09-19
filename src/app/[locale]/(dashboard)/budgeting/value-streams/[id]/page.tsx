@@ -28,6 +28,7 @@ import { readSolutions } from "@/modules/budgeting/server/services/budget-reads"
 import { AllocationCourseChart } from "@/modules/budgeting/features/components/art-budget/allocation-course-chart";
 import { ArtFundingRail } from "@/modules/budgeting/features/components/art-funding-rail";
 import { EntityDetailShell, resolveTab } from "@/components/detail/entity-detail-shell";
+import { SectionCard } from "@/components/ui/section-card";
 
 /**
  * Das Budget **eines** Wertstroms — und die Fläche, auf der ein ART-Epic-Budget
@@ -210,7 +211,10 @@ async function FundingRail({
 
 /** Platzhalter in der Höhe der Leiste, damit der Kopf nicht springt. */
 function RailSkeleton() {
-  return <div className="h-[58px] animate-pulse rounded-lg border bg-muted/40" />;
+  // Dieselbe Fläche wie die echte Leiste (`rounded-lg bg-card shadow-card`) —
+  // vorher war der Platzhalter ein Rahmen und die Leiste eine Karte, der Stil
+  // sprang also beim Nachladen.
+  return <div className="h-[58px] animate-pulse rounded-lg bg-card shadow-card" />;
 }
 
 /**
@@ -246,15 +250,11 @@ async function BudgetTab({
 
   return (
     <div className="space-y-6">
-      {/* Der Verlauf ist eine Wertstrom-Summe — ohne das Wertstrom-Recht entfällt er (REQ-3). */}
-      {access.showTotals && course.course && (
-        <AllocationCourseChart
-          course={course.course}
-          todayIndex={course.todayIndex}
-          title={`Verlauf · ${halfYearLabel(course.cycleKey)}`}
-          subtitle="Alle Zuteilungen dieses Wertstroms, auf die Monate des Halbjahres verteilt."
-        />
-      )}
+      {/*
+        **Die Matrix führt.** Sie ist das, wofür man kommt; der Verlauf ist
+        Zusammenhang. Bis 2026-09-19 stand er oben und schob die Zahlen unter
+        die Falz.
+      */}
       <ArtBudgetBreakdown
         model={model}
         basePath={basePath}
@@ -263,30 +263,49 @@ async function BudgetTab({
         expandedArtId={expandedArtId}
         visibleArtIds={access.visibleArtIds}
         showTotals={access.showTotals}
-        expanded={
-          expandedArtId != null ? (
-            // Eigene Insel: der ART-Falter kostet rund ein Dutzend Abfragen.
-            // Ohne sie stünde die Tabelle erst, wenn auch der Kasten steht.
-            <Suspense fallback={<PanelSkeleton />}>
-              <ArtDetailPanel
-                db={db}
-                principal={principal}
-                vs={vs}
-                artId={expandedArtId}
-                cycleKey={cycleKey}
-                view="overview"
-              />
-            </Suspense>
-          ) : null
-        }
       />
+
+      {/*
+        Der Falter steht **unter** der Tabelle, nicht darin. Als
+        `<tr><td colSpan={9}>` konnte er keine eigene Fläche tragen — eine ganze
+        Seite in einer leicht getönten Tabellenzeile. Die Spalten hat er ohnehin
+        nie benutzt.
+
+        Eigene Insel: er kostet rund ein Dutzend Abfragen; ohne sie stünde die
+        Tabelle erst, wenn auch der Kasten steht.
+      */}
+      {expandedArtId != null && (
+        <Suspense fallback={<PanelSkeleton />}>
+          <ArtDetailPanel
+            db={db}
+            principal={principal}
+            vs={vs}
+            artId={expandedArtId}
+            artName={model.rows.find((r) => r.artId === expandedArtId)?.name ?? "ART"}
+            cycleKey={cycleKey}
+            basePath={basePath}
+            tab="budget"
+            view="overview"
+          />
+        </Suspense>
+      )}
+
+      {/* Der Verlauf ist eine Wertstrom-Summe — ohne das Wertstrom-Recht entfällt er (REQ-3). */}
+      {access.showTotals && course.course && (
+        <SectionCard
+          title={`Verlauf · ${halfYearLabel(course.cycleKey)}`}
+          description="Alle Zuteilungen dieses Wertstroms, auf die Monate des Halbjahres verteilt."
+        >
+          <AllocationCourseChart course={course.course} todayIndex={course.todayIndex} />
+        </SectionCard>
+      )}
     </div>
   );
 }
 
-/** Platzhalter in ungefährer Höhe des Kastens, damit die Tabelle nicht springt. */
+/** Platzhalter in ungefährer Höhe des Kastens, damit nichts springt. */
 function PanelSkeleton() {
-  return <div className="h-64 animate-pulse rounded-lg border bg-muted/40" />;
+  return <div className="h-64 animate-pulse rounded-lg bg-card shadow-card" />;
 }
 
 /**
@@ -302,14 +321,20 @@ async function ArtDetailPanel({
   principal,
   vs,
   artId,
+  artName,
   cycleKey,
+  basePath,
+  tab,
   view,
 }: {
   db: ReturnType<typeof createPrismaClient>;
   principal: Awaited<ReturnType<typeof requirePrincipal>>;
   vs: { id: string; financeApproverId: string | null };
   artId: string;
+  artName: string;
   cycleKey: string;
+  basePath: string;
+  tab: string;
   view: "overview" | "distribute";
 }) {
   const [practices, guardrailRows, tenantRow] = await Promise.all([
@@ -360,24 +385,33 @@ async function ArtDetailPanel({
   // dasselbe: im Lesen fehlt die Zuteilung, im Arbeiten der Rahmen.
   if (artDetailIsEmpty(detail)) {
     return (
-      <p className="text-sm text-muted-foreground">
-        {view === "distribute"
-          ? `Für ${halfYearLabel(cycleKey)} ist diesem ART kein Rahmen zugesprochen — es gibt nichts zu verteilen. Ein Rahmen entsteht aus einer Betriebsposition der Art „ART-Rahmen“ und dem Zuspruch der Kachel.`
-          : `Für ${halfYearLabel(cycleKey)} ist diesem ART nichts zugeteilt, und es sind keine Features eingeplant. Zuteilungen entstehen beim Festschreiben einer Budgeting-Kachel.`}
-      </p>
+      <SectionCard title={`${artName} · ${halfYearLabel(cycleKey)}`}>
+        <p className="text-sm text-muted-foreground">
+          {view === "distribute"
+            ? `Für ${halfYearLabel(cycleKey)} ist diesem ART kein Rahmen zugesprochen — es gibt nichts zu verteilen. Ein Rahmen entsteht aus einer Betriebsposition der Art „ART-Rahmen“ und dem Zuspruch der Kachel.`
+            : `Für ${halfYearLabel(cycleKey)} ist diesem ART nichts zugeteilt, und es sind keine Features eingeplant. Zuteilungen entstehen beim Festschreiben einer Budgeting-Kachel.`}
+        </p>
+      </SectionCard>
     );
   }
 
   return (
-    <div className="space-y-2">
-      {/*
-        **Die Zeile spricht über alle Halbjahre, der Kasten über eines.** Das ist
-        keine Unstimmigkeit, sondern die Rechnung: Deckung, Zustandsstaffel und
-        Rahmen gibt es nur je Halbjahr. Deshalb steht hier, welches gemeint ist.
-      */}
-      <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        Detail · {halfYearLabel(cycleKey)}
-      </p>
+    /*
+      **Die Zeile spricht über alle Halbjahre, der Kasten über eines.** Das ist
+      keine Unstimmigkeit, sondern die Rechnung: Deckung, Zustandsstaffel und
+      Rahmen gibt es nur je Halbjahr. Deshalb steht das Halbjahr im Titel.
+    */
+    <SectionCard
+      title={`${artName} · ${view === "distribute" ? "Verteilen" : "Detail"} ${halfYearLabel(cycleKey)}`}
+      action={
+        <Link
+          href={`${basePath}?tab=${tab}&cycle=${cycleKey}`}
+          className="rounded-md px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          Schließen
+        </Link>
+      }
+    >
       <ArtBudgetTab
         detail={detail}
         // In den Reiter „Betrieb", **an dieselbe Zeile**: der Sprung soll nicht
@@ -386,7 +420,7 @@ async function ArtDetailPanel({
         canDistribute={canDistribute}
         view={view}
       />
-    </div>
+    </SectionCard>
   );
 }
 
@@ -460,21 +494,24 @@ async function OperationsTab({
         cycleKey={cycleKey}
         expandedArtId={expandedArtId}
         visibleArtIds={access.visibleArtIds}
-        expanded={
-          expandedArtId != null ? (
-            <Suspense fallback={<PanelSkeleton />}>
-              <ArtDetailPanel
-                db={db}
-                principal={principal}
-                vs={vs}
-                artId={expandedArtId}
-                cycleKey={cycleKey}
-                view="distribute"
-              />
-            </Suspense>
-          ) : null
-        }
       />
+
+      {/* Wie im Reiter „Budget": das Detail steht unter seiner Tabelle, nicht darin. */}
+      {expandedArtId != null && (
+        <Suspense fallback={<PanelSkeleton />}>
+          <ArtDetailPanel
+            db={db}
+            principal={principal}
+            vs={vs}
+            artId={expandedArtId}
+            artName={arts.find((a) => a.id === expandedArtId)?.name ?? "ART"}
+            cycleKey={cycleKey}
+            basePath={basePath}
+            tab="betrieb"
+            view="distribute"
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

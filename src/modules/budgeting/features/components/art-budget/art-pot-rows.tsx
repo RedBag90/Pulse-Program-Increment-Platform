@@ -1,8 +1,9 @@
-import { Fragment, type ReactNode } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import type { ArtEpicBudget } from "@/modules/budgeting/domain/art-epic-budget";
 import { formatEUR } from "@/lib/formatting";
+import { SectionCard } from "@/components/ui/section-card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 /**
  * **Der Rahmen je ART, und wer ihn noch verteilen muss** — die Arbeitsfläche des
@@ -25,8 +26,8 @@ interface Props {
   budgets: ReadonlyMap<string, ArtEpicBudget>;
   basePath: string;
   cycleKey: string;
+  /** Welche Zeile offen ist — **nur zur Markierung**; das Detail steht darunter. */
   expandedArtId: string | null;
-  expanded?: ReactNode;
   /** ARTs, für die der Betrachter Beträge sehen darf (REQ-3). */
   visibleArtIds: ReadonlySet<string>;
 }
@@ -37,19 +38,18 @@ export function ArtPotRows({
   basePath,
   cycleKey,
   expandedArtId,
-  expanded,
   visibleArtIds,
 }: Props) {
   const shown = arts.filter((a) => visibleArtIds.has(a.id));
 
   if (shown.length === 0) {
     return (
-      <section className="space-y-2">
-        <h2 className="text-sm font-medium">Rahmen je ART</h2>
-        <p className="text-sm text-muted-foreground">
-          Für dieses Halbjahr ist Ihnen kein ART-Rahmen dieses Wertstroms zugänglich.
-        </p>
-      </section>
+      <SectionCard title="Rahmen je ART">
+        <EmptyState
+          title="Kein zugänglicher Rahmen"
+          body="Für dieses Halbjahr ist Ihnen kein ART-Rahmen dieses Wertstroms zugänglich."
+        />
+      </SectionCard>
     );
   }
 
@@ -65,16 +65,15 @@ export function ArtPotRows({
     }, 0);
 
   return (
-    <section className="space-y-2">
-      <h2 className="text-sm font-medium">Rahmen je ART</h2>
-      <p className="text-xs text-muted-foreground">
-        Was jedem ART aus den Betriebspositionen zugesprochen ist — und was davon noch auf seine
-        Epics zu verteilen ist. Eine Zeile öffnet das Verteilformular.
-      </p>
-      <div className="overflow-x-auto rounded-lg border">
+    <SectionCard
+      title="Rahmen je ART"
+      description="Was jedem ART aus den Betriebspositionen zugesprochen ist — und was davon noch auf seine Epics zu verteilen ist. Eine Zeile öffnet das Verteilformular."
+      bleed
+    >
+      <div className="overflow-x-auto border-y">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b bg-surface-frame text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <tr className="border-b bg-surface-frame text-left text-meta uppercase tracking-[0.1em] text-muted-foreground">
               <th className="px-3 py-2">ART</th>
               <th className="px-3 py-2 text-right">ART-Rahmen</th>
               <th className="px-3 py-2 text-right">Aus dem Rahmen verteilt</th>
@@ -86,44 +85,35 @@ export function ArtPotRows({
               const b = budgets.get(a.id);
               const open = expandedArtId === a.id;
               return (
-                <Fragment key={a.id}>
-                  <tr className={`border-b ${open ? "bg-muted/30" : ""}`}>
-                    <td className="px-3 py-2">
-                      <Link
-                        href={href(open ? null : a.id)}
-                        aria-expanded={open}
-                        className="-mx-1 inline-flex items-center gap-1 rounded-md px-1 py-0.5 font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                      >
-                        {open ? (
-                          <ChevronDown className="size-3.5 shrink-0" aria-hidden />
-                        ) : (
-                          <ChevronRight className="size-3.5 shrink-0" aria-hidden />
-                        )}
-                        {a.name}
-                      </Link>
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {b && b.total > 0 ? (
-                        formatEUR(b.total)
+                <tr key={a.id} className={`border-b ${open ? "bg-primary/5" : ""}`}>
+                  <td className="px-3 py-2">
+                    <Link
+                      href={href(open ? null : a.id)}
+                      aria-expanded={open}
+                      className="-mx-1 inline-flex items-center gap-1 rounded-md px-1 py-0.5 font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                    >
+                      {open ? (
+                        <ChevronDown className="size-3.5 shrink-0" aria-hidden />
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <ChevronRight className="size-3.5 shrink-0" aria-hidden />
                       )}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {formatEUR(b?.distributed ?? 0)}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {formatEUR(b?.remaining ?? 0)}
-                    </td>
-                  </tr>
-                  {open && expanded != null && (
-                    <tr className="border-b bg-muted/20">
-                      <td colSpan={4} className="p-3">
-                        {expanded}
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
+                      {a.name}
+                    </Link>
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {b && b.total > 0 ? (
+                      formatEUR(b.total)
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {formatEUR(b?.distributed ?? 0)}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {formatEUR(b?.remaining ?? 0)}
+                  </td>
+                </tr>
               );
             })}
             <tr className="border-t bg-surface-frame font-medium">
@@ -141,6 +131,6 @@ export function ArtPotRows({
           </tbody>
         </table>
       </div>
-    </section>
+    </SectionCard>
   );
 }

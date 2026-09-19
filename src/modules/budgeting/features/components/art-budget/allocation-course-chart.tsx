@@ -2,7 +2,7 @@
 
 import { ReferenceLine } from "recharts";
 
-import { Panel, StackedChart, quarterTick, type Row } from "@/components/charts/stacked-chart";
+import { StackedChart, quarterTick, type Row } from "@/components/charts/stacked-chart";
 import type { Stack } from "@/components/charts/stack-tooltip";
 import { formatEUR } from "@/lib/formatting";
 import {
@@ -40,24 +40,27 @@ const STACKS: Stack[] = STACK_ORDER.map((state) => ({
   confirmed: true,
 }));
 
+/**
+ * **Nur das Diagramm** — Titel und Erklärsatz trägt die `SectionCard`, in der es
+ * steht.
+ *
+ * Es brachte sein eigenes `Panel` mit, also eine eigene Karte. Auf einer Fläche,
+ * deren Abschnitte selbst Karten sind, hiesse das Karte in Karte — und
+ * ausgerechnet dieses Diagramm war lange der **einzige** Block mit Container
+ * und deutete damit eine Regel an, die sonst nirgends galt.
+ */
 export function AllocationCourseChart({
   course,
   todayIndex,
-  title,
-  subtitle,
 }: {
   course: AllocationCourse;
   todayIndex: number;
-  title: string;
-  subtitle: string;
 }) {
   if (course.points.length === 0 || course.perMonth === 0) {
     return (
-      <Panel title={title} subtitle={subtitle}>
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          Für dieses Halbjahr ist nichts zugeteilt.
-        </p>
-      </Panel>
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        Für dieses Halbjahr ist nichts zugeteilt.
+      </p>
     );
   }
 
@@ -75,7 +78,7 @@ export function AllocationCourseChart({
       : null;
 
   return (
-    <Panel title={title} subtitle={subtitle}>
+    <>
       <StackedChart
         rows={rows}
         stacks={STACKS}
@@ -106,6 +109,6 @@ export function AllocationCourseChart({
           )}
         </p>
       )}
-    </Panel>
+    </>
   );
 }

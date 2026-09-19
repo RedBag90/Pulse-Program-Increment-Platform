@@ -45,8 +45,8 @@ export function ArtPotSection({
   if (pot.total === 0 && rows.length === 0) {
     return (
       <section className="space-y-2">
-        <h2 className="text-lg font-medium">ART-Epics finanzieren</h2>
-        <p className="rounded-r-md border-l-2 bg-surface-frame px-3 py-2 text-sm text-muted-foreground">
+        <h3 className="text-sm font-medium">ART-Epics finanzieren</h3>
+        <p className="rounded-lg border px-3 py-2 text-sm text-muted-foreground">
           Für dieses Halbjahr ist diesem ART kein Rahmen zugesprochen. Ein Rahmen wird als
           Run-the-Business-Position im Wertstrom angelegt und in der Kachel mitverteilt.
         </p>
@@ -56,7 +56,7 @@ export function ArtPotSection({
 
   return (
     <section className="space-y-3">
-      <h2 className="text-lg font-medium">ART-Epics finanzieren · {pot.cycleKey}</h2>
+      <h3 className="text-sm font-medium">ART-Epics finanzieren · {pot.cycleKey}</h3>
       <p className="text-sm text-muted-foreground">
         Aus dem ART-Rahmen dieses ARTs. Portfolio-Epics laufen über die Kachel.
       </p>
@@ -106,7 +106,7 @@ export function ArtPotSection({
                   <td className="p-2">
                     {r.title}
                     {r.askDrifted && (
-                      <span className="ml-2 text-xs text-warning dark:text-amber-400">
+                      <span className="ml-2 text-xs text-warning">
                         Business Case weicht vom eingefrorenen Richtwert ab
                       </span>
                     )}
@@ -190,7 +190,7 @@ export function ArtPotSection({
         </p>
       )}
       {pot.closedReason && (
-        <p className="rounded-r-md border-l-2 bg-surface-frame px-3 py-2 text-sm text-muted-foreground">
+        <p className="rounded-lg border px-3 py-2 text-sm text-muted-foreground">
           {pot.closedReason}
         </p>
       )}

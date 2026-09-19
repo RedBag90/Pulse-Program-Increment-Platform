@@ -1,4 +1,3 @@
-import { Fragment, type ReactNode } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import type { PeriodAmounts } from "@/modules/budgeting/domain/period-map";
@@ -7,6 +6,8 @@ import type { ArtFeatureLoad } from "@/modules/budgeting/domain/art-budget";
 import type { ArtGridModel } from "@/modules/budgeting/server/views/art-budget-breakdown";
 import { AllocationBar } from "@/modules/budgeting/features/components/round/allocation-bar";
 import { formatEUR } from "@/lib/formatting";
+import { SectionCard } from "@/components/ui/section-card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 /**
  * **Das Geld eines Wertstroms, aufgeschlüsselt je ART** — eine Tabelle, in der
@@ -39,16 +40,14 @@ interface Props {
   /** Das gewählte Halbjahr: seine Spalte ist markiert, sein Detail steht im Kasten. */
   cycleKey: string;
   /** Welche Zeile offen ist — `null`, wenn keine. */
-  expandedArtId: string | null;
   /**
-   * Der aufgeklappte Inhalt, **fertig gerendert** hereingereicht.
-   *
-   * Ein Slot statt einer `renderExpanded`-Funktion: eine inline übergebene
-   * Funktion wäre an einer Client-Komponente ein Verstoß, den `rsc-boundary`
-   * meldet, und ein Knoten ist hier ohnehin ehrlicher — die Fläche entscheidet
-   * nicht, *was* im Kasten steht, sie hält nur den Platz.
+   * Welche Zeile gerade offen ist — **nur zur Markierung**. Das Detail selbst
+   * stand bis 2026-09-19 als `<tr><td colSpan={9}>` mitten in dieser Tabelle
+   * und konnte deshalb keine eigene Fläche tragen: eine ganze Seite in einer
+   * leicht getönten Tabellenzeile. Es steht jetzt als eigene Karte unter der
+   * Tabelle — die Spalten hat es ohnehin nie benutzt.
    */
-  expanded?: ReactNode;
+  expandedArtId: string | null;
   /**
    * ARTs, für die der Betrachter Beträge sehen darf (REQ-3). Die übrigen Zeilen
    * stehen mit Namen da: **dass** es sie gibt, ist keine Geheimhaltung wert,
@@ -65,13 +64,10 @@ export function ArtBudgetBreakdown({
   tab,
   cycleKey,
   expandedArtId,
-  expanded,
   visibleArtIds,
   showTotals,
 }: Props) {
   const { periods } = model;
-  // ART + je Halbjahr eine Spalte + Backlog + Σ + Betrieb.
-  const colCount = periods.length + 4;
 
   /** Zeile auf- oder zuklappen; eine Zelle wählt zusätzlich ihr Halbjahr. */
   const href = (artId: string | null, cycle: string = cycleKey) => {
@@ -82,24 +78,26 @@ export function ArtBudgetBreakdown({
 
   if (model.isEmpty) {
     return (
-      <section className="space-y-2">
-        <h2 className="text-sm font-medium">Zugeteilt je ART</h2>
-        <p className="text-sm text-muted-foreground">Noch keine ARTs in diesem Wertstrom.</p>
-      </section>
+      <SectionCard title="Zugeteilt je ART">
+        <EmptyState
+          title="Noch kein ART"
+          body="Ohne ART gibt es nichts, worauf sich ein Budget verteilen liesse. ARTs entstehen unter „Organisation“."
+        />
+      </SectionCard>
     );
   }
 
   return (
-    <section className="space-y-2">
-      <h2 className="text-sm font-medium">Zugeteilt je ART</h2>
-      <p className="text-xs text-muted-foreground">
-        Je Halbjahr der zugeteilte Betrag, darunter klein die Feature-Last. Eine Zeile öffnet das
-        Halbjahr der angeklickten Spalte.
-      </p>
-      <div className="overflow-x-auto rounded-lg border">
+    <SectionCard
+      title="Zugeteilt je ART"
+      description="Je Halbjahr der zugeteilte Betrag, darunter klein die Feature-Last. Eine Zeile öffnet das Halbjahr der angeklickten Spalte."
+      bleed
+      contentClassName="space-y-3"
+    >
+      <div className="overflow-x-auto border-y">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b bg-muted/50 text-xs text-muted-foreground">
+            <tr className="border-b bg-surface-frame text-meta uppercase tracking-[0.1em] text-muted-foreground">
               <th className="p-2 text-left font-medium">ART</th>
               {periods.map((p) => (
                 <th
@@ -107,7 +105,7 @@ export function ArtBudgetBreakdown({
                   scope="col"
                   aria-current={p.key === cycleKey ? "true" : undefined}
                   className={`p-2 text-right font-medium ${
-                    p.key === cycleKey ? "bg-primary/10 text-primary" : ""
+                    p.key === cycleKey ? "bg-primary/5 text-primary" : ""
                   }`}
                 >
                   {p.label}
@@ -151,84 +149,72 @@ export function ArtBudgetBreakdown({
               const open = expandedArtId === a.artId;
               const maySeeNumbers = visibleArtIds.has(a.artId);
               return (
-                <Fragment key={a.artId}>
-                  <tr className={`border-b align-top ${open ? "bg-muted/30" : ""}`}>
-                    <td className="p-2 font-medium">
-                      {maySeeNumbers ? (
-                        <Link
-                          href={href(open ? null : a.artId)}
-                          aria-expanded={open}
-                          className="-mx-1 inline-flex items-center gap-1 rounded-md px-1 py-0.5 hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                        >
-                          {open ? (
-                            <ChevronDown className="size-3.5 shrink-0" aria-hidden />
-                          ) : (
-                            <ChevronRight className="size-3.5 shrink-0" aria-hidden />
-                          )}
-                          {a.name}
-                        </Link>
-                      ) : (
-                        // Kein Aufklappen und keine Beträge — aber der Name
-                        // steht da. Eine Lücke in der Liste wäre die schlechtere
-                        // Auskunft (REQ-3).
-                        <span className="inline-flex items-center gap-1 pl-[1.125rem] text-muted-foreground">
-                          {a.name}
-                        </span>
-                      )}
-                    </td>
-                    {periods.map((p) => (
-                      <td
-                        key={p.key}
-                        className={`p-2 text-right tabular-nums ${
-                          p.key === cycleKey ? "bg-primary/5" : ""
-                        }`}
+                <tr key={a.artId} className={`border-b align-top ${open ? "bg-primary/5" : ""}`}>
+                  <td className="p-2 font-medium">
+                    {maySeeNumbers ? (
+                      <Link
+                        href={href(open ? null : a.artId)}
+                        aria-expanded={open}
+                        className="-mx-1 inline-flex items-center gap-1 rounded-md px-1 py-0.5 hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                       >
-                        {!maySeeNumbers ? (
-                          <span className="text-muted-foreground">·</span>
+                        {open ? (
+                          <ChevronDown className="size-3.5 shrink-0" aria-hidden />
                         ) : (
-                          <Link
-                            href={href(open && p.key === cycleKey ? null : a.artId, p.key)}
-                            className="-mx-1 block rounded-md px-1 hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                          >
-                            <MoneyAndLoad
-                              amount={a.budgetByPeriod[p.key] ?? 0}
-                              cell={a.load.byPeriod[p.key]}
-                            />
-                          </Link>
+                          <ChevronRight className="size-3.5 shrink-0" aria-hidden />
                         )}
-                      </td>
-                    ))}
-                    <td className="p-2 text-right tabular-nums text-xs text-muted-foreground">
-                      {maySeeNumbers ? <LoadOnly cell={a.load.backlog} /> : "·"}
-                    </td>
-                    <td className="p-2 text-right font-medium tabular-nums">
-                      {maySeeNumbers ? (
-                        <MoneyAndLoad
-                          amount={sumOf(a.budgetByPeriod, periods)}
-                          cell={a.load.total}
-                        />
-                      ) : (
-                        <span className="text-muted-foreground">·</span>
-                      )}
-                    </td>
-                    <td className="border-l p-2 text-right tabular-nums text-muted-foreground">
+                        {a.name}
+                      </Link>
+                    ) : (
+                      // Kein Aufklappen und keine Beträge — aber der Name
+                      // steht da. Eine Lücke in der Liste wäre die schlechtere
+                      // Auskunft (REQ-3).
+                      <span className="inline-flex items-center gap-1 pl-[1.125rem] text-muted-foreground">
+                        {a.name}
+                      </span>
+                    )}
+                  </td>
+                  {periods.map((p) => (
+                    <td
+                      key={p.key}
+                      className={`p-2 text-right tabular-nums ${
+                        p.key === cycleKey ? "bg-primary/5" : ""
+                      }`}
+                    >
                       {!maySeeNumbers ? (
-                        "·"
-                      ) : a.operatingPerCycle > 0 ? (
-                        formatEUR(a.operatingPerCycle)
+                        <span className="text-muted-foreground">·</span>
                       ) : (
-                        <span>—</span>
+                        <Link
+                          href={href(open && p.key === cycleKey ? null : a.artId, p.key)}
+                          className="-mx-1 block rounded-md px-1 hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                        >
+                          <MoneyAndLoad
+                            amount={a.budgetByPeriod[p.key] ?? 0}
+                            cell={a.load.byPeriod[p.key]}
+                          />
+                        </Link>
                       )}
                     </td>
-                  </tr>
-                  {open && expanded != null && (
-                    <tr className="border-b bg-muted/20">
-                      <td colSpan={colCount} className="p-3">
-                        {expanded}
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
+                  ))}
+                  <td className="p-2 text-right tabular-nums text-xs text-muted-foreground">
+                    {maySeeNumbers ? <LoadOnly cell={a.load.backlog} /> : "·"}
+                  </td>
+                  <td className="p-2 text-right font-medium tabular-nums">
+                    {maySeeNumbers ? (
+                      <MoneyAndLoad amount={sumOf(a.budgetByPeriod, periods)} cell={a.load.total} />
+                    ) : (
+                      <span className="text-muted-foreground">·</span>
+                    )}
+                  </td>
+                  <td className="border-l p-2 text-right tabular-nums text-muted-foreground">
+                    {!maySeeNumbers ? (
+                      "·"
+                    ) : a.operatingPerCycle > 0 ? (
+                      formatEUR(a.operatingPerCycle)
+                    ) : (
+                      <span>—</span>
+                    )}
+                  </td>
+                </tr>
               );
             })}
 
@@ -288,13 +274,13 @@ export function ArtBudgetBreakdown({
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="px-3 text-meta text-muted-foreground">
         Abgeleitet aus der Finalisierung der Budgeting-Zeiträume.{" "}
         <Link href="/budgeting/periods" className="text-primary hover:underline">
           Zu den Zeiträumen →
         </Link>
       </p>
-    </section>
+    </SectionCard>
   );
 }
 

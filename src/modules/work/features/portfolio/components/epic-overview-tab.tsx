@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
+import { SectionCard } from "@/components/ui/section-card";
 import { Stat, StatStrip } from "@/components/ui/stat";
 import { EmptyState } from "@/components/ui/empty-state";
 import type {
@@ -125,9 +125,12 @@ export interface EpicOverviewTabProps {
  *
  * Vorher standen hier vier nebeneinander: `rounded-lg border bg-card p-4
  * shadow-xs`, `rounded-lg border bg-muted/30 px-3 py-2`, ein gestrichelter
- * Kasten und gar kein Container. Die Bibliothek hat eine Karte
- * (`rounded-xl` + `ring-1`); dies ist ihre einzige Aufrufstelle hier, damit es
- * nicht wieder auseinanderläuft.
+ * Kasten und gar kein Container.
+ *
+ * Das Bauteil stand hier lokal, weil es hier gebraucht wurde. Es wird anderswo
+ * genauso gebraucht — die Budget-Flächen hatten **acht** Kartenstile — und
+ * wohnt deshalb seit 2026-09-19 in `components/ui/section-card.tsx`. Hier
+ * bleibt nur der Name und die Voreinstellung `grid gap-3`.
  */
 function Panel({
   label,
@@ -139,15 +142,9 @@ function Panel({
   children: ReactNode;
 }) {
   return (
-    <Card size="sm">
-      <CardHeader>
-        <CardTitle className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          {label}
-        </CardTitle>
-        {action && <CardAction>{action}</CardAction>}
-      </CardHeader>
-      <CardContent className="grid gap-3">{children}</CardContent>
-    </Card>
+    <SectionCard title={label} {...(action ? { action } : {})} contentClassName="grid gap-3">
+      {children}
+    </SectionCard>
   );
 }
 

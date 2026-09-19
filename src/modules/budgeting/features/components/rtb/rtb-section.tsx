@@ -19,6 +19,8 @@ import {
   splitRunAndChange,
 } from "@/modules/budgeting/domain/rtb-kind";
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
+import { SectionCard } from "@/components/ui/section-card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const input =
   "rounded-md border border-input bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -120,22 +122,37 @@ export function RtbSection({
   };
 
   return (
-    <section className="space-y-3">
-      <div>
-        <h2 className="text-sm font-medium">Run the Business</h2>
-        <p className="text-xs text-muted-foreground">
+    /*
+      **Betrieb und ART-Rahmen sind Unterabschnitte einer Karte**, nicht zwei
+      namenlose Blöcke. Sie gehören zusammen — dieselbe Tabelle, derselbe Weg
+      über die PB-Liste — und stehen nur getrennt, weil das eine Run und das
+      andere Grow ist. Vorher trennte sie nichts als Leerraum.
+    */
+    <SectionCard
+      title={scoped ? "Betriebskosten" : "Betriebspositionen"}
+      description={
+        <>
           {scoped
             ? "Betriebskosten, die dieser Solution zugerechnet sind."
             : "Was dieser Wertstrom laufend braucht: der Betrieb (Keep the lights on) und die ART-Rahmen seiner ARTs. Beide gehen denselben Weg über die PB-Liste — das eine ist Run, das andere Grow, deshalb stehen sie getrennt."}{" "}
           Aktive Positionen kommen als Kandidaten auf die PB-Liste jeder gestarteten
           Budgeting-Kachel.
-        </p>
-      </div>
-
+        </>
+      }
+      action={
+        canManage && !adding ? (
+          <button type="button" onClick={() => setAdding(true)} className={btn}>
+            + Position
+          </button>
+        ) : undefined
+      }
+      contentClassName="space-y-4"
+    >
       {items.length === 0 && (
-        <p className="rounded-lg border px-3 py-2 text-sm text-muted-foreground">
-          Noch keine Positionen.
-        </p>
+        <EmptyState
+          title="Noch keine Positionen"
+          body="Was dieser Wertstrom laufend braucht, steht hier — sobald die erste Position angelegt ist."
+        />
       )}
 
       {run.items.length > 0 && (
@@ -150,23 +167,18 @@ export function RtbSection({
         />
       )}
 
-      {canManage &&
-        (adding ? (
-          <AddForm
-            valueStreamId={valueStreamId}
-            solutionId={solutionId}
-            solutions={solutions}
-            showSolution={showSolution}
-            arts={arts}
-            canUseArts={canUseArts}
-            onClose={() => setAdding(false)}
-          />
-        ) : (
-          <button type="button" onClick={() => setAdding(true)} className={btn}>
-            + Position hinzufügen
-          </button>
-        ))}
-    </section>
+      {canManage && adding && (
+        <AddForm
+          valueStreamId={valueStreamId}
+          solutionId={solutionId}
+          solutions={solutions}
+          showSolution={showSolution}
+          arts={arts}
+          canUseArts={canUseArts}
+          onClose={() => setAdding(false)}
+        />
+      )}
+    </SectionCard>
   );
 }
 
@@ -199,7 +211,7 @@ function RtbGroupTable({
   const secondCol = isChange ? "ART" : p.showSolution ? "Solution" : null;
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5 first:pt-0 [&+&]:border-t [&+&]:pt-4">
       <div className="flex flex-wrap items-baseline gap-2">
         <h3 className="text-meta font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           {title}

@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { saveRtbAwardsAction } from "@/modules/budgeting/features/actions/rtb";
 import { formatEUR } from "@/lib/formatting";
+import { SectionCard } from "@/components/ui/section-card";
 import { RTB_KIND_LABELS, rtbKindOrDefault } from "@/modules/budgeting/domain/rtb-kind";
 import type { RtbAwardView } from "@/modules/budgeting/server/services/rtb-award-service";
 
@@ -36,18 +37,13 @@ export function RtbAwardsSection({
   if (view.rows.length === 0) return null;
 
   return (
-    <section className="space-y-2">
-      <div>
-        <h2 className="text-sm font-medium">Zuspruch aufteilen · {view.cycleKey}</h2>
-        <p className="text-xs text-muted-foreground">
-          Die Runde spricht dem Wertstrom eine Summe zu; wie sie sich auf Betrieb und die ART-Rahmen
-          der ARTs verteilt, entscheidet er hier. Aus den Rahmen entsteht der Topf, den ein ART auf
-          seine ART-Epics verteilen darf.
-        </p>
-      </div>
-
+    <SectionCard
+      title={`Zuspruch aufteilen · ${view.cycleKey}`}
+      description="Die Runde spricht dem Wertstrom eine Summe zu; wie sie sich auf Betrieb und die ART-Rahmen der ARTs verteilt, entscheidet er hier. Aus den Rahmen entsteht der Rahmen, den ein ART auf seine ART-Epics verteilen darf."
+      contentClassName="space-y-3"
+    >
       {view.awarded == null ? (
-        <p className="rounded-r-md border-l-2 bg-surface-frame px-3 py-2 text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Für dieses Halbjahr ist noch nichts zugesprochen — die Kachel ist nicht abgeschlossen. Bis
           dahin gibt es nichts aufzuteilen, und die ART-Rahmen stehen auf 0 €.
         </p>
@@ -66,10 +62,10 @@ export function RtbAwardsSection({
             )}
           />
 
-          <div className="overflow-x-auto rounded-md border">
+          <div className="overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b bg-surface-frame text-xs text-muted-foreground">
+                <tr className="border-b bg-surface-frame text-meta uppercase tracking-[0.1em] text-muted-foreground">
                   <th className="p-2 text-left font-medium">Position</th>
                   <th className="p-2 text-left font-medium">Art</th>
                   <th className="p-2 text-right font-medium">Beantragt</th>
@@ -134,9 +130,7 @@ export function RtbAwardsSection({
           )}
 
           {view.closedReason && (
-            <p className="rounded-r-md border-l-2 bg-surface-frame px-3 py-2 text-sm text-muted-foreground">
-              {view.closedReason}
-            </p>
+            <p className="text-sm text-muted-foreground">{view.closedReason}</p>
           )}
 
           {state.error && (
@@ -156,6 +150,6 @@ export function RtbAwardsSection({
           )}
         </form>
       )}
-    </section>
+    </SectionCard>
   );
 }
