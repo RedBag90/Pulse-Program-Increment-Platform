@@ -1,7 +1,6 @@
 import {
   LayoutDashboard,
   Layers,
-  Boxes,
   CalendarDays,
   Network,
   Goal,
@@ -94,14 +93,21 @@ export const NAV_GROUPS: NavGroup[] = [
     //
     // Timelines gehören zu Drumbeat — der Eintrag wird vom Route-Guard über die
     // Unterpfad-Ausnahme in `moduleForPath` ausgeblendet, nicht über eine
-    // Practice. Solutions stand bis ADR-0022 daneben; sie gehören jetzt zu
-    // `core` und sind deshalb überall sichtbar, wo der Strukturbaum es ist.
+    // Practice.
+    //
+    // **„Solutions" stand hier bis September 2026 als vierter Eintrag.** Es war
+    // eine eigene Seite über dieselben Solutions, die der Baum daneben zeigte;
+    // seit der Umstellung auf Karte und gegliederte Tabelle ist sie eine
+    // Gruppierung der Organisations-Fläche. Ein Menüeintrag, der auf eine
+    // Weiterleitung zeigt, liesse ausserdem „Organisation" aufleuchten — man
+    // klickte „Solutions" und landete sichtbar woanders. Die **Adresse**
+    // `/structure/solutions` bleibt: fünf Wiki-Stationen, das „+"-Menü und ein
+    // Absprung aus dem Epic-Detail hängen an ihr.
     labelKey: "structure",
     defaultHref: "/structure",
     items: [
       { href: "/structure", labelKey: "organisation", icon: Network, exact: true },
       { href: "/structure/rollen", labelKey: "roleMap", icon: Users },
-      { href: "/structure/solutions", labelKey: "solutions", icon: Boxes },
       { href: "/structure/timelines", labelKey: "timelines", icon: CalendarDays },
     ],
   },
