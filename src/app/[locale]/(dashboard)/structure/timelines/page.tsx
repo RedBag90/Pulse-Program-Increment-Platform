@@ -3,21 +3,20 @@ import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import {
-  getStructureTree,
-  getStructureTimeline,
-} from "@/modules/core/org/server/services/structure";
-import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { getStructureTimeline } from "@/modules/core/org/server/services/structure";
 import { listPiStandards } from "@/modules/drumbeat/server/services/pi-standard";
 import { buildStructurePageModel } from "@/modules/core/org/server/views/structure-page";
 import { TimelinesPageShell } from "@/modules/drumbeat/features/cadence/components/timelines-page-shell";
 
 /**
- * Timelines-Page — Master-Detail-Layout fuer **Timelines** + ihre PIs +
- * subscribierte ARTs. Strukturdaten (VS/ART/Team) werden geladen, damit
- * Click-Throughs aus dem Timeline-Detail (z. B. „ART joinen") die
- * zugehoerigen ART-Details zeigen koennen — die Liste selbst zeigt aber
- * nur Timelines.
+ * Timelines-Page — Master-Detail-Layout für **Timelines** + ihre PIs +
+ * subscribierte ARTs.
+ *
+ * Der Organisations-Baum und die Personennamen wurden hier bis September 2026
+ * mitgeladen und an **niemanden** weitergereicht: das gemeinsame Seitenmodell
+ * baute daraus Wertstrom- und ART-Details, die diese Fläche nie las. Mit dem
+ * Wegfall des Baums sind sie entfallen — zwei Abfragen und ein
+ * Supabase-`listUsers` weniger je Aufruf.
  *
  * Gerendert wird über den Client-Adapter `TimelinesPageShell` statt direkt über
  * die `StructurePageShell`: das Detail-Pane wird per Render-Funktion injiziert,
@@ -32,19 +31,12 @@ export default async function TimelinesPage() {
 
   const canManageTimeline = hasCapability(principal, "timeline.manage");
 
-  const [tree, timeline, userLabels, piStandards] = await Promise.all([
-    getStructureTree(db, principal.tenantId),
+  const [timeline, piStandards] = await Promise.all([
     getStructureTimeline(db, principal.tenantId),
-    listTenantUserLabels(db, principal.tenantId),
     listPiStandards(db, principal.tenantId),
   ]);
 
-  const model = buildStructurePageModel({
-    mode: "timelines",
-    tree,
-    timeline,
-    userLabels,
-  });
+  const model = buildStructurePageModel({ timeline });
 
   return (
     <Suspense fallback={null}>

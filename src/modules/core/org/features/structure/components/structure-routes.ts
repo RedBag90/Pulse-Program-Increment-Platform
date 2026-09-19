@@ -25,11 +25,12 @@ export function isRoutedKind(kind: NodeKind): kind is RoutedKind {
 /**
  * Pfadsegment je Knotenart, englisch wie das umgebende `/structure`.
  *
- * Einzahl für den Knoten, Mehrzahl für die Liste: `/structure/solution/<id>`
- * ist ein Knoten **im Baum**, `/structure/solutions` die flache Liste über alle
- * Wertströme. Zwei Flächen, zwei Segmente — sonst lägen sie im selben
- * Routen-Zweig und müssten sich ein Layout teilen, das nur einer von beiden
- * bekommt.
+ * Einzahl für den Knoten, Mehrzahl für die Liste — das war einmal eine
+ * Entscheidung über Layouts: `/structure/solutions` war eine eigene Seite und
+ * durfte den Rahmen des Knotens nicht erben. Seit September 2026 gibt es diesen
+ * Rahmen nicht mehr; die Mehrzahl-Adresse leitet auf die eine Fläche weiter
+ * (`?view=tabelle&nach=horizont`). Die Segmente bleiben getrennt, weil an der
+ * Mehrzahl-Adresse fünf Wiki-Stationen und das „+"-Menü hängen.
  */
 const SEGMENT: Record<RoutedKind, string> = {
   vs: "value-stream",

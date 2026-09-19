@@ -1,281 +1,93 @@
 import { describe, it, expect } from "vitest";
 import { buildStructurePageModel } from "@/modules/core/org/server/views/structure-page";
 
-const vsRow = (over: {
+/**
+ * Das Modell der **Kadenz-Fläche**. Es baute bis September 2026 über einen
+ * `mode`-Schalter auch den Organisations-Baum; der ist entfallen und wird von
+ * `structure-overview.ts` abgelöst — samt seiner Tests.
+ */
+const tl = (over: {
   id: string;
   name: string;
-  vmoId?: string | null;
-  financeApproverId?: string | null;
-  businessOwnerId?: string | null;
-  architectLeadId?: string | null;
-  arts?: ReturnType<typeof artRow>[];
-  solutions?: ReturnType<typeof solRow>[];
+  pis?: number;
+  arts?: { id: string; name: string; vs?: string }[];
 }) => ({
   id: over.id,
   name: over.name,
-  description: null,
-  vmoId: over.vmoId ?? null,
-  financeApproverId: over.financeApproverId ?? null,
-  businessOwnerId: over.businessOwnerId ?? null,
-  architectLeadId: over.architectLeadId ?? null,
-  arts: over.arts ?? [],
-  solutions: over.solutions ?? [],
+  programIncrements: Array.from({ length: over.pis ?? 0 }, (_, i) => ({
+    id: `${over.id}-pi${i}`,
+    name: `PI ${i + 1}`,
+    startDate: new Date("2026-01-01"),
+    endDate: new Date("2026-03-01"),
+    status: "planned",
+  })),
+  arts: (over.arts ?? []).map((a) => ({
+    id: a.id,
+    name: a.name,
+    valueStream: { id: "vs1", name: a.vs ?? "Retail" },
+  })),
 });
 
-const solRow = (over: {
-  id: string;
-  name: string;
-  horizon?: string;
-  /** Pflicht in den Daten seit 2026-09-19 — die Vorlage setzt einen Vorgabewert. */
-  artId?: string;
-  productManagerId?: string | null;
-}) => ({
-  id: over.id,
-  name: over.name,
-  horizon: over.horizon ?? "h1",
-  artId: over.artId ?? "art1",
-  productManagerId: over.productManagerId ?? null,
-});
-
-const artRow = (over: {
-  id: string;
-  name: string;
-  rteId?: string | null;
-  technicalLeadId?: string | null;
-  piCount?: number;
-}) => ({
-  id: over.id,
-  name: over.name,
-  description: null,
-  rteId: over.rteId ?? null,
-  technicalLeadId: over.technicalLeadId ?? null,
-  _count: { pis: over.piCount ?? 0 },
-});
-
-describe("buildStructurePageModel", () => {
-  // Der Baum endet seit dem Team-Rückbau (fd8164a) bei der ART — die Plattform
-  // bleibt auf Wertstrom + ART.
-  it("flattens the VS -> ART tree into depth-indented rows", () => {
+describe("buildStructurePageModel — die Kadenz-Fläche", () => {
+  it("macht aus jeder Timeline eine Zeile auf oberster Ebene", () => {
     const m = buildStructurePageModel({
-      mode: "structure",
-      tree: [
-        vsRow({
-          id: "vs1",
-          name: "Retail",
-          vmoId: "u-vmo",
-          arts: [artRow({ id: "art1", name: "Mobile ART", rteId: "u-rte" })],
-        }),
-      ],
-      timeline: { timelines: [], unassignedArts: [] },
-      userLabels: { "u-vmo": "VMO", "u-rte": "RTE" },
-    });
-    const rows = m.rows;
-    expect(rows.map((r) => [r.kind, r.depth, r.label])).toEqual([
-      ["vs", 0, "Retail"],
-      ["art", 1, "Mobile ART"],
-    ]);
-    expect(rows[1]!.parentId).toBe("vs1");
-  });
-
-  it("emits gap signals for missing Portfolio Manager / Finance-Approver / RTE", () => {
-    const m = buildStructurePageModel({
-      mode: "structure",
-      tree: [
-        vsRow({
-          id: "vs1",
-          name: "Retail", // no vmoId, no financeApproverId
-          arts: [
-            artRow({
-              id: "art1",
-              name: "Mobile",
-              // no rteId
-            }),
-          ],
-        }),
-      ],
-      timeline: { timelines: [], unassignedArts: [] },
-      userLabels: {},
-    });
-    expect(m.rows[0]!.gaps).toContain("Kein:e Portfolio Manager");
-    expect(m.rows[0]!.gaps).toContain("Kein:e Finance-Approver:in");
-    expect(m.rows[1]!.gaps).toContain("Kein:e RTE");
-  });
-
-  it("resolves person labels via the userLabels map", () => {
-    const m = buildStructurePageModel({
-      mode: "structure",
-      tree: [
-        vsRow({
-          id: "vs1",
-          name: "Retail",
-          vmoId: "u1",
-          financeApproverId: "u2",
-        }),
-      ],
-      timeline: { timelines: [], unassignedArts: [] },
-      userLabels: { u1: "Alice", u2: "Bob" },
-    });
-    const vs = m.vs.get("vs1")!;
-    expect(vs.vmoLabel).toBe("Alice");
-    expect(vs.financeApproverLabel).toBe("Bob");
-  });
-
-  it("structure-mode: timeline-rows tauchen NICHT in der liste auf", () => {
-    const m = buildStructurePageModel({
-      mode: "structure",
-      tree: [vsRow({ id: "vs1", name: "Retail" })],
-      timeline: {
-        timelines: [{ id: "tl1", name: "Standard 10w", programIncrements: [], arts: [] }],
-        unassignedArts: [],
-      },
-      userLabels: {},
-    });
-    expect(m.rows.find((r) => r.kind === "timeline")).toBeUndefined();
-    expect(m.kindCounts.timeline).toBe(0);
-  });
-
-  it("timelines-mode: timeline-rows in der liste, KEINE vs/art-rows", () => {
-    const m = buildStructurePageModel({
-      mode: "timelines",
-      tree: [vsRow({ id: "vs1", name: "Retail", arts: [artRow({ id: "art1", name: "Mobile" })] })],
-      timeline: {
-        timelines: [{ id: "tl1", name: "Standard 10w", programIncrements: [], arts: [] }],
-        unassignedArts: [],
-      },
-      userLabels: {},
-    });
-    const timelineRow = m.rows.find((r) => r.kind === "timeline");
-    expect(timelineRow).toBeDefined();
-    expect(timelineRow!.depth).toBe(0);
-    expect(timelineRow!.label).toBe("Standard 10w");
-    expect(m.rows.find((r) => r.kind === "vs")).toBeUndefined();
-    expect(m.rows.find((r) => r.kind === "art")).toBeUndefined();
-  });
-
-  it("links ART -> Timeline via the subscription list", () => {
-    const m = buildStructurePageModel({
-      mode: "structure",
-      tree: [
-        vsRow({
-          id: "vs1",
-          name: "Retail",
-          arts: [artRow({ id: "art1", name: "Mobile" })],
-        }),
-      ],
       timeline: {
         timelines: [
-          {
-            id: "tl1",
-            name: "Standard 10w",
-            programIncrements: [],
-            arts: [{ id: "art1", name: "Mobile", valueStream: { id: "vs1", name: "Retail" } }],
-          },
+          tl({ id: "tl1", name: "Standard 10w", pis: 6, arts: [{ id: "a1", name: "Mobile" }] }),
+          tl({ id: "tl2", name: "Werks-Kadenz", pis: 4 }),
         ],
         unassignedArts: [],
       },
-      userLabels: {},
     });
-    const art = m.art.get("art1")!;
-    expect(art.timelineId).toBe("tl1");
-    expect(art.timelineName).toBe("Standard 10w");
+
+    expect(m.rows.map((r) => [r.kind, r.depth, r.label, r.subtitle])).toEqual([
+      ["timeline", 0, "Standard 10w", "6 PIs · 1 ARTs"],
+      ["timeline", 0, "Werks-Kadenz", "4 PIs · 0 ARTs"],
+    ]);
+    expect(m.kindCounts).toEqual({ vs: 0, art: 0, timeline: 2, solution: 0 });
   });
 
-  it("counts entities by kind for filter chips", () => {
+  it("legt das Detail je Timeline ab — PIs als ISO-Tag, ARTs mit ihrem Wertstrom", () => {
     const m = buildStructurePageModel({
-      mode: "structure",
-      tree: [
-        vsRow({
-          id: "vs1",
-          name: "Retail",
-          arts: [artRow({ id: "art1", name: "Mobile" }), artRow({ id: "art2", name: "Web" })],
-        }),
-        vsRow({ id: "vs2", name: "Payments" }),
-      ],
       timeline: {
-        timelines: [{ id: "tl1", name: "Standard", programIncrements: [], arts: [] }],
+        timelines: [
+          tl({ id: "tl1", name: "Standard", pis: 1, arts: [{ id: "a1", name: "Mobile" }] }),
+        ],
         unassignedArts: [],
       },
-      userLabels: {},
     });
-    // structure-mode zaehlt nur vs/art; timeline-count = 0
-    expect(m.kindCounts).toEqual({ vs: 2, art: 2, timeline: 0, solution: 0 });
-  });
-});
-
-/**
- * Die dritte Ebene. Solutions tragen immer einen Wertstrom, aber nur optional
- * einen ART — beide Fälle müssen im Baum einen Platz haben, sonst ist eine
- * Solution über den Baum nicht erreichbar.
- */
-describe("buildStructurePageModel — Solutions als dritte Ebene", () => {
-  /**
-   * **Gefragt wird „ist ihr ART hier zu sehen", nicht „hat sie eins".**
-   *
-   * Bis 2026-09-19 war `artId` optional, und der Baum hängte genau die
-   * ART-losen Solutions an den Wertstrom. Seit die Spalte Pflicht ist, wäre die
-   * alte Bedingung nie mehr wahr — der **Fall** aber bleibt: ein weich
-   * gelöschtes ART fällt aus der Liste heraus, und seine Solutions zeigten dann
-   * auf einen Knoten, den niemand rendert. Sie wären spurlos aus dem Baum
-   * verschwunden. Deshalb steht dieser Test hier.
-   */
-  it("hängt eine Solution unter ihren ART — und an den Wertstrom, wenn der ART nicht zu sehen ist", () => {
-    const m = buildStructurePageModel({
-      mode: "structure",
-      tree: [
-        vsRow({
-          id: "vs1",
-          name: "Produktion",
-          arts: [artRow({ id: "art1", name: "OEE" })],
-          solutions: [
-            solRow({ id: "s1", name: "Produktion Betrieb", artId: "art1" }),
-            // `art-weg` ist weich gelöscht und steht deshalb nicht in `arts`.
-            solRow({ id: "s2", name: "Produktion Pilot", horizon: "h3", artId: "art-weg" }),
-          ],
-        }),
-      ],
-      timeline: { timelines: [], unassignedArts: [] },
-      userLabels: {},
-    });
-
-    expect(m.rows.map((r) => [r.kind, r.label, r.depth, r.parentId])).toEqual([
-      ["vs", "Produktion", 0, null],
-      ["art", "OEE", 1, "vs1"],
-      ["solution", "Produktion Betrieb", 2, "art1"],
-      ["solution", "Produktion Pilot", 1, "vs1"],
+    const detail = m.timeline.get("tl1")!;
+    expect(detail.pis).toEqual([
+      {
+        id: "tl1-pi0",
+        name: "PI 1",
+        startDate: "2026-01-01",
+        endDate: "2026-03-01",
+        status: "planned",
+      },
     ]);
-    expect(m.kindCounts.solution).toBe(2);
+    expect(detail.subscribedArts).toEqual([
+      { id: "a1", name: "Mobile", valueStreamName: "Retail" },
+    ]);
   });
 
-  it("beschriftet die Solution-Zeile mit ihrem Horizont", () => {
+  /**
+   * Die ARTs ohne Kadenz hängen an **jedem** Timeline-Detail: dort werden sie
+   * zum Zuordnen angeboten. Ein ART, das nirgends auftaucht, wäre nicht mehr
+   * eintragbar.
+   */
+  it("bietet die ARTs ohne Kadenz an jedem Detail zum Zuordnen an", () => {
     const m = buildStructurePageModel({
-      mode: "structure",
-      tree: [
-        vsRow({
-          id: "vs1",
-          name: "Produktion",
-          solutions: [solRow({ id: "s1", name: "Pilot", horizon: "h3" })],
-        }),
-      ],
-      timeline: { timelines: [], unassignedArts: [] },
-      userLabels: {},
+      timeline: {
+        timelines: [tl({ id: "tl1", name: "A" }), tl({ id: "tl2", name: "B" })],
+        unassignedArts: [
+          { id: "a9", name: "Heimatlos", valueStream: { id: "vs1", name: "Retail" } },
+        ],
+      },
     });
-    expect(m.rows.at(-1)?.subtitle).toBe("H3 · R&D");
-  });
-
-  // Die Kadenz-Fläche teilt sich das Modell — dort haben Solutions nichts zu suchen.
-  it("zeigt im Timelines-Modus keine Solutions", () => {
-    const m = buildStructurePageModel({
-      mode: "timelines",
-      tree: [
-        vsRow({
-          id: "vs1",
-          name: "Produktion",
-          solutions: [solRow({ id: "s1", name: "Betrieb" })],
-        }),
-      ],
-      timeline: { timelines: [], unassignedArts: [] },
-      userLabels: {},
-    });
-    expect(m.rows.filter((r) => r.kind === "solution")).toEqual([]);
+    const erwartet = [{ id: "a9", name: "Heimatlos", valueStreamName: "Retail" }];
+    expect(m.unassignedArts).toEqual(erwartet);
+    expect(m.timeline.get("tl1")!.unassignedArts).toEqual(erwartet);
+    expect(m.timeline.get("tl2")!.unassignedArts).toEqual(erwartet);
   });
 });

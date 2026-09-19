@@ -1,6 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
-import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { notDeleted } from "@/server/db/soft-delete";
 
 /**
@@ -32,7 +31,16 @@ export async function getStructureTree(db: PrismaClient, tenantId: TenantId) {
           description: true,
           rteId: true,
           technicalLeadId: true,
+          /**
+           * **Die PIs eines ARTs hängen an seiner Kadenz, nicht an ihm.**
+           * `art.pis` ist der Alt-Verweis aus der Zeit vor den Timelines
+           * (siehe `ProgramIncrement.artId`); im Bestand trägt ihn **kein**
+           * einziges ART. Die Baum-Zeile sagte deshalb ausnahmslos „0 PIs".
+           * Mitgelesen wird beides: die Kadenz zuerst, der Alt-Verweis als
+           * Rückfall, damit alte Daten nicht stumm verschwinden.
+           */
           _count: { select: { pis: true } },
+          timeline: { select: { _count: { select: { programIncrements: true } } } },
         },
       },
       solutions: {
@@ -42,6 +50,9 @@ export async function getStructureTree(db: PrismaClient, tenantId: TenantId) {
           id: true,
           name: true,
           horizon: true,
+          // Nur H1 trägt einen Modus — er entscheidet, ob die Baum-Zeile
+          // „Investing" oder „Extracting" sagt (`horizonLabel`).
+          investmentMode: true,
           artId: true,
           productManagerId: true,
         },
@@ -100,24 +111,3 @@ export async function getStructureTimeline(db: PrismaClient, tenantId: TenantId)
 }
 
 export type StructureTimeline = Awaited<ReturnType<typeof getStructureTimeline>>;
-
-/**
- * Lightweight metrics for the Structure Overview dashboard: how many Epics each
- * value stream carries, and how many Program Increments are currently active.
- */
-export async function getStructureMetrics(db: PrismaClient, tenantId: TenantId) {
-  const [epicGroups, activePiCount] = await Promise.all([
-    db.initiative.groupBy({
-      by: ["valueStreamId"],
-      where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
-      _count: { _all: true },
-    }),
-    db.programIncrement.count({ where: { tenantId, status: "active" } }),
-  ]);
-
-  const epicsByValueStream: Record<string, number> = {};
-  for (const g of epicGroups) {
-    if (g.valueStreamId) epicsByValueStream[g.valueStreamId] = g._count._all;
-  }
-  return { epicsByValueStream, activePiCount };
-}

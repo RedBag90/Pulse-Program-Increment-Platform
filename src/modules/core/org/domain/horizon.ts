@@ -29,6 +29,27 @@ export const HORIZON_LABEL: Record<Horizon, string> = {
   h0: "H0 · Decommissioning",
 };
 
+/**
+ * **Die Beschriftung einer Solution-Zeile** — der Horizont, und in H1 der
+ * Investitionsmodus.
+ *
+ * Der Sonderfall ist keine Spitzfindigkeit: H1 zerfällt wirtschaftlich in
+ * *Investing* („wir bauen aus") und *Extracting* („wir ernten"), und beide
+ * tragen denselben Horizont `h1`. Wer nur `HORIZON_LABEL` liest, nennt eine
+ * Extracting-Solution „Investing" — genau das tat der Organisations-Baum bis
+ * September 2026 mit einer eigenen Etikettenliste `HORIZON_SHORT`, während die
+ * Solutions-Liste daneben korrekt zwei Zustände zeigte.
+ *
+ * Deshalb steht die Regel **einmal** hier: der Baum liest sie, das
+ * Horizont-Abzeichen liest sie. Eine zweite Liste gibt es nicht mehr.
+ *
+ * `mode` ist bewusst lose typisiert — die Leser reichen die Spalte durch, wie
+ * sie aus der Datenbank kommt.
+ */
+export function horizonLabel(horizon: Horizon, mode: string | null | undefined): string {
+  return horizon === "h1" && mode === "extracting" ? "H1 · Extracting" : HORIZON_LABEL[horizon];
+}
+
 /** Erklärtexte je Horizont — Quelle für Tooltips + Legende (Helfer-Schicht). */
 export const HORIZON_HELP: Record<
   Horizon,

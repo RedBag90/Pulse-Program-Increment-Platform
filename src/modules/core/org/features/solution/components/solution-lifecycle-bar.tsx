@@ -14,7 +14,7 @@ import {
   solutionStatusOf,
   solutionStatusToHorizonMode,
 } from "@/modules/core/org/domain/solution";
-import { HORIZON_BADGE_CLASS } from "@/modules/core/org/features/solution/components/horizon-badge";
+import { HORIZON_BADGE_CLASS } from "@/modules/core/org/features/solution/components/horizon-tokens";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -43,6 +43,10 @@ import {
  * Bewusst tab-unabhängig — dasselbe Muster wie die Gate-Karte und der
  * Reifegrad-Stepper der Epic-Seite: der Zustandswechsel ist der Vorgang, um den
  * es auf dieser Fläche geht, und muss von jedem Reiter aus erreichbar sein.
+ *
+ * **Die Kontextzeile „Wertstrom · ART" ist entfallen.** Sie schrieb den Pfad
+ * aus, den der Baum links durch die Einrückung ohnehin zeigt. Der Lebenszyklus
+ * bleibt — er ist die Aussage dieser Leiste, und er steht nirgends sonst.
  */
 export function SolutionLifecycleBar({
   model,
@@ -58,9 +62,6 @@ export function SolutionLifecycleBar({
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">
-        {[model.valueStreamName ?? "—", model.artName ?? "kein ART"].join(" · ")}
-      </p>
       {model.description && <p className="max-w-2xl text-sm">{model.description}</p>}
 
       <div className="flex items-center gap-1">

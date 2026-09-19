@@ -21,9 +21,6 @@ import { userLabel } from "@/components/detail/initiative-labels";
 import { ArtOverviewForm } from "@/modules/core/org/features/capacity/components/art-overview-form";
 import { DeleteArtButton } from "@/modules/core/org/features/art/components/delete-art-button";
 import { mayReadArtBudget } from "@/modules/budgeting/server/services/art-budget-access";
-import { SolutionsOfNode } from "@/modules/core/org/features/solution/components/solutions-of-node";
-import { loadSolutionsList } from "@/modules/core/org/server/views/solutions-list";
-import { loadSolutionGrow } from "@/modules/work/server/views/solution-grow";
 import type { ArtId } from "@/modules/core/kernel/domain/types";
 
 /**
@@ -36,6 +33,11 @@ import type { ArtId } from "@/modules/core/kernel/domain/types";
  * Die frühere Trennung „Overview" (lesend) / „Settings" (schreibend) ist
  * entfallen: ein Formular, das ohne Recht als Definitionsliste rendert, kann
  * beides — so hält es der Wertstrom seit jeher.
+ *
+ * **Er ist der dünnste der drei Knoten** — und das ist Absicht. Abzeichen und
+ * Solutions-Reiter sagten nur, was der Baum links ohnehin zeigt: den Wertstrom
+ * darüber und die Solutions darunter. Was hier steht, steht nirgends sonst:
+ * seine Stammdaten, seine Verantwortlichen, der Weg zu seinem Geld.
  */
 interface Props {
   params: Promise<{ id: string }>;
@@ -68,12 +70,7 @@ export default async function ArtNodePage({ params, searchParams }: Props) {
 
   const tabs: DetailTab[] = [
     { key: "overview", label: "Allgemein" },
-    ...(inScope
-      ? [
-          { key: "solutions", label: "Solutions" },
-          { key: "history", label: "Verlauf" },
-        ]
-      : []),
+    ...(inScope ? [{ key: "history", label: "Verlauf" }] : []),
   ];
 
   const remembered = (await cookies()).get(tabCookieName("art"))?.value;
@@ -83,10 +80,24 @@ export default async function ArtNodePage({ params, searchParams }: Props) {
     inScope &&
     hasCapability(principal, "art.update", { tenantId: principal.tenantId, artId: art.id });
 
+  // **Löschen ist ein eigenes Recht.** Der Knopf hing an `art.update`, die
+  // Aktion verlangt `art.delete` (nur Tenant-Admin): wer bearbeiten durfte, sah
+  // ihn und lief beim Klick in einen Serverfehler.
+  const canDelete =
+    inScope &&
+    hasCapability(principal, "art.delete", { tenantId: principal.tenantId, artId: art.id });
+
   return (
     <EntityDetailShell
       title={art.name}
-      badge={art.valueStream.name}
+      // Siehe Wertstrom-Knoten: der Baum trug den Pfad, jetzt trägt ihn die
+      // Brotkrume. Der Wertstrom ist damit wieder anklickbar — als Weg nach
+      // oben, nicht als Wiederholung.
+      breadcrumb={[
+        { label: "Struktur", href: "/structure" },
+        { label: art.valueStream.name, href: `/structure/value-stream/${art.valueStream.id}` },
+        { label: art.name },
+      ]}
       tabs={tabs}
       activeTab={activeTab}
       basePath={`/structure/art/${art.id}`}
@@ -97,8 +108,8 @@ export default async function ArtNodePage({ params, searchParams }: Props) {
         <div className="mb-4 rounded-lg border border-dashed bg-muted/40 p-4 text-sm">
           <p className="font-medium">Dieser ART liegt außerhalb deines Bereichs.</p>
           <p className="mt-1 text-muted-foreground">
-            Name und Verantwortliche stehen unten. Budget, Solutions und Verlauf bleiben zu. Im Baum
-            bleibt er sichtbar, damit die Landkarte vollständig ist.
+            Name und Verantwortliche stehen unten. Budget und Verlauf bleiben zu. Im Baum bleibt er
+            sichtbar, damit die Landkarte vollständig ist.
           </p>
         </div>
       )}
@@ -117,16 +128,14 @@ export default async function ArtNodePage({ params, searchParams }: Props) {
               </Link>
             </p>
           )}
-          <OverviewTab db={db} art={art} principal={principal} canEdit={canEdit} />
+          <OverviewTab
+            db={db}
+            art={art}
+            principal={principal}
+            canEdit={canEdit}
+            canDelete={canDelete}
+          />
         </>
-      )}
-      {activeTab === "solutions" && (
-        <SolutionsTab
-          db={db}
-          tenantId={principal.tenantId}
-          artId={art.id}
-          workEnabled={principal.enabledModules.includes("work")}
-        />
       )}
       {activeTab === "history" && <HistoryTab db={db} tenantId={principal.tenantId} id={art.id} />}
     </EntityDetailShell>
@@ -135,7 +144,7 @@ export default async function ArtNodePage({ params, searchParams }: Props) {
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- siehe Wertstrom-Knoten. */
 
-async function OverviewTab({ db, art, principal, canEdit }: any) {
+async function OverviewTab({ db, art, principal, canEdit, canDelete }: any) {
   const [approvers, userLabels] = await Promise.all([
     listTenantApprovers(db, principal.tenantId),
     listTenantUserLabels(db, principal.tenantId),
@@ -199,37 +208,16 @@ async function OverviewTab({ db, art, principal, canEdit }: any) {
         </dl>
       )}
 
-      {canEdit && (
+      {canDelete && (
         <section>
           <h2 className="mb-2 text-sm font-medium">ART löschen</h2>
+          <p className="mb-2 text-xs text-muted-foreground">
+            Entfernt den ART aus der Struktur. Seine Solutions bleiben — sie gehören dem Wertstrom.
+          </p>
           <DeleteArtButton id={art.id} name={art.name} />
         </section>
       )}
     </div>
-  );
-}
-/**
- * Die Solutions eines Knotens. Der Reiter selbst ist **Core** (ADR-0022) — die
- * Grow-Spalte daneben ist Work und wird nur mit dem Modul geladen. Vorher hing
- * der ganze Reiter allein an `inScope`, einer Berechtigungspruefung: ein Mandant
- * ohne Work sah dort Grow-Summen aus Epics, die er gar nicht fuehren darf.
- */
-async function SolutionsTab({ db, tenantId, artId, workEnabled }: any) {
-  const rows = await loadSolutionsList(db, tenantId, { artId });
-  const growById = workEnabled
-    ? await loadSolutionGrow(
-        db,
-        tenantId,
-        rows.map((r: { id: string }) => r.id),
-      )
-    : undefined;
-  return (
-    <SolutionsOfNode
-      rows={rows}
-      growById={growById}
-      showArt={false}
-      emptyText="Diesem ART ist noch keine Solution zugewiesen."
-    />
   );
 }
 

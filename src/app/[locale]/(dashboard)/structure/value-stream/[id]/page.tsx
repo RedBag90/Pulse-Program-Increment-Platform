@@ -31,9 +31,6 @@ import {
 } from "@/modules/work/server/views/value-stream-capacity-mix";
 import { ValueStreamGuardrailsSection } from "@/modules/work/features/portfolio/components/value-stream-guardrails-section";
 import { getTenantPractices } from "@/server/services/target-model";
-import { SolutionsOfNode } from "@/modules/core/org/features/solution/components/solutions-of-node";
-import { loadSolutionsList } from "@/modules/core/org/server/views/solutions-list";
-import { loadSolutionGrow } from "@/modules/work/server/views/solution-grow";
 import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
 
 /**
@@ -48,6 +45,11 @@ import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
  *    Aufruf eine Welle über alles — Budget, Guardrails, Kapazitätsmix,
  *    Freigabe-Regeln, Audit —, unabhängig davon, was zu sehen war. Bei sechs
  *    Reitern ist das nicht mehr vertretbar.
+ * 3. **Er wiederholt den Baum nicht.** Der Reiter „Solutions" listete genau die
+ *    Zeilen, die zwei Zentimeter links schon stehen; das Kopf-Abzeichen zählte
+ *    sie. Neu waren dort nur Grow und die Epic-Anzahl — Grow steht jetzt an der
+ *    Baum-Zeile selbst, die Epic-Anzahl auf der Solution-Detailseite und in der
+ *    Solutions-Liste.
  */
 interface Props {
   params: Promise<{ id: string }>;
@@ -88,12 +90,7 @@ export default async function ValueStreamNodePage({ params, searchParams }: Prop
     // Geld wird im Budgeting-Bereich verwaltet, nicht in der Struktur.
     // Guardrails bleibt — das ist `modules/work`, kein Budgeting.
     ...(canReadBudget ? [{ key: "guardrails", label: "Guardrails" }] : []),
-    ...(inScope
-      ? [
-          { key: "solutions", label: "Solutions" },
-          { key: "history", label: "Verlauf" },
-        ]
-      : []),
+    ...(inScope ? [{ key: "history", label: "Verlauf" }] : []),
   ];
 
   // Ohne `?tab=` greift die Erinnerung — aber nur, wenn das Recht den Reiter
@@ -111,7 +108,11 @@ export default async function ValueStreamNodePage({ params, searchParams }: Prop
   return (
     <EntityDetailShell
       title={vs.name}
-      badge={`${vs.arts.length} ART${vs.arts.length !== 1 ? "s" : ""}`}
+      // Der Pfad, seit der Baum fort ist. Die Kopf-Abzeichen sind weggefallen,
+      // *weil der Baum ihn zeigte* — er zeigt ihn nicht mehr, also trägt ihn
+      // die Brotkrume. Sie stand als Prop längst bereit und wurde von keiner
+      // Struktur-Seite genutzt.
+      breadcrumb={[{ label: "Struktur", href: "/structure" }, { label: vs.name }]}
       tabs={tabs}
       activeTab={activeTab}
       basePath={`/structure/value-stream/${vs.id}`}
@@ -122,8 +123,8 @@ export default async function ValueStreamNodePage({ params, searchParams }: Prop
         <div className="mb-4 rounded-lg border border-dashed bg-muted/40 p-4 text-sm">
           <p className="font-medium">Dieser Wertstrom liegt außerhalb deines Bereichs.</p>
           <p className="mt-1 text-muted-foreground">
-            Name und Verantwortliche stehen unten. Budget, Guardrails, Betrieb, Solutions und
-            Verlauf bleiben zu. Im Baum bleibt er sichtbar, damit die Landkarte vollständig ist.
+            Name und Verantwortliche stehen unten. Budget, Guardrails, Betrieb und Verlauf bleiben
+            zu. Im Baum bleibt er sichtbar, damit die Landkarte vollständig ist.
           </p>
         </div>
       )}
@@ -144,14 +145,6 @@ export default async function ValueStreamNodePage({ params, searchParams }: Prop
       )}
       {activeTab === "guardrails" && (
         <GuardrailsTab db={db} principal={principal} vsId={vs.id} inScope={inScope} />
-      )}
-      {activeTab === "solutions" && (
-        <SolutionsTab
-          db={db}
-          tenantId={principal.tenantId}
-          valueStreamId={vs.id}
-          workEnabled={principal.enabledModules.includes("work")}
-        />
       )}
       {activeTab === "history" && <HistoryTab db={db} tenantId={principal.tenantId} id={vs.id} />}
     </EntityDetailShell>
@@ -280,30 +273,6 @@ async function GuardrailsTab({ db, principal, vsId, inScope }: any) {
         })
       }
       preview={preview}
-    />
-  );
-}
-
-/**
- * Die Solutions eines Knotens. Der Reiter selbst ist **Core** (ADR-0022) — die
- * Grow-Spalte daneben ist Work und wird nur mit dem Modul geladen. Vorher hing
- * der ganze Reiter allein an `inScope`, einer Berechtigungspruefung: ein Mandant
- * ohne Work sah dort Grow-Summen aus Epics, die er gar nicht fuehren darf.
- */
-async function SolutionsTab({ db, tenantId, valueStreamId, workEnabled }: any) {
-  const rows = await loadSolutionsList(db, tenantId, { valueStreamId });
-  const growById = workEnabled
-    ? await loadSolutionGrow(
-        db,
-        tenantId,
-        rows.map((r: { id: string }) => r.id),
-      )
-    : undefined;
-  return (
-    <SolutionsOfNode
-      rows={rows}
-      growById={growById}
-      emptyText="Für diesen Wertstrom ist noch keine Solution angelegt."
     />
   );
 }

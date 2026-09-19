@@ -10,7 +10,7 @@ import {
   horizonOfStation,
   type Station,
 } from "@/modules/work/domain/portfolio-guardrails";
-import { HORIZON_HEX } from "@/modules/core/org/features/solution/components/horizon-badge";
+import { HORIZON_HEX } from "@/modules/core/org/features/solution/components/horizon-tokens";
 import type {
   CapacityBucket,
   PortfolioGuardrailsModel,

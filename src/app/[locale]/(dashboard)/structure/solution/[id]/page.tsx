@@ -114,8 +114,25 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
 
   return (
     <EntityDetailShell
-      backHref="/structure/solutions"
-      backLabel="Zurück zu den Solutions"
+      // Der Rück-Pfeil zeigte auf `/structure/solutions` — eine Seite, die es
+      // nicht mehr gibt, und ein Pfeil sagt ohnehin nur „irgendwohin zurück".
+      // Der volle Pfad steht jetzt hier: er ersetzt den Baum, der ihn bis
+      // September 2026 durch die Einrückung zeigte.
+      breadcrumb={[
+        { label: "Struktur", href: "/structure" },
+        ...(model.valueStreamName
+          ? [
+              {
+                label: model.valueStreamName,
+                href: `/structure/value-stream/${model.valueStreamId}`,
+              },
+            ]
+          : []),
+        ...(model.artId && model.artName
+          ? [{ label: model.artName, href: `/structure/art/${model.artId}` }]
+          : []),
+        { label: model.name },
+      ]}
       title={model.name}
       badge={
         <HorizonBadge horizon={model.horizon} investmentMode={model.investmentMode} withHelp />

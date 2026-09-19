@@ -10,7 +10,7 @@ import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import {
   HORIZON_HEX,
   HORIZON_NONE_HEX,
-} from "@/modules/core/org/features/solution/components/horizon-badge";
+} from "@/modules/core/org/features/solution/components/horizon-tokens";
 import { HORIZON_LABEL, type Horizon } from "@/modules/work/domain/portfolio-guardrails";
 import {
   fitFunnel,

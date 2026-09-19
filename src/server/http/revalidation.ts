@@ -100,7 +100,11 @@ export const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   // Solutions wirken auf die Verwaltungsseiten UND auf den abgeleiteten
   // Epic-Horizont (Kanban-Swimlanes, Guardrail, Epic-Detail).
   solution: [
-    "/structure/solutions",
+    // **`/structure`, nicht `/structure/solutions`.** Die flache Liste ist seit
+    // September 2026 eine Gruppierung der einen Struktur-Fläche; ihre Adresse
+    // leitet nur noch weiter und lädt nichts — an ihr könnte also auch nichts
+    // veralten. Die Fläche, die die Solution zeigt, ist `/structure`.
+    "/structure",
     "/structure/rollen",
     "/structure/solution/[id]",
     "/portfolio",
@@ -145,7 +149,9 @@ export const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/budgeting/value-streams/[id]",
     "/budgeting/periods/[id]",
     "/budgeting/run-the-business",
-    "/structure/solutions",
+    // Run steht jetzt auch an der Struktur-Fläche selbst (Kachel und Tabelle),
+    // nicht mehr nur auf der eigenen Solutions-Seite.
+    "/structure",
     "/structure/solution/[id]",
     // **Keine `/budgeting/arts`-Route mehr.** Beide — Liste und Detail — sind
     // seit der Zusammenlegung reine Wegweiser auf die Wertstromseite. Sie laden

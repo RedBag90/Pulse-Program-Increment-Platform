@@ -1,0 +1,138 @@
+import { formatCompactEUR } from "@/lib/formatting";
+import type { StructureMoney } from "@/modules/core/org/server/views/structure-overview";
+
+/**
+ * Die drei Zahlen an einem Strukturknoten — und **warum sie fehlen**, wenn sie
+ * fehlen.
+ *
+ * Bis September 2026 stand für drei verschiedene Sachverhalte derselbe Strich:
+ * der Knoten hat gar kein Epic, seine Epics haben keinen freigegebenen Business
+ * Case, oder die freigegebenen Zahlen ergeben tatsächlich 0 €. Das erste ist
+ * eine Lücke in der Struktur, das zweite eine im Verfahren — zwei verschiedene
+ * Aufgaben für zwei verschiedene Leute.
+ *
+ * `money === null` heisst etwas Viertes: **nicht gemessen**, weil der Mandant
+ * das Modul nicht gebucht hat. Dann steht gar nichts da, keine 0 €.
+ */
+export function StructureFigures({
+  money,
+  showGrow,
+  showRun,
+  className,
+}: {
+  money: StructureMoney | null;
+  showGrow: boolean;
+  showRun: boolean;
+  className?: string;
+}) {
+  if (money == null || (!showGrow && !showRun)) return null;
+  return (
+    <span
+      className={
+        className ??
+        "flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-meta tabular-nums text-muted-foreground"
+      }
+    >
+      {showGrow && (
+        <>
+          <span>
+            {money.epicCount === 0 ? (
+              <em className="not-italic opacity-80" title="Diesem Knoten ist kein Epic zugeordnet.">
+                kein Epic
+              </em>
+            ) : (
+              <>
+                <b className="font-semibold text-foreground">{money.epicCount}</b> Epics
+              </>
+            )}
+          </span>
+          {money.epicCount > 0 && (
+            <span>
+              {money.grow > 0 ? (
+                <>
+                  Grow{" "}
+                  <b className="font-semibold text-foreground">{formatCompactEUR(money.grow)}</b>
+                </>
+              ) : (
+                <em
+                  className="not-italic opacity-80"
+                  title="Kein Epic führt einen freigegebenen Business Case (ab L3.1)."
+                >
+                  keine Freigabe
+                </em>
+              )}
+            </span>
+          )}
+        </>
+      )}
+      {showRun && (
+        <span>
+          {money.run > 0 ? (
+            <>
+              Run <b className="font-semibold text-foreground">{formatCompactEUR(money.run)}</b>
+            </>
+          ) : (
+            <em className="not-italic opacity-80">kein Run</em>
+          )}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** „1" in Bernstein — offene Angaben an diesem Knoten, Namen im Titel. */
+export function GapBadge({ gaps }: { gaps: readonly string[] }) {
+  if (gaps.length === 0) return null;
+  return (
+    <span
+      className="shrink-0 rounded-full bg-warning-surface px-1.5 text-label font-semibold text-warning"
+      title={gaps.join(", ")}
+    >
+      {gaps.length}
+      <span className="sr-only"> offene Angaben: {gaps.join(", ")}</span>
+    </span>
+  );
+}
+
+/**
+ * Dieselben drei Aussagen als **Tabellenzellen** — dasselbe Vokabular, andere
+ * Form. Beide Darstellungen der Fläche lesen es aus dieser einen Datei, damit
+ * „kein Epic" nicht an einer Stelle „—" heisst.
+ */
+export function EpicsCell({ money }: { money: StructureMoney | null }) {
+  if (money == null) return <td className="px-3 py-1.5 text-right text-muted-foreground">—</td>;
+  return (
+    <td className="px-3 py-1.5 text-right tabular-nums">
+      {money.epicCount === 0 ? (
+        <span className="text-meta text-muted-foreground">kein Epic</span>
+      ) : (
+        money.epicCount
+      )}
+    </td>
+  );
+}
+
+export function GrowCell({ money }: { money: StructureMoney | null }) {
+  if (money == null) return <td className="px-3 py-1.5 text-right text-muted-foreground">—</td>;
+  if (money.epicCount === 0)
+    return (
+      <td className="px-3 py-1.5 text-right text-meta text-muted-foreground">
+        <span title="Diesem Knoten ist kein Epic zugeordnet.">kein Epic</span>
+      </td>
+    );
+  if (money.grow === 0)
+    return (
+      <td className="px-3 py-1.5 text-right text-meta text-muted-foreground">
+        <span title="Kein Epic führt einen freigegebenen Business Case (ab L3.1).">
+          keine Freigabe
+        </span>
+      </td>
+    );
+  return <td className="px-3 py-1.5 text-right tabular-nums">{formatCompactEUR(money.grow)}</td>;
+}
+
+export function RunCell({ money }: { money: StructureMoney | null }) {
+  if (money == null || money.run === 0)
+    return <td className="px-3 py-1.5 text-right text-muted-foreground">—</td>;
+  return <td className="px-3 py-1.5 text-right tabular-nums">{formatCompactEUR(money.run)}</td>;
+}

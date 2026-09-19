@@ -49,7 +49,10 @@ export const saveValueStreamGuardrailTargetsAction = createServerAction({
       },
     }),
   onSuccess: () => {
-    revalidatePath("/value-streams/[id]", "page");
+    // `/value-streams/[id]` gibt es seit dem Umzug in den Struktur-Bereich
+    // nicht mehr — der Aufruf lief ins Leere, und der Guardrails-Reiter stand
+    // nach dem Speichern veraltet da.
+    revalidatePath("/structure/value-stream/[id]", "page");
     revalidatePath("/portfolio/guardrails", "page");
   },
   mapError: (e) =>
