@@ -446,3 +446,28 @@ Was beim Umsetzen **anders** kam als hier geplant, und warum:
   aus drei Perspektiven
 - ADR-0013 (Schichtung), ADR-0020 (Lebenszyklus beginnt in H2), ADR-0022
   (Solution ist Struktur)
+
+---
+
+## Nachtrag 2026-09-19 — die Fläche wird neu geschnitten
+
+Diese Spec hat die zwei Geldflächen zu **einer** gemacht. Das war richtig und
+reicht nicht: die zusammengelegte Fläche ist nach **Geldsorte** geschnitten
+(„Budget" / „Run the Business"), und darin stehen Stammdaten, Halbjahresarbeit
+und Nachschlagewerke ununterscheidbar untereinander.
+
+[art-budget-process-layout.md](art-budget-process-layout.md) schneidet sie neu —
+nach **Prozessschritt und Eigentümer**. Was von dieser Spec bleibt und was nicht:
+
+- **Der Inhalt bleibt.** Kein Block verschwindet, keine Zahl wird anders
+  gerechnet. §8 und REQ-10 bleiben unverändert in Kraft; zwei Rechenfragen wurden
+  gestellt und ausdrücklich **zurückgestellt** (dort §5).
+- **§2.1 „eine Fläche, zwei Tiefen" ist überholt.** Aus zwei Reitern werden fünf,
+  und der **Falter entfällt**: was aufklappte, hat eine eigene Adresse. Die
+  aufklappbare ART-Zeile war die richtige Antwort auf „zwei Seiten", aber nicht
+  auf „welcher Schritt gehört wohin".
+- **§2.5 (das Vokabular) bleibt** und bekommt eine Ergänzung: die Spalte
+  „Solution" heißt künftig **„Zurechnung"** — sie verschwieg zwei der drei Wege,
+  auf denen Betriebsgeld an einem ART landet.
+- **REQ-6 (die aufklappbare Zeile) ist ersetzt** durch je einen Reiter je ART,
+  mit Business Case und Verteilformular.
