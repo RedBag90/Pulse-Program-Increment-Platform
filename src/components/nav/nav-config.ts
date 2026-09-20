@@ -9,8 +9,6 @@ import {
   LayoutGrid,
   GitBranch,
   Route,
-  BarChart2,
-  Trophy,
   ShieldCheck,
   Plug,
   ClipboardCheck,
@@ -268,18 +266,14 @@ export const NAV_GROUPS: NavGroup[] = [
         practice: "portfolioLevel",
       },
       { href: "/roadmap/art", labelKey: "artRoadmap", icon: Route, practice: "programLevel" },
-      {
-        href: "/reporting/portfolio-health",
-        labelKey: "portfolioHealth",
-        icon: BarChart2,
-        practice: "portfolioLevel",
-      },
-      {
-        href: "/reporting/wsjf-leaderboard",
-        labelKey: "wsjfLeaderboard",
-        icon: Trophy,
-        practice: "wsjf",
-      },
+      //
+      // **Hier standen bis September 2026 „Portfolio-Gesundheit" und die
+      // „WSJF-Rangliste".** Beide sind zurückgebaut: das Status-Diagramm
+      // zeichnete eine Achse, die mit der QS-Abschaffung (13.06.2026) entfallen
+      // ist, die Wertstrom-Budget-Kachel doppelte `/budgeting/value-streams`,
+      // und das WSJF-Ranking lebt als sortierbare Spalte auf
+      // `/implementation/features` weiter. Keine der elf Wiki-Anleitungen
+      // verwies je auf eine der beiden Flächen.
     ],
   },
 ];

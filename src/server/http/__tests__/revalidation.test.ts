@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { appRoutes } from "@/test/helpers/app-routes";
 
 const revalidatePath = vi.fn();
 vi.mock("next/cache", () => ({ revalidatePath: (...args: unknown[]) => revalidatePath(...args) }));
@@ -112,5 +113,40 @@ describe("revalidateFor", () => {
     for (const group of ["budgetAllocation", "art", "rtbItem"] as const) {
       expect(REGISTRY[group].filter((r) => r.startsWith("/budgeting/arts"))).toEqual([]);
     }
+  });
+});
+
+/**
+ * **Die Registry zeigt auf Routen — und niemand prüfte, ob es sie gibt.**
+ *
+ * Ein `revalidatePath` auf einen Pfad, den es nicht mehr gibt, läuft folgenlos
+ * durch: kein Fehler, keine Warnung, nur eine Fläche, die kalt bleibt. So
+ * überlebte `/budgeting/rounds` (Plural, existiert nicht) einen Umbau, und so
+ * wäre `/reporting/portfolio-health` beim Rückbau der Reporting-Flächen stumm
+ * liegengeblieben. Die bisherigen Tests prüfen Gruppenzugehörigkeit und
+ * Dedupe — nicht die Existenz.
+ *
+ * `appRoutes()` liest die `page.tsx` unter `src/app` und liefert die
+ * Adressen in derselben Schreibweise, die die Registry benutzt
+ * (`/structure/art/[id]`) — Routen-Gruppen verändern den Ordnerpfad, nicht die
+ * Adresse.
+ */
+describe("jeder Pfad der Registry zeigt auf eine echte Route", () => {
+  const routes = appRoutes();
+
+  it("der Melder liest überhaupt Routen", () => {
+    expect(routes.size).toBeGreaterThan(30);
+    // Eine statische und eine dynamische, beide über eine Routen-Gruppe hinweg.
+    expect(routes.has("/structure")).toBe(true);
+    expect(routes.has("/structure/art/[id]")).toBe(true);
+    expect(routes.has("/gibt-es-nicht")).toBe(false);
+  });
+
+  it("findet keinen Pfad ohne page.tsx", () => {
+    const tot: string[] = [];
+    for (const [gruppe, pfade] of Object.entries(REGISTRY)) {
+      for (const p of pfade) if (!routes.has(p)) tot.push(`${gruppe} → ${p}`);
+    }
+    expect(tot, tot.length === 0 ? "" : `\nTote Ziele:\n  ${tot.join("\n  ")}\n`).toEqual([]);
   });
 });

@@ -760,13 +760,6 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
         practice: "portfolioLevel",
       },
       {
-        key: "viewer.reporting",
-        title: "Verdichtete Auswertungen",
-        body: "Portfolio-Health und die WSJF-Rangliste fassen den Stand in Kennzahlen zusammen, ohne dass du irgendwo eintauchen musst.",
-        route: "/reporting/portfolio-health",
-        practice: "portfolioLevel",
-      },
-      {
         key: "viewer.risk_matrix",
         title: "Die Risikolage",
         body: "Wahrscheinlichkeit gegen Auswirkung. Was rechts oben liegt, sollte in eurem nächsten Steuerungstermin zur Sprache kommen.",

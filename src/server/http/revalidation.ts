@@ -131,12 +131,15 @@ export const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/structure/timelines",
     "/structure/value-stream/[id]",
     "/budgeting/value-streams/[id]",
-    "/reporting/portfolio-health",
   ],
   pi: ["/umsetzung", "/structure", "/pi/[piId]", "/pi-planning"],
   piStandard: ["/structure", "/structure/value-stream/[id]", "/budgeting/value-streams/[id]"],
   budgetPlanRevision: ["/budgeting", "/budgeting/budget-plan", "/budgeting/budget-plan/[id]"],
-  budgetRound: ["/budgeting", "/budgeting/rounds", "/budgeting/round", "/budgeting/periods/[id]"],
+  // `/budgeting/rounds` (Plural) stand hier, seit die Kachel-Gallery nach
+  // `/budgeting/periods` gezogen ist — eine Route, die es nie gab. Ein
+  // `revalidatePath` darauf lief folgenlos durch; die Liste der Zeiträume blieb
+  // nach dem Anlegen einer Runde kalt. Gefunden hat es der Wächter unten.
+  budgetRound: ["/budgeting", "/budgeting/periods", "/budgeting/round", "/budgeting/periods/[id]"],
   budgetPeriod: ["/budgeting", "/budgeting/periods", "/budgeting/periods/[id]", "/my-tasks"],
   // Löschen: NUR die Listen-/Übersichts-Routen — NICHT die [id]-Detailseite, sonst
   // rendert die gerade gelöschte Kachel als notFound (404), bevor der Redirect greift.

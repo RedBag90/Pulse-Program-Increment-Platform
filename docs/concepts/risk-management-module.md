@@ -255,6 +255,6 @@ per-risk activity feed / bulk document-reject / export / comments.
 
 ## Deferred (not in this module)
 
-Impediment-ROAM consolidation · PI-planning surfacing (`riskCount`) · portfolio-health / reporting rollup ·
+Impediment-ROAM consolidation · PI-planning surfacing (`riskCount`) ·
 Impediment↔Risk / Goal↔Risk links · REST API (`/api/v1/risks`) · structured mitigation activities
 (owner/due/status) · source/origin + tags fields · `EntitySelect kind="epic"` (confirm/add).

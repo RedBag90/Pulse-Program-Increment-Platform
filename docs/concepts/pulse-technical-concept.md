@@ -641,10 +641,8 @@ POST   /api/v1/pis/:id/complete
 
 # WSJF
 PUT    /api/v1/initiatives/:id/wsjf
-GET    /api/v1/wsjf/leaderboard
 
 # Reporting
-GET    /api/v1/reports/portfolio-health
 GET    /api/v1/reports/pi-velocity
 GET    /api/v1/reports/dependencies/graph
 

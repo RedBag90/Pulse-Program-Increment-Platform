@@ -101,7 +101,7 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
   work: {
     label: "Work",
     // Epic-Definition/Doku/Freigabe + Feature-Breakdown + Portfolio + Reporting.
-    segments: ["portfolio", "feature", "reporting"],
+    segments: ["portfolio", "feature"],
     // `portfolio_filter.manage` sind die persönlich gespeicherten Filter der
     // Portfolio-Übersicht — ohne Work gibt es die Fläche nicht.
     //

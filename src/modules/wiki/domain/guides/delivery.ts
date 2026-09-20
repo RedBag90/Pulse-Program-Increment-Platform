@@ -89,7 +89,7 @@ WSJF =  ────────────────────────
             },
             {
               kind: "aside",
-              text: "WSJF ist eine eigene **Practice**. Ist sie aus, verschwinden die Spalten und die Rangliste — die Zahlen bleiben stehen, nur niemand schaut mehr hin.",
+              text: "WSJF ist eine eigene **Practice**. Ist sie aus, verschwinden die Spalten — die Zahlen bleiben stehen, nur niemand schaut mehr hin.",
             },
           ],
         },
@@ -267,7 +267,7 @@ WSJF =  ────────────────────────
     },
     {
       claim: "Ohne WSJF-Practice sind die Zahlen weg.",
-      why: "Sie bleiben gespeichert. Nur die Spalten und die Rangliste verschwinden.",
+      why: "Sie bleiben gespeichert. Nur die Spalten verschwinden.",
     },
   ],
 

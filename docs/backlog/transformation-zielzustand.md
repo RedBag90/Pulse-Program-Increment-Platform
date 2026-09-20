@@ -34,12 +34,14 @@ Schleife **Soll → Ist → Lücke → Steuern → Ankunft** herum bauen.
   Navigation/Struktur, die das deklarierte Ziel enthält, erscheinen je. Komplexitäts-
   reduktion entsteht so als _Nebenprodukt_ des Zwecks (vgl. die Rollen- und
   Transformations-Analysen).
-- **Den Wandel messen, nicht nur die Lieferung.** Heutiges Reporting
-  (`pi-velocity`, `portfolio-health`, `wsjf-leaderboard`) misst Output; hier
-  kommt die Soll/Ist-Annäherung über Zeit dazu.
-- **Wiederverwenden statt neu bauen.** „Struktur-Lücken" + `getStructureMetrics`
-  ([structure.ts](../../src/server/services/structure.ts)) sind das halbfertige
-  Ist-Ende; `PermissionGate` + `authorize()` liefern das Gating.
+- **Den Wandel messen, nicht nur die Lieferung.** Was an Reporting existiert,
+  misst Output; hier kommt die Soll/Ist-Annäherung über Zeit dazu. (Die früher
+  hier genannten Flächen `portfolio-health` und `wsjf-leaderboard` sind im
+  September 2026 zurückgebaut worden, `pi-velocity` gab es nie.)
+- **Wiederverwenden statt neu bauen.** Die „Struktur-Lücken" aus dem
+  Organisations-Modell sind das halbfertige Ist-Ende; `PermissionGate` +
+  `authorize()` liefern das Gating. (`getStructureMetrics` ist entfallen — die
+  Funktion hatte nie einen Aufrufer.)
 
 ## Architektur-Entscheidung (Annahme)
 

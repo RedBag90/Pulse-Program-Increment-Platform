@@ -22,7 +22,6 @@ describe("moduleForPath", () => {
     expect(moduleForPath("/structure/value-stream/123")).toBe("core");
     expect(moduleForPath("/de/admin/users")).toBe("core");
     expect(moduleForPath("/en/portfolio/epics/123")).toBe("work");
-    expect(moduleForPath("/de/reporting/portfolio-health")).toBe("work");
     expect(moduleForPath("/de/umsetzung")).toBe("drumbeat");
     expect(moduleForPath("/roadmap/portfolio")).toBe("drumbeat");
     expect(moduleForPath("/budgeting/budget-plan")).toBe("budgeting");
