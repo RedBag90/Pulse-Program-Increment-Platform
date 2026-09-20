@@ -25,6 +25,11 @@ import { ViewSwitcher } from "@/modules/work/features/portfolio/overview/view-sw
 import { resolveOverviewView } from "@/modules/work/features/portfolio/overview/view-switcher-config";
 import { PortfolioFilterBar } from "@/modules/work/features/portfolio/overview/portfolio-filter-bar";
 import { OverviewMissionControl } from "@/modules/work/features/portfolio/overview/overview-mission-control";
+import { loadViewPreferences } from "@/modules/core/kernel/server/view-preference";
+import {
+  CONTRIBUTION_VIEW_KEY,
+  parseContributionView,
+} from "@/modules/work/domain/contribution-view-preference";
 import { OverviewHero } from "@/modules/work/features/portfolio/overview/overview-hero";
 import { OverviewExecutive } from "@/modules/work/features/portfolio/overview/overview-executive";
 import { Page, PageHeader } from "@/components/layout";
@@ -65,10 +70,17 @@ export default async function PortfolioPage({ searchParams }: Props) {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const [savedFilters, practices] = await Promise.all([
+  const [savedFilters, practices, viewPreferences] = await Promise.all([
     listSavedPortfolioFilters(db, principal),
     getTenantPractices(db, principal.tenantId),
+    // Die gemerkten Kachel-Ansichten des Nutzers — ein Lesezugriff fuer alle
+    // Schluessel, in derselben Welle wie der Rest.
+    loadViewPreferences(db, principal, [CONTRIBUTION_VIEW_KEY]),
   ]);
+  // Geparst, nicht durchgereicht: der gespeicherte Wert ueberlebt
+  // Code-Aenderungen, und eine umbenannte Achse wuerde die Kachel sonst mit
+  // leerer Spaltenueberschrift rendern.
+  const contributionView = parseContributionView(viewPreferences.get(CONTRIBUTION_VIEW_KEY));
 
   // Auto-Standard: keine Filter-Parameter in der URL UND kein „leer"-Marker →
   // den als Standard markierten Filter des Nutzers anwenden (Redirect, damit die
@@ -249,7 +261,9 @@ export default async function PortfolioPage({ searchParams }: Props) {
         />
       </div>
 
-      {view === "mission" && <OverviewMissionControl data={data} />}
+      {view === "mission" && (
+        <OverviewMissionControl data={data} contributionView={contributionView} />
+      )}
       {view === "hero" && <OverviewHero data={data} />}
       {view === "executive" && <OverviewExecutive data={data} />}
     </Page>

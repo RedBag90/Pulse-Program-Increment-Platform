@@ -1,4 +1,5 @@
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
+import type { ContributionView } from "@/modules/work/domain/contribution-view-preference";
 import { PeriodBanner } from "@/modules/work/features/portfolio/overview/blocks/period-banner";
 import { StrategicBlock } from "@/modules/work/features/portfolio/overview/blocks/strategic-block";
 import { GoalContributionBlock } from "@/modules/work/features/portfolio/overview/blocks/goal-contribution-block";
@@ -15,7 +16,14 @@ import { RecentActivityBlock } from "@/modules/work/features/portfolio/overview/
  * activity at the bottom. Designed for the operator who wants the full
  * picture in one scroll.
  */
-export function OverviewMissionControl({ data }: { data: PortfolioOverview }) {
+export function OverviewMissionControl({
+  data,
+  contributionView,
+}: {
+  data: PortfolioOverview;
+  /** Gespeicherte Stellung der Schalter der Beitrags-Kachel (siehe dort). */
+  contributionView: ContributionView;
+}) {
   return (
     <div className="space-y-6">
       <PeriodBanner data={data} />
@@ -27,7 +35,11 @@ export function OverviewMissionControl({ data }: { data: PortfolioOverview }) {
       <div className="grid gap-4 md:grid-cols-3">
         <StrategicBlock data={data} />
         <div className="md:col-span-2">
-          <GoalContributionBlock rows={data.goalContributions} classFilter={data.classFilter} />
+          <GoalContributionBlock
+            rows={data.goalContributions}
+            classFilter={data.classFilter}
+            initialView={contributionView}
+          />
         </div>
       </div>
 
@@ -43,24 +55,35 @@ export function OverviewMissionControl({ data }: { data: PortfolioOverview }) {
 
       <CompactKanban data={data} />
 
-      {/* Beide „Fällig"-Kacheln über die volle Breite, untereinander. Sie
-          standen bis zuletzt zu zweit in einer Spalte neben den Risiken — und
-          weil das Raster stretcht, die Liste darin aber bei ihren 384 px blieb,
-          lief die Risiko-Karte unten leer weiter. */}
-      <DueSoonBlock
-        label="L4-Abschluss fällig (≤ 4 Wochen)"
-        items={data.l4DueSoon}
-        hrefBase="/portfolio/epics"
-        emptyText="Kein Epic mit geplantem L4-Abschluss in den nächsten 4 Wochen."
-        classFilter={data.classFilter}
-      />
-      <DueSoonBlock
-        label="Features fällig (≤ 2 Wochen)"
-        items={data.featuresDueSoon}
-        hrefBase="/feature"
-        emptyText="Kein Feature mit geplantem Abschluss in den nächsten 2 Wochen."
-        classFilter={data.classFilter}
-      />
+      {/* Beide „Fällig"-Kacheln nebeneinander. In jeder Zeile stehen nur Titel,
+          Datum und Frist — über die volle Breite war das mehr Weißraum als
+          Information.
+
+          **`items-start` ist hier nicht optional.** Genau diese Anordnung ist
+          schon einmal gescheitert: die beiden Karten standen zu zweit in einer
+          Spalte neben den Risiken, das Raster streckte die Spalte, die
+          `max-h-96`-Liste darin wuchs aber nicht mit — und die Nachbarkarte lief
+          unten leer weiter (dieselbe Falle steht in `risks-block.tsx` ein
+          zweites Mal: **`max-height` gewinnt gegen Flex-Wachstum**). Ohne
+          `items-start` zieht die längere Karte die kürzere auf ihre Höhe, und
+          der Fehler ist zurück. Seit der Kappung auf sechs Zeilen sind beide
+          ohnehin kurz; die Sperre bleibt trotzdem stehen. */}
+      <div className="grid items-start gap-4 md:grid-cols-2">
+        <DueSoonBlock
+          label="L4-Abschluss fällig (≤ 4 Wochen)"
+          items={data.l4DueSoon}
+          hrefBase="/portfolio/epics"
+          emptyText="Kein Epic mit geplantem L4-Abschluss in den nächsten 4 Wochen."
+          classFilter={data.classFilter}
+        />
+        <DueSoonBlock
+          label="Features fällig (≤ 2 Wochen)"
+          items={data.featuresDueSoon}
+          hrefBase="/feature"
+          emptyText="Kein Feature mit geplantem Abschluss in den nächsten 2 Wochen."
+          classFilter={data.classFilter}
+        />
+      </div>
 
       {/* Bringt sein eigenes Drei-Spalten-Raster mit — eine Kachel je
           ROAM-Zustand. */}

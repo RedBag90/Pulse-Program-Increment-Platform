@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { CollapsingToggle } from "@/components/ui/collapsing-toggle";
 import { SectionLabel } from "@/components/ui/section-label";
 import { STICKY_THEAD } from "@/components/ui/table-chrome";
+import { TableMoreRow } from "@/components/ui/table-group-row";
 import {
   benefitPerformance,
   totalContribution,
@@ -21,6 +22,13 @@ import {
   rollUpBySolution,
   type SolutionRollup,
 } from "@/modules/work/domain/epic-class-filter";
+import {
+  CONTRIBUTION_VIEW_KEY,
+  DEFAULT_ASC,
+  type ContributionSortKey,
+  type ContributionView,
+} from "@/modules/work/domain/contribution-view-preference";
+import { saveViewPreferenceAction } from "@/modules/core/kernel/features/actions/view-preference";
 import {
   CONTRIBUTION_AXES,
   CONTRIBUTION_AXIS_COLUMNS,
@@ -48,6 +56,16 @@ function compact(n: number): string {
 function fmt(unit: string | null, n: number): string {
   return unit ? `${compact(n)} ${unit}` : compact(n);
 }
+
+/**
+ * Wie viele Zeilen die Kachel zeigt, bevor „+ n weitere zeigen" uebernimmt.
+ *
+ * Sechs, damit die Tabelle so hoch steht wie die uebrigen Kacheln der
+ * Uebersicht. Vorher lief sie bis an ihren 384-px-Deckel und man scrollte in der
+ * Karte, ohne zu wissen, wie viel noch kommt. Die Gesamtzahl steht im
+ * Kartenkopf — sie ist der Grund, warum man aufklappt.
+ */
+const COLLAPSED_LIMIT = 6;
 
 /** Welcher der beiden Werte gerade die Reihenfolge macht — `null` bei Abweichung. */
 type Emphasis = ContributionMode | null;
@@ -221,14 +239,7 @@ function SolutionRow({
  * `totalContribution` nimmt weiterhin nur ihn entgegen. „Abweichung" ist keine
  * dritte Zahl, sondern ein Verhältnis der beiden.
  */
-type SortKey = ContributionMode | "deviation";
-
-/** Voreingestellte Richtung je Schlüssel: die interessante Seite zuerst. */
-const DEFAULT_ASC: Record<SortKey, boolean> = {
-  planned: false, // grösster Plan oben
-  realized: false, // grösstes Ist oben
-  deviation: true, // grösster Rückstand oben — dort tut man etwas
-};
+type SortKey = ContributionSortKey;
 
 const SORT_LABEL: Record<SortKey, string> = {
   planned: "Plan",
@@ -260,25 +271,68 @@ function groupPerformance(g: ContributionGroup) {
 export function GoalContributionBlock({
   rows,
   classFilter,
+  initialView,
 }: {
   rows: ContributionRow[];
   classFilter: ClassFilterState;
+  /**
+   * Die gespeicherte Stellung beider Schalter, vom Loader geparst. Kommt
+   * server-seitig an, damit die Tabelle nicht erst in der Voreinstellung
+   * erscheint und dann sichtbar umsortiert — genau das waere der Preis eines
+   * `localStorage`-Hakens, der erst nach dem Mount laedt.
+   */
+  initialView: ContributionView;
 }) {
-  const [axis, setAxis] = useState<ContributionAxis>("epic");
+  const [axis, setAxis] = useState<ContributionAxis>(initialView.axis);
   const [sort, setSort] = useState<{ key: SortKey; asc: boolean }>({
-    key: "planned",
-    asc: DEFAULT_ASC.planned,
+    key: initialView.sortKey,
+    asc: initialView.asc,
   });
   const emphasis: Emphasis = sort.key === "deviation" ? null : sort.key;
   const grouped = axis !== "epic";
 
+  /**
+   * **Merken, ohne die Seite anzuhalten.** Der lokale Zustand bleibt die
+   * Wahrheit der laufenden Sitzung; die Zeile in `view_preferences` wird
+   * hinterhergeschrieben und wirkt beim naechsten Oeffnen.
+   *
+   * Ein Fehlschlag bleibt absichtlich stumm: die Tabelle steht dann so da, wie
+   * der Nutzer sie eben eingestellt hat, und nur die Erinnerung daran fehlt. Eine
+   * Fehlermeldung ueber der Kachel waere mehr Stoerung als der Verlust wert.
+   */
+  const [, startTransition] = useTransition();
+  const remember = (next: ContributionView) => {
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("key", CONTRIBUTION_VIEW_KEY);
+      fd.set("value", JSON.stringify(next));
+      await saveViewPreferenceAction({}, fd);
+    });
+  };
+
+  const pickAxis = (next: ContributionAxis) => {
+    setAxis(next);
+    // Eine neue Achse ist eine neue Liste: „je Epic" hat 128 Zeilen, „Wertstrom"
+    // drei. Aufgeklappt zu bleiben hiesse, den Knopf ohne Wirkung stehen zu
+    // lassen. Beim Sortieren bleibt der Zustand — dort tauschen dieselben Zeilen
+    // nur die Reihenfolge.
+    setExpanded(false);
+    setFrozenHeight(null);
+    remember({ axis: next, sortKey: sort.key, asc: sort.asc });
+  };
+
   // Ein erneutes Antippen der aktiven Option dreht die Richtung; eine andere
   // setzt sie auf deren interessante Seite. `CollapsingToggle` meldet jede Wahl,
   // auch die auf die aktive Option — genau dafür.
-  const pickSort = (key: SortKey) =>
-    setSort((prev) =>
-      prev.key === key ? { key, asc: !prev.asc } : { key, asc: DEFAULT_ASC[key] },
-    );
+  //
+  // Der naechste Zustand wird **ausserhalb** von `setSort` gerechnet, nicht im
+  // Updater: React ruft Updater im Strict Mode doppelt auf, und das Schreiben
+  // liefe dann zweimal.
+  const pickSort = (key: SortKey) => {
+    const next = sort.key === key ? { key, asc: !sort.asc } : { key, asc: DEFAULT_ASC[key] };
+    setSort(next);
+    remember({ axis, sortKey: next.key, asc: next.asc });
+  };
 
   const sortOptions = (["planned", "realized", "deviation"] as const).map((key) => ({
     id: key,
@@ -352,7 +406,36 @@ export function GoalContributionBlock({
     });
   }, [visible, axis, grouped, sort]);
 
-  const shownCount = (grouped ? groups.length : sorted.length) + rollups.length;
+  /**
+   * **Gekappt auf sechs Zeilen, der Rest auf Knopfdruck.** Der Knopf zeigt
+   * **alles** statt in Schritten nachzuladen wie die Issue-Tabelle: bei 128
+   * Zeilen waeren das einundzwanzig Klicks.
+   *
+   * **Beim Aufklappen wird die Hoehe eingefroren, nicht gedeckelt.** Ein
+   * `max-height` reicht nicht: zugeklappt liegt die Tabelle **unter** dem
+   * Deckel, aufgeklappt waechst sie bis an ihn heran, und die Karte springt.
+   *
+   * Gemessen statt gerechnet: die Zeilen sind hier verschieden hoch — eine
+   * Wertzelle mit zwei Einheiten traegt zwei Zeilen, eine mit einer nur eine.
+   * Eine Formel darueber waere geraten. `offsetHeight` im Moment des Klicks ist
+   * die Hoehe, die dort **tatsaechlich** steht.
+   */
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [frozenHeight, setFrozenHeight] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const aufklappen = () => {
+    // **Nur einfrieren, wenn wirklich gemessen wurde.** Eine 0 als Hoehe waere
+    // eine leere Karte — schlimmer als die springende, die wir loswerden
+    // wollen. Ohne Messung waechst sie eben, wie vorher.
+    const gemessen = boxRef.current?.offsetHeight ?? 0;
+    setFrozenHeight(gemessen > 0 ? gemessen : null);
+    setExpanded(true);
+  };
+  const alleZeilen = grouped ? groups.length : sorted.length;
+  const limit = expanded ? alleZeilen : COLLAPSED_LIMIT;
+  const restCount = Math.max(0, alleZeilen - limit);
+
+  const shownCount = alleZeilen + rollups.length;
   const columnCount = grouped ? 5 : 6;
 
   return (
@@ -363,7 +446,7 @@ export function GoalContributionBlock({
           <CollapsingToggle
             value={axis}
             options={axisOptions}
-            onSelect={setAxis}
+            onSelect={pickAxis}
             label="Zusammenfassen nach"
             className="text-meta"
           />
@@ -390,7 +473,11 @@ export function GoalContributionBlock({
           </Link>
         </p>
       ) : (
-        <div className="max-h-96 overflow-y-auto rounded-lg bg-card shadow-card">
+        <div
+          ref={boxRef}
+          className="overflow-y-auto rounded-lg bg-card shadow-card"
+          {...(frozenHeight != null ? { style: { height: frozenHeight } } : {})}
+        >
           <table className="w-full border-collapse text-xs">
             <thead className={STICKY_THEAD}>
               <tr>
@@ -424,7 +511,7 @@ export function GoalContributionBlock({
             </thead>
             <tbody>
               {grouped
-                ? groups.map((g) => (
+                ? groups.slice(0, limit).map((g) => (
                     <tr key={g.key || "ohne"} className="border-b last:border-0 hover:bg-muted/20">
                       <td className="px-3 py-2 font-medium">{g.label}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{g.epicCount}</td>
@@ -445,7 +532,7 @@ export function GoalContributionBlock({
                       </td>
                     </tr>
                   ))
-                : sorted.map((r) => (
+                : sorted.slice(0, limit).map((r) => (
                     <tr key={r.epicId} className="border-b last:border-0 hover:bg-muted/20">
                       <td className="px-3 py-2">
                         <Link
@@ -477,6 +564,9 @@ export function GoalContributionBlock({
                       </td>
                     </tr>
                   ))}
+              {restCount > 0 && (
+                <TableMoreRow remaining={restCount} colSpan={columnCount} onMore={aufklappen} />
+              )}
             </tbody>
 
             {/* Die Zusammenfassung bekommt einen **eigenen Abschnitt**. Vorher
