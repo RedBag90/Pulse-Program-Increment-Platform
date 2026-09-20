@@ -26,10 +26,13 @@ export interface FeatureDetailInput {
   title: string;
   description: string | null;
   status: string;
-  /** Reifegrad des Features selbst (nicht des Parent-Epics). */
-  stageGate: string | null;
   parentId: string | null;
   parentTitle: string | null;
+  /**
+   * Reifegrad des **Parent-Epics**. Einen eigenen traegt ein Feature nicht:
+   * `stage_gate` sitzt zwar auf der geteilten `initiatives`-Tabelle, gehoert
+   * aber dem Epic (siehe `initiatives.stageGate` im Schema: „EPIC only").
+   */
   parentStageGate: string | null;
   artId: string | null;
   artName: string | null;
@@ -64,8 +67,7 @@ export interface FeatureDetailModel {
   title: string;
   description: string | null;
   status: string;
-  /** Reifegrad des Features selbst — vom Overview als eigenes Feld gezeigt. */
-  stageGate: string | null;
+  /** `stageGate` ist der des **Epics** — das Feature hat keinen eigenen. */
   parent: { id: string; title: string; stageGate: string | null } | null;
   art: { id: string; name: string } | null;
   valueStream: { id: string; name: string } | null;
@@ -111,7 +113,6 @@ export function buildFeatureDetailModel(input: FeatureDetailInput): FeatureDetai
     title: input.title,
     description: input.description,
     status: input.status,
-    stageGate: input.stageGate,
     parent:
       input.parentId && input.parentTitle != null
         ? { id: input.parentId, title: input.parentTitle, stageGate: input.parentStageGate }

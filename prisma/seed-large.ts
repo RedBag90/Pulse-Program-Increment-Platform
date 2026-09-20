@@ -1268,7 +1268,6 @@ async function main() {
             : (i + f) % (6 + (epicArtIdx % 3)) === 0
               ? "maintenance"
               : "feature",
-        stageGate: "L3",
         status,
         completedAt: plan.completedAt,
         createdAt: beforeNow(addDays(cutAt, 4 + f * 6), 1),
@@ -1366,7 +1365,6 @@ async function main() {
         // Nicht pauschal Enabler — ART-eigene Arbeit ist Werkzeug, eigene
         // Produktarbeit **und** Instandhaltung. Siehe `seed-demo.ts`.
         featureType: spec.featureType,
-        stageGate: "L3",
         status: spec.status,
         completedAt: spec.done ? beforeNow(addDays(altesPiStart, 55), 2) : null,
         acceptanceCriteria: ["Messbar besser als vorher", "Vom Team abgenommen"],

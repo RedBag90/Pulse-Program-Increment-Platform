@@ -837,7 +837,6 @@ async function main() {
         wsjfJobSize: js,
         wsjfComputed: Number(((bv + tc + rr) / js).toFixed(2)),
         featureType: "feature",
-        stageGate: "L3",
         // Startzustand der Liefer-FSM — nichts läuft, nichts ist fertig.
         status: "approved",
         acceptanceCriteria: [...f.criteria],

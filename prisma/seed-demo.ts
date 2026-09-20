@@ -1157,7 +1157,6 @@ async function main() {
           EPIC_DEFS[ei]!.epicType === "enabler"
             ? "enabler"
             : FEATURE_TYPES[gf % FEATURE_TYPES.length]!,
-        stageGate: "L3",
         status,
         completedAt: plan.completedAt,
         plannedStartAt: start,
@@ -1284,7 +1283,6 @@ async function main() {
          * Werkzeug, eigene Produktarbeit und Instandhaltung, je eines.
          */
         featureType: spec.featureType,
-        stageGate: "L3",
         status: spec.status,
         completedAt: spec.done ? abschluss : null,
         acceptanceCriteria: ["Messbar besser als vorher", "Vom Team abgenommen"],

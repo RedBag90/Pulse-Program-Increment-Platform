@@ -8,16 +8,10 @@ import { FeatureParentAssign } from "@/modules/work/features/feature/components/
 import { FeatureEditForm } from "@/modules/work/features/feature/components/feature-edit-form";
 import { WsjfScoreDialog } from "@/modules/work/features/feature/components/wsjf-score-dialog";
 import { FeatureClassificationForm } from "./feature-classification-form";
-import {
-  STAGE_GATE_LABELS,
-  STATUS_DOT,
-  STATUS_LABELS,
-} from "@/components/detail/initiative-labels";
-import { buildInitiativeSummary } from "@/modules/core/kernel/domain/initiative-summary";
+import { STATUS_DOT, STATUS_LABELS } from "@/components/detail/initiative-labels";
 import { WSJF_TIER_CLASS } from "@/components/detail/initiative-labels";
 import { formatDate } from "@/lib/formatting";
 import { formatWsjf } from "@/modules/core/kernel/domain/wsjf";
-import type { StageGate, InitiativeStatus } from "@/modules/core/kernel/domain/types";
 import type { FeatureDetailModel } from "@/modules/drumbeat/server/views/feature-detail";
 
 interface Props {
@@ -54,14 +48,9 @@ export function FeatureOverviewTab({
     <div className="space-y-6">
       <SummaryHeader model={model} />
 
-      <SummaryBand model={model} />
-
       <section className="grid gap-4 md:grid-cols-2">
         <Field label="Status">
           <StatusPill status={model.status} />
-        </Field>
-        <Field label="Reifegrad">
-          {model.stageGate ? (STAGE_GATE_LABELS[model.stageGate] ?? model.stageGate) : "—"}
         </Field>
         <Field label="Solution">
           <FeatureSolutionAssign
@@ -215,29 +204,21 @@ function StatusPill({ status }: { status: string }) {
 }
 
 /**
- * Abgeleiteter Reifegrad-/Aktivitaets-Satz (wie Epic-Overview). Nur wenn ein
- * Reifegrad gesetzt ist — sonst hat der Satz keine Aussage.
+ * **Hier stand bis September 2026 ein „Zusammenfassung"-Band und darueber ein
+ * Feld REIFEGRAD.** Beide sind weg, und zwar aus demselben Grund: `stage_gate`
+ * gehoert dem **Epic**. Die Spalte sitzt auf der geteilten `initiatives`-Tabelle
+ * und ist NOT NULL, aber kein Anlagepfad setzt sie an einem Feature — der
+ * angezeigte Wert war ein Seed-Ueberbleibsel und widersprach in 130 von 650
+ * Faellen dem Epic darueber.
+ *
+ * Das Band ging **ganz**, nicht nur seine Reifegrad-Klausel: `buildInitiativeSummary`
+ * bekam am Feature `childCount: 0` und `approvedAt: null` fest verdrahtet und
+ * lieferte damit „in Umsetzung" — woertlich das, was eine Zeile tiefer im Feld
+ * STATUS steht.
+ *
+ * Der Reifegrad des **Epics** bleibt sichtbar: er haengt an `model.parent` und
+ * blockiert ueber `featureStartBlockedReason` den Umsetzungsstart.
  */
-function SummaryBand({ model }: { model: FeatureDetailModel }) {
-  if (!model.stageGate) return null;
-  const summary = buildInitiativeSummary({
-    stageGate: model.stageGate as StageGate,
-    stageLabel: STAGE_GATE_LABELS[model.stageGate] ?? model.stageGate,
-    status: model.status as InitiativeStatus,
-    childCount: 0,
-    completedChildCount: 0,
-    approvedAt: null,
-    updatedAt: model.updatedAt,
-  });
-  return (
-    <section>
-      <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        Zusammenfassung
-      </p>
-      <p className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">{summary}</p>
-    </section>
-  );
-}
 
 /**
  * WSJF-Block mit Detailzellen, Cost-of-Delay ÷ Job Size = Score-Visual und

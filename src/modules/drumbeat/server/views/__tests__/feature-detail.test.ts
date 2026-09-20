@@ -10,7 +10,6 @@ const base = (over: Partial<FeatureDetailInput> = {}): FeatureDetailInput => ({
   title: "Test Feature",
   description: null,
   status: "approved",
-  stageGate: null,
   parentId: null,
   parentTitle: null,
   parentStageGate: null,
@@ -77,7 +76,6 @@ describe("buildFeatureDetailModel", () => {
     const end = new Date("2026-03-27");
     const m = buildFeatureDetailModel(
       base({
-        stageGate: "L3",
         parentId: "e1",
         parentTitle: "Parent Epic",
         parentStageGate: "L2",
@@ -91,7 +89,6 @@ describe("buildFeatureDetailModel", () => {
         piEndDate: end,
       }),
     );
-    expect(m.stageGate).toBe("L3");
     expect(m.parent).toEqual({ id: "e1", title: "Parent Epic", stageGate: "L2" });
     expect(m.art).toEqual({ id: "a1", name: "ART 1" });
     expect(m.valueStream).toEqual({ id: "vs1", name: "VS 1" });
