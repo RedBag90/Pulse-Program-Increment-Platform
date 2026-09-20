@@ -85,7 +85,7 @@ const voll = () => rollUpStructureMoney(buildStructureOverview(tree), geld);
 
 describe("StructureMap", () => {
   it("zeigt Bahn, Spalten und Kacheln — und benennt das ART ohne Solution", () => {
-    render(<StructureMap overview={voll()} showGrow showRun />);
+    render(<StructureMap overview={voll()} showEpics showInvest showRun />);
 
     expect(screen.getByText("Produktion")).toBeTruthy();
     expect(screen.getByText("Materials & Energy")).toBeTruthy();
@@ -97,7 +97,7 @@ describe("StructureMap", () => {
   });
 
   it("macht jede Ebene anklickbar — die Karte ist die Navigation", () => {
-    render(<StructureMap overview={voll()} showGrow showRun />);
+    render(<StructureMap overview={voll()} showEpics showInvest showRun />);
     const href = (name: string) =>
       (screen.getByText(name).closest("a") as HTMLAnchorElement | null)?.getAttribute("href");
 
@@ -109,7 +109,12 @@ describe("StructureMap", () => {
   /** Ohne Modul steht kein „0 €" da, sondern gar nichts. */
   it("lässt Grow und Run weg, wenn die Module fehlen", () => {
     const { container } = render(
-      <StructureMap overview={buildStructureOverview(tree)} showGrow={false} showRun={false} />,
+      <StructureMap
+        overview={buildStructureOverview(tree)}
+        showEpics={false}
+        showInvest={false}
+        showRun={false}
+      />,
     );
     expect(container.textContent).not.toContain("Grow");
     expect(container.textContent).not.toContain("Run");
@@ -122,7 +127,7 @@ describe("StructureMap", () => {
 
 describe("StructureTable", () => {
   it("trägt die Summe der Blätter an ART und Wertstrom", () => {
-    render(<StructureTable overview={voll()} grouping="struktur" showGrow showRun />);
+    render(<StructureTable overview={voll()} grouping="struktur" showEpics showInvest showRun />);
 
     const zeile = (name: string) => screen.getByText(name).closest("tr") as HTMLElement;
     // 1.660.050 + 1.520.000 = 3.180.050 → €3.18M
@@ -132,7 +137,7 @@ describe("StructureTable", () => {
   });
 
   it("sagt an der Zeile eines ARTs ohne Solution, was fehlt", () => {
-    render(<StructureTable overview={voll()} grouping="struktur" showGrow showRun />);
+    render(<StructureTable overview={voll()} grouping="struktur" showEpics showInvest showRun />);
     const zeile = screen.getByText("Materials & Energy").closest("tr") as HTMLElement;
     expect(within(zeile).getByText("keine Solution")).toBeTruthy();
   });
@@ -142,23 +147,23 @@ describe("StructureTable", () => {
    * Extracting in einen Topf. Gruppiert wird nach dem **Stand**.
    */
   it("gruppiert nach Horizont mit Anzahl je Gruppe", () => {
-    render(<StructureTable overview={voll()} grouping="horizont" showGrow showRun />);
+    render(<StructureTable overview={voll()} grouping="horizont" showEpics showInvest showRun />);
     expect(screen.getByText("H2 · Emerging — 1")).toBeTruthy();
     expect(screen.getByText("H1 · Investing — 1")).toBeTruthy();
     // Der Ort steht in der zweiten Spalte, seit der Baum daneben fehlt.
     expect(screen.getAllByText("Produktion · Plant Efficiency (OEE)")).toHaveLength(2);
   });
 
-  it("unterscheidet ‚kein Epic‘ von ‚keine Freigabe‘", () => {
+  it("unterscheidet ‚kein Epic‘ von ‚nicht zugeteilt‘", () => {
     const ohne = rollUpStructureMoney(buildStructureOverview(tree), {
       "s-betrieb": { grow: 0, run: 0, epicCount: 12 },
       "s-programm": { grow: 0, run: 0, epicCount: 0 },
     });
-    render(<StructureTable overview={ohne} grouping="struktur" showGrow showRun />);
+    render(<StructureTable overview={ohne} grouping="struktur" showEpics showInvest showRun />);
 
     expect(
       within(screen.getByText("Produktion Betrieb").closest("tr") as HTMLElement).getByText(
-        "keine Freigabe",
+        "nicht zugeteilt",
       ),
     ).toBeTruthy();
     expect(
@@ -170,10 +175,12 @@ describe("StructureTable", () => {
 
   it("zeigt die Run-Fussnote nur mit Budgeting-Modul", () => {
     const { container, rerender } = render(
-      <StructureTable overview={voll()} grouping="struktur" showGrow showRun />,
+      <StructureTable overview={voll()} grouping="struktur" showEpics showInvest showRun />,
     );
     expect(container.textContent).toContain("zugerechnet sind");
-    rerender(<StructureTable overview={voll()} grouping="struktur" showGrow showRun={false} />);
+    rerender(
+      <StructureTable overview={voll()} grouping="struktur" showEpics showInvest showRun={false} />,
+    );
     expect(container.textContent).not.toContain("zugerechnet sind");
   });
 });

@@ -10,9 +10,14 @@ import {
   rollUpStructureMoney,
   type StructureMoney,
 } from "@/modules/core/org/server/views/structure-overview";
-import { loadSolutionGrow } from "@/modules/work/server/views/solution-grow";
-import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
-import { rtbAnnualAmount } from "@/modules/budgeting/domain/rtb-interval";
+import { loadSolutionCycleInvest } from "@/modules/work/server/views/solution-grow";
+import { classifyEpics } from "@/modules/work/server/services/epic-class";
+import {
+  artEpicCycleAllocations,
+  cycleRunCosts,
+} from "@/modules/budgeting/server/services/rtb-item-service";
+import { getEpicCycleAllocations } from "@/modules/budgeting/server/services/epic-allocation";
+import { cycleLabel } from "@/modules/budgeting/domain/cycle";
 import { StructureMap } from "@/modules/core/org/features/structure/components/structure-map";
 import {
   StructureTable,
@@ -70,21 +75,35 @@ export default async function StructurePage({ searchParams }: Props) {
   const base = buildStructureOverview(tree);
   const solutionIds = tree.flatMap((vs) => vs.solutions.map((s) => s.id));
 
-  const [grow, rtbItems] = await Promise.all([
-    workEnabled ? loadSolutionGrow(db, principal.tenantId, solutionIds) : Promise.resolve(null),
-    budgetingEnabled ? listRtbItems(db, principal.tenantId) : Promise.resolve(null),
+  /**
+   * **Beide Beträge stehen auf derselben Periode: dem angewandten Zyklus.**
+   *
+   * Nicht `currentCycle(now)`, sondern der Zyklus, dessen Kachel heute gilt —
+   * `getEpicCycleAllocations` leitet ihn aus den finalisierten Runden ab und
+   * gibt ihn zurück. Dieselbe Quelle liest der Horizont-Trichter der
+   * Portfolio-Übersicht; zwei Flächen über dasselbe Geld dürfen nicht zwei
+   * Halbjahre meinen.
+   */
+  const cycle = budgetingEnabled
+    ? await getEpicCycleAllocations(db, principal.tenantId, new Date())
+    : null;
+
+  const [epicClasses, artAllocations, runCosts] = await Promise.all([
+    workEnabled && cycle ? classifyEpics(db, principal.tenantId) : Promise.resolve(null),
+    cycle
+      ? artEpicCycleAllocations(db, principal.tenantId, cycle.cycleKey)
+      : Promise.resolve({} as Record<string, number>),
+    budgetingEnabled ? cycleRunCosts(db, principal.tenantId) : Promise.resolve(null),
   ]);
 
-  // Run je Solution: Σ Jahres-Äquivalent der **aktiven** Positionen, die ihr
-  // zugerechnet sind. Wertstrom- und ART-übergreifende Positionen
-  // (`solutionId === null`) zählen bewusst in keine Zeile — die Tabelle sagt das
-  // in ihrer Fussnote.
-  const runBySolution = new Map<string, number>();
-  for (const it of rtbItems ?? []) {
-    if (!it.active || it.solutionId == null) continue;
-    const annual = rtbAnnualAmount(it.plannedAmount, it.interval);
-    runBySolution.set(it.solutionId, (runBySolution.get(it.solutionId) ?? 0) + annual);
-  }
+  const invest =
+    cycle && epicClasses
+      ? await loadSolutionCycleInvest(db, principal.tenantId, solutionIds, {
+          cycleAllocations: cycle.byEpic,
+          artAllocations,
+          epicClasses,
+        })
+      : null;
 
   /**
    * **Jede Solution bekommt eine Zeile, auch die leere.** Würde die Zuordnung
@@ -95,11 +114,11 @@ export default async function StructurePage({ searchParams }: Props) {
   const bySolution: Record<string, StructureMoney> = {};
   if (workEnabled || budgetingEnabled) {
     for (const id of solutionIds) {
-      const g = grow?.get(id);
+      const g = invest?.get(id);
       bySolution[id] = {
         grow: g?.grow ?? 0,
         epicCount: g?.epicCount ?? 0,
-        run: runBySolution.get(id) ?? 0,
+        run: runCosts?.bySolution[id] ?? 0,
       };
     }
   }
@@ -117,6 +136,17 @@ export default async function StructurePage({ searchParams }: Props) {
     tenantId: principal.tenantId,
   });
 
+  /**
+   * **Drei Schalter, weil es drei Herkünfte sind.** Die Epic-Zahl ist Work, der
+   * Betrieb ist Budgeting — und Grow ist seit der Umstellung auf das Halbjahr
+   * **beides**: Work kennt die Epics, aber die Zuteilung liegt in Budgeting.
+   * Ein Mandant mit Work ohne Budgeting sieht deshalb seine Epics, aber keinen
+   * Betrag. Lieber nichts als eine Zahl, die eine andere Periode meint.
+   */
+  const showEpics = workEnabled;
+  const showInvest = workEnabled && budgetingEnabled;
+  const showRun = budgetingEnabled;
+
   const leer = base.counts.valueStreams === 0;
   const ohneTreffer = !leer && overview.valueStreams.length === 0;
 
@@ -125,7 +155,11 @@ export default async function StructurePage({ searchParams }: Props) {
       <PageHeader
         eyebrow="Struktur"
         title="Organisation"
-        subtitle="Wertströme, ihre ARTs und die Solutions, die sie bauen und betreiben."
+        subtitle={
+          cycle?.cycleKey
+            ? `Wertströme, ihre ARTs und die Solutions, die sie bauen und betreiben. Beträge: ${cycleLabel(cycle.cycleKey)}.`
+            : "Wertströme, ihre ARTs und die Solutions, die sie bauen und betreiben."
+        }
         actions={
           <>
             {canCreateSolution && (
@@ -171,13 +205,19 @@ export default async function StructurePage({ searchParams }: Props) {
         // Baum; ohne ihn liefen die Touren ins Leere.
         <div data-tour="structure-tree">
           {activeView === "karte" ? (
-            <StructureMap overview={overview} showGrow={workEnabled} showRun={budgetingEnabled} />
+            <StructureMap
+              overview={overview}
+              showEpics={showEpics}
+              showInvest={showInvest}
+              showRun={showRun}
+            />
           ) : (
             <StructureTable
               overview={overview}
               grouping={grouping}
-              showGrow={workEnabled}
-              showRun={budgetingEnabled}
+              showEpics={showEpics}
+              showInvest={showInvest}
+              showRun={showRun}
             />
           )}
         </div>

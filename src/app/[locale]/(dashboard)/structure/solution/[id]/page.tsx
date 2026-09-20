@@ -5,13 +5,21 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { hasCapability } from "@/server/auth/authorize";
 import { listAuditHistory } from "@/server/services/audit-history";
 import { loadSolutionDetail } from "@/modules/core/org/server/views/solution-detail";
-import { loadSolutionEpics, loadSolutionFeatures } from "@/modules/work/server/views/solution-grow";
+import {
+  loadSolutionCycleInvest,
+  loadSolutionEpics,
+  loadSolutionFeatures,
+} from "@/modules/work/server/views/solution-grow";
+import { classifyEpics } from "@/modules/work/server/services/epic-class";
+import { getEpicCycleAllocations } from "@/modules/budgeting/server/services/epic-allocation";
+import { artEpicCycleAllocations } from "@/modules/budgeting/server/services/rtb-item-service";
+import { cycleLabel } from "@/modules/budgeting/domain/cycle";
 import { HorizonBadge } from "@/modules/core/org/features/solution/components/horizon-badge";
 import { SolutionLifecycleBar } from "@/modules/core/org/features/solution/components/solution-lifecycle-bar";
 import { SolutionGrowRunTiles } from "@/modules/core/org/features/solution/components/solution-grow-run-tiles";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
 import { RtbSection } from "@/modules/budgeting/features/components/rtb/rtb-section";
-import { sumRtbAnnual } from "@/modules/budgeting/domain/rtb-interval";
+import { sumRtbCycle } from "@/modules/budgeting/domain/rtb-interval";
 import { SolutionEditButton } from "@/modules/core/org/features/solution/components/solution-edit-button";
 import {
   EntityDetailShell,
@@ -105,7 +113,29 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
       ? listRtbItems(db, principal.tenantId, { solutionId: id })
       : Promise.resolve(null),
   ]);
-  const run = rtbItems ? sumRtbAnnual(rtbItems) : null;
+  /**
+   * **Dieselbe Periode wie auf der Struktur-Karte** — der angewandte Zyklus.
+   * Zwei Flächen über dieselbe Solution dürfen nicht zwei Halbjahre meinen;
+   * hier stand bis September 2026 der Jahreswert neben einer Life-Time-Summe.
+   */
+  const cycle = budgetingEnabled
+    ? await getEpicCycleAllocations(db, principal.tenantId, new Date())
+    : null;
+  const invest =
+    workEnabled && cycle
+      ? await Promise.all([
+          classifyEpics(db, principal.tenantId),
+          artEpicCycleAllocations(db, principal.tenantId, cycle.cycleKey),
+        ]).then(([epicClasses, artAllocations]) =>
+          loadSolutionCycleInvest(db, principal.tenantId, [model.id], {
+            cycleAllocations: cycle.byEpic,
+            artAllocations,
+            epicClasses,
+          }),
+        )
+      : null;
+
+  const run = rtbItems ? sumRtbCycle(rtbItems) : null;
   const events = history.map((e) => ({
     id: e.id,
     action: e.action,
@@ -154,9 +184,10 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
           />
           {(workSide || rtbItems) && (
             <SolutionGrowRunTiles
-              grow={workSide?.grow ?? null}
+              grow={invest?.get(model.id)?.grow ?? null}
               run={run}
               runItemCount={rtbItems?.filter((i) => i.active).length ?? 0}
+              cycleLabel={cycle?.cycleKey ? cycleLabel(cycle.cycleKey) : null}
             />
           )}
           {rtbItems && (

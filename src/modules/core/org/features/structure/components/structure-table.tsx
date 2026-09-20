@@ -34,12 +34,14 @@ export type TableGrouping = "struktur" | "horizont";
 export function StructureTable({
   overview,
   grouping,
-  showGrow,
+  showEpics,
+  showInvest,
   showRun,
 }: {
   overview: StructureOverview;
   grouping: TableGrouping;
-  showGrow: boolean;
+  showEpics: boolean;
+  showInvest: boolean;
   showRun: boolean;
 }) {
   return (
@@ -54,25 +56,36 @@ export function StructureTable({
               <th className="px-3 py-2 text-left font-semibold">
                 {grouping === "struktur" ? "Stand" : "Wertstrom · ART"}
               </th>
-              {showGrow && <th className="px-3 py-2 text-right font-semibold">Epics</th>}
-              {showGrow && <th className="px-3 py-2 text-right font-semibold">Grow</th>}
-              {showRun && <th className="px-3 py-2 text-right font-semibold">Run p. a.</th>}
+              {showEpics && <th className="px-3 py-2 text-right font-semibold">Epics</th>}
+              {showInvest && <th className="px-3 py-2 text-right font-semibold">Grow</th>}
+              {showRun && <th className="px-3 py-2 text-right font-semibold">Run · Halbjahr</th>}
             </tr>
           </thead>
           <tbody>
             {grouping === "struktur" ? (
-              <StructureRows overview={overview} showGrow={showGrow} showRun={showRun} />
+              <StructureRows
+                overview={overview}
+                showEpics={showEpics}
+                showInvest={showInvest}
+                showRun={showRun}
+              />
             ) : (
-              <HorizonRows overview={overview} showGrow={showGrow} showRun={showRun} />
+              <HorizonRows
+                overview={overview}
+                showEpics={showEpics}
+                showInvest={showInvest}
+                showRun={showRun}
+              />
             )}
           </tbody>
         </table>
       </div>
       {showRun && (
         <p className="border-t px-3 py-2 text-meta leading-relaxed text-muted-foreground">
-          „Run p. a." enthält nur Betriebspositionen, die <strong>einer Solution</strong>{" "}
-          zugerechnet sind. Wertstrom- und ART-übergreifender Betrieb zählt in keine Zeile — die
-          Spalte ist damit kleiner als der tatsächliche Betrieb. Vollständig steht er im
+          Beide Beträge stehen auf <strong>demselben Halbjahr</strong> — Grow ist das in diesem
+          Zyklus zugeteilte Geld, Run der Betriebsanteil eines Halbjahres. „Run" enthält dabei nur
+          Positionen, die <strong>einer Solution</strong> zugerechnet sind; wertstrom- und
+          ART-übergreifender Betrieb zählt in keine Zeile und steht vollständig im
           Budgeting-Bereich.
         </p>
       )}
@@ -82,14 +95,16 @@ export function StructureTable({
 
 function StructureRows({
   overview,
-  showGrow,
+  showEpics,
+  showInvest,
   showRun,
 }: {
   overview: StructureOverview;
-  showGrow: boolean;
+  showEpics: boolean;
+  showInvest: boolean;
   showRun: boolean;
 }) {
-  const span = 1 + (showGrow ? 2 : 0) + (showRun ? 1 : 0);
+  const span = 1 + (showEpics ? 1 : 0) + (showInvest ? 1 : 0) + (showRun ? 1 : 0);
   return (
     <>
       {overview.valueStreams.map((vs) => (
@@ -102,8 +117,8 @@ function StructureRows({
             <td className="px-3 py-1.5 text-meta font-normal text-muted-foreground">
               Wertstrom · {vs.arts.length} ART{vs.arts.length === 1 ? "" : "s"}
             </td>
-            {showGrow && <EpicsCell money={vs.money} />}
-            {showGrow && <GrowCell money={vs.money} />}
+            {showEpics && <EpicsCell money={vs.money} />}
+            {showInvest && <GrowCell money={vs.money} />}
             {showRun && <RunCell money={vs.money} />}
           </tr>
 
@@ -123,8 +138,8 @@ function StructureRows({
                   </td>
                 ) : (
                   <>
-                    {showGrow && <EpicsCell money={art.money} />}
-                    {showGrow && <GrowCell money={art.money} />}
+                    {showEpics && <EpicsCell money={art.money} />}
+                    {showInvest && <GrowCell money={art.money} />}
                     {showRun && <RunCell money={art.money} />}
                   </>
                 )}
@@ -134,7 +149,8 @@ function StructureRows({
                   key={s.id}
                   solution={s}
                   indent="pl-14"
-                  showGrow={showGrow}
+                  showEpics={showEpics}
+                  showInvest={showInvest}
                   showRun={showRun}
                 />
               ))}
@@ -146,7 +162,8 @@ function StructureRows({
               key={s.id}
               solution={s}
               indent="pl-7"
-              showGrow={showGrow}
+              showEpics={showEpics}
+              showInvest={showInvest}
               showRun={showRun}
               note="ohne ART"
             />
@@ -159,14 +176,16 @@ function StructureRows({
 
 function HorizonRows({
   overview,
-  showGrow,
+  showEpics,
+  showInvest,
   showRun,
 }: {
   overview: StructureOverview;
-  showGrow: boolean;
+  showEpics: boolean;
+  showInvest: boolean;
   showRun: boolean;
 }) {
-  const span = 2 + (showGrow ? 2 : 0) + (showRun ? 1 : 0);
+  const span = 2 + (showEpics ? 1 : 0) + (showInvest ? 1 : 0) + (showRun ? 1 : 0);
   return (
     <>
       {groupByStatus(flattenSolutions(overview)).map((group) => (
@@ -192,8 +211,8 @@ function HorizonRows({
               <td className="px-3 py-1.5 text-meta text-muted-foreground">
                 {[valueStreamName, artName ?? "ohne ART"].join(" · ")}
               </td>
-              {showGrow && <EpicsCell money={solution.money} />}
-              {showGrow && <GrowCell money={solution.money} />}
+              {showEpics && <EpicsCell money={solution.money} />}
+              {showInvest && <GrowCell money={solution.money} />}
               {showRun && <RunCell money={solution.money} />}
             </tr>
           ))}
@@ -206,13 +225,15 @@ function HorizonRows({
 function SolutionRow({
   solution,
   indent,
-  showGrow,
+  showEpics,
+  showInvest,
   showRun,
   note,
 }: {
   solution: OverviewSolution;
   indent: string;
-  showGrow: boolean;
+  showEpics: boolean;
+  showInvest: boolean;
   showRun: boolean;
   note?: string;
 }) {
@@ -241,8 +262,8 @@ function SolutionRow({
           {solution.statusLabel}
         </span>
       </td>
-      {showGrow && <EpicsCell money={solution.money} />}
-      {showGrow && <GrowCell money={solution.money} />}
+      {showEpics && <EpicsCell money={solution.money} />}
+      {showInvest && <GrowCell money={solution.money} />}
       {showRun && <RunCell money={solution.money} />}
     </tr>
   );

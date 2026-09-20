@@ -44,17 +44,25 @@ import type {
  */
 export function StructureMap({
   overview,
-  showGrow,
+  showEpics,
+  showInvest,
   showRun,
 }: {
   overview: StructureOverview;
-  showGrow: boolean;
+  showEpics: boolean;
+  showInvest: boolean;
   showRun: boolean;
 }) {
   return (
     <LaneGroup>
       {overview.valueStreams.map((vs) => (
-        <StreamLane key={vs.id} vs={vs} showGrow={showGrow} showRun={showRun} />
+        <StreamLane
+          key={vs.id}
+          vs={vs}
+          showEpics={showEpics}
+          showInvest={showInvest}
+          showRun={showRun}
+        />
       ))}
     </LaneGroup>
   );
@@ -62,22 +70,33 @@ export function StructureMap({
 
 function StreamLane({
   vs,
-  showGrow,
+  showEpics,
+  showInvest,
   showRun,
 }: {
   vs: OverviewValueStream;
-  showGrow: boolean;
+  showEpics: boolean;
+  showInvest: boolean;
   showRun: boolean;
 }) {
   const artCount = vs.arts.length;
   const columns: LaneColumn[] = vs.arts.map((art) => ({
     key: art.id,
-    children: <ArtColumn art={art} showGrow={showGrow} showRun={showRun} />,
+    children: (
+      <ArtColumn art={art} showEpics={showEpics} showInvest={showInvest} showRun={showRun} />
+    ),
   }));
   if (vs.looseSolutions.length > 0) {
     columns.push({
       key: "ohne-art",
-      children: <LooseColumn solutions={vs.looseSolutions} showGrow={showGrow} showRun={showRun} />,
+      children: (
+        <LooseColumn
+          solutions={vs.looseSolutions}
+          showEpics={showEpics}
+          showInvest={showInvest}
+          showRun={showRun}
+        />
+      ),
     });
   }
 
@@ -97,7 +116,8 @@ function StreamLane({
           <GapBadge gaps={vs.gaps} />
           <StructureFigures
             money={vs.money}
-            showGrow={showGrow}
+            showEpics={showEpics}
+            showInvest={showInvest}
             showRun={showRun}
             className="ml-auto flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-xs tabular-nums text-muted-foreground"
           />
@@ -113,11 +133,13 @@ function StreamLane({
 
 function ArtColumn({
   art,
-  showGrow,
+  showEpics,
+  showInvest,
   showRun,
 }: {
   art: OverviewArt;
-  showGrow: boolean;
+  showEpics: boolean;
+  showInvest: boolean;
   showRun: boolean;
 }) {
   return (
@@ -146,7 +168,13 @@ function ArtColumn({
         </p>
       ) : (
         art.solutions.map((s) => (
-          <SolutionTile key={s.id} solution={s} showGrow={showGrow} showRun={showRun} />
+          <SolutionTile
+            key={s.id}
+            solution={s}
+            showEpics={showEpics}
+            showInvest={showInvest}
+            showRun={showRun}
+          />
         ))
       )}
     </>
@@ -160,18 +188,26 @@ function ArtColumn({
  */
 function LooseColumn({
   solutions,
-  showGrow,
+  showEpics,
+  showInvest,
   showRun,
 }: {
   solutions: readonly OverviewSolution[];
-  showGrow: boolean;
+  showEpics: boolean;
+  showInvest: boolean;
   showRun: boolean;
 }) {
   return (
     <>
       <p className="text-xs font-semibold text-muted-foreground">Ohne ART</p>
       {solutions.map((s) => (
-        <SolutionTile key={s.id} solution={s} showGrow={showGrow} showRun={showRun} />
+        <SolutionTile
+          key={s.id}
+          solution={s}
+          showEpics={showEpics}
+          showInvest={showInvest}
+          showRun={showRun}
+        />
       ))}
     </>
   );
@@ -179,11 +215,13 @@ function LooseColumn({
 
 function SolutionTile({
   solution,
-  showGrow,
+  showEpics,
+  showInvest,
   showRun,
 }: {
   solution: OverviewSolution;
-  showGrow: boolean;
+  showEpics: boolean;
+  showInvest: boolean;
   showRun: boolean;
 }) {
   const tone = solution.horizon ? HORIZON_BADGE_CLASS[solution.horizon] : null;
@@ -210,7 +248,12 @@ function SolutionTile({
         <span className={cn("size-1.5 rounded-full", tone ? tone.dot : "bg-muted-foreground/50")} />
         {solution.statusLabel}
       </span>
-      <StructureFigures money={solution.money} showGrow={showGrow} showRun={showRun} />
+      <StructureFigures
+        money={solution.money}
+        showEpics={showEpics}
+        showInvest={showInvest}
+        showRun={showRun}
+      />
     </Link>
   );
 }

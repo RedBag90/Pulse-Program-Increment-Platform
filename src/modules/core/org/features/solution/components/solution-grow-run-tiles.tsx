@@ -17,12 +17,15 @@ export function SolutionGrowRunTiles({
   grow,
   run,
   runItemCount,
+  cycleLabel,
 }: {
   /** Σ Umsetzungskosten aktiver Primär-Epics; `null` = Work-Modul nicht aktiv. */
   grow: number | null;
   /** Σ p. a. der aktiven Positionen; `null` = Budgeting-Modul nicht aktiv. */
   run: number | null;
   runItemCount: number;
+  /** Das Halbjahr, auf dem **beide** Beträge stehen; `null` ohne Budgeting. */
+  cycleLabel: string | null;
 }) {
   const total = (grow ?? 0) + (run ?? 0);
   const growPct = total > 0 ? Math.round(((grow ?? 0) / total) * 100) : 0;
@@ -31,19 +34,21 @@ export function SolutionGrowRunTiles({
     <section className="grid gap-4 md:grid-cols-3">
       <div className="rounded-lg bg-card p-4 shadow-card">
         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Grow · aktive Primär-Epics
+          Grow · zugeteilt
         </div>
         <div className="mt-1 text-2xl font-semibold tabular-nums">
           {grow == null ? "—" : grow > 0 ? formatCompactEUR(grow) : "—"}
         </div>
         <div className="text-xs text-muted-foreground">
-          {grow == null ? "Work-Modul nicht aktiv" : "Σ Umsetzungskosten (Stage < L5)"}
+          {grow == null
+            ? "Work- oder Budgeting-Modul nicht aktiv"
+            : (cycleLabel ?? "laufendes Halbjahr")}
         </div>
       </div>
 
       <div className="rounded-lg bg-card p-4 shadow-card">
         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Run · Betrieb p.a.
+          Run · Betrieb
         </div>
         <div className="mt-1 text-2xl font-semibold tabular-nums">
           {run == null ? "—" : run > 0 ? formatCompactEUR(run) : "—"}
@@ -51,7 +56,7 @@ export function SolutionGrowRunTiles({
         <div className="text-xs text-muted-foreground">
           {run == null
             ? "Budgeting-Modul nicht aktiv"
-            : `aus ${runItemCount} aktiven ${runItemCount === 1 ? "Position" : "Positionen"}`}
+            : `${cycleLabel ?? "laufendes Halbjahr"} · ${runItemCount} aktive ${runItemCount === 1 ? "Position" : "Positionen"}`}
         </div>
       </div>
 

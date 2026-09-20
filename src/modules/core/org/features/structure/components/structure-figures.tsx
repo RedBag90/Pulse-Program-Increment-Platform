@@ -13,19 +13,26 @@ import type { StructureMoney } from "@/modules/core/org/server/views/structure-o
  *
  * `money === null` heisst etwas Viertes: **nicht gemessen**, weil der Mandant
  * das Modul nicht gebucht hat. Dann steht gar nichts da, keine 0 €.
+ *
+ * **Drei Schalter, weil es drei Herkünfte sind:** die Epic-Zahl kommt aus Work,
+ * der Betrieb aus Budgeting, und der Investbetrag aus beiden — Work kennt die
+ * Epics, die Zuteilung liegt in Budgeting. Sie zusammenzufassen hiesse, einem
+ * Mandanten ohne Budgeting auch seine Epic-Zahl zu nehmen.
  */
 export function StructureFigures({
   money,
-  showGrow,
+  showEpics,
+  showInvest,
   showRun,
   className,
 }: {
   money: StructureMoney | null;
-  showGrow: boolean;
+  showEpics: boolean;
+  showInvest: boolean;
   showRun: boolean;
   className?: string;
 }) {
-  if (money == null || (!showGrow && !showRun)) return null;
+  if (money == null || (!showEpics && !showInvest && !showRun)) return null;
   return (
     <span
       className={
@@ -33,37 +40,34 @@ export function StructureFigures({
         "flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-meta tabular-nums text-muted-foreground"
       }
     >
-      {showGrow && (
-        <>
-          <span>
-            {money.epicCount === 0 ? (
-              <em className="not-italic opacity-80" title="Diesem Knoten ist kein Epic zugeordnet.">
-                kein Epic
-              </em>
-            ) : (
-              <>
-                <b className="font-semibold text-foreground">{money.epicCount}</b> Epics
-              </>
-            )}
-          </span>
-          {money.epicCount > 0 && (
-            <span>
-              {money.grow > 0 ? (
-                <>
-                  Grow{" "}
-                  <b className="font-semibold text-foreground">{formatCompactEUR(money.grow)}</b>
-                </>
-              ) : (
-                <em
-                  className="not-italic opacity-80"
-                  title="Kein Epic führt einen freigegebenen Business Case (ab L3.1)."
-                >
-                  keine Freigabe
-                </em>
-              )}
-            </span>
+      {showEpics && (
+        <span>
+          {money.epicCount === 0 ? (
+            <em className="not-italic opacity-80" title="Diesem Knoten ist kein Epic zugeordnet.">
+              kein Epic
+            </em>
+          ) : (
+            <>
+              <b className="font-semibold text-foreground">{money.epicCount}</b> Epics
+            </>
           )}
-        </>
+        </span>
+      )}
+      {showInvest && money.epicCount > 0 && (
+        <span>
+          {money.grow > 0 ? (
+            <>
+              Grow <b className="font-semibold text-foreground">{formatCompactEUR(money.grow)}</b>
+            </>
+          ) : (
+            <em
+              className="not-italic opacity-80"
+              title="In diesem Halbjahr ist diesen Epics kein Geld zugeteilt."
+            >
+              nicht zugeteilt
+            </em>
+          )}
+        </span>
       )}
       {showRun && (
         <span>
@@ -123,8 +127,8 @@ export function GrowCell({ money }: { money: StructureMoney | null }) {
   if (money.grow === 0)
     return (
       <td className="px-3 py-1.5 text-right text-meta text-muted-foreground">
-        <span title="Kein Epic führt einen freigegebenen Business Case (ab L3.1).">
-          keine Freigabe
+        <span title="In diesem Halbjahr ist diesen Epics kein Geld zugeteilt.">
+          nicht zugeteilt
         </span>
       </td>
     );

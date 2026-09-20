@@ -1,83 +1,93 @@
 import { describe, it, expect } from "vitest";
 import {
-  growByPrimarySolution,
-  countsTowardGrow,
-  type GrowEpicFacts,
+  investByPrimarySolution,
+  type InvestEpicFacts,
+  type SolutionInvestPorts,
 } from "@/modules/work/server/views/solution-grow";
+import type { EpicClassLike } from "@/modules/work/domain/epic-allocation-choice";
 
 /**
- * **Das Portfolio finanziert die Umsetzung, nicht die Erarbeitung des Business
- * Case.**
+ * **Die Zahl auf der Solution-Kachel ist die Zuteilung eines Halbjahres.**
  *
- * Der gemeldete Fehler: der Filter stand auf `stageGate !== "L5"` und zaehlte
- * damit ab L0. Ein Epic darf seinen Lean Business Case ab L2 fuehren — dort ist
- * er aber *in Arbeit*, eine Rechnung, die noch niemand freigegeben hat. Bei
- * einer Solution im Datenbestand kamen so 270.000 € von 334.000 € (81 %) aus
- * einem einzigen L2-Epic, und diese Zahl steht neben der Run-Kachel aus echten
- * Betriebskosten.
+ * Bis September 2026 war es die Life-Time-Summe: Σ Umsetzungskosten aller
+ * freigegebenen, nicht abgeschlossenen Primär-Epics, ohne jeden Zeitbezug — ein
+ * Epic, das bis 2029 läuft, zählte in jedem Halbjahr vollständig, und daneben
+ * stand ein Jahreswert für den Betrieb. Zwei Zahlen, zwei Perioden.
  *
- * Fuer diese Datei gab es keinen Test.
+ * Geprüft wird deshalb vor allem, was **nicht** mehr passiert: Kosten ohne
+ * Zuteilung zählen nicht, und die beiden Töpfe werden nie addiert.
  */
-
-const bc = (...amounts: number[]): unknown => ({
-  costSlices: amounts.map((amount, i) => ({ amount, period: `2026-H${(i % 2) + 1}` })),
+const epic = (id: string, solutionId: string | null): InvestEpicFacts => ({
+  id,
+  primarySolutionId: solutionId,
 });
 
-const epic = (over: Partial<GrowEpicFacts> = {}): GrowEpicFacts => ({
-  primarySolutionId: "s1",
-  stageGate: "L3",
-  businessCaseApprovedAt: new Date("2026-03-01"),
-  businessCase: bc(100_000),
+const ports = (over: Partial<SolutionInvestPorts> = {}): SolutionInvestPorts => ({
+  cycleAllocations: {},
+  artAllocations: {},
+  epicClasses: new Map<string, { epicClass: EpicClassLike }>(),
   ...over,
 });
 
-describe("countsTowardGrow", () => {
-  it("verlangt die Freigabe des Business Case", () => {
-    expect(countsTowardGrow({ stageGate: "L2", businessCaseApprovedAt: null })).toBe(false);
-    expect(countsTowardGrow({ stageGate: "L3", businessCaseApprovedAt: new Date() })).toBe(true);
-  });
-
-  /** Grow misst, was gerade investiert wird — nicht, was einmal investiert wurde. */
-  it("laesst ein abgeschlossenes Epic (L5) heraus, auch mit Freigabe", () => {
-    expect(countsTowardGrow({ stageGate: "L5", businessCaseApprovedAt: new Date() })).toBe(false);
-  });
-});
-
-describe("growByPrimarySolution", () => {
-  it("summiert nur die freigegebenen, noch laufenden Epics", () => {
-    const rows = growByPrimarySolution([
-      epic({ businessCase: bc(40_000, 60_000) }),
-      epic({ stageGate: "L4", businessCase: bc(30_000) }),
-    ]);
-    expect(rows.get("s1")).toEqual({ grow: 130_000, epicCount: 2 });
-  });
-
-  /** Der gemeldete Fehler, als Zusicherung. */
-  it("zaehlt den Entwurf eines L2-Epics nicht mit", () => {
-    const rows = growByPrimarySolution([
-      epic({ businessCase: bc(64_000) }),
-      epic({ stageGate: "L2", businessCaseApprovedAt: null, businessCase: bc(270_000) }),
-    ]);
-    // Frueher: 334.000 €, davon 81 % aus dem unbeschlossenen Entwurf.
-    expect(rows.get("s1")?.grow).toBe(64_000);
+describe("investByPrimarySolution", () => {
+  it("summiert die Zuteilung des Zyklus je Solution", () => {
+    const out = investByPrimarySolution(
+      [epic("e1", "s1"), epic("e2", "s1"), epic("e3", "s2")],
+      ports({ cycleAllocations: { e1: 100, e2: 50, e3: 700 } }),
+    );
+    expect(out.get("s1")).toEqual({ grow: 150, epicCount: 2 });
+    expect(out.get("s2")).toEqual({ grow: 700, epicCount: 1 });
   });
 
   /**
-   * Die Anzahl hat **keine** Schwelle. „3 Epics haengen an dieser Solution" ist
-   * eine Aussage ueber Zuordnung, nicht ueber Geld — sonst verschwaende ein
-   * Epic aus der Liste, nur weil sein Business Case noch laeuft.
+   * Der Kern der Umstellung: früher trug dieses Epic seine vollen
+   * Umsetzungskosten — in jedem Halbjahr aufs Neue.
    */
-  it("zaehlt jedes zugeordnete Epic, auch das unreife und das fertige", () => {
-    const rows = growByPrimarySolution([
-      epic(),
-      epic({ stageGate: "L2", businessCaseApprovedAt: null }),
-      epic({ stageGate: "L5" }),
-    ]);
-    expect(rows.get("s1")?.epicCount).toBe(3);
+  it("gibt einem Epic ohne Zuteilung 0, zählt es aber mit", () => {
+    const out = investByPrimarySolution([epic("e1", "s1")], ports());
+    expect(out.get("s1")).toEqual({ grow: 0, epicCount: 1 });
   });
 
-  it("uebergeht Epics ohne Primaer-Solution", () => {
-    const rows = growByPrimarySolution([epic({ primarySolutionId: null })]);
-    expect(rows.size).toBe(0);
+  /**
+   * **Ein Euro, ein Topf.** Zu addieren wäre in einem Mandanten, dessen Töpfe
+   * denselben Betrag spiegeln, eine glatte Verdopplung.
+   */
+  it("wählt den Topf, statt beide zu addieren", () => {
+    const beide = { cycleAllocations: { e1: 300 }, artAllocations: { e1: 300 } };
+    const alsArt = investByPrimarySolution(
+      [epic("e1", "s1")],
+      ports({ ...beide, epicClasses: new Map([["e1", { epicClass: "art" as const }]]) }),
+    );
+    const alsPortfolio = investByPrimarySolution(
+      [epic("e1", "s1")],
+      ports({ ...beide, epicClasses: new Map([["e1", { epicClass: "portfolio" as const }]]) }),
+    );
+    expect(alsArt.get("s1")?.grow).toBe(300);
+    expect(alsPortfolio.get("s1")?.grow).toBe(300);
+  });
+
+  /** Ein leerer Topf tritt zurück — eine vorläufige Einordnung verschluckt kein Geld. */
+  it("nimmt den anderen Topf, wenn der gewählte leer ist", () => {
+    const out = investByPrimarySolution(
+      [epic("e1", "s1")],
+      ports({
+        artAllocations: { e1: 292_000 },
+        epicClasses: new Map([["e1", { epicClass: "portfolio" as const }]]),
+      }),
+    );
+    expect(out.get("s1")?.grow).toBe(292_000);
+  });
+
+  it("übergeht Epics ohne Primär-Solution", () => {
+    const out = investByPrimarySolution(
+      [epic("e1", null)],
+      ports({ cycleAllocations: { e1: 999 } }),
+    );
+    expect(out.size).toBe(0);
+  });
+
+  it("zählt auch eine Solution, deren Epics alle leer ausgehen", () => {
+    const out = investByPrimarySolution([epic("e1", "s1"), epic("e2", "s1")], ports());
+    expect(out.get("s1")).toEqual({ grow: 0, epicCount: 2 });
   });
 });
