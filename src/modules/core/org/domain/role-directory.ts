@@ -24,6 +24,8 @@
  * Rein, kein I/O.
  */
 
+import { nestSolutionsByArt } from "@/modules/core/org/domain/structure-nesting";
+
 /** Die Kennung einer Zuständigkeit — stabil, für Tests und die Tor-Karte. */
 export type DutyKey =
   | "vs.finance"
@@ -83,21 +85,43 @@ export interface DirectoryEntry {
   target: EntryTarget;
 }
 
-export interface DirectoryGroup {
-  /** `vs` | `art` | `solution` — entscheidet die Einrückung. */
-  kind: "vs" | "art" | "solution";
+/** Eine Solution mit ihrem einen Platz — die Kachel in der ART-Spalte. */
+export interface SolutionDirectory {
   id: string;
   name: string;
+  /** Roh durchgereicht; die Fläche entscheidet, ob sie ihn kennt. */
+  horizon: string;
+  investmentMode: string | null;
   entries: DirectoryEntry[];
 }
 
+/** Ein ART mit seinen zwei Plätzen und den Solutions, die es baut. */
+export interface ArtDirectory {
+  id: string;
+  name: string;
+  entries: DirectoryEntry[];
+  solutions: SolutionDirectory[];
+}
+
+/**
+ * **Die Verschachtelung ist die Aussage.**
+ *
+ * Bis September 2026 lag hier eine flache `groups`-Liste: erst alle ARTs, dann
+ * alle Solutions — eine Solution wusste nicht, zu welchem ART sie gehört, und
+ * der Eingabetyp las `artId` gar nicht erst. Für eine Fläche mit Zeilen reichte
+ * das; für eine mit **Spalten und Kacheln darin** nicht.
+ *
+ * Jetzt trägt das Verzeichnis dieselbe Gestalt wie die Organisations-Karte
+ * (`structure-overview.ts`) — beide über denselben Helfer `nestSolutionsByArt`.
+ */
 export interface ValueStreamDirectory {
   id: string;
   name: string;
   /** Die Zuständigkeiten des Wertstroms selbst. */
   entries: DirectoryEntry[];
-  /** ARTs und Solutions darunter, in Baumreihenfolge. */
-  groups: DirectoryGroup[];
+  arts: ArtDirectory[];
+  /** Solutions ohne sichtbaren ART — sie hängen direkt am Wertstrom. */
+  looseSolutions: SolutionDirectory[];
 }
 
 /**
@@ -121,7 +145,21 @@ export interface DirectoryTreeVs {
     rteId: string | null;
     technicalLeadId: string | null;
   }[];
-  solutions: { id: string; name: string; productManagerId: string | null }[];
+  /** `artId` entscheidet, unter welcher Spalte die Solution steht. */
+  solutions: {
+    id: string;
+    name: string;
+    artId: string | null;
+    /**
+     * Nur zur Einfärbung der Kachel. Dieselbe Solution soll auf der
+     * Organisations- und der Rollen-Fläche **dieselbe Farbe** tragen — sonst
+     * wäre „Digital Banking Core" hier violett und dort orange, und niemand
+     * erkennt, dass es dasselbe Ding ist.
+     */
+    horizon: string;
+    investmentMode: string | null;
+    productManagerId: string | null;
+  }[];
 }
 
 /** Die Anliegen, in der Reihenfolge, in der sie jemand stellt. */
@@ -185,6 +223,22 @@ export function buildRoleDirectory(
       target,
     });
 
+    const solution = (sol: DirectoryTreeVs["solutions"][number]): SolutionDirectory => ({
+      id: sol.id,
+      name: sol.name,
+      horizon: sol.horizon,
+      investmentMode: sol.investmentMode,
+      entries: [
+        entry("solution.product", "Dieses Produkt", "Produkt-Manager", sol.productManagerId, {
+          kind: "solution",
+          id: sol.id,
+          field: "productManagerId",
+        }),
+      ],
+    });
+
+    const nested = nestSolutionsByArt(vs);
+
     return {
       id: vs.id,
       name: vs.name,
@@ -195,49 +249,43 @@ export function buildRoleDirectory(
           field: d.of,
         }),
       ),
-      groups: [
-        ...vs.arts.map(
-          (art): DirectoryGroup => ({
-            kind: "art",
-            id: art.id,
-            name: art.name,
-            entries: [
-              entry("art.cadence", "Takt, Planung, PI", "RTE", art.rteId, {
-                kind: "art",
-                id: art.id,
-                field: "rteId",
-              }),
-              // Trägt nie Tore: vorerst nur benannt.
-              entry("art.technical", "Technik im Zug", "ART Technical Lead", art.technicalLeadId, {
-                kind: "art",
-                id: art.id,
-                field: "technicalLeadId",
-              }),
-            ],
-          }),
-        ),
-        ...vs.solutions.map(
-          (sol): DirectoryGroup => ({
-            kind: "solution",
-            id: sol.id,
-            name: sol.name,
-            entries: [
-              entry("solution.product", "Dieses Produkt", "Produkt-Manager", sol.productManagerId, {
-                kind: "solution",
-                id: sol.id,
-                field: "productManagerId",
-              }),
-            ],
-          }),
-        ),
-      ],
+      arts: vs.arts.map(
+        (art): ArtDirectory => ({
+          id: art.id,
+          name: art.name,
+          entries: [
+            entry("art.cadence", "Takt, Planung, PI", "RTE", art.rteId, {
+              kind: "art",
+              id: art.id,
+              field: "rteId",
+            }),
+            // Trägt nie Tore: vorerst nur benannt.
+            entry("art.technical", "Technik im Zug", "ART Technical Lead", art.technicalLeadId, {
+              kind: "art",
+              id: art.id,
+              field: "technicalLeadId",
+            }),
+          ],
+          solutions: (nested.byArt.get(art.id) ?? []).map(solution),
+        }),
+      ),
+      looseSolutions: nested.loose.map(solution),
     };
   });
 }
 
+/** Alle Solutions eines Wertstroms — unter ihren ARTs und die losen. */
+export function allSolutions(vs: ValueStreamDirectory): SolutionDirectory[] {
+  return [...vs.arts.flatMap((a) => a.solutions), ...vs.looseSolutions];
+}
+
 /** Alle Plätze eines Wertstroms, Ebenen zusammengefasst. */
 export function allEntries(vs: ValueStreamDirectory): DirectoryEntry[] {
-  return [...vs.entries, ...vs.groups.flatMap((g) => g.entries)];
+  return [
+    ...vs.entries,
+    ...vs.arts.flatMap((a) => a.entries),
+    ...allSolutions(vs).flatMap((so) => so.entries),
+  ];
 }
 
 export interface DirectoryStats {
@@ -291,8 +339,8 @@ export interface DirectoryFilter {
  *
  * Zwei Entscheidungen stecken darin:
  *
- * - **Leere Gruppen und leere Wertströme fallen weg.** Eine Karte mit Kopf und
- *   nichts darunter sähe aus wie ein Ergebnis, ist aber keins.
+ * - **Leere Spalten, Kacheln und Wertströme fallen weg.** Eine Karte mit Kopf
+ *   und nichts darunter sähe aus wie ein Ergebnis, ist aber keins.
  * - **Die Suche trifft Person und Rolle.** „anna" beantwortet „wo überall ist
  *   sie eingetragen", „architect" beantwortet „wer macht das bei uns" — zwei
  *   Fragen, ein Feld. Das Anliegen (`duty`) zählt mit, weil jemand auch
@@ -309,14 +357,23 @@ export function filterDirectory(
     return [e.label ?? "", e.role, e.duty].some((t) => t.toLowerCase().includes(needle));
   };
 
+  const solutions = (list: readonly SolutionDirectory[]) =>
+    list
+      .map((so) => ({ ...so, entries: so.entries.filter(keep) }))
+      .filter((so) => so.entries.length > 0);
+
   const out: ValueStreamDirectory[] = [];
   for (const vs of streams) {
     const entries = vs.entries.filter(keep);
-    const groups = vs.groups
-      .map((g) => ({ ...g, entries: g.entries.filter(keep) }))
-      .filter((g) => g.entries.length > 0);
-    if (entries.length === 0 && groups.length === 0) continue;
-    out.push({ ...vs, entries, groups });
+    // Ein ART bleibt stehen, solange **es selbst oder eine seiner Solutions**
+    // etwas beiträgt — sonst verschwände die Spalte unter der Kachel, die man
+    // gerade gesucht hat.
+    const arts = vs.arts
+      .map((a) => ({ ...a, entries: a.entries.filter(keep), solutions: solutions(a.solutions) }))
+      .filter((a) => a.entries.length > 0 || a.solutions.length > 0);
+    const looseSolutions = solutions(vs.looseSolutions);
+    if (entries.length === 0 && arts.length === 0 && looseSolutions.length === 0) continue;
+    out.push({ ...vs, entries, arts, looseSolutions });
   }
   return out;
 }

@@ -21,6 +21,16 @@ vi.mock("@/lib/hooks/use-url-state", () => ({
   useUrlState: () => ({ params: urlParams.current, push: vi.fn() }),
 }));
 
+// Die Karte verlinkt ihre Knoten; `@/i18n/navigation` zieht die
+// next-intl-Routing-Konfiguration nach, im jsdom-Lauf reicht ein `<a>`.
+vi.mock("@/i18n/navigation", () => ({
+  Link: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
+
 import { RoleDirectoryView } from "@/modules/core/org/features/structure/components/role-directory-view";
 import { buildRoleDirectory, targetKey } from "@/modules/core/org/domain/role-directory";
 
@@ -33,7 +43,16 @@ const tree = [
     businessOwnerId: null,
     architectLeadId: null,
     arts: [{ id: "art-1", name: "Transport", rteId: null, technicalLeadId: null }],
-    solutions: [{ id: "sol-1", name: "Betrieb", productManagerId: null }],
+    solutions: [
+      {
+        id: "sol-1",
+        name: "Betrieb",
+        artId: "art-1",
+        horizon: "h1",
+        investmentMode: null,
+        productManagerId: null,
+      },
+    ],
   },
   {
     id: "vs-2",
@@ -51,10 +70,14 @@ const LABELS: Record<string, string> = { "u-fin": "anna@x.dev", "u-vmo": "bernd@
 const streams = buildRoleDirectory(tree, (id) => LABELS[id] ?? id);
 const users = [{ value: "u-fin", label: "anna@x.dev" }];
 
+/** Ohne Parameter steht die Karte — sie ist der Standard. */
 function show(params = "") {
   urlParams.current = new URLSearchParams(params);
   return render(<RoleDirectoryView streams={streams} users={users} editable={new Set()} />);
 }
+
+/** Dieselbe Fläche als Liste. */
+const alsTabelle = (params = "") => show(params ? `view=tabelle&${params}` : "view=tabelle");
 
 describe("RoleDirectoryView", () => {
   /**
@@ -147,5 +170,57 @@ describe("RoleDirectoryView", () => {
     urlParams.current = new URLSearchParams();
     render(<RoleDirectoryView streams={[]} users={users} editable={new Set()} />);
     expect(screen.getByText("Noch kein Wertstrom")).toBeTruthy();
+  });
+});
+
+/**
+ * Die Fläche zeigt dieselben Plätze in zwei Formen. Geprüft wird deshalb je
+ * Sicht, dass **jede Ebene ihren Ort hat** — der Wertstrom im Streifen, der ART
+ * in der Spalte, die Solution in der Kachel darin.
+ */
+describe("die beiden Sichten", () => {
+  it("Karte: Wertstrom-Rollen im Streifen, ART-Rollen in der Spalte, Solution darin", () => {
+    const { container } = show();
+
+    const bahn = screen.getByText("Logistik").closest("section")!;
+    const streifen = bahn.querySelector("section > div")!;
+    expect(streifen.textContent).toContain("Finance Approver");
+    expect(streifen.textContent).toContain("Value Stream Architect Lead");
+    // Die ART-Rollen stehen **nicht** im Streifen, sondern in der Spalte.
+    expect(streifen.textContent).not.toContain("RTE");
+
+    const spalte = screen.getByText("Transport").closest("div")!.parentElement!;
+    expect(spalte.textContent).toContain("RTE");
+    expect(spalte.textContent).toContain("ART Technical Lead");
+    expect(spalte.textContent).toContain("Betrieb");
+    expect(spalte.textContent).toContain("Produkt-Manager");
+
+    // Die Karte ist zugleich die Navigation.
+    expect(container.querySelector('a[href="/structure/value-stream/vs-1"]')).toBeTruthy();
+    expect(container.querySelector('a[href="/structure/art/art-1"]')).toBeTruthy();
+    expect(container.querySelector('a[href="/structure/solution/sol-1"]')).toBeTruthy();
+  });
+
+  it("Karte: ein Wertstrom ohne ART sagt das, statt leer zu bleiben", () => {
+    show();
+    expect(screen.getByText("Noch kein ART in diesem Wertstrom.")).toBeTruthy();
+  });
+
+  it("Tabelle: dieselben Plätze als Zeilen, die Solution unter ihrem ART", () => {
+    alsTabelle();
+    expect(screen.getAllByText("Finance Approver").length).toBe(2);
+    expect(screen.getByText("ART Technical Lead")).toBeTruthy();
+    expect(screen.getByText("Produkt-Manager")).toBeTruthy();
+
+    // „Solution Betrieb" steht **innerhalb** des ART-Blocks „Transport".
+    const artBlock = screen.getByText("Transport").closest("div")!;
+    expect(artBlock.textContent).toContain("Betrieb");
+    expect(artBlock.textContent).toContain("Produkt-Manager");
+  });
+
+  it("die Rechteregel gilt in beiden Sichten", () => {
+    alsTabelle();
+    expect(screen.queryByLabelText(/Finance Approver/)).toBeNull();
+    expect(screen.queryByText("Benennen")).toBeNull();
   });
 });

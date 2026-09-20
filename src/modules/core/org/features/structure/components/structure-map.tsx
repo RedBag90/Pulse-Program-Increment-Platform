@@ -6,6 +6,11 @@ import {
 } from "@/modules/core/org/features/solution/components/horizon-tokens";
 import { nodeHref } from "@/modules/core/org/features/structure/components/structure-routes";
 import {
+  Lane,
+  LaneGroup,
+  type LaneColumn,
+} from "@/modules/core/org/features/structure/components/structure-lanes";
+import {
   GapBadge,
   StructureFigures,
 } from "@/modules/core/org/features/structure/components/structure-figures";
@@ -47,15 +52,15 @@ export function StructureMap({
   showRun: boolean;
 }) {
   return (
-    <div className="space-y-3">
+    <LaneGroup>
       {overview.valueStreams.map((vs) => (
-        <Lane key={vs.id} vs={vs} showGrow={showGrow} showRun={showRun} />
+        <StreamLane key={vs.id} vs={vs} showGrow={showGrow} showRun={showRun} />
       ))}
-    </div>
+    </LaneGroup>
   );
 }
 
-function Lane({
+function StreamLane({
   vs,
   showGrow,
   showRun,
@@ -65,42 +70,44 @@ function Lane({
   showRun: boolean;
 }) {
   const artCount = vs.arts.length;
-  return (
-    <section className="overflow-hidden rounded-lg bg-card shadow-card">
-      <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b bg-surface-frame px-4 py-2.5">
-        <Link
-          href={nodeHref("vs", vs.id)}
-          className="text-sm font-semibold tracking-tight hover:text-primary hover:underline"
-        >
-          {vs.name}
-        </Link>
-        <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
-          Wertstrom · {artCount} ART{artCount === 1 ? "" : "s"}
-        </span>
-        <GapBadge gaps={vs.gaps} />
-        <StructureFigures
-          money={vs.money}
-          showGrow={showGrow}
-          showRun={showRun}
-          className="ml-auto flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-xs tabular-nums text-muted-foreground"
-        />
-      </header>
+  const columns: LaneColumn[] = vs.arts.map((art) => ({
+    key: art.id,
+    children: <ArtColumn art={art} showGrow={showGrow} showRun={showRun} />,
+  }));
+  if (vs.looseSolutions.length > 0) {
+    columns.push({
+      key: "ohne-art",
+      children: <LooseColumn solutions={vs.looseSolutions} showGrow={showGrow} showRun={showRun} />,
+    });
+  }
 
-      {/* Waagerecht rollt die Bahn in sich — nie die Seite. Unterhalb von `sm`
-          stapeln sich die Spalten, weil zwei nebeneinander dort niemandem
-          nutzen. */}
-      <div className="flex flex-col divide-y sm:grid sm:auto-cols-[minmax(15rem,1fr)] sm:grid-flow-col sm:divide-x sm:divide-y-0 sm:overflow-x-auto">
-        {vs.arts.map((art) => (
-          <ArtColumn key={art.id} art={art} showGrow={showGrow} showRun={showRun} />
-        ))}
-        {vs.looseSolutions.length > 0 && (
-          <LooseColumn solutions={vs.looseSolutions} showGrow={showGrow} showRun={showRun} />
-        )}
-        {artCount === 0 && vs.looseSolutions.length === 0 && (
-          <p className="p-4 text-xs text-muted-foreground">Noch kein ART in diesem Wertstrom.</p>
-        )}
-      </div>
-    </section>
+  return (
+    <Lane
+      head={
+        <>
+          <Link
+            href={nodeHref("vs", vs.id)}
+            className="text-sm font-semibold tracking-tight hover:text-primary hover:underline"
+          >
+            {vs.name}
+          </Link>
+          <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
+            Wertstrom · {artCount} ART{artCount === 1 ? "" : "s"}
+          </span>
+          <GapBadge gaps={vs.gaps} />
+          <StructureFigures
+            money={vs.money}
+            showGrow={showGrow}
+            showRun={showRun}
+            className="ml-auto flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-xs tabular-nums text-muted-foreground"
+          />
+        </>
+      }
+      columns={columns}
+      empty={
+        <p className="p-4 text-xs text-muted-foreground">Noch kein ART in diesem Wertstrom.</p>
+      }
+    />
   );
 }
 
@@ -114,7 +121,7 @@ function ArtColumn({
   showRun: boolean;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-2.5 p-3">
+    <>
       <div className="flex items-baseline gap-2">
         <span
           className="size-1.5 shrink-0 translate-y-[-1px] rounded-[2px] bg-emerald-600"
@@ -142,7 +149,7 @@ function ArtColumn({
           <SolutionTile key={s.id} solution={s} showGrow={showGrow} showRun={showRun} />
         ))
       )}
-    </div>
+    </>
   );
 }
 
@@ -161,12 +168,12 @@ function LooseColumn({
   showRun: boolean;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-2.5 p-3">
+    <>
       <p className="text-xs font-semibold text-muted-foreground">Ohne ART</p>
       {solutions.map((s) => (
         <SolutionTile key={s.id} solution={s} showGrow={showGrow} showRun={showRun} />
       ))}
-    </div>
+    </>
   );
 }
 

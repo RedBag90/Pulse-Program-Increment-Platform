@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 
 /**
  * Suche und „Nur offene Plätze" über der Rollenverteilung.
@@ -14,14 +15,23 @@ import { Input } from "@/components/ui/input";
  *
  * Die Suche trifft Person, Rolle **und** Anliegen — „anna" beantwortet „wo
  * überall ist sie eingetragen", „budget" beantwortet „wen frage ich dazu".
+ *
+ * Links steht der Umschalter zwischen Karte und Tabelle — dasselbe
+ * Bedienelement wie auf der Organisations-Fläche, aus demselben Modul. Zwei
+ * Struktur-Flächen, die sich verschieden bedienen, wären schlimmer als eine
+ * hässliche.
  */
 export function RoleDirectoryFilterBar({
+  view,
+  onViewChange,
   query,
   onQueryChange,
   onlyUnfilled,
   onOnlyUnfilledChange,
   unfilledCount,
 }: {
+  view: "karte" | "tabelle";
+  onViewChange: (next: "karte" | "tabelle") => void;
   query: string;
   onQueryChange: (next: string) => void;
   onlyUnfilled: boolean;
@@ -40,6 +50,16 @@ export function RoleDirectoryFilterBar({
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg bg-card p-2.5 shadow-card">
+      <Segmented
+        label="Darstellung"
+        options={[
+          { value: "karte" as const, label: "Karte" },
+          { value: "tabelle" as const, label: "Tabelle" },
+        ]}
+        active={view}
+        onSelect={onViewChange}
+      />
+
       <button
         type="button"
         onClick={() => onOnlyUnfilledChange(!onlyUnfilled)}

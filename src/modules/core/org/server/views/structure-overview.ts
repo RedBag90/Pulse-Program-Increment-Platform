@@ -22,6 +22,7 @@
 
 import type { StructureTree } from "@/modules/core/org/server/services/structure";
 import { horizonLabel, isHorizon, type Horizon } from "@/modules/core/org/domain/horizon";
+import { nestSolutionsByArt } from "@/modules/core/org/domain/structure-nesting";
 import {
   isInvestmentMode,
   solutionStatusOf,
@@ -135,20 +136,14 @@ export function buildStructureOverview(tree: StructureTree): StructureOverview {
     if (!vs.vmoId) gaps.push("Kein:e Portfolio Manager");
     if (!vs.financeApproverId) gaps.push("Kein:e Finance-Approver:in");
 
-    // Gefragt wird „ist ihr ART hier zu sehen", nicht „hat sie eins": `artId`
-    // ist Pflicht, aber ein weich gelöschtes ART fällt aus `vs.arts` heraus.
-    const shown = new Set(vs.arts.map((a) => a.id));
-    const byArt = new Map<string, OverviewSolution[]>();
-    const loose: OverviewSolution[] = [];
-    for (const sol of vs.solutions) {
-      const row = toSolution(sol);
-      solutions += 1;
-      if (sol.artId != null && shown.has(sol.artId)) {
-        byArt.set(sol.artId, [...(byArt.get(sol.artId) ?? []), row]);
-      } else {
-        loose.push(row);
-      }
-    }
+    // Die Zuordnung „Solution unter ihren ART, sonst an den Wertstrom" steht
+    // in der Domäne — die Rollenverteilung braucht dieselbe (ADR-0022).
+    const nested = nestSolutionsByArt(vs);
+    solutions += vs.solutions.length;
+    const byArt = new Map<string, OverviewSolution[]>(
+      [...nested.byArt].map(([artId, sols]) => [artId, sols.map(toSolution)]),
+    );
+    const loose = nested.loose.map(toSolution);
 
     const artRows = vs.arts.map((art) => {
       arts += 1;

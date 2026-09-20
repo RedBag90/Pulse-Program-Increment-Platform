@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 
 /**
  * Umschalter und Suche der Struktur-Fläche.
@@ -88,40 +88,6 @@ export function StructureToolbar({
           className="h-8 w-44 pl-8 text-xs"
         />
       </div>
-    </div>
-  );
-}
-
-function Segmented<T extends string>({
-  label,
-  options,
-  active,
-  onSelect,
-}: {
-  label: string;
-  options: readonly { value: T; label: string }[];
-  active: T;
-  onSelect: (value: T) => void;
-}) {
-  return (
-    <div role="group" aria-label={label} className="inline-flex rounded-lg bg-muted p-0.5">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          onClick={() => onSelect(o.value)}
-          aria-pressed={o.value === active}
-          className={cn(
-            "rounded-[0.4rem] px-3 py-1 text-xs transition-colors",
-            "focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-            o.value === active
-              ? "bg-card font-semibold text-foreground shadow-card"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
     </div>
   );
 }
