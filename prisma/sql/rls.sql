@@ -20,6 +20,7 @@ ALTER TABLE audit_events          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_role_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE outbox_events         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE role_onboarding       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE view_preferences      ENABLE ROW LEVEL SECURITY;
 
 -- Reifegrad-Wechsel (Stage Gate): Antrag, namentliche Abnahme, Abnehmer-Regeln.
 ALTER TABLE stage_gate_transitions    ENABLE ROW LEVEL SECURITY;
@@ -101,6 +102,18 @@ CREATE POLICY tenant_isolation_outbox ON outbox_events
 -- ---------------------------------------------------------------------------
 
 CREATE POLICY tenant_user_isolation_role_onboarding ON role_onboarding
+  FOR ALL
+  USING (
+    tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid
+    AND user_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'sub')::uuid
+  );
+
+-- ---------------------------------------------------------------------------
+-- Ansichts-Vorlieben: dieselbe Lage, dieselbe Politik. Was eine Kachel sich
+-- merkt, geht nur den an, der es eingestellt hat.
+-- ---------------------------------------------------------------------------
+
+CREATE POLICY tenant_user_isolation_view_preferences ON view_preferences
   FOR ALL
   USING (
     tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid

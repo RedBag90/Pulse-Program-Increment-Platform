@@ -90,6 +90,11 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
       // muss (ADR-0017) — die Invariante „jede Action hat ein Modul" bleibt so
       // trotzdem erfüllt.
       "role.onboarding.manage",
+      // Die eigene Ansicht einer Flaeche merken. Liegt aus demselben Grund bei
+      // `core` wie das Onboarding: der Speicher ist generisch und bedient
+      // Kacheln jedes Moduls — an `work` gehaengt waere die Vorliebe einer
+      // Core-Flaeche von einem Entitlement abhaengig, das sie nichts angeht.
+      "view_preference.manage",
       // Persönlich gespeicherte Filter der Ziele-Fläche. Ziele sind Core, also
       // ist es die Berechtigung auch — das Geschwister `portfolio_filter.manage`
       // hängt am Work-Modul, weil es dessen Fläche betrifft.

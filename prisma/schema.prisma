@@ -130,6 +130,41 @@ model SavedFilter {
   @@map("saved_portfolio_filters")
 }
 
+/// Ansichts-Vorlieben eines Nutzers — was eine Kachel sich merkt, wenn er sie
+/// einmal eingestellt hat (Zusammenfassung, Sortierung, eingeklappte Aeste).
+///
+/// **Nicht `SavedFilter`.** Dort steht `name` im Eindeutigkeits-Schluessel: die
+/// Tabelle fuehrt *benannte, selbst angelegte* Filter, die man anwendet und
+/// wieder verlaesst. Eine Vorliebe hat keinen Namen und wird nie angewandt — sie
+/// gilt einfach. Ein unsichtbarer Datensatz dort waere ein Missbrauch der
+/// Struktur.
+///
+/// **Generisch, nicht je Kachel.** `key` benennt die Flaeche
+/// (`portfolio.goalContribution`), `value` traegt deren Zustand als JSON. Eine
+/// Tabelle je Kachel waere der teurere Weg zum selben Ziel; der eingeklappte
+/// Ziel-Baum und der „+ n weitere"-Zustand des Kanbans warten schon.
+///
+/// **Der Preis der Freiheit steht im Parser.** Ein gespeicherter Wert ueberlebt
+/// Code-Aenderungen: wird eine Achse umbenannt, liegt hier ein Wert, den es nicht
+/// mehr gibt. Jeder Leser prueft deshalb gegen sein eigenes Vokabular und faellt
+/// je Feld auf die Vorgabe zurueck (`contribution-view-preference.ts`).
+///
+/// Tenant+User-scoped (plain columns, wie `RoleOnboarding`) — und wie dort rein
+/// persoenlich: niemand liest die Zeilen eines anderen, auch kein Tenant-Admin.
+model ViewPreference {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  key       String
+  value     Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, userId, key])
+  @@index([tenantId, userId])
+  @@map("view_preferences")
+}
+
 /// Per-User-Quittung + gesehene Tour-Schritte je zugewiesener Rolle
 /// (Modul `onboarding`, ADR-0017). Der Key ist die **Rolle**, nicht die
 /// Assignment-Row: ein Scope-Edit im Admin ist heute remove + re-add, würde also

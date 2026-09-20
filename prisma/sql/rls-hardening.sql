@@ -301,6 +301,13 @@ CREATE POLICY tenant_isolation ON role_onboarding FOR ALL
   USING (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid)
   WITH CHECK (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid);
 
+ALTER TABLE view_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE view_preferences FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON view_preferences;
+CREATE POLICY tenant_isolation ON view_preferences FOR ALL
+  USING (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid)
+  WITH CHECK (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid);
+
 ALTER TABLE run_the_business_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE run_the_business_items FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON run_the_business_items;

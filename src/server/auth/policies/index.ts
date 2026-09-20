@@ -73,7 +73,8 @@ export type Action =
   | "portfolio_filter.manage"
   | "goal_filter.manage"
   | "issue_filter.manage"
-  | "role.onboarding.manage";
+  | "role.onboarding.manage"
+  | "view_preference.manage";
 
 /** A scope dimension a grant may additionally require the principal to match. */
 export type ScopeCheck = "value_stream" | "art" | "team" | "own";
@@ -423,6 +424,20 @@ export const POLICIES: Record<Action, Grant[]> = {
   // `portfolio_filter.manage`: JEDE Rolle inklusive `viewer`, weil gerade der
   // Nur-Leser eine Einführung braucht. Der Service schreibt ausschließlich
   // `userId = principal.id`, die Zeilen sind zusätzlich per RLS user-isoliert.
+  // Die eigene Ansicht einer Flaeche merken (Zusammenfassung, Sortierung,
+  // eingeklappte Aeste) — dieselbe Selbstbedienung wie das Rollen-Onboarding und
+  // aus demselben Grund JEDE Rolle: ein Nur-Leser stellt seine Tabelle genauso
+  // ein wie jeder andere. Der Dienst schreibt ausschliesslich
+  // `userId = principal.id`, die Zeilen sind zusaetzlich per RLS user-isoliert
+  // (`tenant_user_isolation_view_preferences`).
+  //
+  // **Achtung beim Ausrollen:** `resolveCapabilities` faellt nur dann auf diese
+  // Vorgaben zurueck, wenn ein Mandant gar keine `role_capabilities`-Zeile hat —
+  // alles oder nichts. Eine **neue** Action existiert in Bestandsmandanten also
+  // nicht, bis sie nachgezogen ist
+  // (`prisma/scripts/2026-09-20-view-preference-recht.ts`).
+  "view_preference.manage": [{ roles: ALL_ROLES }],
+
   "role.onboarding.manage": [
     {
       roles: [

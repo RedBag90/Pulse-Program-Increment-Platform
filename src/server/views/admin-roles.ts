@@ -45,6 +45,7 @@ const DOMAIN_ORDER: CapabilityDomain[] = [
       "admin.users.read",
       "role.capability.manage",
       "role.onboarding.manage",
+      "view_preference.manage",
       "portfolio_filter.manage",
       "goal_filter.manage",
       "issue_filter.manage",

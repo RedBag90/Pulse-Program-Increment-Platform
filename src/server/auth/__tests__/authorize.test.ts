@@ -7,7 +7,7 @@ import {
   type AuthResource,
 } from "@/server/auth/authorize";
 import type { Principal, PrincipalScopes } from "@/server/auth/principal";
-import { ROLES } from "@/modules/core/kernel/domain/roles";
+import { ALL_ROLES, ROLES } from "@/modules/core/kernel/domain/roles";
 import { enumerateDefaultCapabilities } from "@/server/auth/policies";
 import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 import { isErr, isOk } from "@/modules/core/kernel/domain/errors";
@@ -400,5 +400,38 @@ describe("feature.delete", () => {
     });
     expect(hasCapability(eo, "epic.update", { valueStreamId: "vs-1" })).toBe(true);
     expect(hasCapability(eo, "feature.delete", { artId: "art-1" })).toBe(false);
+  });
+});
+
+/**
+ * **Die eigene Ansicht merken darf jeder.**
+ *
+ * `view_preference.manage` ist Selbstbedienung wie `role.onboarding.manage`:
+ * der Dienst schreibt ohnehin nur auf `principal.id`. Waere die Capability
+ * einer Rolle vorenthalten, bekaeme genau die den einen Knopf, der still nichts
+ * tut — und ein Nur-Leser stellt seine Tabelle genauso ein wie jeder andere.
+ *
+ * Der Test laeuft ueber `ALL_ROLES` statt ueber eine abgeschriebene Liste: eine
+ * **neue** Rolle faellt sonst hinten runter, ohne dass etwas rot wird.
+ */
+describe("view_preference.manage", () => {
+  it.each(ALL_ROLES)("%s darf", (role) => {
+    expect(hasCapability(principal({ roles: [role] }), "view_preference.manage")).toBe(true);
+  });
+
+  /**
+   * **Auch der `platform_admin` — und anders als sonst ist das hier richtig.**
+   *
+   * Bei jedem anderen Recht steht er bewusst draussen: in einem fremden
+   * Mandanten hat er nichts zu suchen, und in seinem eigenen traegt er
+   * `tenant_admin` (siehe den Fast-Path in `authorize.ts`). Gespeichert wird hier
+   * aber nichts ueber den Mandanten, sondern nur, wie **er selbst** eine Tabelle
+   * sortiert haben will — eine Zeile, die an seiner eigenen Id haengt und die
+   * niemand sonst liest. `ALL_ROLES` ist deshalb keine Nachlaessigkeit.
+   */
+  it("auch der Plattform-Admin — er stellt seine eigene Tabelle ein", () => {
+    expect(
+      hasCapability(principal({ roles: [ROLES.PLATFORM_ADMIN] }), "view_preference.manage"),
+    ).toBe(true);
   });
 });
