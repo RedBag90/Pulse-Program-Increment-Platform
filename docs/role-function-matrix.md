@@ -137,15 +137,15 @@ Historie geloggt.
 | `pi.delete`                                   | PI löschen                          |
 | `pi_objective.create` / `pi_objective.update` | PI-Ziel anlegen / bearbeiten        |
 | `team.create` / `team.update` / `team.delete` | Team anlegen / bearbeiten / löschen |
-| `feature.delete`                              | Feature löschen                     |
 
 ### Feature
 
-| Funktion           | Beschreibung                    |
-| ------------------ | ------------------------------- |
-| `feature.create`   | Feature anlegen                 |
-| `feature.update`   | Feature bearbeiten              |
-| `feature.wsjf.set` | WSJF-Wert eines Features setzen |
+| Funktion           | Beschreibung                         |
+| ------------------ | ------------------------------------ |
+| `feature.create`   | Feature anlegen                      |
+| `feature.update`   | Feature bearbeiten                   |
+| `feature.wsjf.set` | WSJF-Wert eines Features setzen      |
+| `feature.delete`   | Feature löschen (weich, `deletedAt`) |
 
 ### Story
 
@@ -218,7 +218,8 @@ einen Scope.
   `integration.manage`, `admin.audit-log.read`, `admin.users.read`,
   `art.delete`, `team.create/delete`, `epic.delete`, `feature.delete`,
   `story.delete`. (`art.create`/`art.update` liegen seit September 2026 beim
-  `portfolio_manager`.)
+  `portfolio_manager`; `feature.delete` ist seit dem 2026-09-20 **nicht mehr**
+  tenant-weit vorbehalten — RTE und Feature Owner tragen es art-scoped.)
 
 ### Ebene 1 — Portfolio
 
@@ -348,7 +349,8 @@ den Rahmen, aus dem es kam, sieht er nicht.
   `pi_objective.create`, `pi_objective.update`.
 - **ART/Team:** `team.update`.
 - **Feature:** `feature.create`, `feature.update`, `feature.wsjf.set`,
-  `feature.delete`.
+  `feature.delete` — alle vier **art-scoped**. Beim Löschen stand der Scope bis
+  zum 2026-09-20 nur hier und nicht im Code.
 - **Ausführung:** `story.create/update/delete` (art), `task.create/edit` (art),
   `dependency.link/unlink`.
 - Scope: ARTs.
@@ -360,11 +362,14 @@ den Rahmen, aus dem es kam, sieht er nicht.
 
 #### `feature_owner` — Feature-Verantwortlicher / Product Manager
 
-- `feature.create`, `feature.update`, `feature.wsjf.set`.
+- `feature.create`, `feature.update`, `feature.wsjf.set`, `feature.delete`.
 - **Ausführung:** `story.create/update` (art), `task.create/edit` (art),
   `dependency.link/unlink`.
-- **Nicht** berechtigt: `feature.delete` (das
-  entscheidet der RTE — Funktionstrennung), `story.delete`.
+- **`feature.delete` seit 2026-09-20**, art-scoped wie die übrigen. Vorher galt
+  eine Funktionstrennung („wer anlegt und pflegt, entscheidet nicht allein, dass
+  es verschwindet"), die die Oberfläche nie umgesetzt hat: der Löschen-Knopf hing
+  am Bearbeiten-Recht, also sah ihn genau der, der ihn nicht drücken durfte.
+- **Nicht** berechtigt: `story.delete`.
 - Scope: ARTs.
 
 ### Ebene 6 — Team

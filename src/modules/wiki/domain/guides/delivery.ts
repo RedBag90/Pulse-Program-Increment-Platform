@@ -254,8 +254,8 @@ WSJF =  ────────────────────────
       why: "Der Freigabelauf wurde im Juni 2026 entfernt; „Acceptance“ ist heute ein Textfeld.",
     },
     {
-      claim: "Wer ein Feature pflegt, darf es auch löschen.",
-      why: "Das Löschrecht hat der Feature Owner **nicht**.",
+      claim: "Als Feature Owner kann ich jedes Feature löschen.",
+      why: "Nur in **deinen** ARTs. Das Löschrecht ist art-scoped — wie Anlegen und Bearbeiten.",
     },
     {
       claim: "Verantwortung zuweisen ist Teil des Bearbeiten-Rechts.",
@@ -291,7 +291,7 @@ WSJF =  ────────────────────────
     },
     {
       step: "Feature löschen",
-      who: "Portfolio Manager, RTE, Tenant-Admin",
+      who: "Portfolio Manager, Tenant-Admin; **RTE** und **Feature Owner** auf ihren eigenen ARTs",
       capability: "feature.delete",
     },
     {

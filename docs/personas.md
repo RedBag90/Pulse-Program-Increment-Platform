@@ -62,8 +62,9 @@ grant** — it is a pure read-only role, scoped by Row-Level Security.
 - **How they use Pulse:** `/admin/users`, `/admin/integrations`,
   `/admin/audit-log`; creates ARTs and teams.
 - **Permissions & scope:** `tenant.users.manage`, `integration.manage`, full ART
-  and team lifecycle, `epic.delete`, `feature.delete`, audit-log and user-list
-  reads. `authorize()` allows `tenant_admin` every action **within their
+  and team lifecycle, `epic.delete`, `feature.delete` (no longer reserved to
+  tenant-wide roles — RTE and Feature Owner carry it ART-scoped since
+  2026-09-20), audit-log and user-list reads. `authorize()` allows `tenant_admin` every action **within their
   tenant**. **Scope: the whole tenant.**
 
 ## Priya — Portfolio Lead
@@ -147,12 +148,15 @@ grant** — it is a pure read-only role, scoped by Row-Level Security.
   scores them, defines acceptance criteria.
 - **Goals:** A WSJF-ranked Feature backlog that reflects real value; Features
   ready before PI Planning.
-- **How they use Pulse:** `/feature/[id]`, `/art/[id]/features` (WSJF scoring,
-  create Features, submit Features to QS).
-- **Permissions & scope:** `feature.create/update/wsjf.set`,
-  `feature.review.submit`, `story`/`task` (ART-scoped), `dependency.link/unlink`,
-  `impediment.create`. **Not** `feature.delete` or `feature.review.decide` (the
-  RTE decides). **Scope: ARTs** assigned to him.
+- **How they use Pulse:** `/feature/[id]`, `/umsetzung?art=…` (WSJF scoring,
+  creating and sharpening Features, setting delivery status).
+- **Permissions & scope:** `feature.create/update/wsjf.set/delivery.set/delete`,
+  `dependency.link/unlink`. **Scope: ARTs** assigned to them — including the
+  delete right, which they gained on 2026-09-20 (previously withheld as a
+  separation of duties that the UI never enforced).
+- There is no Feature QS: the review run was removed in 2026-06, and with it
+  `feature.review.submit` / `.decide`. Impediments folded into the unified issue
+  register and run on `risk.*`.
 
 ## Tom — Scrum Master
 

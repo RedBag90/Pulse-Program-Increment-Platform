@@ -53,11 +53,11 @@ eines Zuges, die Übersicht **quer** über alle.
 
 ### Wer die drei sind
 
-| Wer                   | Was er tut                                                                  | Recht                                                        |
-| --------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| **Feature Owner**     | Features anlegen, schärfen, nach WSJF priorisieren, den Lieferstatus setzen | `feature.create`, `feature.wsjf.set`, `feature.delivery.set` |
-| **RTE**               | dasselbe für seinen Zug, plus Abhängigkeiten und den Takt                   | dieselben, plus `dependency.link`                            |
-| **Portfolio Manager** | dasselbe von oben, plus Löschen                                             | dieselben, plus `feature.delete`                             |
+| Wer                   | Was er tut                                                                           | Recht                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| **Feature Owner**     | Features anlegen, schärfen, nach WSJF priorisieren, den Lieferstatus setzen, löschen | `feature.create`, `feature.wsjf.set`, `feature.delivery.set`, `feature.delete` |
+| **RTE**               | dasselbe für seinen Zug, plus Abhängigkeiten und den Takt                            | dieselben, plus `dependency.link`                                              |
+| **Portfolio Manager** | dasselbe von oben, ohne ART-Grenze                                                   | dieselben, unscoped                                                            |
 
 Die drei tragen **fast identische Rechte**. Der Unterschied ist nicht die
 Reichweite, sondern die Blickrichtung: der Feature Owner sein Backlog, der RTE
@@ -184,9 +184,18 @@ Ich setze hier selten selbst etwas. Was mich interessiert, ist die Ableitung:
 
 ## Löschen
 
-`feature.delete` tragen Portfolio Manager, RTE und Tenant-Admin — **nicht** der
-Feature Owner. Dieselbe Funktionstrennung wie überall: wer etwas anlegt und
-pflegt, entscheidet nicht allein, dass es verschwindet.
+`feature.delete` tragen Portfolio Manager, RTE, Feature Owner und Tenant-Admin.
+RTE und Feature Owner **art-scoped**: nur in den ARTs, denen sie zugewiesen sind.
+
+**Bis zum 2026-09-20 hatte der Feature Owner das Recht nicht** — begründet mit
+Funktionstrennung: wer anlegt und pflegt, entscheidet nicht allein, dass es
+verschwindet. Umgesetzt war die Trennung nie: der Löschen-Knopf hing am
+Bearbeiten-Recht, also sah ihn genau der, der ihn nicht drücken durfte, und
+bekam nach dem Bestätigen eine Fehlermeldung. Entschieden wurde gegen die
+Trennung und für das Recht.
+
+Gelöscht wird **weich** (`deletedAt`); nichts kaskadiert, weil unter einem
+Feature nichts hängt.
 
 ---
 
@@ -214,23 +223,23 @@ wird je PI. Berührung gibt es nur mittelbar über die Job Size.
 | „Ein WSJF-Band bedeutet überall dasselbe."                     | Cockpit ≥ 8 / ≥ 4, ART-Listen ≥ 5 / ≥ 2. Derselbe Score, zwei Einordnungen.  |
 | „`/umsetzung/art/[id]` ist eine eigene Seite."                 | Es ist ein **Ausschnitt** — `?art=…`. Die alten Routen leiten dorthin um.    |
 | „Es gibt eine Feature-QS."                                     | Der Freigabelauf wurde 2026-06 entfernt; „Acceptance" ist ein Textfeld.      |
-| „Wer ein Feature pflegt, darf es auch löschen."                | `feature.delete` hat der Feature Owner **nicht**.                            |
+| „Als Feature Owner kann ich jedes Feature löschen."            | Nur in **seinen** ARTs — `feature.delete` ist art-scoped.                    |
 | „Verantwortung zuweisen ist Teil von `feature.update`."        | Eigene Action — Zuweisen ohne Inhaltsänderung ist der ganze Zweck.           |
 | „Eine Abhängigkeit zu lösen ist so harmlos wie sie zu setzen." | Es kippt fremde Planungsannahmen. Deshalb ein eigenes Recht.                 |
 | „Ohne WSJF-Practice sind die Zahlen weg."                      | Sie bleiben gespeichert. Nur die Spalten und die Rangliste verschwinden.     |
 
 ## Wer welchen Schritt macht
 
-| Schritt                                        | Wer                                                   | Recht                              |
-| ---------------------------------------------- | ----------------------------------------------------- | ---------------------------------- |
-| Feature anlegen, schärfen, Acceptance Criteria | Portfolio Manager, RTE, Feature Owner                 | `feature.create`, `feature.update` |
-| WSJF bewerten                                  | dieselben                                             | `feature.wsjf.set`                 |
-| PI zuordnen                                    | dieselben                                             | `feature.update`                   |
-| Lieferstatus setzen, einzeln und im Stapel     | dieselben                                             | `feature.delivery.set`             |
-| Verantwortung zuweisen                         | dieselben **plus Epic Owner**; Wertstrom-Owner scoped | `feature.owner.assign`             |
-| Feature löschen                                | Portfolio Manager, RTE, Tenant-Admin                  | `feature.delete`                   |
-| Abhängigkeit anlegen, verknüpfen, Typ ändern   | Portfolio Manager, RTE, Feature Owner                 | `dependency.link`                  |
-| Abhängigkeit lösen                             | dieselben                                             | `dependency.unlink`                |
+| Schritt                                        | Wer                                                                   | Recht                              |
+| ---------------------------------------------- | --------------------------------------------------------------------- | ---------------------------------- |
+| Feature anlegen, schärfen, Acceptance Criteria | Portfolio Manager, RTE, Feature Owner                                 | `feature.create`, `feature.update` |
+| WSJF bewerten                                  | dieselben                                                             | `feature.wsjf.set`                 |
+| PI zuordnen                                    | dieselben                                                             | `feature.update`                   |
+| Lieferstatus setzen, einzeln und im Stapel     | dieselben                                                             | `feature.delivery.set`             |
+| Verantwortung zuweisen                         | dieselben **plus Epic Owner**; Wertstrom-Owner scoped                 | `feature.owner.assign`             |
+| Feature löschen                                | Portfolio Manager, Tenant-Admin; RTE und Feature Owner auf ihren ARTs | `feature.delete`                   |
+| Abhängigkeit anlegen, verknüpfen, Typ ändern   | Portfolio Manager, RTE, Feature Owner                                 | `dependency.link`                  |
+| Abhängigkeit lösen                             | dieselben                                                             | `dependency.unlink`                |
 
 ## Nachschlagepunkte im Code
 
