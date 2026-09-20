@@ -51,6 +51,7 @@ export function GuardrailTargetsReadOnly({ targets }: Props) {
           <ul className="space-y-1 text-sm">
             <Row label="Business" value={targets.capacity.business} />
             <Row label="Enabler" value={targets.capacity.enabler} />
+            <Row label="Maintenance" value={targets.capacity.maintenance} />
           </ul>
         </div>
         <div className="rounded-md border p-3">

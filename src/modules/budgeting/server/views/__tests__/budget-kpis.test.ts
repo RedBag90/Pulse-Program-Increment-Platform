@@ -31,6 +31,12 @@ const art = (name: string, over: Partial<ArtCoverage> = {}): ArtKpiRow => ({
     plannedJobSize: 0,
     featureCount: 0,
     plannedStandalone: { jobSize: 0, count: 0 },
+    plannedByBucket: {
+      business: { count: 0, jobSize: 0 },
+      enabler: { count: 0, jobSize: 0 },
+      maintenance: { count: 0, jobSize: 0 },
+    },
+    plannedUnclassified: { count: 0, jobSize: 0 },
     rate: satz(1_000),
     loadEuro: 0,
     allocated: 0,

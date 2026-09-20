@@ -1,76 +1,127 @@
 import { describe, it, expect } from "vitest";
-
 import {
-  buildValueStreamCapacityMix,
-  type DeliveredEpic,
+  maxCapacityDrift,
+  noCapacityReason,
+  type ValueStreamCapacityPlan,
 } from "@/modules/work/server/views/value-stream-capacity-mix";
+import { statusFor } from "@/modules/work/domain/guardrail-rules";
 
-const TARGETS = { business: 75, enabler: 25 };
+/**
+ * **Die Ampel von Guardrail 2 — und nur sie.**
+ *
+ * Die Rechnung selbst liegt in `budgeting/domain/capacity-plan.ts` und wird dort
+ * geprueft; hier steht die Uebersetzung von „wie viele Punkte daneben" in „wie
+ * rot ist das". Sie hat einen eigenen Test, weil die Wertstrom-Flaeche die
+ * Schwellen bis September 2026 selbst nachgebaut hatte — mit `Math.round`
+ * **vor** dem Vergleich, wodurch 15,4 pp eine Stufe zu niedrig landeten.
+ *
+ * Bis dahin stand an dieser Stelle der Mix ueber geliefertes Epic-Budget. Er ist
+ * ersetzt, nicht erweitert: er mass eine Schaetzung und eine Vergangenheit.
+ */
 
-const e = (over: Partial<DeliveredEpic> & { amount: number }): DeliveredEpic => ({
-  id: over.id ?? `e${over.amount}`,
-  title: "Epic",
-  epicType: over.epicType ?? "epic",
-  cycleKey: over.cycleKey ?? "2026-H1",
+const plan = (over: Partial<ValueStreamCapacityPlan> = {}): ValueStreamCapacityPlan => ({
+  cycleKey: "2026-H1",
+  cycleLabel: "H1 2026",
+  budget: 420_000,
+  capacity: 240,
+  rows: [
+    {
+      bucket: "business",
+      targetShare: 0.7,
+      available: 168,
+      planned: { count: 31, jobSize: 168 },
+      delta: 0,
+    },
+    {
+      bucket: "enabler",
+      targetShare: 0.2,
+      available: 48,
+      planned: { count: 10, jobSize: 48 },
+      delta: 0,
+    },
+    {
+      bucket: "maintenance",
+      targetShare: 0.1,
+      available: 24,
+      planned: { count: 7, jobSize: 24 },
+      delta: 0,
+    },
+  ],
+  targets: { business: 70, enabler: 20, maintenance: 10 },
+  unclassified: { count: 0, jobSize: 0 },
+  totalPlanned: { count: 48, jobSize: 240 },
+  artCount: 4,
+  artsWithoutRate: [],
+  byCycle: [],
   ...over,
 });
 
-describe("buildValueStreamCapacityMix", () => {
-  it("misst den Mix am zugeteilten Budget, nicht an der Anzahl", () => {
-    const m = buildValueStreamCapacityMix(
-      [
-        e({ id: "a", amount: 2_392_000, epicType: "epic" }),
-        e({ id: "b", amount: 208_000, epicType: "enabler" }),
-      ],
-      TARGETS,
-    );
-    expect(m.mix.rows.business.amount).toBe(2_392_000);
-    expect(Math.round(m.mix.rows.business.amountShare * 100)).toBe(92);
-    expect(Math.round(m.mix.rows.enabler.amountShare * 100)).toBe(8);
+/** Eine Abweichung von `pp` Prozentpunkten der Kapazität auf einem Eimer. */
+const mitDrift = (pp: number): ValueStreamCapacityPlan => {
+  const p = plan();
+  p.rows[1]!.delta = (pp / 100) * p.capacity!;
+  return p;
+};
+
+describe("maxCapacityDrift", () => {
+  it("misst die groesste Abweichung als Anteil der Kapazitaet", () => {
+    expect(maxCapacityDrift(mitDrift(10))).toBeCloseTo(0.1);
   });
 
-  it("trägt die Ziele mit, gegen die gemessen wird", () => {
-    const m = buildValueStreamCapacityMix([e({ amount: 100 })], TARGETS);
-    expect(m.targets).toEqual(TARGETS);
-    expect(m.mix.rows.business.target).toBeCloseTo(0.75, 6);
+  it("das Vorzeichen zaehlt nicht — unterplant ist auch Abweichung", () => {
+    expect(maxCapacityDrift(mitDrift(-12))).toBeCloseTo(0.12);
   });
 
-  // Epics ohne Typ verzerren den Mix — sie fallen aus den Anteilen, aber nicht
-  // aus dem Blick.
-  it("hält unklassifizierte Epics aus den Anteilen heraus und weist sie aus", () => {
-    const m = buildValueStreamCapacityMix(
-      [
-        e({ id: "a", amount: 900, epicType: "epic" }),
-        e({ id: "b", amount: 100, epicType: "enabler" }),
-        e({ id: "c", amount: 500, epicType: null }),
-      ],
-      TARGETS,
-    );
-    expect(m.unclassified).toEqual({ count: 1, amount: 500 });
-    expect(m.mix.rows.business.amount + m.mix.rows.enabler.amount).toBe(1_000);
-    expect(m.totalEpics).toBe(3);
+  it("ohne Kapazitaet gibt es keine Abweichung — und keine 0", () => {
+    const p = plan({ capacity: null });
+    for (const r of p.rows) r.delta = null;
+    expect(maxCapacityDrift(p)).toBeNull();
+  });
+});
+
+describe("die Ampel", () => {
+  it("gruen bis 5 pp, amber darueber, rot ueber 15 pp", () => {
+    const stufe = (pp: number) => {
+      const d = maxCapacityDrift(mitDrift(pp));
+      return statusFor(d ?? 0, d != null);
+    };
+    expect(stufe(4)).toBe("green");
+    expect(stufe(10)).toBe("amber");
+    expect(stufe(20)).toBe("red");
   });
 
-  // Der Trend ist die eigentliche Information — ein Gesamtwert verdeckt ihn.
-  it("zeigt die Entwicklung je Halbjahr, aufsteigend", () => {
-    const m = buildValueStreamCapacityMix(
-      [
-        e({ id: "a", amount: 1_232_000, epicType: "epic", cycleKey: "2025-H2" }),
-        e({ id: "b", amount: 168_000, epicType: "enabler", cycleKey: "2025-H2" }),
-        e({ id: "c", amount: 1_160_000, epicType: "epic", cycleKey: "2026-H1" }),
-        e({ id: "d", amount: 40_000, epicType: "enabler", cycleKey: "2026-H1" }),
-      ],
-      TARGETS,
-    );
-    expect(m.byCycle.map((c) => c.cycleKey)).toEqual(["2025-H2", "2026-H1"]);
-    expect(m.byCycle[0]!.enablerShare).toBe(12);
-    expect(m.byCycle[1]!.enablerShare).toBe(3);
+  it("15,4 pp sind kritisch — nicht bloss eine Abweichung", () => {
+    // Die Nachbau-Ampel rundete vor dem Vergleich und machte daraus 15 → amber.
+    const d = maxCapacityDrift(mitDrift(15.4));
+    expect(statusFor(d ?? 0, d != null)).toBe("red");
   });
 
-  it("leere Eingabe ergibt einen leeren Mix, keine Ausnahme", () => {
-    const m = buildValueStreamCapacityMix([], TARGETS);
-    expect(m.totalEpics).toBe(0);
-    expect(m.byCycle).toEqual([]);
-    expect(m.mix.rows.business.amount).toBe(0);
+  it("ohne Satz steht die Ampel auf unbekannt, nicht auf gruen", () => {
+    const p = plan({ capacity: null });
+    for (const r of p.rows) r.delta = null;
+    const d = maxCapacityDrift(p);
+    expect(statusFor(d ?? 0, d != null)).toBe("unknown");
+  });
+});
+
+/**
+ * **Zwei Gruende, warum es keine Kapazitaet gibt — und sie sind nicht dasselbe.**
+ *
+ * Der erste Entwurf zeigte beides als „Keine Daten". Gemessen an Pulse Demo Corp
+ * fiel auf, was das anrichtet: fuenf von sechs ARTs hatten sehr wohl einen Satz,
+ * fuer das Halbjahr war nur noch kein Geld zugeteilt — die Flaeche behauptete
+ * trotzdem, sie koenne nicht rechnen.
+ */
+describe("noCapacityReason", () => {
+  it("kein Satz", () => {
+    expect(noCapacityReason(plan({ capacity: null }))).toBe("no_rate");
+  });
+
+  it("Satz da, aber noch kein Geld zugeteilt", () => {
+    expect(noCapacityReason(plan({ capacity: 0, budget: 0 }))).toBe("no_budget");
+  });
+
+  it("beides da", () => {
+    expect(noCapacityReason(plan())).toBeNull();
   });
 });

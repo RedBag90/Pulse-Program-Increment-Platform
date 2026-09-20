@@ -12,6 +12,8 @@ import {
   STATIONS,
   type GuardrailTargets,
   type Station,
+  CAPACITY_BUCKETS,
+  type CapacityBucket,
 } from "@/modules/work/domain/portfolio-guardrails";
 
 interface Props {
@@ -41,7 +43,7 @@ export function GuardrailTargetsForm({ targets }: Props) {
 
   const setHorizon = (key: Station, v: number) =>
     setDraft((p) => ({ ...p, horizon: { ...p.horizon, [key]: num(v) } }));
-  const setCapacity = (key: "business" | "enabler", v: number) =>
+  const setCapacity = (key: CapacityBucket, v: number) =>
     setDraft((p) => ({ ...p, capacity: { ...p.capacity, [key]: num(v) } }));
   const setEngagement = (key: "coverage" | "responseDays", v: number) =>
     setDraft((p) => ({ ...p, engagement: { ...p.engagement, [key]: num(v) } }));
@@ -49,7 +51,7 @@ export function GuardrailTargetsForm({ targets }: Props) {
     setDraft((p) => ({ ...p, approval: { portfolioThreshold: num(v) } }));
 
   const horizonSum = STATIONS.reduce((sum, st) => sum + draft.horizon[st], 0);
-  const capacitySum = draft.capacity.business + draft.capacity.enabler;
+  const capacitySum = CAPACITY_BUCKETS.reduce((sum, b) => sum + draft.capacity[b], 0);
 
   return (
     <Card className="space-y-3 p-4">
@@ -117,6 +119,12 @@ export function GuardrailTargetsForm({ targets }: Props) {
               name="guardrail_enabler"
               value={draft.capacity.enabler}
               onChange={(v) => setCapacity("enabler", v)}
+            />
+            <NumberRow
+              label="Maintenance"
+              name="guardrail_maintenance"
+              value={draft.capacity.maintenance}
+              onChange={(v) => setCapacity("maintenance", v)}
             />
             <SumHint sum={capacitySum} />
           </fieldset>

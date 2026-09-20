@@ -54,6 +54,12 @@ describe("artDetailIsEmpty", () => {
           plannedJobSize: 240,
           featureCount: 22,
           plannedStandalone: { jobSize: 0, count: 0 },
+          plannedByBucket: {
+            business: { count: 0, jobSize: 0 },
+            enabler: { count: 0, jobSize: 0 },
+            maintenance: { count: 0, jobSize: 0 },
+          },
+          plannedUnclassified: { count: 0, jobSize: 0 },
           rate: {
             source: "none",
             rate: null,

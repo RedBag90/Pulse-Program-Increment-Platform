@@ -31,6 +31,7 @@ const guardrailTargetsSchema = z
     capacity: z.object({
       business: z.number().min(0).max(100),
       enabler: z.number().min(0).max(100),
+      maintenance: z.number().min(0).max(100),
     }),
     // Guardrail 3: eine Schwelle in Euro, kein Mix.
     approval: z.object({
@@ -87,6 +88,7 @@ export const savePortfolioDashboardSettingsAction = createServerAction({
           capacity: {
             business: num("guardrail_business"),
             enabler: num("guardrail_enabler"),
+            maintenance: num("guardrail_maintenance"),
           },
           approval: {
             // Guardrail 3 wird auf dieser Fläche (noch) nicht gepflegt — der

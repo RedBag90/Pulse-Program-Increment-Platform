@@ -4,10 +4,16 @@
  * ARTs kosten soll.
  *
  * ```
- * Satz = Ø Budget der letzten zwei abgeschlossenen Zyklen
- *        ────────────────────────────────────────────────
- *        Σ Job Size der in diesen Zyklen fertiggestellten Features
+ * Satz = Σ Budget der letzten zwei Halbjahre
+ *        ───────────────────────────────────────────────────────
+ *        Σ Job Size der in diesen Halbjahren fertiggestellten Features
  * ```
+ *
+ * **Halbjahre, nicht Erfolge.** Das Fenster sind die zwei Zeitraeume vor dem
+ * gewaehlten — auch wenn in einem davon nichts fertig wurde. Sein Budget zaehlt
+ * dann trotzdem: wer ein Halbjahr lang Geld ausgibt und nichts liefert, hat
+ * teure Punkte, nicht gar keine. Bis September 2026 wurden solche Halbjahre
+ * uebersprungen, und der Satz griff auf aeltere zurueck.
  *
  * Der tenant-weite `costPerJobSizePoint` bleibt der Rückfall. Er wird heute
  * gepflegt und angezeigt, aber **nirgends multipliziert** — die Fläche, für die
@@ -117,15 +123,24 @@ export function deriveJobSizeRate(input: RateInput): JobSizeRate {
       standaloneFeatureCount: 0,
       caveats: [
         cycles.length === 0
-          ? "Kein abgeschlossener Zyklus — der Satz lässt sich nicht aus der Historie ableiten."
-          : "In den letzten Zyklen wurde nichts fertiggestellt — der Satz lässt sich nicht ableiten.",
+          ? "Kein vorangegangenes Halbjahr — der Satz lässt sich nicht aus der Historie ableiten."
+          : "In den letzten Halbjahren wurde nichts fertiggestellt — der Satz lässt sich nicht ableiten.",
         ...caveats,
       ],
     };
   }
 
+  const leere = cycles.filter((c) => c.jobSize === 0).length;
+  if (leere > 0) {
+    // Ohne diesen Satz sieht ein hoher €-Satz willkuerlich aus. Er ist die
+    // haeufigste Erklaerung dafuer — und zugleich die interessanteste Auskunft
+    // ueber das ART.
+    caveats.push(
+      `In ${leere} von ${cycles.length} Halbjahren des Fensters wurde nichts fertiggestellt — ihr Budget zählt trotzdem.`,
+    );
+  }
   if (cycles.length < RATE_WINDOW) {
-    caveats.push(`Nur ${cycles.length} abgeschlossener Zyklus — der Satz ist vorläufig.`);
+    caveats.push(`Nur ${cycles.length} Halbjahr im Fenster — der Satz ist vorläufig.`);
   }
   if (jobSizeSum < THIN_JOB_SIZE) {
     caveats.push(

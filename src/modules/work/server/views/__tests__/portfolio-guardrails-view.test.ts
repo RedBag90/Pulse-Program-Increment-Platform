@@ -25,9 +25,7 @@ describe("computePortfolioGuardrails", () => {
     const m = computePortfolioGuardrails({ epics: [], targets: DEFAULT_GUARDRAIL_TARGETS });
     expect(m.horizon.totalCount).toBe(0);
     expect(m.horizon.status).toBe("unknown");
-    expect(m.capacity.status).toBe("unknown");
     expect(m.horizonCoverageThin).toBe(false);
-    expect(m.capacityCoverageThin).toBe(false);
     expect(m.horizon.epicsByStage.L0).toEqual([]);
     expect(m.horizon.epicsByStage.L5).toEqual([]);
   });
@@ -118,18 +116,20 @@ describe("computePortfolioGuardrails", () => {
     expect(m.horizon.totalCount).toBe(4);
   });
 
-  it("epicCapacityBucket: epic = business, enabler = enabler", () => {
+  /**
+   * **Die Capacity-Achse steht nicht mehr in dieser View.**
+   *
+   * Sie misst seit September 2026 Features in Job-Size-Punkten gegen die aus dem
+   * Budget abgeleitete Kapazität — gerechnet in
+   * `budgeting/domain/capacity-plan.ts`, getestet dort. Ein Epic hat damit keine
+   * direkte Verbindung mehr zu Guardrail 2.
+   */
+  it("traegt keine Capacity-Achse mehr", () => {
     const m = computePortfolioGuardrails({
-      epics: [
-        epic({ id: "a", epicType: "epic", amount: 10 }),
-        epic({ id: "b", epicType: "epic", amount: 10 }),
-        epic({ id: "c", epicType: "enabler", amount: 5 }),
-      ],
+      epics: [epic({ id: "a", epicType: "epic", amount: 10 })],
       targets: DEFAULT_GUARDRAIL_TARGETS,
     });
-    expect(m.capacity.rows.business.count).toBe(2);
-    expect(m.capacity.rows.enabler.count).toBe(1);
-    expect(m.capacity.rows.business.amountShare).toBeCloseTo(20 / 25);
+    expect("capacity" in m).toBe(false);
   });
 
   it("ampel: gruen wenn alle deltas <=5pp", () => {
@@ -175,7 +175,6 @@ describe("computePortfolioGuardrails", () => {
       targets: DEFAULT_GUARDRAIL_TARGETS,
     });
     expect(m.horizonCoverageThin).toBe(true);
-    expect(m.capacityCoverageThin).toBe(true);
   });
 
   it("targets reagieren auf custom-Werte", () => {
@@ -184,7 +183,7 @@ describe("computePortfolioGuardrails", () => {
       targets: {
         ...DEFAULT_GUARDRAIL_TARGETS,
         horizon: { h0: 0, "h1.1": 100, "h1.2": 0, h2: 0, h3: 0 },
-        capacity: { business: 100, enabler: 0 },
+        capacity: { business: 100, enabler: 0, maintenance: 0 },
       },
     });
     expect(m.horizon.rows["h1.1"].deltaCount).toBeCloseTo(0);

@@ -21,7 +21,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 import type { ArtCoverage } from "@/modules/budgeting/domain/art-budget-model";
 import { loadArtCoverage } from "@/modules/budgeting/server/services/art-coverage";
-import { readBudgetCandidates } from "@/modules/budgeting/server/services/budget-reads";
+import { loadArtChangeBudgetByCycle } from "@/modules/budgeting/server/services/art-epic-budget";
 
 export interface ArtKpiRow {
   artId: string;
@@ -79,19 +79,16 @@ export async function loadBudgetKpis(
   cycleKey: string,
 ): Promise<BudgetKpis> {
   /**
-   * Die Zuteilungen **je ART und Halbjahr** — Bezugsgröße der Lücke im
+   * Das Veränderungsgeld **je ART und Halbjahr** — Bezugsgröße der Lücke im
    * gewählten Halbjahr und zugleich Zähler des Satzes in den vergangenen.
-   * Dieselbe Rechnung steht in `loadArtBudgetDetail`; sie kommt aus demselben
-   * geteilten Lader, damit beide Flächen nicht auseinanderlaufen können.
+   * Dieselbe Rechnung steht in `loadArtBudgetDetail`; beide holen sie aus
+   * `loadArtChangeBudgetByCycle`, damit sie nicht auseinanderlaufen können.
    */
-  const candidates = await readBudgetCandidates(db, tenantId);
-  const zuteilung = new Map<string, Record<string, number>>();
-  for (const c of candidates) {
-    if (c.kind !== "epic" || c.artId == null || c.finalAmount == null) continue;
-    const je = zuteilung.get(c.artId) ?? {};
-    je[c.cycleKey] = (je[c.cycleKey] ?? 0) + c.finalAmount;
-    zuteilung.set(c.artId, je);
-  }
+  const zuteilung = await loadArtChangeBudgetByCycle(
+    db,
+    tenantId,
+    arts.map((a) => a.id),
+  );
 
   const rows = await Promise.all(
     arts.map(async (a) => ({

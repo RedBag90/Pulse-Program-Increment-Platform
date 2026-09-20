@@ -170,11 +170,26 @@ export const POLICIES: Record<Action, Grant[]> = {
     { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER, VALUE_STREAM_OWNER] },
     { roles: [RTE], scope: "art" },
   ],
-  // Distribute a Value Stream's budget down to its ARTs. `value_stream`-scoped:
-  // ein Wertstrom-Owner darf SEINEN Wertstrom verteilen, nicht jeden — ohne den
-  // Scope war der Grant vakuant und der Editor erschien auf fremden Wertstroemen.
-  // Der Service-Seam laesst zusaetzlich die Finance-Partei des Wertstroms zu
-  // (`ValueStream.financeApproverId`), die keine Rolle hierfuer braucht.
+  // ⚠️ **WIRKUNGSLOS — diese Capability wird von keinem Seam geprueft.**
+  //
+  // Sie sollte das Herunterfuehren des Wertstrom-Budgets auf die ARTs gaten. Ihr
+  // Konsument (`saveArtBudget`) entfiel, als der ART-Rahmen eine **abgeleitete**
+  // Summe wurde: Σ der Zusprueche auf den Betriebspositionen der Art
+  // `art_change` (`RtbItemAward`). Seither traegt das Recht daran
+  // `rtb_item.manage` — nachgewiesen per grep: ausser der Deklaration, dem
+  // Katalog in `admin-roles.ts` und dieser Zeile kein einziger Aufruf.
+  //
+  // Sie steht weiter hier wie `tenant.create`: sichtbar und wirkungslos, statt
+  // still entfernt. Wer sie im Admin-UI erteilt oder entzieht, verstellt eine
+  // Attrappe. Das Aufraeumen ist ein eigener Zug — es beruehrt
+  // `role_capabilities`-Zeilen in jedem Mandanten und ist damit ein Schreiblauf.
+  //
+  // Dieselbe Bauart, ebenfalls ohne Konsument: `budget.cycle.advance` und
+  // `budget.round.decide` (das Entscheiden laeuft ueber `budget.manage`).
+  //
+  // Der urspruengliche Scope-Gedanke, falls sie je wieder verdrahtet wird:
+  // `value_stream`-scoped, damit ein Wertstrom-Owner SEINEN Wertstrom verteilt,
+  // nicht jeden; der Service-Seam liesse zusaetzlich die Finance-Partei zu.
   "art_budget.manage": [
     { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] },
     { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
@@ -184,14 +199,28 @@ export const POLICIES: Record<Action, Grant[]> = {
   // verteilen — der RTE `art`-scoped auf seinen eigenen. Das Budget **setzt** er
   // damit nicht; das bleibt beim Wertstrom. Der Service-Seam lässt zusätzlich die
   // Finance-Partei und den Produkt-Manager der Solution eines Epics zu
-  // (`domain/art-pot-access.ts`).
+  // (`domain/budget-access.ts`).
+  //
+  // **Der Wertstrom-Owner steht seit September 2026 auf einer eigenen, `value_stream`-
+  // scoped Zeile.** Vorher stand er in der unscoped Zeile neben Admin und
+  // Portfolio-Management — er durfte damit in **fremden** Wertströmen verteilen,
+  // und schlimmer: `my-tasks` schickte ihm die Förder-Erinnerung für **jedes**
+  // ART des Mandanten, weil der Zweig dort „unscoped ⇒ alle ARTs" liest. Das war
+  // für die beiden tenant-weiten Rollen gedacht.
+  //
+  // Damit der Scope auf einer ART-Fläche überhaupt greift, muss der Aufrufer den
+  // Wertstrom des ARTs **mitgeben** — `authorize()` löst ART → Wertstrom nicht
+  // auf (`SCOPE_CHECKERS.art` liest nur `scopes.artIds`). Die Services laden die
+  // Zeile ohnehin und reichen `art.valueStreamId` bereits an `rtb_item.manage`;
+  // sie geben ihn jetzt auch hier mit (`art-pot.ts`, `art-budget-access.ts`).
   "art_budget.distribute": [
-    { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER, VALUE_STREAM_OWNER] },
+    { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] },
+    { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
     { roles: [RTE], scope: "art" },
   ],
   // Run-the-Business-Positionen eines Value Streams pflegen (stehend am VS).
-  // Modelliert auf `art_budget.manage`: `value_stream`-scoped für den VS-Owner;
-  // der Service-Seam lässt zusätzlich die Finance-Partei (`financeApproverId`) zu.
+  // `value_stream`-scoped für den VS-Owner; der Service-Seam lässt zusätzlich die
+  // Finance-Partei (`financeApproverId`) zu.
   "rtb_item.manage": [
     { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] },
     { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },

@@ -16,6 +16,8 @@
 
 import type { AllocationBreakdown } from "@/modules/budgeting/domain/allocation-state";
 import type { JobSizeRate } from "@/modules/budgeting/domain/art-throughput";
+import type { PointCell } from "@/modules/budgeting/domain/capacity-plan";
+import type { CapacityBucket } from "@/modules/work/domain/portfolio-guardrails";
 import type { ArtEpicBudget } from "@/modules/budgeting/domain/art-epic-budget";
 
 /** Woher das Geld einer Zuteilung kommt. Heute nur `portfolio`. */
@@ -152,6 +154,13 @@ export interface ArtCoverage {
    * für den Richtwert der Reservierungszeile (`domain/art-own-work.ts`).
    */
   plannedStandalone: { jobSize: number; count: number };
+  /**
+   * Dieselbe eingeplante Last, aufgeteilt auf die drei Arbeitstypen — die
+   * Grundlage von Guardrail 2. Σ der Eimer + `plannedUnclassified` ergibt
+   * `plannedJobSize`; ein Feature ohne Typ gehört in keinen Eimer.
+   */
+  plannedByBucket: Record<CapacityBucket, PointCell>;
+  plannedUnclassified: PointCell;
   rate: JobSizeRate;
   /** Last in Geld — `null`, wenn kein Satz vorliegt. */
   loadEuro: number | null;

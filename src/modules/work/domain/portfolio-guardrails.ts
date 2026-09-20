@@ -3,9 +3,11 @@
  *
  * Drei Guardrails:
  *  - **Investment by Horizon** — Epics nach McKinsey-3-Horizons-Modell.
- *  - **Apply Capacity Allocation** — Epics als Solution/Epic/Enabler,
- *    Features als Feature/Enabler. „Business"-Side = solution + epic /
- *    feature; „Enabler"-Side = enabler.
+ *  - **Apply Capacity Allocation** — **Features** nach ihrem Arbeitstyp, in
+ *    Job-Size-Punkten gegen die aus dem Budget abgeleitete Kapazitaet.
+ *    `feature → business`, `enabler → enabler`, `maintenance → maintenance`.
+ *    Epics tragen diese Achse seit September 2026 nicht mehr: sie werden durch
+ *    die Features repraesentiert, die unter ihnen haengen.
  *  - **Business-Owner-Engagement** — Abdeckung + Reaktionszeit der
  *    `business_owner`-Freigaben. Kein Mix; Berechnung im View.
  *
@@ -22,7 +24,16 @@ import { HORIZONS, type Horizon } from "@/modules/core/org/domain/horizon";
 export const EPIC_TYPES = ["epic", "enabler"] as const;
 export type EpicType = (typeof EPIC_TYPES)[number];
 
-export const FEATURE_TYPES = ["feature", "enabler"] as const;
+/**
+ * Der Arbeitstyp eines Features — und **die** Achse der Capacity Allocation.
+ *
+ * `maintenance` kam im September 2026 dazu. Es ist bewusst **kein** Gegenstueck
+ * zu `RunTheBusinessItem.kind = "run"`: Betrieb ist ein Finanzierungstopf und
+ * bezahlt nie ein Feature (`art-budget-process-layout.md`). Wartungsarbeit
+ * hingegen wird aus dem Veraenderungsgeld bezahlt wie jede andere — sie ist nur
+ * eine andere Art Arbeit, und genau das soll die Guardrail sichtbar machen.
+ */
+export const FEATURE_TYPES = ["feature", "enabler", "maintenance"] as const;
 export type FeatureType = (typeof FEATURE_TYPES)[number];
 
 /**
@@ -70,23 +81,54 @@ export const EPIC_TYPE_LABEL: Record<EpicType, string> = {
 export const FEATURE_TYPE_LABEL: Record<FeatureType, string> = {
   feature: "Feature",
   enabler: "Enabler",
+  maintenance: "Maintenance",
 };
 
 export const isEpicType = makeTypeGuard(EPIC_TYPES);
 export const isFeatureType = makeTypeGuard(FEATURE_TYPES);
 
 /**
- * Klassifikation in „Business" oder „Enabler" — dient dem Capacity-
- * Allocation-Guardrail. `epic` zaehlt als Business; `enabler` als Enabler.
+ * Die Eimer der Capacity Allocation. Sie heissen nach der **Arbeit**, nicht nach
+ * dem Feature-Typ: „Business" ist, was fachlichen Nutzen baut, und das sind die
+ * Features vom Typ `feature`.
+ */
+export const CAPACITY_BUCKETS = ["business", "enabler", "maintenance"] as const;
+export type CapacityBucket = (typeof CAPACITY_BUCKETS)[number];
+
+export const CAPACITY_BUCKET_LABEL: Record<CapacityBucket, string> = {
+  business: "Business-Features",
+  enabler: "Enabler-Features",
+  maintenance: "Maintenance-Features",
+};
+
+/**
+ * **Die Klassifikation der Achse.** Ein Feature-Typ ist genau ein Eimer.
+ *
+ * Bis September 2026 war das eine Ja/Nein-Frage (`enabler` oder eben nicht) und
+ * damit auf zwei Werte festgelegt. Mit `maintenance` wird daraus eine echte
+ * Zuordnung — und der Vorgabe-Zweig faellt weg, der jeden unbekannten Wert
+ * stillschweigend zu „Business" gemacht haette.
+ */
+export function featureCapacityBucket(type: FeatureType | null | undefined): CapacityBucket | null {
+  if (type == null) return null;
+  return type === "feature" ? "business" : type;
+}
+
+/**
+ * **Traegt die Capacity-Achse nicht mehr.**
+ *
+ * Bis September 2026 wurde Guardrail 2 ueber Epics gerechnet — nach ihren
+ * Business-Case-Schaetzungen. Sie laeuft jetzt ueber die Features, die unter
+ * einem Epic haengen, und misst in Job-Size-Punkten gegen die aus dem Budget
+ * abgeleitete Kapazitaet (`budgeting/domain/capacity-plan.ts`). Ein Epic ist
+ * darin durch seine Features vertreten und nicht mehr direkt.
+ *
+ * Die Funktion bleibt stehen wie `art_budget.manage`: sichtbar und ohne Wirkung,
+ * statt still entfernt. Wer sie aufruft, misst etwas, das keine Flaeche mehr
+ * zeigt.
  */
 export function epicCapacityBucket(
   type: EpicType | null | undefined,
-): "business" | "enabler" | null {
-  if (type == null) return null;
-  return type === "enabler" ? "enabler" : "business";
-}
-export function featureCapacityBucket(
-  type: FeatureType | null | undefined,
 ): "business" | "enabler" | null {
   if (type == null) return null;
   return type === "enabler" ? "enabler" : "business";
@@ -99,7 +141,8 @@ export function featureCapacityBucket(
  */
 export interface GuardrailTargets {
   horizon: Record<Station, number>;
-  capacity: { business: number; enabler: number };
+  /** Guardrail 2 — die drei Arbeitstypen, Summe 100 %. */
+  capacity: Record<CapacityBucket, number>;
   /**
    * Guardrail 3 — ab welcher Größe ein Vorhaben eine Portfolio-Entscheidung
    * braucht. Kein Mix, sondern eine Schwelle in Euro: darüber Portfolio-Epic,
@@ -126,7 +169,7 @@ export const DEFAULT_GUARDRAIL_TARGETS: GuardrailTargets = {
    * Aussage ueber Ausbau gegen Ernte halten.
    */
   horizon: { h3: 10, h2: 20, "h1.1": 30, "h1.2": 30, h0: 10 },
-  capacity: { business: 80, enabler: 20 },
+  capacity: { business: 70, enabler: 20, maintenance: 10 },
   approval: { portfolioThreshold: 100_000 },
   engagement: { coverage: 90, responseDays: 10 },
 };
@@ -209,8 +252,18 @@ export function parseGuardrailTargetsDetailed(raw: unknown): GuardrailTargetsPar
     recordFallback(`horizon.${key}`);
     return DEFAULT_GUARDRAIL_TARGETS.horizon[key];
   };
-  const capacityField = (key: "business" | "enabler"): number => {
+  /**
+   * **`maintenance` fehlt in jedem Bestands-JSON** — die Achse trug bis
+   * September 2026 zwei Kuebel. Dieselbe Toleranz wie bei `h0`: fehlt der
+   * Schluessel, waehrend die anderen beiden dastehen, gilt 0 statt eines
+   * Fallbacks. Das bewahrt die Summe 100 des Mandanten und haelt
+   * `reportGuardrailTargetsFallback` still — ohne diesen Zweig meldete jeder
+   * Alt-Tenant ab dem ersten Laden Drift.
+   */
+  const capacityHasLegacyKeys = typeof c.business === "number" || typeof c.enabler === "number";
+  const capacityField = (key: CapacityBucket): number => {
     if (typeof c[key] === "number") return c[key] as number;
+    if (key === "maintenance" && capacityHasLegacyKeys) return 0;
     recordFallback(`capacity.${key}`);
     return DEFAULT_GUARDRAIL_TARGETS.capacity[key];
   };
@@ -242,7 +295,11 @@ export function parseGuardrailTargetsDetailed(raw: unknown): GuardrailTargetsPar
       Station,
       number
     >,
-    capacity: { business: capacityField("business"), enabler: capacityField("enabler") },
+    capacity: {
+      business: capacityField("business"),
+      enabler: capacityField("enabler"),
+      maintenance: capacityField("maintenance"),
+    },
     approval: { portfolioThreshold: approvalField("portfolioThreshold") },
     engagement: {
       coverage: engagementField("coverage"),
@@ -273,16 +330,14 @@ export function validateGuardrailTargets(t: GuardrailTargets): {
   reason?: string;
 } {
   const allNonNeg =
-    STATIONS.every((st) => t.horizon[st] >= 0) &&
-    t.capacity.business >= 0 &&
-    t.capacity.enabler >= 0;
+    STATIONS.every((st) => t.horizon[st] >= 0) && CAPACITY_BUCKETS.every((b) => t.capacity[b] >= 0);
   if (!allNonNeg) return { ok: false, reason: "Targets duerfen nicht negativ sein" };
 
   const horizonSum = STATIONS.reduce((sum, st) => sum + t.horizon[st], 0);
   if (Math.abs(horizonSum - 100) > 0.5) {
     return { ok: false, reason: `Horizon-Targets summieren auf ${horizonSum}, erwartet 100` };
   }
-  const capSum = t.capacity.business + t.capacity.enabler;
+  const capSum = CAPACITY_BUCKETS.reduce((sum, b) => sum + t.capacity[b], 0);
   if (Math.abs(capSum - 100) > 0.5) {
     return { ok: false, reason: `Capacity-Targets summieren auf ${capSum}, erwartet 100` };
   }

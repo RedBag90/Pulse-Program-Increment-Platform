@@ -25,10 +25,8 @@ import { listGateApproverRules } from "@/modules/work/server/services/stage-gate
 import { DeleteValueStreamButton } from "@/modules/core/org/features/value-stream/components/delete-value-stream-button";
 import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
 import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
-import {
-  loadClassificationPreview,
-  loadValueStreamCapacityMix,
-} from "@/modules/work/server/views/value-stream-capacity-mix";
+import { loadClassificationPreview } from "@/modules/work/server/views/value-stream-capacity-mix";
+import { loadValueStreamCapacityPlan } from "@/modules/budgeting/server/views/capacity-plan";
 import { ValueStreamGuardrailsSection } from "@/modules/work/features/portfolio/components/value-stream-guardrails-section";
 import { getTenantPractices } from "@/server/services/target-model";
 import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
@@ -74,7 +72,7 @@ export default async function ValueStreamNodePage({ params, searchParams }: Prop
 
   const budgetingEnabled = principal.enabledModules.includes("budgeting");
   // Die Finance-Partei des Wertstroms darf ohne Rolle lesen — derselbe Seam,
-  // den `art_budget.manage` für das Verteilen nutzt.
+  // den `rtb_item.manage` für das Verteilen nutzt.
   const canReadBudget =
     budgetingEnabled &&
     inScope &&
@@ -246,8 +244,12 @@ async function GuardrailsTab({ db, principal, vsId, inScope }: any) {
     getTenantPractices(db, principal.tenantId),
   ]);
   const resolved = resolveGuardrailTargets(guardrailRows, tenant?.guardrailTargets ?? null, vsId);
-  const [mix, preview] = await Promise.all([
-    loadValueStreamCapacityMix(db, principal.tenantId, vsId, resolved.targets.capacity),
+  // **Hier treffen sich Work und Budgeting.** Die Ziele gehören Work, der
+  // €-Satz je Job-Size-Punkt gehört Budgeting, und keines der beiden Module darf
+  // das andere lesen (ADR-0013) — der Kompositionsroot darf es. Dasselbe Muster
+  // wie die Figuren des Wikis.
+  const [plan, preview] = await Promise.all([
+    loadValueStreamCapacityPlan(db, principal.tenantId, vsId, resolved.targets),
     practices.artEpics
       ? loadClassificationPreview(
           db,
@@ -261,7 +263,7 @@ async function GuardrailsTab({ db, principal, vsId, inScope }: any) {
   return (
     <ValueStreamGuardrailsSection
       valueStreamId={vsId}
-      mix={mix}
+      plan={plan}
       threshold={resolved.targets.approval.portfolioThreshold}
       source={resolved.source}
       overriddenAxes={resolved.overriddenAxes}

@@ -34,9 +34,12 @@ export async function mayReadArtBudget(
         tenantId: principal.tenantId,
         valueStreamId: art.valueStreamId,
       }),
+    // Beide Achsen mitgeben: der RTE ist `art`-scoped, der Wertstrom-Owner
+    // `value_stream`-scoped. Fehlt eine, ist ihr Scope vakuant wahr.
     hasArtDistributeCapability: hasCapability(principal, "art_budget.distribute", {
       tenantId: principal.tenantId,
       artId: art.id,
+      valueStreamId: art.valueStreamId,
     }),
   };
 

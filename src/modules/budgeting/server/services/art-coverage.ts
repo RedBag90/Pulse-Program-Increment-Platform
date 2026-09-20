@@ -10,13 +10,21 @@
 import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel, type TenantId } from "@/modules/core/kernel/domain/types";
 import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
-import { compareCycles } from "@/modules/budgeting/domain/cycle";
+import { previousCycles } from "@/modules/budgeting/domain/cycle";
 import {
   deriveJobSizeRate,
   loadInEuro,
+  RATE_WINDOW,
   type ThroughputCycle,
 } from "@/modules/budgeting/domain/art-throughput";
 import { aggregateArtFeatureLoad } from "@/modules/budgeting/domain/art-budget";
+import { emptyPointCell, type PointCell } from "@/modules/budgeting/domain/capacity-plan";
+import {
+  CAPACITY_BUCKETS,
+  featureCapacityBucket,
+  isFeatureType,
+  type CapacityBucket,
+} from "@/modules/work/domain/portfolio-guardrails";
 import type { ArtCoverage } from "@/modules/budgeting/domain/art-budget-model";
 import { getTenantBudgetSettings } from "@/modules/budgeting/server/services/tenant-budget-settings";
 
@@ -53,6 +61,8 @@ export async function loadArtCoverage(
         wsjfJobSize: true,
         // Für die Herkunft des Nenners: hängt dieses Feature an einem Epic?
         parentId: true,
+        // Guardrail 2: der Arbeitstyp teilt die Last in ihre drei Eimer.
+        featureType: true,
         pi: { select: { startDate: true, endDate: true } },
       },
     }),
@@ -85,6 +95,27 @@ export async function loadArtCoverage(
     [artId],
     features.filter((f) => f.parentId === null).map(zuLast),
   )[0]?.byPeriod[cycleKey] ?? { jobSize: 0, count: 0 };
+
+  /**
+   * **Dieselbe Rechnung je Arbeitstyp** — die Grundlage von Guardrail 2.
+   *
+   * Wieder das Primitiv, einmal je Eimer, statt einer Schleife, die „eingeplant
+   * in diesem Halbjahr" ein zweites Mal definiert. Der Preis ist ein Durchlauf
+   * mehr über eine Liste, die ohnehin im Speicher liegt; der Gewinn ist, dass
+   * die Summe der Eimer und `plannedJobSize` nicht auseinanderlaufen können.
+   */
+  const lastFuer = (pruefe: (t: string | null) => boolean): PointCell =>
+    aggregateArtFeatureLoad([artId], features.filter((f) => pruefe(f.featureType)).map(zuLast))[0]
+      ?.byPeriod[cycleKey] ?? emptyPointCell();
+
+  const plannedByBucket = Object.fromEntries(
+    CAPACITY_BUCKETS.map((bucket) => [
+      bucket,
+      lastFuer((t) => isFeatureType(t) && featureCapacityBucket(t) === bucket),
+    ]),
+  ) as Record<CapacityBucket, PointCell>;
+
+  const plannedUnclassified = lastFuer((t) => !isFeatureType(t));
 
   // Nenner: fertiggestellte Features je Abschluss-Halbjahr.
   const doneByCycle = new Map<
@@ -120,17 +151,34 @@ export async function loadArtCoverage(
     });
   }
 
-  // Nur Zyklen, die vor dem gewählten liegen — der laufende ist nicht abgeschlossen.
-  const cycles: ThroughputCycle[] = [...doneByCycle.entries()]
-    .filter(([key]) => compareCycles(key, cycleKey) < 0)
-    .map(([key, v]) => ({
+  /**
+   * **Das Fenster sind Halbjahre, keine Erfolge.**
+   *
+   * Bis September 2026 entstand diese Liste aus `doneByCycle` — also nur aus
+   * Halbjahren, in denen etwas fertig wurde. Ein Halbjahr, in dem Geld floss und
+   * nichts abgeschlossen wurde, tauchte gar nicht auf. Gemessen an „Shared
+   * Services & Automation": 255.000 € aus zwei aufeinanderfolgenden Halbjahren
+   * ohne einen einzigen Abschluss fielen aus der Rechnung, und der Satz kam aus
+   * einem einzelnen, ein Jahr alten Halbjahr.
+   *
+   * Der Satz soll aber beantworten „was hat ein Punkt bei diesem Zug zuletzt
+   * gekostet". Wer ein Halbjahr lang Geld ausgibt und nichts liefert, hat teure
+   * Punkte — nicht gar keine.
+   *
+   * Die letzten `RATE_WINDOW` Halbjahre **vor** dem gewählten: der laufende ist
+   * nicht abgeschlossen und zählt nie mit.
+   */
+  const cycles: ThroughputCycle[] = previousCycles(cycleKey, RATE_WINDOW).map((key) => {
+    const v = doneByCycle.get(key);
+    return {
       cycleKey: key,
       budget: allocatedByCycle[key] ?? 0,
-      jobSize: v.jobSize,
-      featureCount: v.count,
-      standaloneJobSize: v.standaloneJobSize,
-      standaloneFeatureCount: v.standaloneCount,
-    }));
+      jobSize: v?.jobSize ?? 0,
+      featureCount: v?.count ?? 0,
+      standaloneJobSize: v?.standaloneJobSize ?? 0,
+      standaloneFeatureCount: v?.standaloneCount ?? 0,
+    };
+  });
 
   const rate = deriveJobSizeRate({
     cycles,
@@ -146,6 +194,8 @@ export async function loadArtCoverage(
     plannedJobSize,
     featureCount: plannedCount,
     plannedStandalone: { jobSize: plannedStandalone.jobSize, count: plannedStandalone.count },
+    plannedByBucket,
+    plannedUnclassified,
     rate,
     loadEuro,
     allocated,

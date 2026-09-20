@@ -8,6 +8,9 @@ import {
 } from "@/modules/work/server/services/portfolio-dashboard";
 import { computePortfolioGuardrails } from "@/modules/work/server/views/portfolio-guardrails-view";
 import { GuardrailsView } from "@/modules/work/features/portfolio/components/guardrails/guardrails-view";
+import { loadPortfolioCapacityPlan } from "@/modules/budgeting/server/views/capacity-plan";
+import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
+import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
 
 /**
  * SAFe Portfolio Guardrails — Ist-Mix gegen den vom LPM gesetzten Soll-Mix.
@@ -23,10 +26,26 @@ export default async function PortfolioGuardrailsPage() {
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const [guardrails, boEpics] = await Promise.all([
+  const [guardrails, boEpics, guardrailRows] = await Promise.all([
     getPortfolioGuardrailsInputs(db, principal.tenantId),
     getBusinessOwnerEngagementInputs(db, principal.tenantId),
+    listValueStreamGuardrailTargets(db, principal.tenantId),
   ]);
+
+  /**
+   * **Hier treffen sich Work und Budgeting.** Guardrail 2 rechnet in
+   * Job-Size-Punkten und braucht dafür den €-Satz je ART — der gehört Budgeting.
+   * Die Ziele und ihre Vererbung gehören Work. Zusammengeführt wird im
+   * Kompositionsroot, der einzigen Schicht, die beides darf (ADR-0013).
+   *
+   * Jeder Wertstrom rechnet mit **seinen** Zielen; die Auflösung wird als
+   * Funktion hereingereicht, statt sie im Lader ein zweites Mal zu bauen.
+   */
+  const capacityPlan = await loadPortfolioCapacityPlan(
+    db,
+    principal.tenantId,
+    (vsId) => resolveGuardrailTargets(guardrailRows, guardrails.targetsRaw ?? null, vsId).targets,
+  );
 
   const model = computePortfolioGuardrails({
     epics: guardrails.epics,
@@ -43,6 +62,7 @@ export default async function PortfolioGuardrailsPage() {
   return (
     <GuardrailsView
       model={model}
+      capacityPlan={capacityPlan}
       epicCount={guardrails.epics.length}
       canManageTargets={canManageTargets}
       targets={guardrails.targets}

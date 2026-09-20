@@ -18,6 +18,7 @@ import {
   parseGuardrailTargets,
   resolveGuardrailTargets,
   type GuardrailTargetsRow,
+  type CapacityBucket,
 } from "@/modules/work/domain/portfolio-guardrails";
 
 /** Alle Wertstrom-Zeilen eines Mandanten — Eingabe der Auflösung. */
@@ -80,7 +81,7 @@ export interface SaveValueStreamGuardrailTargetsInput {
    * geschrieben, sondern genau das Gesetzte.
    */
   targets: {
-    capacity?: { business: number; enabler: number } | undefined;
+    capacity?: Record<CapacityBucket, number> | undefined;
     approval?: { portfolioThreshold: number } | undefined;
   };
 }

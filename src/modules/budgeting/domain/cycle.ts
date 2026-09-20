@@ -58,6 +58,34 @@ export function sortCycles(keys: Iterable<string>, direction: "asc" | "desc" = "
 }
 
 /**
+ * Die `n` Halbjahre **vor** dem gegebenen, absteigend (das jüngste zuerst).
+ *
+ * Gebraucht vom €-Satz je Job-Size-Punkt, und dort ist der Unterschied nicht
+ * kosmetisch: bis September 2026 baute `art-coverage.ts` sein Fenster aus den
+ * Halbjahren, in denen **etwas fertig wurde**. Ein Halbjahr, in dem Geld floss
+ * und nichts abgeschlossen wurde, existierte für den Satz nicht — gemessen
+ * verschwanden bei einem ART so 255.000 € aus zwei Halbjahren, und der Satz kam
+ * aus einem einzelnen, ein Jahr alten.
+ *
+ * Ein Fenster ist deshalb eine Folge von **Zeiträumen**, keine Auswahl von
+ * Erfolgen. Rein — es rechnet auf dem Schlüssel, nicht auf dem Kalender.
+ */
+export function previousCycles(cycleKey: string, n: number): string[] {
+  const out: string[] = [];
+  let [year, half] = cycleKey.split("-H").map(Number) as [number, number];
+  for (let i = 0; i < n; i++) {
+    if (half === 1) {
+      year -= 1;
+      half = 2;
+    } else {
+      half = 1;
+    }
+    out.push(`${year}-H${half}`);
+  }
+  return out;
+}
+
+/**
  * Die beiden Halbjahre, in denen Budgeting arbeitet: das **laufende** und das
  * **nächste**.
  *

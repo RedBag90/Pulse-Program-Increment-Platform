@@ -18,11 +18,15 @@ import {
   type Horizon,
   type Station,
   type GuardrailTargets,
-  epicCapacityBucket,
-  isEpicType,
   isHorizon,
 } from "@/modules/work/domain/portfolio-guardrails";
-import { computeMixAxis, type MixRow } from "@/modules/work/domain/guardrail-rules";
+import {
+  computeMixAxis,
+  statusFor,
+  COVERAGE_THIN_THRESHOLD,
+  type MixRow,
+  type GuardrailStatus,
+} from "@/modules/work/domain/guardrail-rules";
 import { thresholdTier, type AmpelTier } from "@/modules/work/domain/portfolio-ampel";
 import { MS_PER_DAY } from "@/modules/core/kernel/domain/calendar";
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
@@ -30,10 +34,7 @@ import type { StageGate } from "@/modules/core/kernel/domain/types";
 
 export type { MixRow };
 
-export type CapacityBucket = "business" | "enabler";
-
-/** Ampel einer Guardrail-Achse. Eine Sprache fuer alle drei Karten. */
-export type GuardrailStatus = "green" | "amber" | "red" | "unknown";
+export type { GuardrailStatus };
 
 /**
  * Roh-Input pro Epic. `amount` ist die in der Card als "€"-Sicht
@@ -98,15 +99,16 @@ export interface HorizonGuardrailModel {
   epicsByHorizon: Record<HorizonColumn, StageTowerEpic[]>;
 }
 
-export interface CapacityGuardrailModel {
-  rows: Record<CapacityBucket, MixRow>;
-  unclassifiedCount: number;
-  unclassifiedAmount: number;
-  totalCount: number;
-  maxAbsDeltaCount: number;
-  maxAbsDeltaAmount: number;
-  status: GuardrailStatus;
-}
+/**
+ * **Die Capacity-Achse steht nicht mehr hier.**
+ *
+ * Sie misst seit September 2026 Features in Job-Size-Punkten gegen die aus dem
+ * Budget abgeleitete Kapazitaet, nicht Epics in geschaetzten Euro — und der
+ * €-Satz, den sie dafuer braucht, gehoert Budgeting. Gerechnet wird sie in
+ * `budgeting/server/views/capacity-plan.ts`, zusammengefuehrt im
+ * Kompositionsroot. Diese View traegt weiter Horizont, Engagement und die
+ * Epic-Tuerme.
+ */
 
 /**
  * Eine Business-Owner-Abnahmezeile am Schritt L2 → L3.1. Der Service filtert auf
@@ -174,21 +176,10 @@ export interface EngagementGuardrailModel {
 
 export interface PortfolioGuardrailsModel {
   horizon: HorizonGuardrailModel;
-  capacity: CapacityGuardrailModel;
   /** Hinweis: > 20 % der Epics ohne Klassifikation → Mix ist nur Indiz. */
   horizonCoverageThin: boolean;
-  capacityCoverageThin: boolean;
   /** Guardrail 4. `undefined`, wenn der Aufrufer keine BO-Daten uebergibt. */
   engagement?: EngagementGuardrailModel;
-}
-
-const COVERAGE_THIN_THRESHOLD = 0.2;
-
-function statusFor(maxAbsDelta: number, hasData: boolean): GuardrailStatus {
-  if (!hasData) return "unknown";
-  if (maxAbsDelta > 0.15) return "red";
-  if (maxAbsDelta > 0.05) return "amber";
-  return "green";
 }
 
 /** `thresholdTier` spricht „rose", die Guardrail-Flaeche spricht „red". */
@@ -357,23 +348,9 @@ export function computePortfolioGuardrails(input: {
     epicsByHorizon[c].sort((a, b) => (stageRank[a.stageGate] ?? 0) - (stageRank[b.stageGate] ?? 0));
   }
 
-  // ---- Capacity — Mix-Math via computeMixAxis ----
-  const capacityMix = computeMixAxis<GuardrailsEpicInput, CapacityBucket>({
-    items: epics,
-    buckets: ["business", "enabler"] as const,
-    classify: (e) => {
-      const type = isEpicType(e.epicType) ? e.epicType : null;
-      return epicCapacityBucket(type);
-    },
-    amountOf: (e) => e.amount,
-    targets: targets.capacity,
-  });
-
   const totalEpics = epics.length;
   const horizonCoverageThin =
     totalEpics > 0 && horizonMix.unclassifiedCount / totalEpics > COVERAGE_THIN_THRESHOLD;
-  const capacityCoverageThin =
-    totalEpics > 0 && capacityMix.unclassifiedCount / totalEpics > COVERAGE_THIN_THRESHOLD;
 
   return {
     horizon: {
@@ -392,22 +369,7 @@ export function computePortfolioGuardrails(input: {
       epicsByStage,
       epicsByHorizon,
     },
-    capacity: {
-      rows: capacityMix.rows,
-      unclassifiedCount: capacityMix.unclassifiedCount,
-      unclassifiedAmount: capacityMix.unclassifiedAmount,
-      totalCount: totalEpics,
-      maxAbsDeltaCount: capacityMix.maxAbsCount,
-      maxAbsDeltaAmount: capacityMix.maxAbsAmount,
-      status: statusFor(
-        capacityMix.classifiedAmount > 0
-          ? Math.max(capacityMix.maxAbsCount, capacityMix.maxAbsAmount)
-          : capacityMix.maxAbsCount,
-        capacityMix.classifiedCount > 0,
-      ),
-    },
     horizonCoverageThin,
-    capacityCoverageThin,
     ...(engagement && {
       engagement: computeBusinessOwnerEngagement({
         epics: engagement.epics,

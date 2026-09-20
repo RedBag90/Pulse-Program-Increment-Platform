@@ -111,3 +111,36 @@ export function computeMixAxis<TItem, B extends string>(args: {
     maxAbsAmount,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Die Ampel
+// ---------------------------------------------------------------------------
+
+/** Ampel einer Guardrail-Achse. Eine Sprache fuer alle Karten. */
+export type GuardrailStatus = "green" | "amber" | "red" | "unknown";
+
+/**
+ * **Ueber 20 % ohne Klassifikation** — dann ist der Mix nur noch ein Indiz.
+ *
+ * Stand bis September 2026 modul-privat in `portfolio-guardrails-view.ts` und
+ * ein zweites Mal hart als `0.2` in der Wertstrom-Flaeche. Zwei Zahlen, die
+ * dieselbe Schwelle meinen, sind eine Schwelle zu viel.
+ */
+export const COVERAGE_THIN_THRESHOLD = 0.2;
+
+/**
+ * **Die Schwellen, und zwar die einzigen.** Rot ueber 15 pp, gelb ueber 5 pp.
+ *
+ * `maxAbsDelta` ist eine Drift als **Bruch** (0.05 = 5 pp) — dieselbe Skala,
+ * die `computeMixAxis` liefert. `hasData === false` ergibt `unknown`: eine
+ * Ampel ohne Datengrundlage waere eine Entwarnung ueber nichts.
+ *
+ * Es gab davon zeitweise vier Nachbauten, einen davon mit `Math.round` **vor**
+ * dem Vergleich — 15,4 pp landeten dadurch eine Stufe zu niedrig.
+ */
+export function statusFor(maxAbsDelta: number, hasData: boolean): GuardrailStatus {
+  if (!hasData) return "unknown";
+  if (maxAbsDelta > 0.15) return "red";
+  if (maxAbsDelta > 0.05) return "amber";
+  return "green";
+}

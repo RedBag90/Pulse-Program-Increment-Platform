@@ -312,7 +312,15 @@ export async function getPortfolioGuardrailsInputs(db: PrismaClient, tenantId: T
     void reportGuardrailTargetsFallback(tenantId, parsed.fellBackFields);
   }
 
-  return { epics: epicInputs, targets: parsed.targets };
+  // Das rohe JSON wandert mit: Guardrail 2 löst die Ziele **je Wertstrom** auf
+  // (`resolveGuardrailTargets`), und dafür braucht der Aufrufer den
+  // Tenant-Stand ungeparst — sonst wäre der Code-Default nicht mehr vom
+  // gesetzten Tenant-Wert zu unterscheiden.
+  return {
+    epics: epicInputs,
+    targets: parsed.targets,
+    targetsRaw: tenant?.guardrailTargets ?? null,
+  };
 }
 
 /**

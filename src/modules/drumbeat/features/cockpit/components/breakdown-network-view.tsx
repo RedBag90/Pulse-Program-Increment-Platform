@@ -38,6 +38,12 @@ import {
 import "@xyflow/react/dist/style.css";
 import { toast } from "sonner";
 import { detectCycle } from "@/modules/core/kernel/domain/dependency-graph";
+import {
+  FEATURE_TYPES,
+  FEATURE_TYPE_LABEL,
+  isFeatureType,
+  type FeatureType,
+} from "@/modules/work/domain/portfolio-guardrails";
 import { formatWsjf } from "@/modules/core/kernel/domain/wsjf";
 import { CreateFeatureDialog } from "@/modules/work/features/feature/components/create-feature-dialog";
 import {
@@ -128,6 +134,43 @@ interface Props {
   savedPositions?: Record<string, { x: number; y: number }>;
 }
 
+/**
+ * **Der Arbeitstyp am Knoten — je Typ ein Eintrag, kein Ja/Nein.**
+ *
+ * Bis September 2026 stand hier ein Boolean (`isEnabler ? violett : blau`). Mit
+ * dem dritten Typ `maintenance` haette er still das Falsche gemalt: alles, was
+ * nicht Enabler ist, waere als „Feature" erschienen. Eine Tabelle je Typ kann
+ * das nicht — ein neuer Wert zwingt hier einen Eintrag.
+ *
+ * Die Farbe steht nie allein (ADR-0021): daneben steht das Wort.
+ */
+const TYPE_BADGE: Record<FeatureType | "", string> = {
+  feature: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+  enabler: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+  maintenance: "bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300",
+  "": "bg-muted text-muted-foreground",
+};
+
+/** Dieselbe Zuordnung fuer die MiniMap, die nur eine Farbe tragen kann. */
+const TYPE_MINIMAP: Record<FeatureType | "", string> = {
+  feature: "var(--chart-1)",
+  enabler: "var(--chart-4)",
+  maintenance: "var(--chart-3)",
+  "": "var(--muted-foreground)",
+};
+
+/**
+ * Ein roher Typ-String aus dem Server-Modell auf einen bekannten Wert.
+ *
+ * Bis September 2026 war das eine ternaere Kaskade, die **jeden** unbekannten
+ * Wert auf `""` warf — also den Typ **loeschte**, sobald jemand einen Knoten mit
+ * einem neueren Typ im Schnell-Editor oeffnete. Das war kein Anzeigefehler,
+ * sondern stiller Datenverlust.
+ */
+function normalizeType(raw: string | null): FeatureType | "" {
+  return isFeatureType(raw) ? raw : "";
+}
+
 const TIER_BADGE: Record<BreakdownGraphNode["wsjfTier"], string> = {
   high: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
   medium: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
@@ -135,8 +178,8 @@ const TIER_BADGE: Record<BreakdownGraphNode["wsjfTier"], string> = {
   unscored: "bg-muted text-muted-foreground",
 };
 
-type QuickAddSubmit = (input: { title: string; featureType: "feature" | "enabler" }) => void;
-type QuickEditSubmit = (input: { title: string; featureType: "feature" | "enabler" | "" }) => void;
+type QuickAddSubmit = (input: { title: string; featureType: FeatureType }) => void;
+type QuickEditSubmit = (input: { title: string; featureType: FeatureType | "" }) => void;
 
 type EdgeTypeChange = (next: DependencyEdgeType) => void;
 
@@ -178,12 +221,12 @@ function QuickAddForm({
   busy,
 }: {
   defaultTitle?: string;
-  onSubmit: (input: { title: string; featureType: "feature" | "enabler" }) => void;
+  onSubmit: (input: { title: string; featureType: FeatureType }) => void;
   onClose: () => void;
   busy: boolean;
 }) {
   const [title, setTitle] = useState(defaultTitle ?? "");
-  const [featureType, setFeatureType] = useState<"feature" | "enabler">("feature");
+  const [featureType, setFeatureType] = useState<FeatureType>("feature");
 
   return (
     <form
@@ -216,11 +259,14 @@ function QuickAddForm({
         <select
           id="quick-add-type"
           value={featureType}
-          onChange={(e) => setFeatureType(e.target.value as "feature" | "enabler")}
+          onChange={(e) => setFeatureType(e.target.value as FeatureType)}
           className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
         >
-          <option value="feature">Feature</option>
-          <option value="enabler">Enabler</option>
+          {FEATURE_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {FEATURE_TYPE_LABEL[t]}
+            </option>
+          ))}
         </select>
       </div>
       <p className="text-label text-muted-foreground">
@@ -273,21 +319,13 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
   );
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(node.title);
-  const [featureType, setFeatureType] = useState<"feature" | "enabler" | "">(
-    node.featureType === "enabler" ? "enabler" : node.featureType === "feature" ? "feature" : "",
-  );
+  const [featureType, setFeatureType] = useState<FeatureType | "">(normalizeType(node.featureType));
 
   // sync state, wenn der Server-Refresh neue Werte liefert
   useEffect(() => {
     if (!open) {
       setTitle(node.title);
-      setFeatureType(
-        node.featureType === "enabler"
-          ? "enabler"
-          : node.featureType === "feature"
-            ? "feature"
-            : "",
-      );
+      setFeatureType(normalizeType(node.featureType));
     }
   }, [open, node.title, node.featureType]);
 
@@ -336,12 +374,15 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
             <select
               id={`edit-type-${node.id}`}
               value={featureType}
-              onChange={(e) => setFeatureType(e.target.value as "feature" | "enabler" | "")}
+              onChange={(e) => setFeatureType(e.target.value as FeatureType | "")}
               className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
             >
               <option value="">— ungesetzt</option>
-              <option value="feature">Feature</option>
-              <option value="enabler">Enabler</option>
+              {FEATURE_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {FEATURE_TYPE_LABEL[t]}
+                </option>
+              ))}
             </select>
           </div>
           <div className="flex items-center gap-2 pt-1">
@@ -372,7 +413,7 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
 
 const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
   const node = data as unknown as FeatureNodeData;
-  const isEnabler = node.featureType === "enabler";
+  const type = normalizeType(node.featureType);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -408,10 +449,8 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
           </span>
         </div>
         <div className="flex items-center gap-1.5 text-label">
-          <span
-            className={`rounded-full px-1.5 py-0.5 ${isEnabler ? "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300" : "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"}`}
-          >
-            {isEnabler ? "Enabler" : "Feature"}
+          <span className={`rounded-full px-1.5 py-0.5 ${TYPE_BADGE[type]}`}>
+            {type === "" ? "ohne Typ" : FEATURE_TYPE_LABEL[type]}
           </span>
           <span className={`rounded-full px-1.5 py-0.5 ${TIER_BADGE[node.wsjfTier]}`}>
             WSJF {formatWsjf(node.wsjfComputed)}
@@ -729,7 +768,7 @@ export function BreakdownNetworkView({
   const urlQuery = searchParams.get("breakdownQ") ?? "";
   const urlType = (() => {
     const t = searchParams.get("breakdownType");
-    return t === "feature" || t === "enabler" ? t : "all";
+    return isFeatureType(t) ? t : "all";
   })();
   const [queryDraft, setQueryDraft] = useState(urlQuery);
   useEffect(() => setQueryDraft(urlQuery), [urlQuery]);
@@ -745,7 +784,7 @@ export function BreakdownNetworkView({
     return () => window.clearTimeout(t);
   }, [queryDraft, urlQuery, pathname, router, searchParams]);
 
-  const setUrlType = (next: "all" | "feature" | "enabler") => {
+  const setUrlType = (next: "all" | FeatureType) => {
     const params = new URLSearchParams(searchParams.toString());
     if (next === "all") params.delete("breakdownType");
     else params.set("breakdownType", next);
@@ -1191,8 +1230,7 @@ export function BreakdownNetworkView({
           onChange={setUrlType}
           options={[
             { id: "all", label: "Alle Typen" },
-            { id: "feature", label: "Feature" },
-            { id: "enabler", label: "Enabler" },
+            ...FEATURE_TYPES.map((t) => ({ id: t, label: FEATURE_TYPE_LABEL[t] })),
           ]}
         />
         {hasFilter && (
@@ -1302,7 +1340,7 @@ export function BreakdownNetworkView({
                 if (n.type === "pi-header") return "var(--muted)";
                 if (n.type === "ghost") return "var(--border)";
                 const d = n.data as unknown as FeatureNodeData | undefined;
-                return d?.featureType === "enabler" ? "var(--chart-4)" : "var(--chart-1)";
+                return TYPE_MINIMAP[normalizeType(d?.featureType ?? null)];
               }}
               nodeStrokeWidth={0}
               maskColor="color-mix(in oklab, var(--background) 92%, transparent)"

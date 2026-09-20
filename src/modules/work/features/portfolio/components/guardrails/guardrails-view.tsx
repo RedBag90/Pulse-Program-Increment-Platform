@@ -11,15 +11,14 @@ import {
   type Station,
 } from "@/modules/work/domain/portfolio-guardrails";
 import { HORIZON_HEX } from "@/modules/core/org/features/solution/components/horizon-tokens";
-import type {
-  CapacityBucket,
-  PortfolioGuardrailsModel,
-} from "@/modules/work/server/views/portfolio-guardrails-view";
+import type { PortfolioGuardrailsModel } from "@/modules/work/server/views/portfolio-guardrails-view";
+import type { ValueStreamCapacityPlan } from "@/modules/work/server/views/value-stream-capacity-mix";
 import type { GuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
 import { GuardrailTargetsForm } from "@/modules/work/features/portfolio/components/guardrail-targets-form";
 import { GuardrailTargetsReadOnly } from "@/modules/work/features/portfolio/components/guardrail-targets-readonly";
 import { SectionLabel } from "@/components/ui/section-label";
 import { GuardrailMixCard, type MixBucketSpec, type MixView } from "./guardrail-mix-card";
+import { CapacityPlanCard } from "./capacity-plan-card";
 import { BoEngagementCard } from "./bo-engagement-card";
 import { EpicTower } from "./epic-tower";
 
@@ -47,33 +46,27 @@ const HORIZON_BUCKETS: ReadonlyArray<MixBucketSpec<Station>> = STATIONS.map((st)
 }));
 
 /**
- * Die Capacity-Achse traegt bewusst keinen Eigen-Ton: „Business vs Enabler" ist
- * keine Kategorie mit Farbcode, die Wertung steckt in der Ampel.
- */
-const CAPACITY_BUCKETS: ReadonlyArray<MixBucketSpec<CapacityBucket>> = [
-  { id: "business", label: "Business", color: "var(--foreground)" },
-  { id: "enabler", label: "Enabler", color: "var(--muted-foreground)" },
-];
-
-/**
  * Guardrails-Flaeche. Client-Shell, weil die Umschaltung Anzahl ↔ € der einzige
  * Zustand der Seite ist und fuer beide Mix-Karten gemeinsam gilt. Das Model
  * kommt fertig gerechnet vom Server — hier wird nichts nachgeladen.
  */
 export function GuardrailsView({
   model,
+  capacityPlan,
   epicCount,
   canManageTargets,
   targets,
 }: {
   model: PortfolioGuardrailsModel;
+  /** Guardrail 2 — die Summe der Wertströme, in Job-Size-Punkten. */
+  capacityPlan: ValueStreamCapacityPlan;
   epicCount: number;
   canManageTargets: boolean;
   /** Der Soll-Mix — gepflegt am Ende dieser Seite, nicht mehr im Budgeting. */
   targets: GuardrailTargets;
 }) {
   const [view, setView] = useState<MixView>("count");
-  const { horizon, capacity, engagement } = model;
+  const { horizon, engagement } = model;
 
   return (
     <Page>
@@ -112,19 +105,7 @@ export function GuardrailsView({
               totalCount={horizon.totalCount}
               coverageThin={model.horizonCoverageThin}
             />
-            <GuardrailMixCard
-              title="Capacity Allocation"
-              subtitle="Guardrail 2"
-              view={view}
-              buckets={CAPACITY_BUCKETS}
-              rows={capacity.rows}
-              status={capacity.status}
-              unclassifiedCount={capacity.unclassifiedCount}
-              unclassifiedAmount={capacity.unclassifiedAmount}
-              unclassifiedNoun="Typ"
-              totalCount={capacity.totalCount}
-              coverageThin={model.capacityCoverageThin}
-            />
+            <CapacityPlanCard plan={capacityPlan} />
             {engagement && <BoEngagementCard model={engagement} />}
           </div>
 

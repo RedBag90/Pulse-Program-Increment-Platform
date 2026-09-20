@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { SearchSelect, type SearchSelectOption } from "@/components/ui/search-select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { FEATURE_TYPES, FEATURE_TYPE_LABEL } from "@/modules/work/domain/portfolio-guardrails";
 
 const FIBONACCI = [1, 2, 3, 5, 8, 13, 20] as const;
 
@@ -355,8 +356,11 @@ export function CreateFeatureDialog({
                 className={SELECT_CLASS}
               >
                 <option value="">— ungesetzt</option>
-                <option value="feature">Feature</option>
-                <option value="enabler">Enabler</option>
+                {FEATURE_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {FEATURE_TYPE_LABEL[t]}
+                  </option>
+                ))}
               </select>
             </div>
 

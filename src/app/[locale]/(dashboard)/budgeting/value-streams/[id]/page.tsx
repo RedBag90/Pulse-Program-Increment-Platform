@@ -416,6 +416,10 @@ async function ArtTab({
   const hasArtDistributeCapability = hasCapability(principal, "art_budget.distribute", {
     tenantId: principal.tenantId,
     artId,
+    // Beide Achsen, wie im Service-Seam: RTE `art`-scoped, Wertstrom-Owner
+    // `value_stream`-scoped. Sonst zeigte die Flaeche einen Knopf, den das
+    // Speichern ablehnt.
+    valueStreamId: vs.id,
   });
 
   const detail = await loadArtBudgetDetail(

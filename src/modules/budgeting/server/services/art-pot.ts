@@ -118,6 +118,9 @@ export async function setArtEpicAllocation(
       hasArtDistributeCapability: authorizeResource(ctx.principal, "art_budget.distribute", {
         tenantId: mctx.tenantId,
         artId: input.artId,
+        // Der Wertstrom des ARTs — sonst waere der `value_stream`-Scope des
+        // Wertstrom-Owners hier vakuant wahr und er duerfte ueberall verteilen.
+        valueStreamId: art.valueStreamId,
       }).ok,
     });
     if (denied) return err({ kind: "forbidden" as const, reason: denied });
@@ -289,6 +292,9 @@ export async function saveArtEpicAllocations(
       hasArtDistributeCapability: authorizeResource(ctx.principal, "art_budget.distribute", {
         tenantId: mctx.tenantId,
         artId: input.artId,
+        // Der Wertstrom des ARTs — sonst waere der `value_stream`-Scope des
+        // Wertstrom-Owners hier vakuant wahr und er duerfte ueberall verteilen.
+        valueStreamId: art.valueStreamId,
       }).ok,
     });
     if (denied) return err({ kind: "forbidden" as const, reason: denied });

@@ -36,6 +36,7 @@ import {
   summarizeAllocations,
   type AllocatedEpic,
 } from "@/modules/budgeting/domain/allocation-state";
+import { loadArtChangeBudgetByCycle } from "@/modules/budgeting/server/services/art-epic-budget";
 
 /**
  * Faltet Kandidaten und Epics in das Seitenmodell. Rein — der Server reicht
@@ -229,12 +230,12 @@ export async function loadArtBudgetDetail(
     ...(opts.cycleKey != null ? { cycleKey: opts.cycleKey } : {}),
   });
 
-  // Zuteilung je Zyklus — Zähler des Satzes und Bezugsgröße der Lücke.
-  const allocatedByCycle: Record<string, number> = {};
-  for (const c of candidates) {
-    if (c.amount == null) continue;
-    allocatedByCycle[c.cycleKey] = (allocatedByCycle[c.cycleKey] ?? 0) + c.amount;
-  }
+  // Veränderungsgeld je Zyklus — Zähler des Satzes und Bezugsgröße der Lücke.
+  // Aus dem geteilten Lader, nicht aus den Kandidaten dieser Seite: der
+  // ART-Rahmen finanziert dieselben Features und stand hier bis September 2026
+  // nicht drin (`loadArtChangeBudgetByCycle`).
+  const allocatedByCycle =
+    (await loadArtChangeBudgetByCycle(db, tenantId, [art.id])).get(art.id) ?? {};
 
   const [coverage, pot, rtbItems] = await Promise.all([
     loadArtCoverage(db, tenantId, art.id, detail.cycleKey, allocatedByCycle),

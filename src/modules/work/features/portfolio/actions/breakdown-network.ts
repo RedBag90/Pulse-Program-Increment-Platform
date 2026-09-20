@@ -1,13 +1,18 @@
 "use server";
 
 import { z } from "zod";
-import { createFeatureWithDependency, insertFeatureBetween } from "@/modules/work/server/services/feature";
+import {
+  createFeatureWithDependency,
+  insertFeatureBetween,
+} from "@/modules/work/server/services/feature";
 import { createServerAction } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import type { ArtId, EpicId, FeatureId } from "@/modules/core/kernel/domain/types";
+import { FEATURE_TYPES } from "@/modules/work/domain/portfolio-guardrails";
 
 const EDGE_TYPE = z.enum(["blocks", "depends_on", "relates_to"]);
-const FEATURE_TYPE = z.enum(["feature", "enabler", ""]).optional();
+// Werteliste aus der Domaene (siehe `feature/actions/feature.ts`).
+const FEATURE_TYPE = z.enum([...FEATURE_TYPES, ""]).optional();
 
 /**
  * Netzplan-Quick-Add (Roadmap-N3, „+" am Node): legt einen Folge-Knoten

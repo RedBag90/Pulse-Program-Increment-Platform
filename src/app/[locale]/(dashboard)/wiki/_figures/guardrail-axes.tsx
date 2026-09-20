@@ -34,6 +34,7 @@ const AXES: Axis[] = [
     fields: [
       { label: "business", value: `${D.capacity.business} %` },
       { label: "enabler", value: `${D.capacity.enabler} %` },
+      { label: "maintenance", value: `${D.capacity.maintenance} %` },
     ],
     rule: "Summe 100 (Toleranz 0,5)",
     mix: true,

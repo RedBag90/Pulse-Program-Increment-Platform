@@ -43,13 +43,24 @@ const principal = (over: Partial<Principal> = {}): Principal => {
 };
 
 describe("authorize — roles", () => {
-  it("platform_admin and tenant_admin bypass every policy", () => {
+  it("tenant_admin bypasses every policy — in seinem Mandanten", () => {
     const r: AuthResource = { tenantId: "t1" };
-    expect(authorize("epic.update", r, principal({ roles: [ROLES.PLATFORM_ADMIN] })).allow).toBe(
-      true,
-    );
     expect(authorize("epic.update", r, principal({ roles: [ROLES.TENANT_ADMIN] })).allow).toBe(
       true,
+    );
+  });
+
+  /**
+   * ⚠ SECURITY: `platform_admin` stand bis September 2026 neben `tenant_admin`
+   * im Fast-Path. Damit hatte ein Plattform-Admin in **jedem** Mandanten, in
+   * dem eine Zeile für ihn lag, vollen Lese- und Schreibzugriff — auch in
+   * privaten Bereichen fremder Nutzer. Die Plattform-Rechte hängen am globalen
+   * Kennzeichen (`requirePlatformAdmin`), nicht an dieser Funktion.
+   */
+  it("platform_admin ist in einem Mandanten **kein** Freibrief", () => {
+    const r: AuthResource = { tenantId: "t1" };
+    expect(authorize("epic.update", r, principal({ roles: [ROLES.PLATFORM_ADMIN] })).allow).toBe(
+      false,
     );
   });
 
@@ -85,6 +96,45 @@ describe("authorize — value_stream scope", () => {
 
   it("an empty principal scope means 'all in reach'", () => {
     expect(authorize("epic.update", { valueStreamId: "vs-any" }, vsOwner([])).allow).toBe(true);
+  });
+
+  /**
+   * **Das ART-Budget: drei Zuschnitte auf einer Capability.**
+   *
+   * Bis September 2026 stand der Wertstrom-Owner in der unscoped Zeile von
+   * `art_budget.distribute` — er durfte damit in fremden Wertströmen verteilen,
+   * und `/my-tasks` schickte ihm die Förder-Erinnerung für jedes ART des
+   * Mandanten. Kein Test hielt das fest; es gab überhaupt keinen Test über einen
+   * Budget-Grant dieser Rolle. Dieser hier ist die Gegenprobe.
+   */
+  it("art_budget.distribute: der Wertstrom-Owner nur in seinem eigenen Strom", () => {
+    const own = vsOwner(["vs1"]);
+    expect(
+      authorize("art_budget.distribute", { artId: "a1", valueStreamId: "vs1" }, own).allow,
+    ).toBe(true);
+    expect(
+      authorize("art_budget.distribute", { artId: "a9", valueStreamId: "vs2" }, own).allow,
+    ).toBe(false);
+  });
+
+  it("art_budget.distribute: der RTE weiterhin nur auf seinem ART", () => {
+    const rte = principal({
+      roles: [ROLES.RTE],
+      scopes: { valueStreamIds: [], artIds: ["a1"], teamIds: [] },
+    });
+    expect(
+      authorize("art_budget.distribute", { artId: "a1", valueStreamId: "vs1" }, rte).allow,
+    ).toBe(true);
+    expect(
+      authorize("art_budget.distribute", { artId: "a2", valueStreamId: "vs1" }, rte).allow,
+    ).toBe(false);
+  });
+
+  it("art_budget.distribute: das Portfolio-Management bleibt mandantenweit", () => {
+    const pm = principal({ roles: [ROLES.PORTFOLIO_MANAGER] });
+    expect(
+      authorize("art_budget.distribute", { artId: "a9", valueStreamId: "vs9" }, pm).allow,
+    ).toBe(true);
   });
 
   it("DOCUMENTS the gap: a missing valueStreamId satisfies the scope vacuously", () => {
@@ -259,10 +309,15 @@ describe("feature.owner.assign", () => {
     expect(hasCapability(principal({ roles: [ROLES.VIEWER] }), "feature.owner.assign")).toBe(false);
   });
 
-  it("die Admins kommen über den Bypass durch, nicht über einen Grant", () => {
-    for (const role of [ROLES.TENANT_ADMIN, ROLES.PLATFORM_ADMIN]) {
-      expect(hasCapability(principal({ roles: [role] }), "feature.owner.assign")).toBe(true);
-    }
+  it("der Mandanten-Admin kommt über den Bypass durch, nicht über einen Grant", () => {
+    expect(hasCapability(principal({ roles: [ROLES.TENANT_ADMIN] }), "feature.owner.assign")).toBe(
+      true,
+    );
+    // Der Plattform-Admin nicht: er hat in einem fremden Mandanten nichts zu
+    // suchen, und in seinem eigenen trägt er `tenant_admin`.
+    expect(
+      hasCapability(principal({ roles: [ROLES.PLATFORM_ADMIN] }), "feature.owner.assign"),
+    ).toBe(false);
   });
 
   it("der Wertstrom-Verantwortliche darf nur im eigenen Wertstrom", () => {

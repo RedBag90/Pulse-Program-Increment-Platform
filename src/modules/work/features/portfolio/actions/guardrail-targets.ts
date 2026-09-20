@@ -18,6 +18,7 @@ export const saveValueStreamGuardrailTargetsAction = createServerAction({
     valueStreamId: z.string().uuid(),
     business: z.number().min(0).max(100).nullable(),
     enabler: z.number().min(0).max(100).nullable(),
+    maintenance: z.number().min(0).max(100).nullable(),
     portfolioThreshold: z.number().min(0).nullable(),
   }),
   action: "target.manage",
@@ -33,6 +34,7 @@ export const saveValueStreamGuardrailTargetsAction = createServerAction({
       valueStreamId: String(fd.get("valueStreamId") ?? ""),
       business: opt("business"),
       enabler: opt("enabler"),
+      maintenance: opt("maintenance"),
       portfolioThreshold: opt("portfolioThreshold"),
     };
   },
@@ -40,8 +42,17 @@ export const saveValueStreamGuardrailTargetsAction = createServerAction({
     saveValueStreamGuardrailTargets(ctx, {
       valueStreamId: input.valueStreamId,
       targets: {
-        ...(input.business != null && input.enabler != null
-          ? { capacity: { business: input.business, enabler: input.enabler } }
+        // Die Achse wird als Ganzes gesetzt oder gar nicht: eine halbe
+        // Mix-Achse kann nicht auf 100 summieren. `maintenance` darf dabei 0
+        // sein — „dieser Wertstrom plant keine Wartung" ist eine Aussage.
+        ...(input.business != null && input.enabler != null && input.maintenance != null
+          ? {
+              capacity: {
+                business: input.business,
+                enabler: input.enabler,
+                maintenance: input.maintenance,
+              },
+            }
           : {}),
         ...(input.portfolioThreshold != null
           ? { approval: { portfolioThreshold: input.portfolioThreshold } }

@@ -250,15 +250,48 @@ export default async function MyTasksPage() {
     ? await listMyBudgetingTasks(db, { id: principal.id, tenantId })
     : [];
 
-  // Und der Hinweis an den ART, dessen Budget steht: sichtbar für die ARTs, auf
-  // die `art_budget.distribute` scoped ist — plus alle, wenn jemand die
-  // Capability tenant-weit trägt.
+  // Und der Hinweis an den ART, dessen Budget steht — für genau die ARTs, auf
+  // die `art_budget.distribute` reicht. Die Capability trägt heute **drei**
+  // Zuschnitte, und alle drei müssen hier ankommen:
+  //
+  //  - **ohne Scope** (Admin, Portfolio-Management): alle ARTs des Mandanten.
+  //  - **`value_stream`** (Wertstrom-Owner): die ARTs seiner Ströme. Bis
+  //    September 2026 stand er in der unscoped Zeile und bekam den Hinweis für
+  //    jedes ART des Mandanten — auch aus fremden Wertströmen.
+  //  - **`art`** (RTE): sein eigenes ART.
+  //
+  // Eine **leere** Scope-Liste heisst in `authorize()` „alles in Reichweite"
+  // (`memberOrVacuous`); das wird hier gespiegelt, sonst verspräche die
+  // Erinnerung weniger als das Recht hergibt.
   const distributeScope = principal.capabilities.filter(
     (c) => c.action === "art_budget.distribute",
   );
-  const artIds = distributeScope.some((c) => c.scope == null)
-    ? (await db.art.findMany({ where: { tenantId }, select: { id: true } })).map((a) => a.id)
-    : principal.scopes.artIds;
+  const allArts = async (): Promise<string[]> =>
+    (await db.art.findMany({ where: { tenantId }, select: { id: true } })).map((a) => a.id);
+
+  const hasUnscoped = distributeScope.some((c) => c.scope == null);
+  const byValueStream = distributeScope.some((c) => c.scope === "value_stream");
+  const byArt = distributeScope.some((c) => c.scope === "art");
+  const vsIds = principal.scopes.valueStreamIds;
+
+  let artIds: string[];
+  if (
+    hasUnscoped ||
+    (byValueStream && vsIds.length === 0) ||
+    (byArt && principal.scopes.artIds.length === 0)
+  ) {
+    artIds = await allArts();
+  } else {
+    const fromStreams = byValueStream
+      ? (
+          await db.art.findMany({
+            where: { tenantId, valueStreamId: { in: [...vsIds] } },
+            select: { id: true },
+          })
+        ).map((a) => a.id)
+      : [];
+    artIds = [...new Set([...fromStreams, ...(byArt ? principal.scopes.artIds : [])])];
+  }
   const artFundingTasks =
     budgetingEnabled && artIds.length > 0
       ? await listMyArtFundingTasks(db, { id: principal.id, tenantId }, artIds)

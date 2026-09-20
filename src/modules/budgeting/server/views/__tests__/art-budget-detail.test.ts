@@ -193,6 +193,12 @@ describe("coverageVerdict", () => {
     plannedJobSize: over.plannedJobSize ?? 0,
     featureCount: 0,
     plannedStandalone: { jobSize: 0, count: 0 },
+    plannedByBucket: {
+      business: { count: 0, jobSize: 0 },
+      enabler: { count: 0, jobSize: 0 },
+      maintenance: { count: 0, jobSize: 0 },
+    },
+    plannedUnclassified: { count: 0, jobSize: 0 },
     rate: {
       rate: 600,
       source: "tenantDefault" as const,

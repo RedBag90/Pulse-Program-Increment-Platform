@@ -32,7 +32,11 @@ import type { TenantId } from "@/modules/core/kernel/domain/types";
 /** Weitergereicht, damit Aufrufer die Form nicht zweimal suchen müssen. */
 export type { ArtEpicBudget };
 import { potWindowClosedReason } from "@/modules/budgeting/domain/art-pot-window";
-import { readRtbItems, readRtbAwards } from "@/modules/budgeting/server/services/budget-reads";
+import {
+  readRtbItems,
+  readRtbAwards,
+  readBudgetCandidates,
+} from "@/modules/budgeting/server/services/budget-reads";
 
 /** Der Ausschnitt des Clients, den dieses Modul braucht — auch ein `tx` erfüllt ihn. */
 export type BudgetReader = Pick<
@@ -133,6 +137,86 @@ export async function loadArtEpicBudgets(
     row.remaining = row.total - row.distributed;
   }
 
+  return out;
+}
+
+/**
+ * **Der ART-Rahmen je Halbjahr**, ueber alle Halbjahre statt eines.
+ *
+ * Dieselbe Regel wie oben — Σ der Zusprueche auf den aktiven
+ * `art_change`-Positionen eines ARTs —, nur ohne Zyklus-Filter. Sie steht hier
+ * und nicht beim Aufrufer, damit es die Regel genau einmal gibt: dass ein
+ * Rahmen nur zaehlt, solange seine Position **aktiv** ist, ist der Filter, der
+ * schon einmal gefehlt hat (`art-epic-budget.ts`, Kopf).
+ *
+ * Gebraucht von der Deckungsrechnung: der Rahmen ist Veraenderungsgeld und
+ * finanziert Features, also gehoert er in die Bezugsgroesse der Last und in den
+ * Zaehler des €-Satzes.
+ */
+export async function loadArtFrameByCycle(
+  db: BudgetReader,
+  tenantId: TenantId,
+  artIds: readonly string[],
+): Promise<Map<string, Record<string, number>>> {
+  const out = new Map<string, Record<string, number>>(artIds.map((id) => [id, {}]));
+  if (artIds.length === 0) return out;
+
+  const ids = new Set(artIds);
+  const [items, awards] = await Promise.all([
+    readRtbItems(db, tenantId),
+    readRtbAwards(db, tenantId),
+  ]);
+
+  const artOfItem = new Map(
+    items
+      .filter((i) => i.kind === "art_change" && i.active && i.artId != null && ids.has(i.artId))
+      .map((i) => [i.id, i.artId!]),
+  );
+
+  for (const a of awards) {
+    const artId = artOfItem.get(a.rtbItemId);
+    if (artId == null) continue;
+    const byCycle = out.get(artId)!;
+    byCycle[a.cycleKey] = (byCycle[a.cycleKey] ?? 0) + a.amount;
+  }
+  return out;
+}
+
+/**
+ * **Das Veraenderungsgeld eines ARTs je Halbjahr** — Portfolio-Zuteilung
+ * **plus** zugesprochener ART-Rahmen.
+ *
+ * Bis September 2026 gab es dafuer zwei verschiedene Zahlen: die Verteil-Matrix
+ * (`getArtBudgetBreakdown`) zaehlte beides, die Deckungsrechnung nur die
+ * Portfolio-Zuteilung. Bei Materials & Energy lagen 100.500 € dazwischen — und
+ * dieselbe Zahl ist zugleich die Bezugsgroesse der Deckungs-Ampel, der Zaehler
+ * des €-Satzes und die Grundlage der Kapazitaetsrechnung. Drei Auskuenfte aus
+ * einer Quelle, also darf es die Quelle nur einmal geben.
+ *
+ * **Betriebsgeld bleibt draussen** (REQ-10). Floesse es hier ein, spraenge die
+ * Ampel auf „gedeckt", obwohl kein Euro davon ein Feature bezahlt — und der
+ * Satz stiege, weil sein Zaehler waechst und sein Nenner nicht.
+ */
+export async function loadArtChangeBudgetByCycle(
+  db: PrismaClient,
+  tenantId: TenantId,
+  artIds: readonly string[],
+): Promise<Map<string, Record<string, number>>> {
+  const [candidates, frames] = await Promise.all([
+    readBudgetCandidates(db, tenantId),
+    loadArtFrameByCycle(db, tenantId, artIds),
+  ]);
+
+  const ids = new Set(artIds);
+  const out = new Map<string, Record<string, number>>(
+    artIds.map((id) => [id, { ...(frames.get(id) ?? {}) }]),
+  );
+  for (const c of candidates) {
+    if (c.kind !== "epic" || c.artId == null || c.finalAmount == null) continue;
+    if (!ids.has(c.artId)) continue;
+    const je = out.get(c.artId)!;
+    je[c.cycleKey] = (je[c.cycleKey] ?? 0) + c.finalAmount;
+  }
   return out;
 }
 

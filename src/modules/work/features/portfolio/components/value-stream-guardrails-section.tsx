@@ -5,21 +5,47 @@ import { useActionState, useState } from "react";
 import { formatEUR } from "@/lib/formatting";
 import { saveValueStreamGuardrailTargetsAction } from "@/modules/work/features/portfolio/actions/guardrail-targets";
 import {
+  CAPACITY_BUCKETS,
+  CAPACITY_BUCKET_LABEL,
   GUARDRAIL_SOURCE_LABELS,
+  type CapacityBucket,
   type GuardrailTargetsSource,
 } from "@/modules/work/domain/portfolio-guardrails";
-import type {
-  ClassificationPreview,
-  ValueStreamCapacityMix,
+import { COVERAGE_THIN_THRESHOLD, statusFor } from "@/modules/work/domain/guardrail-rules";
+import { GuardrailStatusBadge } from "@/modules/work/features/portfolio/components/guardrails/guardrail-status-badge";
+import {
+  maxCapacityDrift,
+  noCapacityReason,
+  type ClassificationPreview,
+  type ValueStreamCapacityPlan,
 } from "@/modules/work/server/views/value-stream-capacity-mix";
 
 /**
- * Guardrail 2 und 3 eines Wertstroms: die Ziele setzen — und sehen, wie viel je
- * Arbeitstyp tatsächlich **abgeschlossen** wurde.
+ * Die Einfaerbung einer Abweichung — dieselbe Semantik wie `deltaClass` auf der
+ * Portfolio-Karte: ueber dem Ziel rot, darunter amber, innerhalb von 5 % der
+ * Kapazitaet neutral. Die 5 % sind dieselbe Schwelle wie in `statusFor`.
+ */
+function deltaClass(delta: number | null, capacity: number | null): string {
+  if (delta == null || capacity == null || capacity <= 0) return "text-muted-foreground";
+  const share = delta / capacity;
+  if (share > 0.05) return "text-destructive";
+  if (share < -0.05) return "text-amber-600 dark:text-amber-400";
+  return "text-muted-foreground";
+}
+
+/**
+ * Guardrail 2 und 3 eines Wertstroms: die Ziele setzen — und sehen, ob die
+ * eingeplante Arbeit in die Kapazität passt.
  *
- * Gemessen wird am zugeteilten Budget gelieferter Epics, nicht an
- * Business-Case-Schätzungen aller Epics. Das ist eine andere Frage als die der
- * tenant-weiten Guardrails-Fläche, deshalb steht die Messgrundlage im Titel.
+ * Gemessen wird in **Job-Size-Punkten**: das Veränderungsgeld jedes ARTs,
+ * geteilt durch seinen empirischen €-Satz, aufgeteilt nach den Zielen dieses
+ * Wertstroms. Bis September 2026 zählte die Fläche gelieferte **Epics in Euro**,
+ * kumulativ über alle Zeit — zwei Grössen, die niemand steuern kann: eine
+ * Schätzung und eine Vergangenheit.
+ *
+ * **Die Ampel kommt aus `statusFor`**, wie jede andere Guardrail. Sie wurde hier
+ * bis September 2026 nachgebaut, mit `Math.round` vor dem Vergleich — 15,4 pp
+ * landeten dadurch bei „Abweichung" statt „Kritisch".
  *
  * Leere Felder heißen **geerbt**, nicht „null". Wer nur das Portfolio-Limit
  * setzen will, soll den Capacity-Mix nicht mitschleppen müssen — sonst friert
@@ -27,7 +53,7 @@ import type {
  */
 export function ValueStreamGuardrailsSection({
   valueStreamId,
-  mix,
+  plan,
   threshold,
   source,
   overriddenAxes,
@@ -35,7 +61,7 @@ export function ValueStreamGuardrailsSection({
   preview,
 }: {
   valueStreamId: string;
-  mix: ValueStreamCapacityMix;
+  plan: ValueStreamCapacityPlan;
   threshold: number;
   source: GuardrailTargetsSource;
   overriddenAxes: string[];
@@ -45,39 +71,58 @@ export function ValueStreamGuardrailsSection({
 }) {
   const [state, formAction, pending] = useActionState(saveValueStreamGuardrailTargetsAction, {});
   const own = (axis: string) => overriddenAxes.includes(axis);
-  const [business, setBusiness] = useState(own("capacity") ? String(mix.targets.business) : "");
-  const [enabler, setEnabler] = useState(own("capacity") ? String(mix.targets.enabler) : "");
+  const ziel = (b: CapacityBucket) => (own("capacity") ? String(plan.targets[b]) : "");
+  const [business, setBusiness] = useState(ziel("business"));
+  const [enabler, setEnabler] = useState(ziel("enabler"));
+  const [maintenance, setMaintenance] = useState(ziel("maintenance"));
   const [limit, setLimit] = useState(own("approval") ? String(threshold) : "");
 
-  const deviation = (bucket: "business" | "enabler") =>
-    Math.round((mix.mix.rows[bucket].amountShare - mix.mix.rows[bucket].target) * 100);
-  const worst = Math.max(Math.abs(deviation("business")), Math.abs(deviation("enabler")));
-  const tone = worst > 15 ? "rose" : worst > 5 ? "amber" : "green";
-  const thin = mix.totalEpics > 0 && mix.unclassified.count / mix.totalEpics > 0.2;
+  const drift = maxCapacityDrift(plan);
+  const status = statusFor(drift ?? 0, drift != null);
+  const ohneKapazitaet = noCapacityReason(plan);
+  const thin =
+    plan.totalPlanned.count > 0 &&
+    plan.unclassified.count / plan.totalPlanned.count > COVERAGE_THIN_THRESHOLD;
 
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-baseline gap-3">
         <h2 className="text-lg font-medium">Guardrail 2 · Capacity Allocation</h2>
-        <span
-          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-            tone === "rose"
-              ? "bg-destructive/10 text-destructive"
-              : tone === "amber"
-                ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
-                : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-          }`}
-        >
-          {tone === "green" ? "Im Ziel" : tone === "amber" ? "Abweichung" : "Kritisch"}
-        </span>
+        <GuardrailStatusBadge status={status} />
         <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
           {GUARDRAIL_SOURCE_LABELS[source]}
         </span>
       </div>
       <p className="text-sm text-muted-foreground">
-        Gemessen am <strong className="font-medium text-foreground">abgeschlossenen Budget</strong>{" "}
-        dieses Wertstroms — nicht an den Business-Case-Schätzungen aller Epics, die die tenant-weite
-        Guardrails-Fläche zeigt.
+        Gemessen in <strong className="font-medium text-foreground">Job-Size-Punkten</strong>: das
+        zugeteilte Veränderungsgeld jedes ARTs, geteilt durch seinen eigenen €-Satz je Punkt —
+        dagegen die Job Size der für {plan.cycleLabel} eingeplanten Features.
+      </p>
+
+      <p className="text-sm">
+        {ohneKapazitaet === "no_rate" ? (
+          <span className="text-muted-foreground">
+            Für {plan.cycleLabel} lässt sich an keinem ART dieses Wertstroms ein €-Satz ableiten —
+            die geplanten Punkte stehen unten, die Ziele lassen sich noch nicht dagegen rechnen.
+          </span>
+        ) : ohneKapazitaet === "no_budget" ? (
+          <span className="text-muted-foreground">
+            Für {plan.cycleLabel} ist diesem Wertstrom noch kein Veränderungsgeld zugeteilt. Die
+            eingeplanten Punkte stehen unten; eine Kapazität gibt es erst mit der Zuteilung.
+          </span>
+        ) : (
+          <>
+            <span className="text-muted-foreground">Kapazität {plan.cycleLabel} · </span>
+            {plan.artCount - plan.artsWithoutRate.length} von {plan.artCount}{" "}
+            {plan.artCount === 1 ? "ART" : "ARTs"} ·{" "}
+            <strong className="font-medium">{formatEUR(plan.budget)}</strong>
+            {" → "}
+            <strong className="font-medium tabular-nums">
+              {Math.round(plan.capacity ?? 0)}
+            </strong>{" "}
+            Punkte
+          </>
+        )}
       </p>
 
       <div className="overflow-hidden rounded-lg border">
@@ -85,77 +130,85 @@ export function ValueStreamGuardrailsSection({
           <thead>
             <tr className="border-b bg-surface-frame text-label uppercase tracking-[0.1em] text-muted-foreground">
               <th className="p-2 text-left font-semibold">Arbeitstyp</th>
-              <th className="p-2 text-right font-semibold">Epics</th>
-              <th className="p-2 text-right font-semibold">Abgeschlossen</th>
-              <th className="p-2 text-right font-semibold">Anteil</th>
-              <th className="p-2 text-right font-semibold">Ziel</th>
+              <th className="p-2 text-right font-semibold">Features</th>
+              <th className="p-2 text-right font-semibold">Geplant</th>
+              <th className="p-2 text-right font-semibold">Verfügbar</th>
               <th className="p-2 text-right font-semibold">Abw.</th>
             </tr>
           </thead>
           <tbody>
-            {(["business", "enabler"] as const).map((bucket) => {
-              const row = mix.mix.rows[bucket];
-              const d = deviation(bucket);
-              return (
-                <tr key={bucket} className="border-b last:border-b-0">
-                  <td className="p-2">
-                    {bucket === "business" ? "Business-Epics" : "Enabler-Epics"}
-                  </td>
-                  <td className="p-2 text-right tabular-nums">{row.count}</td>
-                  <td className="p-2 text-right tabular-nums">{formatEUR(row.amount)}</td>
-                  <td className="p-2 text-right tabular-nums">
-                    {Math.round(row.amountShare * 100)} %
-                  </td>
-                  <td className="p-2 text-right tabular-nums text-muted-foreground">
-                    {Math.round(row.target * 100)} %
-                  </td>
-                  <td
-                    className={`p-2 text-right tabular-nums ${Math.abs(d) > 5 ? "text-destructive" : ""}`}
-                  >
-                    {d > 0 ? "+" : ""}
-                    {d} pp
-                  </td>
-                </tr>
-              );
-            })}
+            {plan.rows.map((row) => (
+              <tr key={row.bucket} className="border-b last:border-b-0">
+                <td className="p-2">{CAPACITY_BUCKET_LABEL[row.bucket]}</td>
+                <td className="p-2 text-right tabular-nums">{row.planned.count}</td>
+                <td className="p-2 text-right tabular-nums">{row.planned.jobSize} Pkt</td>
+                <td className="p-2 text-right tabular-nums text-muted-foreground">
+                  {ohneKapazitaet != null || row.available == null
+                    ? "—"
+                    : `${Math.round(row.available)} Pkt`}
+                  {ohneKapazitaet == null && row.available != null && (
+                    <span className="ml-1 text-label">({Math.round(row.targetShare * 100)} %)</span>
+                  )}
+                </td>
+                <td
+                  className={`p-2 text-right tabular-nums ${deltaClass(row.delta, plan.capacity)}`}
+                >
+                  {ohneKapazitaet != null || row.delta == null
+                    ? "—"
+                    : `${row.delta > 0 ? "+" : ""}${Math.round(row.delta)}`}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
 
-      {mix.byCycle.length > 1 && (
+      {plan.artsWithoutRate.length > 0 && (
+        <p className="rounded-r-md border-l-2 bg-surface-frame px-3 py-2 text-sm text-muted-foreground">
+          <strong className="font-medium text-foreground">{plan.artsWithoutRate.length}</strong>{" "}
+          {plan.artsWithoutRate.length === 1 ? "ART hat" : "ARTs haben"} keinen belastbaren €-Satz —{" "}
+          {plan.artsWithoutRate.map((a) => a.name).join(", ")}. Die{" "}
+          {plan.artsWithoutRate.reduce((s2, a) => s2 + a.jobSize, 0)} dort eingeplanten Punkte
+          stehen oben unter „Geplant"; eine Kapazität dagegen gibt es für sie nicht.
+        </p>
+      )}
+
+      {plan.unclassified.count > 0 && (
+        <p className="rounded-r-md border-l-2 bg-surface-frame px-3 py-2 text-sm text-muted-foreground">
+          <strong className="font-medium text-foreground">{plan.unclassified.count}</strong>{" "}
+          eingeplante Features tragen keinen Arbeitstyp ({plan.unclassified.jobSize} Pkt) und gehen
+          in keine Zeile ein.
+          {thin && " Ab 20 % unklassifiziert ist die Aufteilung nur noch ein Indiz."}
+        </p>
+      )}
+
+      {plan.byCycle.length > 1 && (
         <div className="overflow-hidden rounded-lg border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-surface-frame text-label uppercase tracking-[0.1em] text-muted-foreground">
                 <th className="p-2 text-left font-semibold">Entwicklung</th>
-                <th className="p-2 text-right font-semibold">Business</th>
-                <th className="p-2 text-right font-semibold">Enabler</th>
+                {CAPACITY_BUCKETS.map((b) => (
+                  <th key={b} className="p-2 text-right font-semibold">
+                    {CAPACITY_BUCKET_LABEL[b].replace("-Features", "")}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {mix.byCycle.map((c) => (
+              {plan.byCycle.map((c) => (
                 <tr key={c.cycleKey} className="border-b last:border-b-0">
                   <td className="p-2">{c.label}</td>
-                  <td className="p-2 text-right tabular-nums">
-                    {formatEUR(c.business)} · {c.businessShare} %
-                  </td>
-                  <td className="p-2 text-right tabular-nums">
-                    {formatEUR(c.enabler)} · {c.enablerShare} %
-                  </td>
+                  {c.rows.map((r) => (
+                    <td key={r.bucket} className="p-2 text-right tabular-nums">
+                      {r.planned} / {r.available == null ? "—" : Math.round(r.available)} Pkt
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
-
-      {mix.unclassified.count > 0 && (
-        <p className="rounded-r-md border-l-2 bg-surface-frame px-3 py-2 text-sm text-muted-foreground">
-          <strong className="font-medium text-foreground">{mix.unclassified.count}</strong>{" "}
-          gelieferte Epics tragen keinen Typ ({formatEUR(mix.unclassified.amount)}) und gehen nicht
-          in die Anteile ein.
-          {thin && " Ab 20 % unklassifiziert ist der Mix nur noch ein Indiz."}
-        </p>
       )}
 
       {preview && (
@@ -225,6 +278,18 @@ export function ValueStreamGuardrailsSection({
               %
             </label>
             <label className="flex items-center gap-2">
+              Maintenance
+              <input
+                name="maintenance"
+                value={maintenance}
+                onChange={(ev) => setMaintenance(ev.target.value)}
+                inputMode="numeric"
+                placeholder="geerbt"
+                className="w-20 rounded-md border bg-background px-2 py-1 text-right tabular-nums"
+              />
+              %
+            </label>
+            <label className="flex items-center gap-2">
               Portfolio-Limit
               <input
                 name="portfolioThreshold"
@@ -246,8 +311,10 @@ export function ValueStreamGuardrailsSection({
           </div>
           <p className="text-xs text-muted-foreground">
             Leer lassen heißt <strong className="font-medium">geerbt</strong>. Aktuell gilt:
-            Business {mix.targets.business} % / Enabler {mix.targets.enabler} %, Portfolio-Limit{" "}
-            {formatEUR(threshold)} — {GUARDRAIL_SOURCE_LABELS[source]}.
+            Business {plan.targets.business} % / Enabler {plan.targets.enabler} % / Maintenance{" "}
+            {plan.targets.maintenance} %, Portfolio-Limit {formatEUR(threshold)} —{" "}
+            {GUARDRAIL_SOURCE_LABELS[source]}. Die drei Anteile werden zusammen gesetzt: eine halbe
+            Mix-Achse kann nicht auf 100 summieren.
           </p>
           {state.error && (
             <p role="alert" className="text-sm text-destructive">

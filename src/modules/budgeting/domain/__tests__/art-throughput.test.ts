@@ -31,6 +31,59 @@ const input = (over: Partial<Parameters<typeof deriveJobSizeRate>[0]> = {}) => (
   ...over,
 });
 
+/**
+ * **Das Fenster sind Halbjahre, keine Erfolge.**
+ *
+ * Bis September 2026 baute `art-coverage.ts` die Zyklusliste aus den Halbjahren,
+ * in denen etwas fertig wurde — ein Halbjahr mit Budget und ohne Abschluss
+ * existierte fuer den Satz nicht. Gemessen an „Shared Services & Automation":
+ * 255.000 € aus zwei aufeinanderfolgenden Halbjahren fielen heraus, und der
+ * Satz kam aus einem einzelnen, ein Jahr alten.
+ *
+ * Diese Tests halten die Gegenrichtung fest: leere Halbjahre zaehlen mit, ihr
+ * Budget verteuert den Punkt, und ein Fenster ganz ohne Abschluss ergibt keinen
+ * gemessenen Satz.
+ */
+describe("deriveJobSizeRate — leere Halbjahre im Fenster", () => {
+  it("das Budget eines Halbjahres ohne Abschluss zaehlt trotzdem", () => {
+    const r = deriveJobSizeRate(
+      input({ cycles: [cycle("2026-H1", 130_000, 0, 0), cycle("2025-H2", 125_000, 13, 1)] }),
+    );
+    expect(r.source).toBe("empirical");
+    // 255.000 ÷ 13 — nicht 125.000 ÷ 13, wie es das alte Fenster ergab.
+    expect(r.rate).toBeCloseTo(255_000 / 13);
+    expect(r.budgetSum).toBe(255_000);
+    expect(r.jobSizeSum).toBe(13);
+  });
+
+  it("nennt die leeren Halbjahre als Vorbehalt", () => {
+    const r = deriveJobSizeRate(
+      input({ cycles: [cycle("2026-H1", 130_000, 0, 0), cycle("2025-H2", 125_000, 13, 1)] }),
+    );
+    expect(r.caveats.some((c) => c.includes("In 1 von 2 Halbjahren"))).toBe(true);
+  });
+
+  it("ein Fenster ganz ohne Abschluss ergibt keinen gemessenen Satz", () => {
+    const r = deriveJobSizeRate(
+      input({ cycles: [cycle("2026-H1", 130_000, 0, 0), cycle("2025-H2", 125_000, 0, 0)] }),
+    );
+    expect(r.source).not.toBe("empirical");
+  });
+
+  it("… und faellt dann auf den Mandanten-Wert, wenn es einen gibt", () => {
+    // Fuer die Deckungs-Karte ist das der gewollte Weg. Die Guardrail lehnt ihn
+    // ab — siehe `capacityInPoints`.
+    const r = deriveJobSizeRate(
+      input({
+        cycles: [cycle("2026-H1", 130_000, 0, 0), cycle("2025-H2", 125_000, 0, 0)],
+        tenantDefault: 1_500,
+      }),
+    );
+    expect(r.source).toBe("tenantDefault");
+    expect(r.rate).toBe(1_500);
+  });
+});
+
 describe("deriveJobSizeRate", () => {
   it("rechnet den Satz aus Budget und Punkten der letzten zwei Zyklen", () => {
     const r = deriveJobSizeRate(
@@ -71,7 +124,7 @@ describe("deriveJobSizeRate", () => {
   it("fällt ohne Zyklen auf den Tenant-Wert zurück und sagt warum", () => {
     const r = deriveJobSizeRate(input({ tenantDefault: 600 }));
     expect(r.source).toBe("tenantDefault");
-    expect(r.caveats[0]).toContain("Kein abgeschlossener Zyklus");
+    expect(r.caveats[0]).toContain("Kein vorangegangenes Halbjahr");
   });
 
   // Lieber keine Zahl als eine erfundene.

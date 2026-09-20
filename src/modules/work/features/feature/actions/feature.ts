@@ -18,6 +18,18 @@ import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import { fibonacci } from "@/domain/schemas/initiative";
+import { FEATURE_TYPES } from "@/modules/work/domain/portfolio-guardrails";
+
+/**
+ * Die Werteliste kommt aus der Domaene, nicht aus dem Gedaechtnis — ein dritter
+ * Arbeitstyp soll nicht an einer Zod-Kante haengenbleiben. Das widerspricht
+ * ADR-0004 nicht: dort geht es um zusammengelegte **Eingabe-Schemata**, nicht
+ * um eine geteilte Werteliste. Vorbild: `z.enum(GATE_STEPS)` in
+ * `portfolio/actions/stage-gate.ts`.
+ *
+ * Der leere String bleibt daneben: er heisst „ungesetzt" bzw. „clearen".
+ */
+const FEATURE_TYPE_FIELD = z.enum([...FEATURE_TYPES, ""]).optional();
 import type { EpicId, ArtId, FeatureId, PiId, UserId } from "@/modules/core/kernel/domain/types";
 
 export interface FeatureActionState {
@@ -61,7 +73,7 @@ export const createFeatureAction = createServerAction({
     wsjfJobSize: z.coerce.number().pipe(fibonacci),
     acceptanceCriteria: z.string().optional(),
     // SAFe Guardrails. Leerer String = explizit „ungesetzt".
-    featureType: z.enum(["feature", "enabler", ""]).optional(),
+    featureType: FEATURE_TYPE_FIELD,
   }),
   action: "feature.create",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
@@ -107,7 +119,7 @@ export const updateFeatureAction = createServerAction({
     wsjfRiskReduction: z.coerce.number().pipe(fibonacci).optional(),
     wsjfJobSize: z.coerce.number().pipe(fibonacci).optional(),
     // SAFe Guardrails (Roadmap-G2). Leerer String = clearen.
-    featureType: z.enum(["feature", "enabler", ""]).optional(),
+    featureType: FEATURE_TYPE_FIELD,
   }),
   action: "feature.update",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
