@@ -50,6 +50,18 @@ export function horizonLabel(horizon: Horizon, mode: string | null | undefined):
   return horizon === "h1" && mode === "extracting" ? "H1 · Extracting" : HORIZON_LABEL[horizon];
 }
 
+/**
+ * **Nur die Stufe** — „H1" statt „H1 · Investing".
+ *
+ * Für Flächen, die neben dem Horizont ohnehin schon sagen, was die Solution
+ * tut, oder die schlicht keinen Platz für den Zusatz haben. Sie schneidet aus
+ * `HORIZON_LABEL` ab, statt eine zweite Etikettenliste aufzumachen — genau die
+ * war der Fehler, den `horizonLabel` oben beschreibt.
+ */
+export function horizonShort(horizon: Horizon): string {
+  return HORIZON_LABEL[horizon].split(" · ")[0]!;
+}
+
 /** Erklärtexte je Horizont — Quelle für Tooltips + Legende (Helfer-Schicht). */
 export const HORIZON_HELP: Record<
   Horizon,

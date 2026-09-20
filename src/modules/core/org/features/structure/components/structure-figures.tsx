@@ -1,4 +1,5 @@
 import { formatCompactEUR } from "@/lib/formatting";
+import { cn } from "@/lib/utils";
 import type { StructureMoney } from "@/modules/core/org/server/views/structure-overview";
 
 /**
@@ -85,11 +86,14 @@ export function StructureFigures({
 }
 
 /** „1" in Bernstein — offene Angaben an diesem Knoten, Namen im Titel. */
-export function GapBadge({ gaps }: { gaps: readonly string[] }) {
+export function GapBadge({ gaps, className }: { gaps: readonly string[]; className?: string }) {
   if (gaps.length === 0) return null;
   return (
     <span
-      className="shrink-0 rounded-full bg-warning-surface px-1.5 text-label font-semibold text-warning"
+      className={cn(
+        "shrink-0 rounded-full bg-warning-surface px-1.5 text-label font-semibold text-warning",
+        className,
+      )}
       title={gaps.join(", ")}
     >
       {gaps.length}

@@ -96,6 +96,31 @@ describe("StructureMap", () => {
     expect(screen.getByText("H2 · Emerging")).toBeTruthy();
   });
 
+  /**
+   * Bis September 2026 stand das Typwort nur in einer `sr-only`-Spanne: wer
+   * sah, bekam ein grünes Quadrat und eine farbige Schiene — zwei Codes ohne
+   * Legende. Jede Ebene sagt jetzt, was sie ist, und das Wort trägt die eigene
+   * Kennzahl des Knotens.
+   */
+  it("nennt an jeder Ebene ihren Typ", () => {
+    render(<StructureMap overview={voll()} showEpics showInvest showRun />);
+
+    expect(screen.getByText("Wertstrom · 2 ARTs")).toBeTruthy();
+    expect(screen.getByText("ART · 12 PIs")).toBeTruthy();
+    expect(screen.getByText("ART · 4 PIs")).toBeTruthy();
+    expect(screen.getAllByText("Solution")).toHaveLength(2);
+  });
+
+  /** Sonst läse ein Screenreader „ART" zweimal — einmal sichtbar, einmal nicht. */
+  it("trägt den Typ genau einmal im zugänglichen Namen", () => {
+    render(<StructureMap overview={voll()} showEpics showInvest showRun />);
+
+    expect(screen.getByRole("link", { name: "Plant Efficiency (OEE)" })).toBeTruthy();
+    // Die Kachel **ist** der Link; ihr Name ist deshalb ihr ganzer Text.
+    const kachel = screen.getByText("Produktion Betrieb").closest("a") as HTMLAnchorElement;
+    expect(kachel.textContent?.match(/Solution/g)).toHaveLength(1);
+  });
+
   it("macht jede Ebene anklickbar — die Karte ist die Navigation", () => {
     render(<StructureMap overview={voll()} showEpics showInvest showRun />);
     const href = (name: string) =>
@@ -121,7 +146,7 @@ describe("StructureMap", () => {
     expect(container.textContent).not.toContain("0 €");
     // Die Struktur selbst bleibt vollständig.
     expect(screen.getByText("Produktion Programm")).toBeTruthy();
-    expect(screen.getByText("12 PIs")).toBeTruthy();
+    expect(screen.getByText("ART · 12 PIs")).toBeTruthy();
   });
 });
 

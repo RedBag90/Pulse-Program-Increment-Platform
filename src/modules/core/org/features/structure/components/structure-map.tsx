@@ -144,7 +144,11 @@ function ArtColumn({
 }) {
   return (
     <>
-      <div className="flex items-baseline gap-2">
+      {/* Dieselbe Grammatik wie die Bahn-Kopfleiste: Name, dann das Typwort mit
+          der eigenen Kennzahl des Knotens, rechts die Warnmarke. Die Kadenz
+          stand früher rechts — dort, wo in der Rollen-Karte „n offen" steht;
+          zwei verschiedene Dinge an derselben Stelle. */}
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span
           className="size-1.5 shrink-0 translate-y-[-1px] rounded-[2px] bg-emerald-600"
           aria-hidden
@@ -154,12 +158,11 @@ function ArtColumn({
           className="min-w-0 text-xs font-semibold [overflow-wrap:anywhere] hover:text-primary hover:underline"
         >
           {art.name}
-          <span className="sr-only"> — ART</span>
         </Link>
-        <GapBadge gaps={art.gaps} />
-        <span className="ml-auto shrink-0 text-meta tabular-nums text-muted-foreground">
-          {art.cadenceLabel}
+        <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
+          ART · {art.cadenceLabel}
         </span>
+        <GapBadge gaps={art.gaps} className="ml-auto shrink-0" />
       </div>
 
       {art.solutions.length === 0 ? (
@@ -238,15 +241,28 @@ function SolutionTile({
         !solution.horizon && "border-l-muted-foreground/40",
       )}
     >
-      <span className="text-xs font-medium leading-snug">{solution.name}</span>
-      <span
-        className={cn(
-          "inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-meta font-medium",
-          tone ? tone.pill : "bg-muted text-muted-foreground",
-        )}
-      >
-        <span className={cn("size-1.5 rounded-full", tone ? tone.dot : "bg-muted-foreground/50")} />
-        {solution.statusLabel}
+      {/* Name, Typwort, Horizont in **einer** Reihe — der Horizont ist die
+          eigene Kennzahl der Kachel und stand schon da; ihn zusätzlich hinter
+          das Typwort zu schreiben, sagte ihn ein drittes Mal (Schiene, Wort,
+          Abzeichen). */}
+      <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span className="text-xs font-medium leading-snug [overflow-wrap:anywhere]">
+          {solution.name}
+        </span>
+        <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
+          Solution
+        </span>
+        <span
+          className={cn(
+            "inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-meta font-medium",
+            tone ? tone.pill : "bg-muted text-muted-foreground",
+          )}
+        >
+          <span
+            className={cn("size-1.5 rounded-full", tone ? tone.dot : "bg-muted-foreground/50")}
+          />
+          {solution.statusLabel}
+        </span>
       </span>
       <StructureFigures
         money={solution.money}
