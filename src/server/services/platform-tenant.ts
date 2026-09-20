@@ -171,12 +171,28 @@ export async function addTenantMember(
   const denied = requireAdmin(actor);
   if (denied) return { ok: false, error: denied };
 
+  // **Die Rolle ist keine Mandanten-Rolle.** `platform_admin` ist das globale
+  // Kennzeichen und lebt als Zuweisung im eigenen Bereich des Inhabers
+  // (`setPlatformRole`); sie hier zu vergeben hiesse, jemandem in einem
+  // fremden Mandanten eine Rolle zu geben, die dort nichts bedeutet — bis
+  // September 2026 bedeutete sie dort alles.
+  if (role === ROLES.PLATFORM_ADMIN) {
+    return { ok: false, error: "Plattform-Admin wird über die Nutzer-Fläche vergeben" };
+  }
+
   const db = platformDb(actor.id);
   const tenant = await db.tenant.findUnique({
     where: { id: tenantId },
-    select: { name: true },
+    select: { name: true, kind: true },
   });
   if (!tenant) return { ok: false, error: "Tenant nicht gefunden" };
+  // **Ein privater Bereich nimmt niemanden auf.** Dies war die einzige
+  // Verwaltungsfunktion ohne diesen Guard — und damit der Weg, auf dem sich ein
+  // Plattform-Admin selbst Zugang zu jedem fremden Privatbereich verschaffen
+  // konnte (`setTenantStatus` unten hat ihn seit jeher).
+  if (tenant.kind === "personal") {
+    return { ok: false, error: "Private Bereiche nehmen keine Mitglieder auf" };
+  }
 
   const userId = await findUserIdByEmail(email);
 

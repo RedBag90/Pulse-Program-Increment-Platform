@@ -17,6 +17,11 @@ const createTenantSchema = z.object({
 export const POST = createMutationHandler({
   schema: createTenantSchema,
   action: "tenant.create",
+  // Mandanten anlegen ist Plattform-Sache. `authorize()` allein trägt das
+  // nicht: `tenant.create` hat eine leere Grant-Liste und wurde deshalb nur
+  // vom `tenant_admin`-Fast-Path erlaubt — und den hat jeder in seinem eigenen
+  // privaten Bereich.
+  platformOnly: true,
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
     createTenant(ctx, {
@@ -27,9 +32,11 @@ export const POST = createMutationHandler({
     }),
 });
 
-// Entitlement-Pflege (Freemium): Modul-Set eines Tenants setzen. Gleiches
-// Gate wie das Anlegen (`tenant.create` = platform_admin-only Fast-Path) —
-// Entitlements sind Plattform-Sache, kein tenant-seitiges Self-Service.
+// Entitlement-Pflege (Freemium): Modul-Set eines Tenants setzen. Entitlements
+// sind Plattform-Sache, kein tenant-seitiges Self-Service — und diese Route
+// schreibt auf die `tenantId` aus dem **Body**, während `authorize()` nur über
+// den **aktiven** Mandanten entscheiden kann. Genau diese Lücke stand hier
+// offen: jeder angemeldete Nutzer konnte die Module jedes Mandanten setzen.
 const updateEntitlementsSchema = z.object({
   tenantId: z.string().uuid(),
   enabledModules: z.array(moduleKeyEnum),
@@ -38,6 +45,7 @@ const updateEntitlementsSchema = z.object({
 export const PATCH = createMutationHandler({
   schema: updateEntitlementsSchema,
   action: "tenant.create",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  platformOnly: true,
+  resource: (input, _p) => ({ tenantId: input.tenantId }),
   service: (ctx, input) => updateTenantEntitlements(ctx, input),
 });

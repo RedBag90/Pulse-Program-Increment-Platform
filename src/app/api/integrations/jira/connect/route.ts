@@ -8,7 +8,10 @@ export async function GET(req: NextRequest) {
   if (!principal) return problemJson(401, "Unauthorized");
 
   const canManage =
-    principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
+    // Eine Mandanten-Aktion: sie braucht eine Mandanten-Rolle. `platform_admin`
+    // stand hier daneben und gab damit jedem Plattform-Admin Zugriff auf die
+    // Jira-Verbindung fremder Mandanten.
+    principal.roles.includes("tenant_admin");
   if (!canManage) return problemJson(403, "Forbidden");
 
   const state = crypto.randomUUID();

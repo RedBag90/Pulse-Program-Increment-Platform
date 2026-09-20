@@ -9,16 +9,9 @@ import { PageSection } from "@/components/layout/page-section";
 import { CreateTenantForm } from "@/features/platform/components/create-tenant-form";
 import { TenantStatusBadge } from "@/features/platform/components/tenant-status-badge";
 
-interface PageProps {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}
-
-export default async function PlatformTenantsPage({ searchParams }: PageProps) {
+export default async function PlatformTenantsPage() {
   const actor = await requirePlatformAdmin();
-  const params = await searchParams;
-  const includePersonal = params.personal === "1";
-
-  const tenants = await listAllTenants(platformDb(actor.id), { includePersonal });
+  const tenants = await listAllTenants(platformDb(actor.id));
 
   return (
     <Page>
@@ -29,14 +22,11 @@ export default async function PlatformTenantsPage({ searchParams }: PageProps) {
       />
 
       <PageSection>
+        {/* Der Schalter „Private Bereiche einblenden" stand hier bis September
+            2026. Er blendete die privaten Bereiche aller Nutzer ein — und von
+            dort führte „Mitglied hinzufügen" in jeden davon hinein. */}
         <div className="flex items-center gap-3 text-xs">
-          <span className="text-muted-foreground">{tenants.length} Tenants</span>
-          <Link
-            href={includePersonal ? "/platform/tenants" : "/platform/tenants?personal=1"}
-            className="rounded-md border px-2.5 py-1 transition-colors hover:bg-muted"
-          >
-            {includePersonal ? "Nur Organisationen" : "Private Bereiche einblenden"}
-          </Link>
+          <span className="text-muted-foreground">{tenants.length} Organisationen</span>
         </div>
 
         <div className="overflow-x-auto rounded-lg border">

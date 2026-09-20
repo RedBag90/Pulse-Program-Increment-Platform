@@ -4,7 +4,7 @@ import { z } from "zod";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createPrismaClient } from "@/server/db/prisma";
-import { ACTIVE_TENANT_COOKIE } from "@/server/auth/principal";
+import { ACTIVE_TENANT_COOKIE, mayEnterTenant } from "@/server/auth/principal";
 import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 
 // Justified exception: Tenant-Wechsel läuft nicht über createServerAction —
@@ -33,11 +33,21 @@ export async function switchTenantAction(
 
   // Mitgliedschaft im Ziel-Tenant prüfen (Bootstrap-Client, wie getPrincipal).
   const db = createPrismaClient({ userId: user.id as UserId, tenantId: "" as TenantId });
-  const membership = await db.userRoleAssignment.findFirst({
+  const memberships = await db.userRoleAssignment.findMany({
     where: { userId: user.id, tenantId: parsed.data.tenantId },
-    select: { id: true },
+    select: { role: true, tenant: { select: { kind: true } } },
   });
-  if (!membership) return { error: "Kein Zugang zu diesem Bereich" };
+  if (memberships.length === 0) return { error: "Kein Zugang zu diesem Bereich" };
+
+  // **Ein privater Bereich gehört einem Menschen.** Eigentum zeigt sich an der
+  // Zuweisung, die beim Anlegen entsteht (`ensurePersonalTenant` vergibt
+  // `tenant_admin`). Eine andere Zeile dort ist keine Einladung — bis September
+  // 2026 lag in dreizehn fremden Privatbereichen eine `platform_admin`-Zeile,
+  // und diese Prüfung fragte nur, **ob** eine Zeile existiert.
+  const erlaubt = mayEnterTenant(
+    memberships.map((m) => ({ role: m.role, tenantKind: m.tenant.kind })),
+  );
+  if (!erlaubt) return { error: "Kein Zugang zu diesem Bereich" };
 
   (await cookies()).set(ACTIVE_TENANT_COOKIE, parsed.data.tenantId, COOKIE_OPTS);
   return {};

@@ -102,6 +102,43 @@ describe("createMutationHandler — auth", () => {
   });
 });
 
+/**
+ * ⚠ SECURITY: Mandanten anlegen und Modul-Entitlements setzen sind
+ * **Plattform**-Sachen. `authorize()` kann sie nicht tragen: es entscheidet
+ * über den **aktiven** Mandanten, und `tenant.create` hat eine leere
+ * Grant-Liste — erlaubt wurde es allein vom `tenant_admin`-Fast-Path, den jeder
+ * in seinem eigenen privaten Bereich hält. Bis September 2026 konnte deshalb
+ * jeder angemeldete Nutzer über `/api/v1/admin/tenants` Mandanten anlegen und
+ * die Module **fremder** Mandanten setzen (am laufenden Server reproduziert:
+ * HTTP 201 mit einem `viewer`-Konto).
+ */
+describe("createMutationHandler — platformOnly", () => {
+  it("weist ab, wer das Plattform-Kennzeichen nicht trägt", async () => {
+    // Der Fall, der das Loch trug: `authorize` sagt ja (Fast-Path als
+    // tenant_admin des eigenen Bereichs) — der Riegel sagt trotzdem nein.
+    mockAuthorize.mockReturnValue({ allow: true });
+    const service = vi.fn().mockResolvedValue(ok({ id: "x" }));
+    const res = await makeHandler({ platformOnly: true, service })(makeRequest({ name: "Neu" }));
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ detail: "Plattform-Admin erforderlich" });
+    expect(service).not.toHaveBeenCalled();
+  });
+
+  it("lässt den Plattform-Admin durch", async () => {
+    mockRequirePrincipal.mockResolvedValue({ ...fakePrincipal, isPlatformAdmin: true });
+    const service = vi.fn().mockResolvedValue(ok({ id: "x" }));
+    const res = await makeHandler({ platformOnly: true, service })(makeRequest({ name: "Neu" }));
+    expect(res.status).toBe(201);
+    expect(service).toHaveBeenCalled();
+  });
+
+  it("greift nur, wo er gesetzt ist", async () => {
+    const service = vi.fn().mockResolvedValue(ok({ id: "x" }));
+    const res = await makeHandler({ service })(makeRequest({ name: "Neu" }));
+    expect(res.status).toBe(201);
+  });
+});
+
 describe("createMutationHandler — body parsing", () => {
   it("returns 422 when body is not valid JSON", async () => {
     const req = new Request("http://localhost/api/v1/test", {

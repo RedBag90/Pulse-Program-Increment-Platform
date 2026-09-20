@@ -23,16 +23,17 @@ export interface PlatformTenantRow {
 }
 
 /**
- * Alle Tenants — Default nur Organisationen (Personal-Tenants sind der private
- * Free-Bereich jedes Users und blähen die Liste auf). `includePersonal` schaltet
- * sie zu.
+ * Alle Organisationen — **und nur die**.
+ *
+ * Bis September 2026 gab es hier einen Schalter `includePersonal`, der die
+ * privaten Bereiche aller Nutzer einblendete, samt Mitgliederliste und
+ * E-Mail-Adressen. Von dort führte ein Knopf („Mitglied hinzufügen") in jeden
+ * fremden Privatbereich hinein. Ein privater Bereich ist kein
+ * Verwaltungsobjekt: er taucht auf dieser Fläche nicht mehr auf.
  */
-export async function listAllTenants(
-  db: PrismaClient,
-  opts: { includePersonal?: boolean } = {},
-): Promise<PlatformTenantRow[]> {
+export async function listAllTenants(db: PrismaClient): Promise<PlatformTenantRow[]> {
   const rows = await db.tenant.findMany({
-    where: opts.includePersonal ? {} : { kind: "organization" },
+    where: { kind: "organization" },
     select: {
       id: true,
       name: true,
@@ -97,7 +98,10 @@ export async function loadTenantDetail(
       },
     },
   });
-  if (!tenant) return null;
+  // Ein privater Bereich sieht von hier aus wie „nicht vorhanden". Ohne das
+  // bliebe der Detail-Aufruf über eine bekannte Id offen, auch nachdem die
+  // Liste ihn nicht mehr zeigt.
+  if (!tenant || tenant.kind === "personal") return null;
 
   const emails = await resolveUserEmails(tenant.userRoleAssignments.map((a) => a.userId));
   return {

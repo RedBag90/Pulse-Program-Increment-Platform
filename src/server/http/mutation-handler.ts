@@ -72,6 +72,20 @@ export interface MutationHandlerConfig<TInput> {
    * Pass false for PATCH/DELETE routes where idempotency is not needed.
    */
   idempotent?: boolean;
+  /**
+   * **Plattform-Sache statt Mandanten-Sache.** Verlangt das globale
+   * `isPlatformAdmin`-Kennzeichen, bevor `authorize()` überhaupt befragt wird —
+   * dieselbe Schranke, die `requirePlatformAdmin` vor die `/platform`-Flächen
+   * stellt (`server/auth/platform.ts`).
+   *
+   * Notwendig, weil `authorize()` eine **Mandanten**-Entscheidung trifft: es
+   * kennt nur die Rollen des aktiven Mandanten. Eine Route, die einen fremden
+   * Mandanten schreibt, lässt sich damit nicht absichern — und `tenant.create`
+   * hat ohnehin eine leere Grant-Liste, wird also allein vom
+   * `tenant_admin`-Fast-Path getragen. Da **jeder** Nutzer `tenant_admin`
+   * seines privaten Bereichs ist, hiess das: jeder kam durch.
+   */
+  platformOnly?: boolean;
 }
 
 /**
@@ -84,7 +98,15 @@ export interface MutationHandlerConfig<TInput> {
 export function createMutationHandler<TInput>(
   config: MutationHandlerConfig<TInput>,
 ): (request: Request) => Promise<Response> {
-  const { schema, action, resource, service, successStatus = 201, idempotent = true } = config;
+  const {
+    schema,
+    action,
+    resource,
+    service,
+    successStatus = 201,
+    idempotent = true,
+    platformOnly = false,
+  } = config;
 
   const resolvedErrorMap = { ...DEFAULT_ERROR_MAP, ...config.errorMap };
 
@@ -105,6 +127,10 @@ export function createMutationHandler<TInput>(
 
       const parsed = schema.safeParse(body);
       if (!parsed.success) return unprocessable(parsed.error.message);
+
+      if (platformOnly && !principal.isPlatformAdmin) {
+        return forbidden("Plattform-Admin erforderlich");
+      }
 
       const decision = authorize(action, resource(parsed.data, principal), principal);
       if (!decision.allow) return forbidden(decision.reason);

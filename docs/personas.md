@@ -42,10 +42,15 @@ grant** — it is a pure read-only role, scoped by Row-Level Security.
   healthy. The only role that is not a SAFe role.
 - **Goals:** Onboard new customer tenants quickly; keep the platform healthy and
   observable; resolve incidents before customers notice.
-- **How they use Pulse:** Tenant provisioning and cross-tenant operations;
-  monitors Sentry and the outbox/cron processor.
-- **Permissions & scope:** Allowed every action (handled directly in
-  `authorize()`); the only role that may `tenant.create`. **Scope: cross-tenant.**
+- **How they use Pulse:** Tenant provisioning and cross-tenant operations via
+  `/platform/**`; monitors Sentry and the outbox/cron processor **outside** the
+  product — neither has a surface inside Pulse.
+- **Permissions & scope:** **No** tenant permissions. Since September 2026 the
+  role is a global flag (`isPlatformAdmin`), not a grant and not a bypass in
+  `authorize()`: it opens the `/platform` surfaces (create tenants, set modules,
+  lifecycle, platform role, account suspension) and nothing else. It cannot read
+  or write any tenant's content — including private workspaces.
+  **Scope: the platform, not the tenants.**
 
 ## Nadia — Workspace Administrator
 

@@ -6,6 +6,7 @@ import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 import type { Action, ScopeCheck } from "@/server/auth/policies";
 import { enabledModulesOrDefault, type ModuleKey } from "@/modules/core/kernel/domain/modules";
 import { isUserBanned } from "@/server/services/user-directory";
+import { ROLES } from "@/modules/core/kernel/domain/roles";
 
 /**
  * Cookie mit der aktiven Tenant-Auswahl eines Multi-Tenant-Users (Switcher).
@@ -59,10 +60,36 @@ export interface Principal {
 /** Die Assignment-Felder, die die Tenant-Auflösung braucht (Prisma-Row-Teilmenge). */
 export interface AssignmentRow {
   tenantId: string;
+  /** Die Art des Mandanten — `"personal"` ist ein privater Bereich. */
+  tenantKind: string;
   role: string;
   valueStreamIds: string[];
   artIds: string[];
   teamIds: string[];
+}
+
+/**
+ * **Darf ich in diesem Bereich überhaupt sein?**
+ *
+ * Ein privater Bereich gehört genau einem Menschen, und Eigentum zeigt sich an
+ * der Zuweisung, die beim Anlegen entsteht: `tenant_admin`
+ * (`services/tenant.ts`, `ensurePersonalTenant`). Wer dort eine **andere**
+ * Zuweisung hält, ist hineingeraten, nicht eingeladen — bis September 2026 lag
+ * in dreizehn fremden Privatbereichen eine `platform_admin`-Zeile.
+ *
+ * Die Prüfung steht hier und nicht nur beim Umschalten: so hängt der Zugang
+ * nicht daran, dass die Datenbank sauber **bleibt**.
+ */
+export function mayEnterTenant(
+  memberships: readonly { role: string; tenantKind: string }[],
+): boolean {
+  if (memberships.length === 0) return false;
+  if (!memberships.some((m) => m.tenantKind === "personal")) return true;
+  return memberships.some((m) => m.role === ROLES.TENANT_ADMIN);
+}
+
+function darfBetreten(assignments: readonly AssignmentRow[], tenantId: string): boolean {
+  return mayEnterTenant(assignments.filter((a) => a.tenantId === tenantId));
 }
 
 /**
@@ -81,10 +108,18 @@ export function resolveActiveAssignments(
 ): { tenantId: TenantId; roles: string[]; scopes: PrincipalScopes } | null {
   if (assignments.length === 0) return null;
 
+  // Der Rückfall geht auf das älteste **betretbare** Assignment, nicht auf das
+  // älteste überhaupt: eine übersehene Zeile in einem fremden Privatbereich
+  // wäre sonst der Standard-Bereich.
+  const ersteErlaubte = assignments.find((a) => darfBetreten(assignments, a.tenantId));
+  if (!ersteErlaubte) return null;
+
   const tenantId = (
-    requestedTenantId && assignments.some((a) => a.tenantId === requestedTenantId)
+    requestedTenantId &&
+    assignments.some((a) => a.tenantId === requestedTenantId) &&
+    darfBetreten(assignments, requestedTenantId)
       ? requestedTenantId
-      : assignments[0]!.tenantId
+      : ersteErlaubte.tenantId
   ) as TenantId;
 
   const active = assignments.filter((a) => a.tenantId === tenantId);
@@ -136,6 +171,16 @@ export const getPrincipal = cache(async (): Promise<Principal | null> => {
     db.userRoleAssignment.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "asc" },
+      // `tenant.kind` kommt mit: die Auflösung muss einen privaten Bereich
+      // erkennen können, und ein Join kostet weniger als eine zweite Abfrage.
+      select: {
+        tenantId: true,
+        role: true,
+        valueStreamIds: true,
+        artIds: true,
+        teamIds: true,
+        tenant: { select: { kind: true } },
+      },
     }),
     isUserBanned(user.id),
   ]);
@@ -146,7 +191,17 @@ export const getPrincipal = cache(async (): Promise<Principal | null> => {
   // tenant-übergreifende Rollen-Union mehr).
   const cookieStore = await cookies();
   const requestedTenantId = cookieStore.get(ACTIVE_TENANT_COOKIE)?.value ?? null;
-  const resolved = resolveActiveAssignments(assignments, requestedTenantId);
+  const resolved = resolveActiveAssignments(
+    assignments.map((a) => ({
+      tenantId: a.tenantId,
+      tenantKind: a.tenant.kind,
+      role: a.role,
+      valueStreamIds: a.valueStreamIds,
+      artIds: a.artIds,
+      teamIds: a.teamIds,
+    })),
+    requestedTenantId,
+  );
   if (!resolved) return null;
   const { tenantId, roles, scopes } = resolved;
 

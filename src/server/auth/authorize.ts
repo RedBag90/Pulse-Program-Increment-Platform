@@ -69,8 +69,20 @@ function capabilityGrants(
  * allow/deny with a reason so callers can produce a structured 403 rather than
  * relying on RLS returning empty results.
  *
- * `platform_admin` und `tenant_admin` sind allmächtig (Fast-Path) — sie
- * brauchen keinen Capability-Grant.
+ * **`tenant_admin` ist allmächtig (Fast-Path)** — innerhalb seines Mandanten,
+ * und nur dort: `principal.roles` trägt ausschliesslich die Rollen des aktiven
+ * Mandanten (`resolveActiveAssignments`).
+ *
+ * **`platform_admin` nicht.** Die Rolle stand hier bis September 2026 daneben,
+ * und damit hatte ein Plattform-Admin in **jedem** Mandanten, in dem eine Zeile
+ * für ihn lag, vollen Lese- und Schreibzugriff auf alle Inhalte — auch in
+ * privaten Bereichen fremder Nutzer. Die Plattform-Rechte laufen nicht über
+ * diese Funktion: sie hängen am globalen Kennzeichen `isPlatformAdmin` und
+ * werden von `requirePlatformAdmin`/`assertPlatformAdmin` gegen den
+ * mandanten-blinden `platformDb` geprüft (`server/auth/platform.ts`). Die
+ * `platform.*`-Capabilities stehen in `POLICIES` deshalb auf leeren
+ * Rollenlisten. Wer in einem Mandanten arbeiten will, braucht dort eine
+ * Mandanten-Rolle.
  *
  * Sonst wird gegen `principal.capabilities` geprüft (geladen in
  * `getPrincipal()` aus `role_capabilities` mit Fallback auf den Code-
@@ -82,11 +94,7 @@ export function authorize(
   resource: AuthResource,
   principal: Principal,
 ): AuthorizationDecision {
-  if (
-    principal.roles.includes(ROLES.PLATFORM_ADMIN) ||
-    principal.roles.includes(ROLES.TENANT_ADMIN)
-  )
-    return { allow: true };
+  if (principal.roles.includes(ROLES.TENANT_ADMIN)) return { allow: true };
 
   const grants = capabilityGrants(principal.capabilities, action);
   for (const grant of grants) {

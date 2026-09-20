@@ -22,8 +22,17 @@ async function personalTenantOf(
   db: ReturnType<typeof platformDb>,
   userId: string,
 ): Promise<string | null> {
+  // Der **eigene** Bereich: die `tenant_admin`-Zuweisung entsteht beim Anlegen
+  // (`ensurePersonalTenant`) und ist das einzige verlässliche Eigentumsmerkmal.
+  // Ohne diese Einschränkung konnte die Probe den privaten Bereich eines
+  // anderen Nutzers liefern — und `setPlatformRole` hätte die globale Rolle
+  // dorthin geschrieben.
   const t = await db.tenant.findFirst({
-    where: { kind: "personal", userRoleAssignments: { some: { userId } } },
+    where: {
+      kind: "personal",
+      userRoleAssignments: { some: { userId, role: ROLES.TENANT_ADMIN } },
+    },
+    orderBy: { createdAt: "asc" },
     select: { id: true },
   });
   return t?.id ?? null;

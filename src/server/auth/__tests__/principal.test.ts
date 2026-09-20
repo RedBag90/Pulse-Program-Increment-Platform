@@ -3,6 +3,7 @@ import { resolveActiveAssignments, type AssignmentRow } from "@/server/auth/prin
 
 const row = (over: Partial<AssignmentRow> = {}): AssignmentRow => ({
   tenantId: "tenant-a",
+  tenantKind: "organization",
   role: "viewer",
   valueStreamIds: [],
   artIds: [],
@@ -71,5 +72,36 @@ describe("resolveActiveAssignments — Multi-Tenant-Kern", () => {
     );
     expect(r?.scopes.valueStreamIds).toEqual([]);
     expect(r?.roles.sort()).toEqual(["epic_owner", "rte"]);
+  });
+
+  /**
+   * ⚠ SECURITY: ein privater Bereich gehört einem Menschen. Wer dort eine
+   * andere Zuweisung als `tenant_admin` hält, ist hineingeraten — bis September
+   * 2026 lag in dreizehn fremden Privatbereichen eine `platform_admin`-Zeile,
+   * und der Umschalter liess hinein.
+   */
+  describe("private Bereiche", () => {
+    const eigener = row({ tenantId: "privat-a", tenantKind: "personal", role: "tenant_admin" });
+    const fremder = row({ tenantId: "privat-b", tenantKind: "personal", role: "platform_admin" });
+
+    it("lässt den Eigentümer in seinen eigenen Bereich", () => {
+      expect(resolveActiveAssignments([eigener], "privat-a")?.tenantId).toBe("privat-a");
+    });
+
+    it("lässt niemanden in einen fremden Bereich — auch nicht mit Zuweisung", () => {
+      const r = resolveActiveAssignments([row({ tenantId: "tenant-a" }), fremder], "privat-b");
+      expect(r?.tenantId).toBe("tenant-a");
+    });
+
+    it("macht einen fremden Bereich auch nicht zum Rückfall", () => {
+      // Die fremde Zeile ist die älteste — ohne die Prüfung wäre sie der
+      // Standard-Bereich beim Anmelden.
+      const r = resolveActiveAssignments([fremder, row({ tenantId: "tenant-a" })], null);
+      expect(r?.tenantId).toBe("tenant-a");
+    });
+
+    it("gibt keinen Prinzipal, wenn es nur fremde Bereiche gibt", () => {
+      expect(resolveActiveAssignments([fremder], null)).toBeNull();
+    });
   });
 });

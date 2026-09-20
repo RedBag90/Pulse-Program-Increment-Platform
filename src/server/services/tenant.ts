@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 import { ROLES } from "@/modules/core/kernel/domain/roles";
+import { mayEnterTenant } from "@/server/auth/principal";
 import { PERSONAL_DEFAULT_MODULES } from "@/modules/core/kernel/domain/modules";
 import { emitAuditEvent } from "@/server/audit/emit";
 import type { Result } from "@/modules/core/kernel/domain/errors";
@@ -142,7 +143,16 @@ export async function ensurePersonalTenant(
   email: string,
 ): Promise<{ tenantId: TenantId; created: boolean }> {
   const existing = await db.tenant.findFirst({
-    where: { kind: "personal", userRoleAssignments: { some: { userId } } },
+    // **Mein** Bereich ist der, in dem ich `tenant_admin` bin — die Zuweisung,
+    // die beim Anlegen entsteht. Die Probe fragte bis September 2026 nur nach
+    // *irgendeiner* Zuweisung und ohne `orderBy`: mit einer Fremdmitgliedschaft
+    // konnte sie den Bereich eines anderen zurückgeben, und dann legte diese
+    // Funktion keinen eigenen mehr an.
+    where: {
+      kind: "personal",
+      userRoleAssignments: { some: { userId, role: ROLES.TENANT_ADMIN } },
+    },
+    orderBy: { createdAt: "asc" },
     select: { id: true },
   });
   if (existing) return { tenantId: existing.id as TenantId, created: false };
@@ -244,11 +254,23 @@ export interface UserTenant {
 export async function listUserTenants(db: PrismaClient, userId: UserId): Promise<UserTenant[]> {
   const assignments = await db.userRoleAssignment.findMany({
     where: { userId },
-    select: { tenant: { select: { id: true, name: true, kind: true, status: true } } },
+    select: { role: true, tenant: { select: { id: true, name: true, kind: true, status: true } } },
   });
   const byId = new Map(assignments.map((a) => [a.tenant.id, a.tenant]));
+  // Die Liste zeigt nur, was auch betretbar ist — dieselbe Regel wie beim
+  // Wechseln und beim Auflösen des Prinzipals. Ohne sie stünden fremde private
+  // Bereiche weiter im Umschalter und liefen erst beim Klick in eine Absage.
+  const rollenJeTenant = new Map<string, { role: string; tenantKind: string }[]>();
+  for (const a of assignments) {
+    const k = a.tenant.id;
+    rollenJeTenant.set(k, [
+      ...(rollenJeTenant.get(k) ?? []),
+      { role: a.role, tenantKind: a.tenant.kind },
+    ]);
+  }
   return (
     [...byId.values()]
+      .filter((t) => mayEnterTenant(rollenJeTenant.get(t.id) ?? []))
       // Gesperrte/archivierte Tenants sind keine gültigen Wechsel-Ziele — der
       // Switcher (und die /suspended-Seite) zeigen nur aktive Bereiche.
       .filter((t) => t.status === "active")

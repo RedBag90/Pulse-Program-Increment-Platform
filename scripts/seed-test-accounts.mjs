@@ -61,10 +61,18 @@ async function upsertAuthUser(email) {
 async function main() {
   console.log("\n🌱  Seeding per-role test accounts…\n");
 
-  const tenant =
-    (await prisma.tenant.findFirst({ where: { name: "Pulse Demo Corp" } })) ??
-    (await prisma.tenant.findFirst());
-  if (!tenant) throw new Error("No tenant found — run the main seed first.");
+  // **Kein Rückfall auf irgendeinen Mandanten.** Hier stand
+  // `?? prisma.tenant.findFirst()` — ohne Sortierung und ohne `kind`-Filter.
+  // Fehlte „Pulse Demo Corp", landeten zwölf Konten (darunter der
+  // Plattform-Admin) in einem beliebigen Mandanten, auch im **privaten
+  // Bereich** eines Menschen. Genau so entstehen Mitgliedschaften, die dort
+  // nichts zu suchen haben.
+  const tenant = await prisma.tenant.findFirst({
+    where: { name: "Pulse Demo Corp", kind: "organization" },
+  });
+  if (!tenant) {
+    throw new Error('Tenant "Pulse Demo Corp" nicht gefunden — erst den Haupt-Seed laufen lassen.');
+  }
   console.log(`Tenant: ${tenant.name} (${tenant.id})\n`);
 
   for (const { email, role } of ROLE_ACCOUNTS) {

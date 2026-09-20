@@ -20,8 +20,13 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 - **Funktionen** sind die 48 zustandsändernden Aktionen der `Action`-Union.
   Reine Lesezugriffe sind hier nicht gelistet — sie werden mandantenweit über
   Row-Level Security (RLS) gesteuert.
-- **Admin-Bypass:** `platform_admin` und `tenant_admin` dürfen jede Funktion;
-  das ist direkt in `authorize()` verdrahtet, nicht über Grants.
+- **Admin-Bypass:** **`tenant_admin`** darf jede Funktion **seines** Mandanten;
+  das ist direkt in `authorize()` verdrahtet, nicht über Grants. `platform_admin`
+  stand dort bis September 2026 daneben — und hatte damit volle Inhalts-Rechte in
+  jedem Mandanten, in dem eine Zeile für ihn lag, bis hinein in private Bereiche
+  fremder Nutzer. Die Plattform-Rechte laufen seither **nicht** über diese
+  Matrix: sie hängen am globalen Kennzeichen `isPlatformAdmin` und werden von
+  `requirePlatformAdmin` vor die `/platform`-Flächen gestellt.
 - **Scopes:** Ein Grant kann zusätzlich verlangen, dass die Rolle den Scope der
   Ressource trifft — `value_stream`, `art`, `team` oder `own` (eigene Ressource).
   Ein leerer Scope der Rolle bedeutet „alle in Reichweite".
@@ -198,8 +203,13 @@ einen Scope.
 
 #### `platform_admin` — Plattform-Betreiber
 
-- **Alle** Funktionen, mandantenübergreifend. Einzige Rolle mit `tenant.create`.
-- Bypass in `authorize()` — erscheint in keinem Grant.
+- **Keine** Funktion dieser Matrix. Die Rolle ist kein Mandanten-Recht, sondern
+  ein globales Kennzeichen: sie öffnet die `/platform`-Flächen (Mandanten
+  anlegen, Module setzen, Lebenszyklus, Plattform-Rolle, Konto-Sperre) und sonst
+  nichts. Wer in einem Mandanten arbeiten soll, braucht dort eine Mandanten-Rolle.
+- Erscheint in keinem Grant und **seit September 2026 auch in keinem Bypass**
+  (`authorize()`); durchgesetzt wird sie von `requirePlatformAdmin` /
+  `assertPlatformAdmin` und vom `platformOnly`-Riegel der Mutations-Routen.
 
 #### `tenant_admin` — Mandanten-Administrator
 
