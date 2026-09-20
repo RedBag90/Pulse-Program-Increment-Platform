@@ -242,7 +242,14 @@ async function main() {
       costPerJobSizePoint: 600,
       // Kleiner, sichtbarer Richtwert, damit die Benefit-Velocity-Ziel-Linie rendert.
       costNeutralTarget: 5_000,
-      guardrailTargets: { horizon: { H1: 1, H2: 0, H3: 0 }, enablerRatio: 0 },
+      guardrailTargets: {
+        // Grossgeschriebene Horizont-Schluessel und ein Feld `enablerRatio`,
+        // das es nie gab: der Parser kannte beides nicht, das JSON fiel
+        // vollstaendig auf die Defaults und loeste bei jedem Laden eine
+        // Drift-Meldung aus.
+        horizon: { h3: 0, h2: 0, "h1.1": 50, "h1.2": 50, h0: 0 },
+        capacity: { business: 80, enabler: 15, maintenance: 5 },
+      },
     },
   });
 

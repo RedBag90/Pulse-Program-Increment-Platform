@@ -57,6 +57,14 @@ import {
   type GateTransitionRow,
 } from "./seed-gate-history.js";
 import { contentForGate, assertGateContent } from "./seed-gate-content.js";
+import {
+  assertJobSizes,
+  assertPiQuotas,
+  jobSizeFor,
+  piQuotas,
+  planFeature,
+  type DeliveryPi,
+} from "./seed-delivery.js";
 import { currentGateStep } from "@/modules/work/domain/stage-gate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { gateOfStep, type GateStep } from "@/modules/work/domain/stage-gate";
@@ -118,7 +126,7 @@ async function main() {
       costPerJobSizePoint: 1_800,
       guardrailTargets: {
         horizon: { h3: 10, h2: 20, h1: 60, h0: 10 },
-        capacity: { business: 80, enabler: 20 },
+        capacity: { business: 70, enabler: 20, maintenance: 10 },
       },
     },
   });
@@ -244,16 +252,27 @@ async function main() {
     })),
   });
 
-  // 6 PIs auf der Timeline (2 completed, 1 active, 3 planned). timelineId ist
-  // kanonisch; artId bleibt leer (Timeline-Modell — geteilte PI-Grid über ARTs).
+  /**
+   * 8 PIs auf der Timeline (4 completed, 1 active, 3 planned).
+   *
+   * **Vier abgeschlossene, nicht zwei.** Der €-Satz je Job-Size-Punkt misst die
+   * **zwei Halbjahre vor** dem gewählten — mit nur 140 Tagen Historie reichte
+   * die PI-Reihe nicht einmal in das erste davon hinein, und der Mandant hatte
+   * für jedes ART einen Nenner aus einem einzigen Feature.
+   *
+   * `timelineId` ist kanonisch; `artId` bleibt leer (Timeline-Modell — geteiltes
+   * PI-Grid über ARTs).
+   */
   const piBase = addDays(now, -21); // aktives PI läuft seit 3 Wochen
   const piSpecs = [
-    { key: "pi1", name: "PI 1", start: addDays(piBase, -140), status: "completed" },
-    { key: "pi2", name: "PI 2", start: addDays(piBase, -70), status: "completed" },
-    { key: "pi3", name: "PI 3", start: piBase, status: "active" },
-    { key: "pi4", name: "PI 4", start: addDays(piBase, 70), status: "planned" },
-    { key: "pi5", name: "PI 5", start: addDays(piBase, 140), status: "planned" },
-    { key: "pi6", name: "PI 6", start: addDays(piBase, 210), status: "planned" },
+    { key: "pi1", name: "PI 1", start: addDays(piBase, -280), status: "completed" },
+    { key: "pi2", name: "PI 2", start: addDays(piBase, -210), status: "completed" },
+    { key: "pi3", name: "PI 3", start: addDays(piBase, -140), status: "completed" },
+    { key: "pi4", name: "PI 4", start: addDays(piBase, -70), status: "completed" },
+    { key: "pi5", name: "PI 5", start: piBase, status: "active" },
+    { key: "pi6", name: "PI 6", start: addDays(piBase, 70), status: "planned" },
+    { key: "pi7", name: "PI 7", start: addDays(piBase, 140), status: "planned" },
+    { key: "pi8", name: "PI 8", start: addDays(piBase, 210), status: "planned" },
   ];
   const piIds: Record<string, string> = {};
   for (const p of piSpecs) piIds[p.key] = uid(`pi:${p.key}`);
@@ -293,9 +312,11 @@ async function main() {
    * absichtlich verfehlt.
    */
   const piBSpecs = [
-    { key: "pib1", name: "Payments PI 1", start: addDays(piBase, -70), status: "completed" },
-    { key: "pib2", name: "Payments PI 2", start: piBase, status: "active" },
-    { key: "pib3", name: "Payments PI 3", start: addDays(piBase, 70), status: "planned" },
+    { key: "pib1", name: "Payments PI 1", start: addDays(piBase, -210), status: "completed" },
+    { key: "pib2", name: "Payments PI 2", start: addDays(piBase, -140), status: "completed" },
+    { key: "pib3", name: "Payments PI 3", start: addDays(piBase, -70), status: "completed" },
+    { key: "pib4", name: "Payments PI 4", start: piBase, status: "active" },
+    { key: "pib5", name: "Payments PI 5", start: addDays(piBase, 70), status: "planned" },
   ];
   for (const p of piBSpecs) piIds[p.key] = uid(`pi:${p.key}`);
   await prisma.programIncrement.createMany({
@@ -322,8 +343,19 @@ async function main() {
         : {}),
     })),
   });
-  const activePi = piIds["pi3"]!;
-  const prevPi = piIds["pi2"]!;
+  const activePi = piIds["pi5"]!;
+
+  /**
+   * Die PI-Reihen als Liefer-Fenster. Geliefert wird dort, wo das Epic
+   * tatsächlich umgesetzt wurde — nicht in zwei festen Rollen
+   * (`seed-delivery.ts`).
+   */
+  const toDeliveryPi = (spec: { key: string; start: Date; status: string }): DeliveryPi => ({
+    id: piIds[spec.key]!,
+    start: spec.start,
+    end: addDays(spec.start, 69),
+    status: spec.status as DeliveryPi["status"],
+  });
 
   // ── Phase 4: Delivery (Epics + Features) ──────────────────────────────────
   console.log("\n── Delivery (Epics + Features)");
@@ -761,6 +793,12 @@ async function main() {
     12: "portfolio",
   };
 
+  /**
+   * Das Umsetzungsfenster je Epic — die Grundlage dafür, in welchen PIs seine
+   * Deliverables geliefert werden. Es kommt aus derselben Faltung wie der
+   * Reifegrad; ein zweites Mal geschätzt wäre es eine Parallelrechnung.
+   */
+  const implWindow: { start: Date | null; done: Date | null }[] = [];
   const epicRows: Prisma.InitiativeCreateManyInput[] = EPIC_DEFS.map((def, i) => {
     const start = addDays(now, -160 + i * 12);
     const target = targetStep(i, def);
@@ -869,6 +907,10 @@ async function main() {
     // Vor dem Schreiben gegen die Regeln prüfen, die der Service zur Laufzeit
     // erzwingt — ein Seed soll nicht erst an der Datenbank scheitern.
     assertGateHistory(history, def.title);
+    implWindow[i] = {
+      start: (history.stamps.implementationStartedAt as Date | undefined) ?? null,
+      done: (history.stamps.implementationCompletedAt as Date | undefined) ?? null,
+    };
     gateTransitionRows.push(...history.transitions);
     gateApprovalRows.push(...history.approvals);
 
@@ -1018,8 +1060,23 @@ async function main() {
 
   // Features (~44): 3 für Epics an Index %5==0, sonst 2. artId rotiert über ALLE
   // 6 ARTs (globaler Zähler), piId über aktives/vorheriges/geplantes PI.
-  const FEATURE_STATUS = ["in_progress", "approved", "blocked", "completed"];
-  const FEATURE_TYPES = ["feature", "enabler"];
+  /**
+   * Die Arbeitstypen — seit September 2026 dreiwertig. Die lokale Kopie bleibt
+   * bewusst: der Seed soll benennen, welche Mischung er sät, statt still der
+   * Domänen-Konstante zu folgen. Dass sie vollständig ist, prüft
+   * `assertJobSizes` nicht — wohl aber die Messung nach dem Lauf.
+   */
+  /**
+   * Die Arbeitstypen unter einem **Portfolio-Epic**. `feature` überwiegt — ein
+   * Epic baut Neues —, aber Instandhaltung kommt darunter vor: was gebaut wird,
+   * muss gehalten werden, und ein Teil davon läuft im selben Vorhaben mit.
+   *
+   * Der Anteil ist bewusst nicht winzig. Die eigenständige Instandhaltung
+   * (`STANDALONE_SPECS`) hängt an **abgeschlossenen** PIs; wäre sie die einzige
+   * Quelle, stünde die Maintenance-Zeile der Guardrail im laufenden Halbjahr
+   * dauerhaft auf 0 — gemessen war genau das der Fall.
+   */
+  const FEATURE_TYPES = ["feature", "feature", "feature", "maintenance"];
   // kurze, sprechende Feature-Bausteine je Epic-Kontext.
   const FEATURE_PARTS = [
     "MVP-Strecke",
@@ -1044,9 +1101,10 @@ async function main() {
       const bv = 3 + ((ei + f) % 8);
       const tc = 2 + ((ei * 2 + f) % 7);
       const rr = 1 + ((ei + f * 2) % 6);
-      const js = 2 + ((ei + f) % 9);
+      // Fibonacci — alles andere kann das Produkt nicht schreiben.
+      const js = jobSizeFor(ei, f);
       const wsjf = Number((((bv + tc + rr) / js) as number).toFixed(2));
-      const status = FEATURE_STATUS[gf % FEATURE_STATUS.length]!;
+
       // Der ART des Epics, nicht ein rotierender: ein Feature liefert im selben
       // Train wie sein Epic. Daraus folgt auch, an welcher Kadenz es hängt —
       // ein Feature in einem PI der fremden Timeline wäre ein Termin im
@@ -1054,20 +1112,30 @@ async function main() {
       const artIdx = EPIC_DEFS[ei]!.vs * 2 + (ei % 2);
       const artId = artIds[artIdx]!;
       const onTimelineB = TIMELINE_B_ARTS.has(artIdx);
-      const piId = onTimelineB
-        ? status === "completed"
-          ? piIds["pib1"]!
-          : gf % 7 === 0
-            ? piIds["pib3"]!
-            : piIds["pib2"]!
-        : status === "completed"
-          ? gf % 3 === 0
-            ? piIds["pi1"]!
-            : prevPi
-          : gf % 7 === 0
-            ? piIds["pi4"]!
-            : activePi;
-      const start = addDays(now, -40 + f * 15);
+      /**
+       * **Status, PI und Abschlussdatum kommen aus einer Regel** — derselben,
+       * die der Large-Seed fährt (`seed-delivery.ts`).
+       *
+       * Vorher stand der Status auf einer Rotation über vier Werte und das
+       * Abschlussdatum auf `now − 12…7`. Damit lag **jedes** fertige Feature im
+       * laufenden Halbjahr, das der €-Satz per Definition ausschliesst: der
+       * Nenner bestand je ART aus einem einzigen eigenständigen Feature.
+       */
+      const reihe = (onTimelineB ? piBSpecs : piSpecs).map(toDeliveryPi);
+      const plan = planFeature({
+        epicIdx: ei,
+        featureIdx: f,
+        gate: gateOfStep(targetStep(ei, EPIC_DEFS[ei]!)),
+        implStart: implWindow[ei]?.start ?? null,
+        implDone: implWindow[ei]?.done ?? null,
+        completedPis: reihe.filter((p) => p.status === "completed"),
+        activePi: reihe.find((p) => p.status === "active") ?? null,
+        plannedPis: reihe.filter((p) => p.status === "planned"),
+        now,
+      });
+      const status = plan.status;
+      const piId = plan.pi?.id ?? null;
+      const start = plan.pi ? plan.pi.start : addDays(now, -40 + f * 15);
       featureRows.push({
         id: fid,
         tenantId,
@@ -1091,7 +1159,7 @@ async function main() {
             : FEATURE_TYPES[gf % FEATURE_TYPES.length]!,
         stageGate: "L3",
         status,
-        completedAt: status === "completed" ? addDays(now, -12 + (gf % 6)) : null,
+        completedAt: plan.completedAt,
         plannedStartAt: start,
         plannedEndAt: addDays(start, 45),
         acceptanceCriteria: [
@@ -1136,6 +1204,8 @@ async function main() {
       jobSize: 5,
       withSolution: true,
       done: false,
+      // Baut eine Fähigkeit, die es noch nicht gibt.
+      featureType: "enabler",
     },
     {
       title: "Fehlerbudget je Team sichtbar machen",
@@ -1143,6 +1213,9 @@ async function main() {
       jobSize: 8,
       withSolution: false,
       done: false,
+      // Eine Fläche, die es vorher nicht gab — gewöhnliche Produktarbeit,
+      // nur eben am eigenen Werkzeug.
+      featureType: "feature",
     },
     {
       title: "Flaky Tests aus der Nachtstrecke entfernen",
@@ -1150,6 +1223,8 @@ async function main() {
       jobSize: 13,
       withSolution: true,
       done: true,
+      // Instandhaltung: es wird nichts Neues gebaut, Bestehendes wird gehalten.
+      featureType: "maintenance",
     },
   ] as const;
 
@@ -1159,14 +1234,22 @@ async function main() {
     // fremden Timeline wäre ein Termin im falschen Kalender — dieselbe
     // Verzweigung, die die Feature-Schleife oben fährt.
     const onTimelineB = TIMELINE_B_ARTS.has(ai);
-    const laufendesPi = onTimelineB ? piIds["pib2"]! : activePi;
-    const altesPi = onTimelineB ? piIds["pib1"]! : piIds["pi1"]!;
-    // Abschluss innerhalb des Fensters seines PI. Hinweis: „Payments PI 1"
-    // endete erst vor drei Wochen und liegt damit im **laufenden** Halbjahr —
-    // das abgeschlossene Beispiel dieses ARTs trägt deshalb nicht zum €-Satz
-    // bei. Ein früheres Datum zu erfinden, nur damit eine Kennzahl etwas
-    // anzeigt, wäre der falsche Handel.
-    const abschluss = onTimelineB ? addDays(now, -25) : addDays(now, -95);
+    const laufendesPi = onTimelineB ? piIds["pib4"]! : activePi;
+    /**
+     * Das **vorletzte** abgeschlossene PI beider Kadenzen. Es endete vor über
+     * einem Halbjahr; das abgeschlossene Beispiel trägt damit zum €-Satz bei.
+     *
+     * Bis September 2026 war es auf beiden Kadenzen das jüngste, und auf der
+     * Payments-Kadenz lag dessen Ende im **laufenden** Halbjahr — das Beispiel
+     * zählte dort für den Satz nicht. Das Datum wird nicht erfunden, sondern an
+     * ein PI gebunden, das tatsächlich weiter zurückliegt.
+     */
+    const altesPi = onTimelineB ? piIds["pib2"]! : piIds["pi2"]!;
+    const altesPiStart = (onTimelineB ? piBSpecs : piSpecs).find(
+      (p) => piIds[p.key] === altesPi,
+    )!.start;
+    // Abschluss im letzten Drittel seines PI — dort landet ein PI tatsächlich.
+    const abschluss = addDays(altesPiStart, 55);
 
     STANDALONE_SPECS.forEach((spec, ti) => {
       const fid = uid(`feat:standalone:${ai}:${ti}`);
@@ -1193,7 +1276,14 @@ async function main() {
         // Vorbehalt in den €-Satz ein (`placeholderJobSize`).
         wsjfJobSize: spec.jobSize,
         wsjfComputed: Number((((5 + 3 + 8) / spec.jobSize) as number).toFixed(2)),
-        featureType: "enabler",
+        /**
+         * **Nicht pauschal Enabler.** Bis September 2026 trugen alle achtzehn
+         * eigenständigen Features denselben Typ — zusammen mit den größten Job
+         * Sizes des Mandanten waren das 95 % Enabler in der Guardrail-Sicht
+         * eines Wertstroms. ART-eigene Arbeit ist aber nicht **eine** Sache:
+         * Werkzeug, eigene Produktarbeit und Instandhaltung, je eines.
+         */
+        featureType: spec.featureType,
         stageGate: "L3",
         status: spec.status,
         completedAt: spec.done ? abschluss : null,
@@ -1204,6 +1294,27 @@ async function main() {
     });
   });
   featureRows.push(...standaloneRows);
+
+  /**
+   * **Die Lieferseite prüft sich selbst** — dieselbe Disziplin, die der
+   * Gate-Faltung längst gilt. Ohne sie driftete der Datensatz: die Hälfte der
+   * Job Sizes war über das Produkt nicht erzeugbar, und jedes fertige Feature
+   * lag im laufenden Halbjahr.
+   */
+  const gelieferte = featureRows.map((f) => ({
+    jobSize: (f.wsjfJobSize as number | null) ?? 0,
+    status: f.status as "approved" | "in_progress" | "blocked" | "completed",
+    piId: (f.piId as string | null) ?? null,
+    completedAt: (f.completedAt as Date | null) ?? null,
+  }));
+  assertJobSizes(gelieferte, "seed-demo");
+  assertPiQuotas(
+    piQuotas(gelieferte, [
+      ...piSpecs.map((p) => ({ ...toDeliveryPi(p), name: p.name })),
+      ...piBSpecs.map((p) => ({ ...toDeliveryPi(p), name: p.name })),
+    ]),
+    "seed-demo",
+  );
 
   await prisma.initiative.createMany({ data: featureRows });
   console.log(
@@ -1695,7 +1806,7 @@ async function main() {
     {
       valueStreamId: vsIds[1]!,
       targets: {
-        capacity: { business: 75, enabler: 25 },
+        capacity: { business: 65, enabler: 25, maintenance: 10 },
         approval: { portfolioThreshold: 150_000 },
       },
     },

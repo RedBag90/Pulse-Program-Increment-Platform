@@ -79,6 +79,14 @@ import {
   type GateTransitionRow,
 } from "./seed-gate-history.js";
 import { contentForGate, assertGateContent } from "./seed-gate-content.js";
+import {
+  assertJobSizes,
+  assertPiQuotas,
+  jobSizeFor,
+  piQuotas,
+  planFeature,
+  type DeliveryPi,
+} from "./seed-delivery.js";
 import { currentGateStep } from "@/modules/work/domain/stage-gate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { gateOfStep } from "@/modules/work/domain/stage-gate";
@@ -236,7 +244,7 @@ async function main() {
       costPerJobSizePoint: 1_500,
       guardrailTargets: {
         horizon: { h3: 10, h2: 25, h1: 55, h0: 10 },
-        capacity: { business: 65, enabler: 35 },
+        capacity: { business: 60, enabler: 30, maintenance: 10 },
       },
     },
   });
@@ -440,15 +448,39 @@ async function main() {
   );
   const artNameById = new Map<string, string>(artIds.map((id, i) => [id, artNames[i]!]));
 
+  /**
+   * Zwei Rollen statt vier: das laufende PI und ein altes.
+   *
+   * `prevPi`/`planPi` sind entfallen — die Feature-Schleife waehlt ihr PI seit
+   * September 2026 aus dem Umsetzungsfenster des Epics, nicht aus festen Rollen
+   * (`seed-delivery.ts`). Geblieben sind die beiden, die die **eigenstaendigen**
+   * Beispiele brauchen: eines laufend, eines abgeschlossen.
+   */
   const activePi = piIds["pi9"]!;
-  const prevPi = piIds["pi8"]!;
-  const planPi = piIds["pi10"]!;
   const oldPi = piIds["pi2"]!;
-  /** Dieselben vier Rollen auf der Werks-Kadenz. */
   const activePiB = piIds["pib3"]!;
-  const prevPiB = piIds["pib2"]!;
-  const planPiB = piIds["pib4"]!;
   const oldPiB = piIds["pib1"]!;
+
+  /**
+   * **Die PI-Reihen als Fenster, nicht als vier Rollen.**
+   *
+   * Bis September 2026 landeten fertige Features ausschliesslich in `oldPi` und
+   * `prevPi` — sechs der acht abgeschlossenen PIs blieben leer, und die beiden
+   * gefüllten lieferten exakt 100 %. Geliefert wird jetzt dort, wo das Epic
+   * tatsächlich umgesetzt wurde (`seed-delivery.ts`).
+   */
+  const toDeliveryPi = (spec: { key: string; start: Date; status: string }): DeliveryPi => ({
+    id: piIds[spec.key]!,
+    start: spec.start,
+    end: addDays(spec.start, 69),
+    status: spec.status as DeliveryPi["status"],
+  });
+  const piRows = piSpecs.map(toDeliveryPi);
+  const piBRows = piBSpecs.map(toDeliveryPi);
+  const namedPis = [
+    ...piSpecs.map((p) => ({ ...toDeliveryPi(p), name: p.name })),
+    ...piBSpecs.map((p) => ({ ...toDeliveryPi(p), name: p.name })),
+  ];
 
   // ── Phase 4: Solutions (je Wertstrom, mit Horizont) + Gate-Regeln ─────────
   //
@@ -1152,13 +1184,15 @@ async function main() {
   for (let i = 0; i < EPIC_COUNT; i++) {
     const gate = gates[i]!;
     if (!contentForGate(roundPlan.epics[i]!.finalStep).features) continue;
-    const done = gate === "L5";
-    const running = gate === "L4" || gate === "L5";
     // Der ART des Epics — nicht ein rotierender: ein Feature liefert im selben
     // Train wie sein Epic. Daraus folgt auch, an welcher Timeline es hängt.
     const epicArtIdx = artIdxOfEpic(i);
     const onTimelineB = TIMELINE_B_ARTS.has(epicArtIdx);
-    const count = 2 + (i % 3);
+    // Drei bis sechs statt zwei bis vier: der Mandant lieferte je ART und
+    // Halbjahr rund zwölf Punkte gegen ein Budget von 240.000 € — ein Satz von
+    // 20.000 € je Job-Size-Punkt. Mehr Deliverables bringen ihn in die
+    // Grössenordnung, in der der Vorgabewert des Mandanten liegt.
+    const count = 3 + (i % 4);
     const pe = roundPlan.epics[i]!;
     /**
      * **Geschnitten wird im Business Case, nicht am Anlagetag des Mandanten.**
@@ -1176,36 +1210,35 @@ async function main() {
       const bv = 3 + ((i + f) % 8);
       const tc = 2 + ((i * 2 + f) % 7);
       const rr = 1 + ((i + f * 2) % 6);
-      const js = 2 + ((i + f) % 9);
+      // Fibonacci — das Produkt lässt nichts anderes zu (`fibonacci` in
+      // `src/domain/schemas/initiative.ts`). Die alte Reihe `2 + ((i+f) % 9)`
+      // schrieb 4, 6, 7, 9 und 10: Werte, die über keine Kante entstehen können.
+      const js = jobSizeFor(i, f);
       const wsjf = Number((((bv + tc + rr) / js) as number).toFixed(2));
-      const status = !running
-        ? "approved"
-        : done
-          ? "completed"
-          : (["in_progress", "blocked", "in_progress", "completed"] as const)[gf % 4]!;
       const artId = artIds[epicArtIdx]!;
       // Jede Zuordnung bleibt auf der Timeline ihres ARTs — ein Feature in
       // einem PI der fremden Kadenz wäre ein Termin im falschen Kalender.
-      const [tOld, tPrev, tActive, tPlan] = onTimelineB
-        ? ([oldPiB, prevPiB, activePiB, planPiB] as const)
-        : ([oldPi, prevPi, activePi, planPi] as const);
-      const piId = !running
-        ? // Auf L2 geschnitten, aber noch nicht eingeplant: genau der Vorrat,
-          // über den die PI-Planung entscheidet. Auf L3 ist das Geld da, das
-          // nächste PI ist gesetzt.
-          gate === "L2"
-          ? null
-          : tPlan
-        : done
-          ? gf % 2 === 0
-            ? tOld
-            : tPrev
-          : status === "completed"
-            ? tPrev
-            : gf % 5 === 0
-              ? tPlan
-              : tActive;
-      const fStart = addDays(eStart, 20 + f * 20);
+      const reihe = onTimelineB ? piBRows : piRows;
+      const plan = planFeature({
+        epicIdx: i,
+        featureIdx: f,
+        gate,
+        implStart: pe.implStart,
+        implDone: pe.implDone,
+        completedPis: reihe.filter((p) => p.status === "completed"),
+        activePi: reihe.find((p) => p.status === "active") ?? null,
+        plannedPis: reihe.filter((p) => p.status === "planned"),
+        now,
+      });
+      const status = plan.status;
+      const piId = plan.pi?.id ?? null;
+      /**
+       * **Das Soll-Fenster folgt dem PI**, sobald es eines gibt. Vorher stand es
+       * am Umsetzungsfenster des Epics — bei einem Feature, das in PI 3 liefert,
+       * wäre das ein Termin im falschen Zeitraum.
+       */
+      const fStart = plan.pi ? plan.pi.start : addDays(eStart, 20 + f * 20);
+      const fEnd = plan.pi ? plan.pi.end : addDays(fStart, 60);
       featureRows.push({
         id: fid,
         tenantId,
@@ -1223,13 +1256,24 @@ async function main() {
         wsjfRiskReduction: rr,
         wsjfJobSize: js,
         wsjfComputed: wsjf,
-        featureType: EPIC_TYPES[i % EPIC_TYPES.length] === "enabler" ? "enabler" : "feature",
+        /**
+         * Der Arbeitstyp — seit September 2026 dreiwertig. Enabler folgt dem
+         * Epic; Maintenance ist **quer** dazu verteilt und je Wertstrom
+         * unterschiedlich dicht, damit die Guardrail eine Abweichung zeigt und
+         * nicht überall denselben Anteil.
+         */
+        featureType:
+          EPIC_TYPES[i % EPIC_TYPES.length] === "enabler"
+            ? "enabler"
+            : (i + f) % (6 + (epicArtIdx % 3)) === 0
+              ? "maintenance"
+              : "feature",
         stageGate: "L3",
         status,
-        completedAt: status === "completed" ? beforeNow(addDays(fStart, 60), 2) : null,
+        completedAt: plan.completedAt,
         createdAt: beforeNow(addDays(cutAt, 4 + f * 6), 1),
         plannedStartAt: fStart,
-        plannedEndAt: addDays(fStart, 60),
+        plannedEndAt: fEnd,
         acceptanceCriteria: [
           "Einsparung nachgewiesen und im Controlling verankert",
           "Prozess dokumentiert und übergeben",
@@ -1264,6 +1308,8 @@ async function main() {
       jobSize: 5,
       withSolution: true,
       done: false,
+      // Verbessert den laufenden Betrieb — keine neue Fähigkeit, kein Werkzeug.
+      featureType: "feature",
     },
     {
       title: "Stillstandsgründe einheitlich erfassen",
@@ -1271,6 +1317,8 @@ async function main() {
       jobSize: 8,
       withSolution: false,
       done: false,
+      // Schafft die Datengrundlage, auf der anderes aufsetzt.
+      featureType: "enabler",
     },
     {
       title: "Ersatzteil-Mindestbestände automatisch melden",
@@ -1278,6 +1326,8 @@ async function main() {
       jobSize: 13,
       withSolution: true,
       done: true,
+      // Hält den Bestand am Laufen — Instandhaltung.
+      featureType: "maintenance",
     },
   ] as const;
 
@@ -1313,7 +1363,9 @@ async function main() {
         // Vorbehalt in den €-Satz ein (`placeholderJobSize`).
         wsjfJobSize: spec.jobSize,
         wsjfComputed: Number((((5 + 3 + 8) / spec.jobSize) as number).toFixed(2)),
-        featureType: "enabler",
+        // Nicht pauschal Enabler — ART-eigene Arbeit ist Werkzeug, eigene
+        // Produktarbeit **und** Instandhaltung. Siehe `seed-demo.ts`.
+        featureType: spec.featureType,
         stageGate: "L3",
         status: spec.status,
         completedAt: spec.done ? beforeNow(addDays(altesPiStart, 55), 2) : null,
@@ -1324,6 +1376,22 @@ async function main() {
     });
   });
   featureRows.push(...standaloneRows);
+
+  /**
+   * **Die Lieferseite prüft sich selbst** — dieselbe Disziplin, die der
+   * Rundenmotor für Geld und Reifegrad längst hat. Bis September 2026 gab es
+   * hierfür keine einzige Invariante, und der Datensatz driftete: die Hälfte
+   * aller Job Sizes war über das Produkt nicht erzeugbar, sechs von zehn
+   * abgeschlossenen PIs waren leer.
+   */
+  const gelieferte = featureRows.map((f) => ({
+    jobSize: (f.wsjfJobSize as number | null) ?? 0,
+    status: f.status as "approved" | "in_progress" | "blocked" | "completed",
+    piId: (f.piId as string | null) ?? null,
+    completedAt: (f.completedAt as Date | null) ?? null,
+  }));
+  assertJobSizes(gelieferte, "seed-large");
+  assertPiQuotas(piQuotas(gelieferte, namedPis), "seed-large");
 
   await createManyChunked(featureRows, (data) => prisma.initiative.createMany({ data }));
   console.log(
@@ -2206,7 +2274,7 @@ async function main() {
     vsIds.map((vsId, k) => ({
       valueStreamId: vsId,
       targets: {
-        capacity: { business: 70 + k * 5, enabler: 30 - k * 5 },
+        capacity: { business: 65 + k * 5, enabler: 30 - k * 5, maintenance: 5 },
         approval: { portfolioThreshold: PORTFOLIO_THRESHOLD[k]! },
       },
     })),
