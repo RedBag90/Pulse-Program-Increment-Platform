@@ -80,6 +80,10 @@ describe("Sprungziele", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  // „RTE (Feature-QS)" ist seit September 2026 kein Rollen-Label mehr (die
+  // Feature-QS fiel 2026-06 weg). Der String bleibt hier als Beispiel stehen,
+  // weil er Klammern **und** Bindestrich traegt — geprueft wird die Anker-Bildung,
+  // nicht das Label.
   it("Umlaute und Klammern ueberleben als Anker", () => {
     expect(anchorId("r", "RTE (Feature-QS)")).toBe("r-rte-feature-qs");
     expect(anchorId("r", "Zustaendigkeit für Größe")).toBe("r-zustaendigkeit-fuer-groesse");

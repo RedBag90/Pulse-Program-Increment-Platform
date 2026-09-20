@@ -1,7 +1,7 @@
 # Pulse — User Personas
 
 > **Status (Rollen-Vereinfachung):** Das autoritative Rollenmodell in
-> [`src/domain/roles.ts`](../src/domain/roles.ts) hat **8 Rollen**. `transformation_lead`
+> [`src/modules/core/kernel/domain/roles.ts`](../src/modules/core/kernel/domain/roles.ts) hat **8 Rollen**. `transformation_lead`
 > und `vmo` sind in **`portfolio_manager`** zusammengelegt; `team_editor` ist in **`rte`**
 > aufgegangen. Passagen unten, die diese drei Rollen (oder die nie implementierten
 > `story_owner`/`task_owner`) als eigenständig beschreiben, sind veraltet — maßgeblich

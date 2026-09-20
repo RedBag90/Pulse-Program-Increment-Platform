@@ -209,20 +209,28 @@ die Auflösung liefert die Herkunft mit — wie `resolveGatePolicy` mit
 Spalten auf `ValueStream`, weil `ValueStream` Core/org gehört und die Guardrails
 Work (dieselbe Begründung wie bei den Gate-Regeln).
 
-**(b) Zweite Messgrundlage.** `computeMixAxis` ist bereits generisch — die neue
-Achse ist eine zweite Parametrisierung, keine neue Engine:
+**(b) Zweite Messgrundlage.** Geplant war eine zweite Parametrisierung von
+`computeMixAxis`. **Umgesetzt wurde am 2026-09-20 etwas anderes:** es gibt nur
+noch **eine** Kapazitäts-Achse, und sie rechnet in Punkten statt in Euro. Was
+hier als „neu" stand, ist die Spalte „umgesetzt":
 
-| Parameter  | heute                              | neu                                   |
-| ---------- | ---------------------------------- | ------------------------------------- |
-| `items`    | alle Epics des Tenants             | Epics **eines Wertstroms**, geliefert |
-| `classify` | `epicCapacityBucket(epicType)`     | unverändert                           |
-| `amountOf` | Σ `costSlices` des Business Case   | **zugeteiltes Budget**                |
-| `targets`  | `Tenant.guardrailTargets.capacity` | aufgelöstes Wertstrom-Ziel            |
+| Parameter  | vorher (Epic-Euro)                 | umgesetzt (Feature-Punkte)                   |
+| ---------- | ---------------------------------- | -------------------------------------------- |
+| `items`    | alle Epics des Tenants             | **Features** eines ARTs, im Halbjahr geplant |
+| `classify` | `epicCapacityBucket(epicType)`     | `featureCapacityBucket(featureType)`         |
+| `amountOf` | Σ `costSlices` des Business Case   | **Σ WSJF Job Size**                          |
+| `targets`  | `Tenant.guardrailTargets.capacity` | aufgelöstes Wertstrom-Ziel                   |
 
-Die bestehende tenant-weite Achse bleibt bestehen und behält ihre Beschriftung
-(„geplante Investition laut Business Case"). Die neue heißt „abgeschlossenes
-Budget". Zwei Zahlen, die auseinanderlaufen dürfen, weil sie zwei Fragen
-beantworten — beide beschriftet.
+Die Engine dafür ist nicht `computeMixAxis`, sondern `buildCapacityPlan` /
+`sumCapacityPlans` in `budgeting/domain/capacity-plan.ts` — weil die Rechnung den
+€-Satz je Punkt braucht und der Budgeting gehört. `computeMixAxis` trägt seither
+nur noch Guardrail 1 (Horizon).
+
+**Zwei Zahlen wurden zu einer.** Die Absicht — die geschätzte Investition neben
+dem entschiedenen Budget zu zeigen — ist mit der ersten Zahl gefallen: die
+Business-Case-Summe war nie eine Entscheidung (§1.5), und ein Epic verbraucht
+keine Kapazität. Was geblieben ist, hat dafür eine ehrliche Ampel: ohne
+empirischen €-Satz zeigt die Achse **keine** Kapazität, statt eine zu erfinden.
 
 **(c) Anzeige.** `statusFor` bleibt die Regel (rot > 15 pp, gelb > 5 pp),
 `AmpelPill` bleibt die Darstellung. Zusätzlich die Entwicklung je Halbjahr — ein
@@ -318,8 +326,8 @@ Keine Berührung von `epic_approvals` / `approval_phase` / `approval_revision`:
 | Perioden-Arithmetik             | `sumPeriods`, `addPeriod`, `remainingByPeriod` — `budgeting/domain/period-map.ts`                                                                                        |
 | Chart-Rahmen                    | `StackedChart`, `Panel`, `TodayLine`, `xAxis`/`yAxis`/`tooltip` — heute **modul-privat** in `portfolio-dashboard.tsx`, werden nach `src/components/charts/` herausgelöst |
 | Mix-Achse                       | `computeMixAxis` — `work/domain/guardrail-rules.ts`                                                                                                                      |
-| Arbeitstyp-Eimer, Ziele, Parser | `epicCapacityBucket`, `DEFAULT_GUARDRAIL_TARGETS`, `parseGuardrailTargets`, `validateGuardrailTargets` — `work/domain/portfolio-guardrails.ts`                           |
-| Ampel-Schwellen und Pill        | `statusFor` (`work/server/views/portfolio-guardrails-view.ts`), `AmpelPill`, `ProgressBar`                                                                               |
+| Arbeitstyp-Eimer, Ziele, Parser | `featureCapacityBucket`, `DEFAULT_GUARDRAIL_TARGETS`, `parseGuardrailTargets`, `validateGuardrailTargets` — `work/domain/portfolio-guardrails.ts`                        |
+| Ampel-Schwellen und Pill        | `statusFor` (`work/domain/guardrail-rules.ts`), `AmpelPill`, `ProgressBar`                                                                                               |
 | Vererbungsmuster je Wertstrom   | `StageGateApproverRule` + `resolveGatePolicy` — `work/domain/gate-policy.ts`                                                                                             |
 | Zuteilung je Epic (Port)        | `getEpicBudgetAllocation`, `getEpicCycleAllocations` — `budgeting/server/services/epic-allocation.ts`                                                                    |
 | Run-the-Business-Liste          | `listRtbItems`, `RtbSection`, `sumRtbAnnual`, `sumRtbCycle`                                                                                                              |
@@ -464,8 +472,16 @@ Stufen 1–2 liefern für sich genommen Nutzen; 3–6 sind additiv.
 - **Keine epic-lose ART-Bedarfsmeldung.** Dafür gibt es keine Struktur, und
   REQ-B2 aus [budgeting-module-deepening.md](budgeting-module-deepening.md) hält
   fest: „Bedarf ist abgeleitet, nie erfasst."
-- **Kein Nachziehen der tenant-weiten Guardrail-Achse.** Sie beantwortet eine
-  andere Frage und bleibt, wie sie ist — nur beschriftet.
+- ~~**Kein Nachziehen der tenant-weiten Guardrail-Achse.**~~ **Aufgehoben am
+  2026-09-20.** Die Achse **ist** nachgezogen. Der Verzicht ging davon aus, sie
+  beantworte eine eigene Frage; gemessen beantwortete sie gar keine. Sie summierte
+  geschätzte Business-Case-Euro je `epicType` — eine Schätzung, wo die Guardrail
+  eine Entscheidung braucht (§1.5), und ein Epic ist kein Arbeitsgegenstand,
+  sondern ein Behälter für Features. Seit Commit `d24d2b7c` rechnet die Achse in
+  **Job-Size-Punkten je Feature**: Veränderungsgeld des Halbjahres ÷ €-Satz je
+  Punkt ergibt die Kapazität, die Ziele teilen sie auf, die eingeplanten Features
+  stehen dagegen. Die Rechnung steht in `budgeting/domain/capacity-plan.ts`, die
+  Klassifikation in `featureCapacityBucket`.
 - **Keine Reparatur von `artBudgetRemaining`** in dieser Stufe. Die Zahl wird
   umbenannt, damit sie sagt, was sie ist (§1.2), nicht umgerechnet.
 

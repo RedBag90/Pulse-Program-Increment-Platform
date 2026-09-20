@@ -217,7 +217,7 @@ export const ART_EPIC_BUDGET: Guide = {
           ],
         },
         {
-          title: "Wer sonst noch verteilt — und wer nicht",
+          title: "Wer sonst noch verteilt — und was ich nicht entscheide",
           body: [
             {
               kind: "paragraph",
@@ -225,7 +225,7 @@ export const ART_EPIC_BUDGET: Guide = {
             },
             {
               kind: "paragraph",
-              text: "**Der RTE sieht seinen Rahmen, verteilt ihn aber nicht**: der Rahmen wird _für_ den ART verteilt, nicht _von_ ihm.",
+              text: "**Und der RTE des ARTs selbst**, auf seinem eigenen ART. Er verteilt den Rahmen, er **setzt** ihn aber nicht — wie groß er ist, entscheide ich beim Aufteilen des Zuspruchs. Er teilt auf, was ich ihm gegeben habe.",
             },
             {
               kind: "quote",
@@ -267,8 +267,8 @@ export const ART_EPIC_BUDGET: Guide = {
       why: "Keine Abnahme rührt die Features an. Ein Feature muss _schon_ in einem PI liegen, um gestartet werden zu können.",
     },
     {
-      claim: "Der RTE verteilt den Rahmen seines ARTs.",
-      why: "Er sieht ihn. Verteilt wird der Rahmen **für** den ART, nicht **von** ihm.",
+      claim: "Der RTE kann seinem ART mehr Rahmen geben, wenn er nicht reicht.",
+      why: "Verteilen ja, vergrößern nein. Die Höhe des Rahmens entsteht am Wertstrom und wird in der Halbjahres-Kachel festgeschrieben.",
     },
   ],
 
@@ -291,8 +291,8 @@ export const ART_EPIC_BUDGET: Guide = {
     },
     {
       step: "Aus dem Rahmen zuteilen",
-      who: "Wertstrom-Owner, Portfolio-Management, Finance-Partei; **Produkt-Manager** für die Epics seiner Solution",
-      capability: "rtb_item.manage",
+      who: "Wertstrom-Owner, Portfolio-Management; **RTE** auf seinem eigenen ART; Finance-Partei; **Produkt-Manager** für die Epics seiner Solution",
+      capability: "art_budget.distribute",
     },
     { step: "L3.2 und L4.1 beantragen", who: "Epic Owner", capability: "epic.gate.request" },
     { step: "L3.2 abnehmen", who: "VMO **und** Finance-Partei des Wertstroms" },

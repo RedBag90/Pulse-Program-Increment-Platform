@@ -74,11 +74,12 @@ geschrieben hätte. Für den Reifegrad ist es gleichgültig, woher das Geld kam.
 
 ### Wer die drei sind
 
-|                     | Woher die Reichweite kommt                                                                                                                                                                                    |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Epic Owner**      | Rolle `epic_owner`, plus die Eintragung als Owner am Epic. Er merkt vor und beantragt — **ans Geld kommt er nicht**, und er sieht den freien Rahmen auch nicht.                                               |
-| **Produkt-Manager** | **Keine Rolle.** `Solution.productManagerId` benennt die Person je Solution. Daraus folgen drei Dinge: sie darf ihre Solution bearbeiten, sie zeichnet Freigaben mit, und sie darf für ihre Epics zuteilen.   |
-| **Wertstrom-Owner** | Rolle `value_stream_owner`, wertstrom-scoped. Er pflegt den Rahmen (`rtb_item.manage`) und verteilt ihn. Dieselbe Reichweite haben Portfolio-Management und die **Finance-Partei** des Wertstroms ohne Rolle. |
+|                     | Woher die Reichweite kommt                                                                                                                                                                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Epic Owner**      | Rolle `epic_owner`, plus die Eintragung als Owner am Epic. Er merkt vor und beantragt — **ans Geld kommt er nicht**, und er sieht den freien Rahmen auch nicht.                                                                                                     |
+| **Produkt-Manager** | **Keine Rolle.** `Solution.productManagerId` benennt die Person je Solution. Daraus folgen drei Dinge: sie darf ihre Solution bearbeiten, sie zeichnet Freigaben mit, und sie darf für ihre Epics zuteilen.                                                         |
+| **Wertstrom-Owner** | Rolle `value_stream_owner`, wertstrom-scoped. Er pflegt den Rahmen (`rtb_item.manage`) und verteilt ihn (`art_budget.distribute`, ebenfalls wertstrom-scoped). Dieselbe Reichweite haben Portfolio-Management und die **Finance-Partei** des Wertstroms ohne Rolle. |
+| **RTE**             | Rolle `rte`, art-scoped. Er sieht den Rahmen seines ARTs und verteilt ihn (`art_budget.distribute`). Wie hoch er ist, entscheidet er nicht — das tut der Wertstrom.                                                                                                 |
 
 ---
 
@@ -111,10 +112,11 @@ liegt bei den Rollen oberhalb von mir. Das ist keine Lücke, sondern die
 Entscheidung — Geld gehört an den Knoten, nicht ans Epic.
 
 Ich frage also. Auskunft geben mir der **Wertstrom-Owner**, die
-**Finance-Partei** des Wertstroms, der **RTE** (der den Topf seines ARTs sieht)
-oder das **Portfolio-Management** — und seit Neuestem auch der
-**Produkt-Manager** meiner Primär-Solution, der nicht nur Auskunft geben, sondern
-selbst zuteilen darf.
+**Finance-Partei** des Wertstroms, der **RTE** meines ARTs oder das
+**Portfolio-Management** — und der **Produkt-Manager** meiner Primär-Solution.
+Vier von ihnen können nicht nur Auskunft geben, sondern selbst zuteilen; der RTE
+allerdings nur auf seinem eigenen ART und der Produkt-Manager nur für die Epics
+seiner Solution.
 
 Ist der Betrag eingetragen, **beantrage ich L3.2 · Budget alloziert.** Jetzt
 erst: vorher wäre der Antrag gar nicht herausgekommen, das Kriterium blockiert.
@@ -211,9 +213,9 @@ Transaktion, nicht nur die Oberfläche:
 
 Verteilen dürfen neben mir die **Finance-Partei** meines Wertstroms — ohne dafür
 eine Rolle zu brauchen — und das **Portfolio-Management**. Dazu der
-**Produkt-Manager** einer Solution, aber nur für deren eigene Epics. Der **RTE**
-sieht seinen Topf, verteilt ihn aber nicht: der Rahmen wird _für_ den ART
-verteilt, nicht _von_ ihm.
+**Produkt-Manager** einer Solution, aber nur für deren eigene Epics, und der
+**RTE** auf seinem eigenen ART. Der RTE verteilt den Rahmen, er **setzt** ihn
+aber nicht: wie groß er ist, entscheide ich beim Aufteilen des Zuspruchs.
 
 **Und ich zeichne nicht mit.** An L3.2 stehen der VMO und die Finance-Partei;
 die Investitionsentscheidung ist die ihre, nicht meine. Ich stelle das Geld
@@ -259,17 +261,17 @@ absichtlich nebeneinander.
 
 ## Wer welchen Schritt macht
 
-| Schritt                              | Wer                                                                                                                   | Recht                     |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| ART-Epic-Budget anlegen              | Wertstrom-Owner, Portfolio-Management; Finance-Partei über den Seam                                                   | `rtb_item.manage`         |
-| Rahmen in der PB-Liste festschreiben | Finance, beim Schließen der Kachel                                                                                    | `budget.manage`           |
-| Epic vormerken                       | Epic Owner                                                                                                            | `epic.update`             |
-| Freien Rahmen sehen                  | Tenant-Admin, Portfolio Manager, Wertstrom-Owner; RTE auf seinem ART; Finance-Partei; Produkt-Manager auf seinen ARTs | `budget.read` + Seams     |
-| Aus dem Rahmen zuteilen              | Wertstrom-Owner, Portfolio-Management, Finance-Partei; **Produkt-Manager** für die Epics seiner Solution              | `rtb_item.manage` + Seams |
-| L3.2 beantragen                      | Epic Owner                                                                                                            | `epic.gate.request`       |
-| L3.2 abnehmen                        | VMO **und** Finance-Partei des Wertstroms                                                                             | Gate-Policy               |
-| L4.1 beantragen                      | Epic Owner                                                                                                            | `epic.gate.request`       |
-| L4.1 abnehmen                        | VMO; bei ART-Epics zusätzlich der Produkt-Manager                                                                     | Gate-Policy               |
+| Schritt                              | Wer                                                                                                                                      | Recht                           |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| ART-Epic-Budget anlegen              | Wertstrom-Owner, Portfolio-Management; Finance-Partei über den Seam                                                                      | `rtb_item.manage`               |
+| Rahmen in der PB-Liste festschreiben | Finance, beim Schließen der Kachel                                                                                                       | `budget.manage`                 |
+| Epic vormerken                       | Epic Owner                                                                                                                               | `epic.update`                   |
+| Freien Rahmen sehen                  | Tenant-Admin, Portfolio Manager, Wertstrom-Owner; RTE auf seinem ART; Finance-Partei; Produkt-Manager auf seinen ARTs                    | `budget.read` + Seams           |
+| Aus dem Rahmen zuteilen              | Wertstrom-Owner, Portfolio-Management; **RTE** auf seinem eigenen ART; Finance-Partei; **Produkt-Manager** für die Epics seiner Solution | `art_budget.distribute` + Seams |
+| L3.2 beantragen                      | Epic Owner                                                                                                                               | `epic.gate.request`             |
+| L3.2 abnehmen                        | VMO **und** Finance-Partei des Wertstroms                                                                                                | Gate-Policy                     |
+| L4.1 beantragen                      | Epic Owner                                                                                                                               | `epic.gate.request`             |
+| L4.1 abnehmen                        | VMO; bei ART-Epics zusätzlich der Produkt-Manager                                                                                        | Gate-Policy                     |
 
 ## Nachschlagepunkte im Code
 

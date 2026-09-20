@@ -299,7 +299,7 @@ Das management-eigene Soll: Ziel-Struktur, aktivierte Praktiken, Outcomes, Termi
 
 - Neue Rolle in `roles.ts`; Capabilities `target.manage`, `transformation.read` in den Policies; Persona ergänzt.
 - `viewer` (Sponsor) erhält `transformation.read` (nur lesen).
-  **Estimate:** 5 · **Dependencies:** TGT-021 · **Module:** `src/domain/roles.ts`, `src/server/auth/policies/index.ts`, `docs/personas.md`
+  **Estimate:** 5 · **Dependencies:** TGT-021 · **Module:** `src/modules/core/kernel/domain/roles.ts`, `src/server/auth/policies/index.ts`, `docs/personas.md`
 
 #### TGT-017 — Rollenbasierte Landing-Page
 

@@ -1,7 +1,7 @@
 # Pulse — Funktions-Übersicht & Rollen-Funktions-Matrix
 
 > **Status (Rollen-Vereinfachung):** Autoritativ sind die **8 Rollen** in
-> [`src/domain/roles.ts`](../src/domain/roles.ts). `transformation_lead` + `vmo` →
+> [`src/modules/core/kernel/domain/roles.ts`](../src/modules/core/kernel/domain/roles.ts). `transformation_lead` + `vmo` →
 > **`portfolio_manager`**, `team_editor` → **`rte`**. Zeilen unten mit diesen drei
 > Rollen (oder den nie implementierten `story_owner`/`task_owner` + `story.*`/`task.*`
 > Actions) sind veraltet — maßgeblich sind `roles.ts` + `POLICIES`.
@@ -12,7 +12,7 @@ gegliedert (Portfolio → Wertstrom → Epic → ART → Feature → Team → St
 
 Quelle der Wahrheit ist die Policy-Registry
 [`src/server/auth/policies/index.ts`](../src/server/auth/policies/index.ts);
-die Rollen stammen aus [`src/domain/roles.ts`](../src/domain/roles.ts).
+die Rollen stammen aus [`src/modules/core/kernel/domain/roles.ts`](../src/modules/core/kernel/domain/roles.ts).
 Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 
 ## Grundprinzipien

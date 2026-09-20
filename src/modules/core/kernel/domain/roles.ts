@@ -3,8 +3,9 @@
  * system; `portfolio_manager` is the consolidated portfolio lead — LPM plus the
  * former transformation-lead (operating model / KPI valuation) and VMO (Epic-QS
  * decisions); `value_stream_owner` / `epic_owner` round out the portfolio layer;
- * `rte` orchestrates the program (PIs, teams, PI objectives, Feature-QS) and
- * `feature_owner` the Feature backlog; `viewer` is read-only.
+ * `rte` orchestrates the program (PIs, teams, PI objectives) and distributes the
+ * budget frame of its own ART; `feature_owner` owns the Feature backlog;
+ * `viewer` is read-only.
  */
 export const ROLES = {
   PLATFORM_ADMIN: "platform_admin",
@@ -33,7 +34,10 @@ export const ROLE_LABELS: Record<Role, string> = {
   portfolio_manager: "Portfolio Manager",
   value_stream_owner: "Value Stream Owner",
   epic_owner: "Epic Owner",
-  rte: "RTE (Feature-QS)",
+  // Bis September 2026 stand hier „RTE (Feature-QS)". Die Feature-QS fiel
+  // 2026-06 mit dem Feature-QA-Gate weg (`policies/index.ts`); das Etikett blieb
+  // stehen und wurde auf der Wiki-Rollenseite als Ueberschrift gedruckt.
+  rte: "RTE",
   feature_owner: "Feature Owner",
   viewer: "Viewer",
 };
