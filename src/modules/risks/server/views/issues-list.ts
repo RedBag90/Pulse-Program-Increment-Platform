@@ -6,19 +6,14 @@
  */
 import {
   riskPositions,
-  cellKey,
   MATRIX_CELLS,
   type ExposureBand,
   type RiskLevel,
 } from "@/modules/risks/domain/risk-matrix";
 import { formatRiskNumber } from "@/modules/risks/domain/risk-number";
-import { buildFunnelCounts, extractUniqueFacet } from "@/server/views/lib/page-model-utils";
+import { extractUniqueFacet } from "@/server/views/lib/page-model-utils";
 import { diffInDays } from "@/modules/core/kernel/domain/calendar";
-import {
-  ROAM_STATUSES,
-  normalizeRoamStatus,
-  type RoamStatus,
-} from "@/modules/core/kernel/domain/roam";
+import type { RoamStatus } from "@/modules/core/kernel/domain/roam";
 import { rollupIssueSubtrees, type RollupNode } from "@/modules/risks/domain/issue-subtree-rollup";
 
 // ── Loose input rows (the loader maps Prisma rows into these) ──────────────────
@@ -106,7 +101,6 @@ export interface IssueListRow {
   initiative: IssueInitiativeRef | null;
   mitigations: { id: string; description: string }[];
   assessments: { probability: string; impact: string; createdAt: string; note: string | null }[];
-  mitigationCount: number;
 }
 
 export interface MatrixPlot {
@@ -117,12 +111,17 @@ export interface MatrixPlot {
   /** inherent → each reassessment → current (empty when unscored). */
   trail: { probability: RiskLevel; impact: RiskLevel }[];
 }
+/**
+ * Ein Feld des Rasters mit seinem Band — **ohne Zahl**. Sie stand hier und war
+ * über die ganze Menge gerechnet, während die Fläche gefiltert zeichnet; die
+ * Fläche überschrieb sie deshalb vor dem Rendern. Gezählt wird jetzt einmal, in
+ * der Matrix, aus den Punkten, die sie tatsächlich setzt.
+ */
 export interface MatrixCellCount {
   probability: RiskLevel;
   impact: RiskLevel;
   key: string;
   band: ExposureBand;
-  count: number;
 }
 
 export interface IssuesListModel {
@@ -130,9 +129,6 @@ export interface IssuesListModel {
   rows: IssueListRow[];
   /** Issues still under review (reviewStatus="suggested"). */
   suggestions: IssueListRow[];
-  /** Documented issues without a current position (need scoring). */
-  unscored: IssueListRow[];
-  roamFunnel: Record<RoamStatus, number>;
   /** Matrix (cells + per-issue plots). Children collapse into their head (only
    *  parentId==null issues are plotted). */
   matrix: { cells: MatrixCellCount[]; plots: MatrixPlot[] };
@@ -235,30 +231,26 @@ export function buildIssuesListModel(input: {
         createdAt: a.createdAt.toISOString(),
         note: a.note ?? null,
       })),
-      mitigationCount: r.mitigations.length,
     };
   };
 
   const rows = documented.map(toListRow);
   const suggestions = suggested.map(toListRow);
-  const unscored = documented.filter((r) => positionsOf(r).current == null).map(toListRow);
-
-  const roamFunnel = buildFunnelCounts(documented, ROAM_STATUSES, (r) =>
-    normalizeRoamStatus(r.roamStatus),
-  );
+  // `unscored` und `roamFunnel` standen hier bis September 2026: das eine hat
+  // nie eine Komponente gelesen, das andere zählte ungefiltert, während die
+  // Chips über der gefilterten Liste stehen. Die Chips zählen jetzt dort, wo die
+  // gefilterte Liste liegt.
 
   // Matrix — scope-effektive Wurzeln (wie `buildIssueTree` für die Tabelle): ein
   // Issue plottet, wenn es keinen Parent IM GELADENEN SET hat. So erscheinen im
   // Epic-Subtree auch Issues, deren Head außerhalb liegt (sonst fehlt die Matrix);
   // Kinder eines sichtbaren Heads collapsen weiterhin in diesen.
   const documentedIds = new Set(documented.map((r) => r.id));
-  const currentCounts = new Map<string, number>();
   const plots: MatrixPlot[] = [];
   for (const r of documented) {
     if (r.parentId && documentedIds.has(r.parentId)) continue; // Kind eines sichtbaren Heads
     const pos = positionsOf(r);
     if (!pos.current) continue;
-    currentCounts.set(pos.current.key, (currentCounts.get(pos.current.key) ?? 0) + 1);
     plots.push({
       issueId: r.id,
       displayNumber: toDisplayNumber(prefix, r.issueNumber),
@@ -272,7 +264,6 @@ export function buildIssuesListModel(input: {
     impact: c.impact,
     key: c.key,
     band: c.band,
-    count: currentCounts.get(cellKey(c.probability, c.impact)) ?? 0,
   }));
 
   const categories = extractUniqueFacet(
@@ -299,8 +290,6 @@ export function buildIssuesListModel(input: {
   return {
     rows,
     suggestions,
-    unscored,
-    roamFunnel,
     matrix: { cells, plots },
     facets: { categories, owners, arts, valueStreams },
     counts: { total: documented.length },

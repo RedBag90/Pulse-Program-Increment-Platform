@@ -31,7 +31,8 @@ import {
   deleteIssueAction,
   linkIssueToInitiativeAction,
 } from "@/modules/risks/features/issue/actions/issue";
-import { LEVEL_LABELS, CATEGORY_LABELS } from "@/modules/risks/features/risk/components/labels";
+import { CATEGORY_LABELS } from "@/modules/risks/features/risk/components/labels";
+import { LEVEL_LABEL } from "@/modules/core/kernel/domain/exposure";
 
 const SELECT =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -304,7 +305,7 @@ function ReassessSection({ issue }: { issue: IssueListRow }) {
             </option>
             {RISK_LEVELS.map((l) => (
               <option key={l} value={l}>
-                {LEVEL_LABELS[l]}
+                {LEVEL_LABEL[l]}
               </option>
             ))}
           </select>
@@ -314,7 +315,7 @@ function ReassessSection({ issue }: { issue: IssueListRow }) {
             </option>
             {RISK_LEVELS.map((l) => (
               <option key={l} value={l}>
-                {LEVEL_LABELS[l]}
+                {LEVEL_LABEL[l]}
               </option>
             ))}
           </select>
@@ -458,9 +459,9 @@ function HistoryTab({ issue }: { issue: IssueListRow }) {
         {issue.assessments.map((a, i) => (
           <li key={i} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
             <span>
-              {LEVEL_LABELS[a.probability as keyof typeof LEVEL_LABELS] ?? a.probability}
+              {LEVEL_LABEL[a.probability as keyof typeof LEVEL_LABEL] ?? a.probability}
               <span className="mx-1.5 text-muted-foreground/60">×</span>
-              {LEVEL_LABELS[a.impact as keyof typeof LEVEL_LABELS] ?? a.impact}
+              {LEVEL_LABEL[a.impact as keyof typeof LEVEL_LABEL] ?? a.impact}
               {a.note && <span className="ml-2 text-muted-foreground">— {a.note}</span>}
             </span>
             <span className="shrink-0 text-xs text-muted-foreground">

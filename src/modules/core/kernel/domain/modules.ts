@@ -134,7 +134,11 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
     // Feature/Epic-Verknüpfung (Sibling von Drumbeat/Budgeting, benötigt Work).
     // Siehe docs/concepts/risk-management-module.md.
     segments: ["issues"],
-    actions: ["risk."],
+    // `issue_filter.manage` sind die persönlich gespeicherten Filter des
+    // Issue-Registers. Der Präfix `risk.` greift dafür nicht — die Capability
+    // wird deshalb ausdrücklich genannt, wie ihre beiden Geschwister bei `core`
+    // und `work`.
+    actions: ["risk.", "issue_filter.manage"],
     home: "/issues",
   },
 };

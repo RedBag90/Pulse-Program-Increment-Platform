@@ -9,8 +9,28 @@ import {
   ROAM_STATUSES,
   normalizeRoamStatus,
 } from "@/modules/core/kernel/domain/roam";
-import { LEVEL_LABELS } from "@/modules/risks/features/risk/components/labels";
-import { EXPOSURE_CELL, EXPOSURE_LABEL } from "@/modules/risks/features/lib/issue-badges";
+import { EXPOSURE_LABEL, EXPOSURE_TONE, LEVEL_LABEL } from "@/modules/core/kernel/domain/exposure";
+import { EmptyState } from "@/components/ui/empty-state";
+import type { RoamStatus } from "@/modules/core/kernel/domain/roam";
+
+/**
+ * **Eine Form je Disposition — weil hier die Farbe allein steht.**
+ *
+ * Überall sonst trägt ROAM sein Wort (Pille, Chip, Legende). Auf dem Punkt nicht:
+ * er ist 10 px gross, und in einer Zelle liegen bis zu zwölf davon nebeneinander.
+ * Zwei der fünf Töne sind sich dabei besonders nah (`owned` 264°, `resolved` 277°
+ * bei gleicher Helligkeit) — die Form entscheidet, nicht der Farbton (ADR-0021 §1).
+ *
+ * Der **gestrichelte** Ring bleibt der Ausgangsposition vorbehalten; `resolved`
+ * ist deshalb ein durchgezogener Ring, kein gestrichelter.
+ */
+const ROAM_SHAPE: Record<RoamStatus, string> = {
+  open: "rounded-full",
+  owned: "rounded-[2px]",
+  accepted: "rounded-[2px] rotate-45",
+  mitigated: "[clip-path:polygon(50%_0%,100%_100%,0%_100%)]",
+  resolved: "rounded-full border-[3px] border-current bg-transparent!",
+};
 
 /** Matrix-Render-Typen — lokal gehalten, damit die (weiterverwendete) Matrix
  *  nicht am gelöschten `risks-list`-View hängt. Die Issue-/Risk-Views formen
@@ -23,12 +43,17 @@ export interface MatrixPlot {
   /** inherent → each reassessment → current (empty when unscored). */
   trail: { probability: RiskLevel; impact: RiskLevel }[];
 }
+/**
+ * Ein Feld des Rasters mit seinem Band. **Ohne Zahl**: die stand bis September
+ * 2026 hier und wurde von der Fläche vor dem Rendern überschrieben, weil der
+ * Server ungefiltert zählte und die Matrix gefiltert zeichnet. Gezählt wird
+ * jetzt dort, wo gezeichnet wird — einmal.
+ */
 export interface MatrixCellCount {
   probability: RiskLevel;
   impact: RiskLevel;
   key: string;
   band: ExposureBand;
-  count: number;
 }
 
 interface Props {
@@ -125,34 +150,55 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
     // rechnet `overflow-y` von `visible` auf `auto` hoch, der Container schnitte den
     // Hover-Tooltip also an beiden Raendern ab. Gemessen wird per
     // `getBoundingClientRect`, damit ein horizontaler Scroll automatisch drinsteckt.
-    <div
-      ref={containerRef}
-      className="relative space-y-3 rounded-lg bg-card p-4 shadow-card"
-      data-tour="risk-matrix"
-    >
+    // Der Tour-Anker `risk-matrix` sitzt am **Streifen** der Fläche
+    // (`issues-list-shell.tsx`), nicht hier: der steht auch zugeklappt im DOM,
+    // diese Karte nicht. Zwei Elemente mit demselben Anker waren ein Übersehen
+    // beim Streifen-Umbau.
+    <div ref={containerRef} className="relative space-y-3 rounded-lg bg-card p-4 shadow-card">
       <div className="overflow-x-auto">
-        <div className="min-w-[22rem]">
+        {/* **Jeder Titel an seiner Achse.** Beide standen bis September 2026
+            untereinander im Eck — dem einen Ort, der zu keiner der beiden Achsen
+            gehört: zwei Zeilen auf 80 px, und die Pfeile zeigten ins Leere. Die
+            Titel sind nötig, weil beide Skalen **dieselben fünf Wörter** tragen;
+            die Pfeile sagen, wo es grösser wird. */}
+        <div className="flex min-w-[22rem] gap-1.5">
+          <div className="flex items-center">
+            <span className="rotate-180 font-mono text-label tracking-[0.1em] text-muted-foreground [writing-mode:vertical-rl]">
+              Wahrscheinlichkeit →
+            </span>
+          </div>
           <div
             role="img"
-            aria-label="Risiko-Matrix (Eintritt × Auswirkung)"
-            className="grid gap-1.5"
+            aria-label="Risiko-Matrix (Eintrittswahrscheinlichkeit × Auswirkung)"
+            className="grid flex-1 gap-1.5"
             style={{ gridTemplateColumns: `auto repeat(${N}, minmax(0, 1fr))` }}
           >
-            {/* Kopfzeile: leeres Eck + X-Spaltenköpfe (Auswirkung) */}
-            <div />
+            {/* Erste Zeile: leeres Eck, daneben der X-Titel **über den fünf
+                Datenspalten** — nicht über der Spalte der Zeilenköpfe, sonst
+                sässe er zu weit links. */}
+            <div aria-hidden />
+            <div
+              style={{ gridColumn: `2 / span ${N}` }}
+              className="pb-0.5 text-center font-mono text-label tracking-[0.1em] text-muted-foreground"
+            >
+              Auswirkung →
+            </div>
+
+            {/* Das Eck der Skalen-Zeile bleibt leer: die Titel stehen jetzt aussen. */}
+            <div aria-hidden />
             {RISK_LEVELS.map((impact) => (
               <div
                 key={`x-${impact}`}
                 className="pb-0.5 text-center font-mono text-label leading-tight text-muted-foreground"
               >
-                {LEVEL_LABELS[impact]}
+                {LEVEL_LABEL[impact]}
               </div>
             ))}
 
             {rows.map((probability) => (
               <Fragment key={`row-${probability}`}>
                 <div className="flex items-center justify-end pr-1.5 font-mono text-label text-muted-foreground">
-                  {LEVEL_LABELS[probability]}
+                  {LEVEL_LABEL[probability]}
                 </div>
                 {RISK_LEVELS.map((impact) => {
                   const key = cellKey(probability, impact);
@@ -161,7 +207,7 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
                   const ghosts = (ghostByKey.get(key) ?? []).filter(
                     (g) => g.plot.riskId === hovered,
                   );
-                  const count = cell?.count ?? 0;
+                  const count = currents.length;
                   return (
                     <div
                       key={key}
@@ -172,7 +218,7 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
                       // auf einer 1400px-Seite ueber 800px hoch. Waechst nur,
                       // wenn eine Zelle mehr Punkte fasst als eine Reihe traegt.
                       className={`relative flex min-h-16 flex-wrap content-center items-center justify-center gap-1 rounded-md p-1 ${
-                        cell ? EXPOSURE_CELL[cell.band] : "bg-muted"
+                        cell ? EXPOSURE_TONE[cell.band].cell : "bg-muted"
                       }`}
                     >
                       {count > 0 && (
@@ -207,10 +253,15 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
                             onMouseLeave={() => setHovered(null)}
                             onFocus={() => setHovered(p.riskId)}
                             onBlur={() => setHovered(null)}
-                            className={`size-2.5 shrink-0 cursor-pointer rounded-full ring-1 ring-white/80 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
-                              isHover ? "ring-2 ring-foreground/70" : ""
-                            }`}
-                            style={{ backgroundColor: ROAM_HEX[normalizeRoamStatus(p.roamStatus)] }}
+                            className={`size-2.5 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
+                              ROAM_SHAPE[normalizeRoamStatus(p.roamStatus)]
+                            } ${isHover ? "ring-2 ring-foreground/70" : ""}`}
+                            style={{
+                              // `color` trägt den Ring von `resolved` (border-current),
+                              // `backgroundColor` die gefüllten Formen.
+                              color: ROAM_HEX[normalizeRoamStatus(p.roamStatus)],
+                              backgroundColor: ROAM_HEX[normalizeRoamStatus(p.roamStatus)],
+                            }}
                           />
                         );
                       })}
@@ -243,18 +294,26 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
       )}
       {overlay && <MatrixTooltip overlay={overlay} cellByKey={cellByKey} />}
 
-      {plots.length === 0 && <p className="text-sm text-muted-foreground">{emptyLabel}</p>}
+      {plots.length === 0 && <EmptyState title={emptyLabel} />}
 
+      {/* Was das Bild zeigt — und was nicht: ein Punkt je Head-Issue. Die
+          verschachtelten Issues zählen in ihrem Head, genau wie in der Tabelle
+          darunter; ohne diesen Satz stünde die Zahl der Punkte unerklärt neben
+          der Zahl im Seitenkopf. */}
       <p className="font-mono text-meta text-muted-foreground">
-        ● aktuell · Hover zeigt Details + gestrichelte Linie zur Ausgangsposition · Zelle =
-        Exposure-Band-Farbe
+        Ein Zeichen je Head-Issue an seiner aktuellen Position · Kinder zählen in ihrem Head · Hover
+        zeigt die Ausgangsposition · Zellfarbe = Exposure-Band
       </p>
 
-      {/* ROAM-Legende (die aktuellen Punkte sind ROAM-farbig) */}
+      {/* ROAM-Legende: Form **und** Farbe, in derselben Paarung wie im Raster. */}
       <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
         {ROAM_STATUSES.map((s) => (
           <span key={s} className="inline-flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full" style={{ backgroundColor: ROAM_HEX[s] }} />
+            <span
+              aria-hidden
+              className={`size-2.5 ${ROAM_SHAPE[s]}`}
+              style={{ color: ROAM_HEX[s], backgroundColor: ROAM_HEX[s] }}
+            />
             {ROAM_LABELS[s]}
           </span>
         ))}
@@ -306,7 +365,7 @@ function MatrixTooltip({
       </div>
       {cur && (
         <p className="mt-0.5 text-muted-foreground">
-          {LEVEL_LABELS[cur.probability]} × {LEVEL_LABELS[cur.impact]}
+          {LEVEL_LABEL[cur.probability]} × {LEVEL_LABEL[cur.impact]}
         </p>
       )}
       {p.trail.length > 1 && (

@@ -228,6 +228,9 @@ export type AuditAction =
   // Pruefpfad ablesbar bleibt, **wo** jemand gefiltert hat.
   | "goal_filter.saved"
   | "goal_filter.deleted"
+  // Und dieselbe Mechanik ein drittes Mal: das Issue-Register.
+  | "issue_filter.saved"
+  | "issue_filter.deleted"
   // Rollen-Onboarding: bewusst NUR die Quittung. Das Fortschreiben gesehener
   // Tour-Schritte feuert bei jedem Schrittwechsel und hat keinen
   // Compliance-Wert — das Audit-Log soll nicht mit Tour-Klicks volllaufen.

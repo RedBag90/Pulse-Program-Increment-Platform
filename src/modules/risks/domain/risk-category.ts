@@ -6,3 +6,15 @@ export type RiskCategory = (typeof RISK_CATEGORIES)[number];
 export function isRiskCategory(s: string): s is RiskCategory {
   return (RISK_CATEGORIES as readonly string[]).includes(s);
 }
+
+/**
+ * Beschriftung je Kategorie. Steht bei der Aufzählung, nicht in der
+ * Präsentationsschicht: die Gruppierung (`issue-grouping.ts`) braucht sie, und
+ * eine Domänenregel darf nicht in `features/` lesen (ADR-0013).
+ */
+export const CATEGORY_LABELS: Record<RiskCategory, string> = {
+  technical: "Technisch",
+  business: "Business",
+  schedule: "Termin",
+  external: "Extern",
+};

@@ -1,28 +1,10 @@
 /**
- * Rest-Labels. Die Band-Präsentation (Klassen/Farben/Zell-Tönung/Badges) lebt in
- * `features/lib/issue-badges.tsx` (SSOT); hier bleiben nur die Achsen-/Kategorie-/
- * Review-Labels (Matrix-Achsen + Selektoren).
+ * Rest-Labels des Risiko-Moduls.
+ *
+ * Hier stand bis September 2026 die Kategorie-Beschriftung; sie ist zu ihrer
+ * Aufzählung gezogen (`domain/risk-category.ts`), weil die Gruppierung der
+ * Tabelle sie aus der Domäne heraus braucht. Die Achsen-Stufen liegen im Kernel
+ * (`LEVEL_LABEL`). Übrig bleibt nichts, was nur hier hingehörte — die Datei
+ * reicht die Kategorie-Labels weiter, damit vorhandene Importe nichts merken.
  */
-import type { RiskLevel } from "@/modules/risks/domain/risk-matrix";
-import type { RiskCategory } from "@/modules/risks/domain/risk-category";
-
-export const LEVEL_LABELS: Record<RiskLevel, string> = {
-  very_low: "Sehr niedrig",
-  low: "Niedrig",
-  medium: "Mittel",
-  high: "Hoch",
-  very_high: "Sehr hoch",
-};
-
-export const CATEGORY_LABELS: Record<RiskCategory, string> = {
-  technical: "Technisch",
-  business: "Business",
-  schedule: "Termin",
-  external: "Extern",
-};
-
-export const REVIEW_LABELS: Record<string, string> = {
-  suggested: "Vorschlag",
-  documented: "Dokumentiert",
-  rejected: "Abgelehnt",
-};
+export { CATEGORY_LABELS } from "@/modules/risks/domain/risk-category";

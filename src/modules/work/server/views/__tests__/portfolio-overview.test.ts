@@ -426,6 +426,7 @@ describe("buildPortfolioOverviewModel", () => {
       {
         epicId: "a",
         title: "A",
+        valueStreamId: "vs1",
         valueStreamName: "VS",
         recurring: [{ unit: "€", planned: 100, realized: 0 }],
         oneTime: [{ unit: "€", planned: 50, realized: 0 }],
@@ -434,6 +435,7 @@ describe("buildPortfolioOverviewModel", () => {
       {
         epicId: "b",
         title: "B",
+        valueStreamId: null,
         valueStreamName: null,
         recurring: [
           { unit: "€", planned: 300, realized: 0 },
@@ -445,6 +447,7 @@ describe("buildPortfolioOverviewModel", () => {
       {
         epicId: "c",
         title: "C",
+        valueStreamId: null,
         valueStreamName: null,
         recurring: [],
         oneTime: [{ unit: "Stück", planned: 220, realized: 0 }],
@@ -532,6 +535,7 @@ describe("Klassen-Facette im Overview-Modell", () => {
     // für Epics ohne freigegebenen Business Case — die Facette findet sie jetzt.
     classSource: (epicClass == null ? "none" : "approved") as EpicClassSource,
     solution,
+    art: null,
   });
   const classes = new Map([
     ["p1", cls("portfolio", { id: "s1", name: "Produktion Betrieb" })],

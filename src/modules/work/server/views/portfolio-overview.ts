@@ -37,13 +37,18 @@ import {
   isClassShown,
   type SolutionRef,
 } from "@/modules/work/domain/epic-class-filter";
-import { classifyEpics, type EpicClassInfo } from "@/modules/work/server/services/epic-class";
+import {
+  classifyEpics,
+  type ArtRef,
+  type EpicClassInfo,
+} from "@/modules/work/server/services/epic-class";
 import { loadHorizonFunnelItems } from "@/modules/work/server/services/horizon-funnel";
 import type {
   FunnelItem,
   HorizonTargets,
 } from "@/modules/work/features/portfolio/lib/horizon-funnel";
 import { ROAM_STATUSES, type RoamStatus } from "@/modules/core/kernel/domain/roam";
+import type { ExposureBand } from "@/modules/core/kernel/domain/exposure";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { resolveFeatureSolution } from "@/modules/work/domain/feature-solution";
 
@@ -139,9 +144,13 @@ export interface OverviewEpicCard {
   solution: SolutionRef | null;
 }
 
-/** Exposure-Band eines Risikos (score = probability·impact → Band). Lokale Union,
- *  da `ExposureBand` im `risks`-Modul liegt, das `work` nicht importieren darf. */
-export type OverviewRiskBand = "low" | "medium" | "high" | "critical";
+/**
+ * Exposure-Band eines Risikos (score = probability·impact → Band). Bis September
+ * 2026 eine lokale Union, weil `ExposureBand` im `risks`-Modul lag; seit die
+ * Skala im Kernel steht (wie ROAM), ist es **dasselbe** Band — und die Fläche
+ * kann nicht mehr eine andere Skala zeigen als das Register.
+ */
+export type OverviewRiskBand = ExposureBand;
 
 /**
  * Ein dokumentiertes, noch offenes Risiko für die Portfolio-Übersicht. Der
@@ -282,6 +291,8 @@ export interface OverviewRecentEvent {
 export interface ContributionRow extends EpicGoalContribution {
   epicClass: EpicClass | null;
   solution: SolutionRef | null;
+  /** Wie die Solution ein Sammelpunkt — die Fläche fasst wahlweise danach zusammen. */
+  art: ArtRef | null;
   /** Aufgeloest wie bei den Epic-Karten (`resolveEpicHorizon`). */
   horizon: string | null;
   /**
@@ -536,6 +547,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
   const classOf = (epicId: string): EpicClass | null => epicClasses?.get(epicId)?.epicClass ?? null;
   const solutionOf = (epicId: string): SolutionRef | null =>
     epicClasses?.get(epicId)?.solution ?? null;
+  const artOf = (epicId: string): ArtRef | null => epicClasses?.get(epicId)?.art ?? null;
 
   // Die Beitragszeilen holen sich Horizont und Bewertbarkeit aus derselben
   // Epic-Menge, aus der auch die Karten entstehen — kein zweiter Ladeweg.
@@ -709,6 +721,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
       ...r,
       epicClass: classOf(r.epicId),
       solution: solutionOf(r.epicId),
+      art: artOf(r.epicId),
       horizon: horizonOf(r.epicId),
       benefitAssessable: benefitAssessableOf(r.epicId),
     }));

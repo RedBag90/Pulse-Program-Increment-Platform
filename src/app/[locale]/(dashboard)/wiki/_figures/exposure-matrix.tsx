@@ -1,33 +1,15 @@
+// Die Figur erklaert die Skala und benutzt deshalb **dieselbe**: Stufen,
+// Schwellen, Baender, Woerter und Farben kommen aus dem Kernel. Sie hatte bis
+// September 2026 eigene Tabellen — mit eigenen Woertern („sehr gering" gegen
+// „Sehr niedrig"), also einer Erklaerung, die etwas anderes sagte als die Sache.
 import {
   RISK_LEVELS,
   BAND_THRESHOLDS,
+  EXPOSURE_LABEL,
+  EXPOSURE_TONE,
+  LEVEL_LABEL,
   riskExposure,
-  type ExposureBand,
-} from "@/modules/risks/domain/risk-matrix";
-
-const LEVEL_LABEL: Record<(typeof RISK_LEVELS)[number], string> = {
-  very_low: "sehr gering",
-  low: "gering",
-  medium: "mittel",
-  high: "hoch",
-  very_high: "sehr hoch",
-};
-
-// Die warme Heat-Skala — bewusst disjunkt von der kuehlen ROAM-Palette, damit
-// Kritikalitaet und Einordnung nie um dieselbe Farbe streiten.
-const BAND_TINT: Record<ExposureBand, string> = {
-  low: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200",
-  medium: "bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200",
-  high: "bg-orange-100 text-orange-900 dark:bg-orange-950/60 dark:text-orange-200",
-  critical: "bg-red-100 text-red-900 dark:bg-red-950/60 dark:text-red-200",
-};
-
-const BAND_LABEL: Record<ExposureBand, string> = {
-  low: "niedrig",
-  medium: "mittel",
-  high: "hoch",
-  critical: "kritisch",
-};
+} from "@/modules/core/kernel/domain/exposure";
 
 /**
  * **Die Exposure als 5×5-Gitter** — jede Zelle fragt `riskExposure`, also
@@ -69,8 +51,8 @@ export function ExposureMatrix() {
                   return (
                     <td
                       key={i}
-                      className={`rounded-sm px-2 py-2 font-medium tabular-nums ${BAND_TINT[e.band]}`}
-                      title={BAND_LABEL[e.band]}
+                      className={`rounded-sm px-2 py-2 font-medium tabular-nums ${EXPOSURE_TONE[e.band].badge}`}
+                      title={EXPOSURE_LABEL[e.band]}
                     >
                       {e.score}
                     </td>
@@ -85,8 +67,11 @@ export function ExposureMatrix() {
         <span className="font-mono text-meta uppercase tracking-wider">Bänder</span>
         {BAND_THRESHOLDS.map((t) => (
           <span key={t.band} className="inline-flex items-center gap-1.5">
-            <span aria-hidden className={`inline-block size-2.5 rounded-sm ${BAND_TINT[t.band]}`} />
-            {BAND_LABEL[t.band]} <span className="tabular-nums">≤ {t.max}</span>
+            <span
+              aria-hidden
+              className={`inline-block size-2.5 rounded-sm ${EXPOSURE_TONE[t.band].badge}`}
+            />
+            {EXPOSURE_LABEL[t.band]} <span className="tabular-nums">≤ {t.max}</span>
           </span>
         ))}
       </p>

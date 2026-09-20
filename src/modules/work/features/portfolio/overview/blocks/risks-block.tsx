@@ -3,21 +3,14 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { SectionLabel } from "@/components/ui/section-label";
 import { ROAM_LABELS, ROAM_DOT, type RoamStatus } from "@/modules/core/kernel/domain/roam";
+// Dieselbe Skala wie im Register: `low` war hier Schiefer statt Smaragd und
+// `critical` Rosé statt Rot — dieselbe Größe in zwei Farbwelten.
+import { EXPOSURE_LABEL, EXPOSURE_TONE } from "@/modules/core/kernel/domain/exposure";
 import {
   groupRisksByRoam,
   type PortfolioOverview,
   type OverviewRisk,
-  type OverviewRiskBand,
 } from "@/modules/work/server/views/portfolio-overview";
-
-/** Exposure-Band → Badge-Klassen. Lokale Map, da `risks/.../labels.ts` für das
- *  `work`-Modul gesperrt ist (ADR-0013) — bewusst kleine Duplikation. */
-const BAND_BADGE: Record<OverviewRiskBand, string> = {
-  low: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-  medium: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
-  high: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300",
-  critical: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
-};
 
 /**
  * Wie viele Einträge eine **bearbeitete** Disposition zeigt, bevor sie
@@ -25,13 +18,6 @@ const BAND_BADGE: Record<OverviewRiskBand, string> = {
  * noch zu entscheiden ist, und eine halbe Entscheidungsliste ist keine.
  */
 const COLLAPSED_LIMIT = 5;
-
-const BAND_LABEL: Record<OverviewRiskBand, string> = {
-  low: "Niedrig",
-  medium: "Mittel",
-  high: "Hoch",
-  critical: "Kritisch",
-};
 
 /**
  * **Die Risiken als ROAM-Board** — eine Kachel je Disposition statt einer Rolle
@@ -189,15 +175,15 @@ function RiskRow({ risk: r }: { risk: OverviewRisk }) {
     <li className="flex items-start gap-2">
       <span
         className={`mt-0.5 shrink-0 rounded-sm px-1.5 py-0.5 text-label font-medium uppercase tracking-[0.1em] ${
-          r.band ? BAND_BADGE[r.band] : "bg-muted text-muted-foreground"
+          r.band ? EXPOSURE_TONE[r.band].badge : "bg-muted text-muted-foreground"
         }`}
-        title={r.band ? `Exposure: ${BAND_LABEL[r.band]} (${r.score})` : "Ungescored"}
+        title={r.band ? `Exposure: ${EXPOSURE_LABEL[r.band]} (${r.score})` : "unbewertet"}
       >
-        {r.band ? BAND_LABEL[r.band] : "—"}
+        {r.band ? EXPOSURE_LABEL[r.band] : "—"}
       </span>
       <div className="min-w-0 flex-1">
         <Link
-          href="/risks"
+          href={`/issues?issue=${r.id}`}
           className="block truncate text-xs font-medium hover:text-primary hover:underline"
           title={r.title}
         >

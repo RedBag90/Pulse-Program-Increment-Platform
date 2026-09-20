@@ -25,10 +25,25 @@ import type { Principal } from "@/server/auth/principal";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import type { Result } from "@/modules/core/kernel/domain/errors";
+import type { AuditAction } from "@/server/audit/emit";
 import { ok, err } from "@/modules/core/kernel/domain/errors";
 
 /** Die Flächen, die Filter speichern können. */
-export type FilterScope = "portfolio" | "goals";
+export type FilterScope = "portfolio" | "goals" | "issues";
+
+/**
+ * Die Audit-Namen je Fläche.
+ *
+ * Hier stand zweimal `scope === "goals" ? … : …` — eine Frage mit zwei
+ * Antworten, solange es zwei Flächen gab. Mit der dritten hätte ein
+ * Issue-Filter stillschweigend als `portfolio_filter` im Protokoll gestanden.
+ * Eine Tabelle zwingt jeden neuen Scope, seinen Namen mitzubringen.
+ */
+const AUDIT_ACTION: Record<FilterScope, { saved: AuditAction; deleted: AuditAction }> = {
+  portfolio: { saved: "portfolio_filter.saved", deleted: "portfolio_filter.deleted" },
+  goals: { saved: "goal_filter.saved", deleted: "goal_filter.deleted" },
+  issues: { saved: "issue_filter.saved", deleted: "issue_filter.deleted" },
+};
 
 /** Eine Facetten-Karte: Schlüssel → gewählte Werte. */
 export type FilterCriteria = Record<string, string[]>;
@@ -128,7 +143,7 @@ export async function saveSavedFilter(
     return ok({
       result: { id: saved.id },
       audit: {
-        action: input.scope === "goals" ? "goal_filter.saved" : "portfolio_filter.saved",
+        action: AUDIT_ACTION[input.scope].saved,
         resourceType: "saved_portfolio_filter",
         resourceId: saved.id,
       },
@@ -158,7 +173,7 @@ export async function deleteSavedFilter(
     return ok({
       result: undefined,
       audit: {
-        action: input.scope === "goals" ? "goal_filter.deleted" : "portfolio_filter.deleted",
+        action: AUDIT_ACTION[input.scope].deleted,
         resourceType: "saved_portfolio_filter",
         resourceId: input.id,
       },

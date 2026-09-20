@@ -202,6 +202,11 @@ export interface UnitValue {
 export interface EpicGoalContribution {
   epicId: string;
   title: string;
+  /**
+   * Der Wertstrom als **Id** — ein Name taugt nicht als Schlüssel, sobald zwei
+   * Wertströme gleich heissen. Die Portfolio-Übersicht fasst danach zusammen.
+   */
+  valueStreamId: string | null;
   valueStreamName: string | null;
   recurring: UnitValue[];
   oneTime: UnitValue[];
@@ -249,7 +254,7 @@ export async function loadEpicGoalContributions(
     include: {
       kpi: { select: { id: true, baseline: true, target: true, measurements: true, name: true } },
       epic: {
-        select: { id: true, title: true, valueStream: { select: { name: true } } },
+        select: { id: true, title: true, valueStream: { select: { id: true, name: true } } },
       },
     },
   });
@@ -281,13 +286,19 @@ export async function loadEpicGoalContributions(
   // Links je Epic sammeln (nur KPI-getriebene tragen zur Kaskade bei).
   const byEpic = new Map<
     string,
-    { title: string; valueStreamName: string | null; inputs: EpicGoalLinkInput[] }
+    {
+      title: string;
+      valueStreamId: string | null;
+      valueStreamName: string | null;
+      inputs: EpicGoalLinkInput[];
+    }
   >();
   for (const l of links) {
     let entry = byEpic.get(l.epicId);
     if (!entry) {
       entry = {
         title: l.epic.title,
+        valueStreamId: l.epic.valueStream?.id ?? null,
         valueStreamName: l.epic.valueStream?.name ?? null,
         inputs: [],
       };
@@ -321,6 +332,7 @@ export async function loadEpicGoalContributions(
       out.push({
         epicId,
         title: entry.title,
+        valueStreamId: entry.valueStreamId,
         valueStreamName: entry.valueStreamName,
         recurring,
         oneTime,

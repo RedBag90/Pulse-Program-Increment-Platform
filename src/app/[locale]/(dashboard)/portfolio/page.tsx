@@ -3,7 +3,6 @@ import { createPrismaClient } from "@/server/db/prisma";
 import {
   loadPortfolioOverview,
   type PortfolioFilter,
-  type OverviewRiskBand,
 } from "@/modules/work/server/views/portfolio-overview";
 import {
   getBudgetingBoard,
@@ -15,6 +14,7 @@ import {
 } from "@/modules/budgeting/server/services/rtb-item-service";
 import { getEpicCycleAllocations } from "@/modules/budgeting/server/services/epic-allocation";
 import type { RoamStatus } from "@/modules/core/kernel/domain/roam";
+import { bandForScore, riskExposure, type RiskLevel } from "@/modules/core/kernel/domain/exposure";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
@@ -46,22 +46,9 @@ interface Props {
 const splitCsv = (v: string | undefined): string[] =>
   typeof v === "string" && v ? v.split(",").filter(Boolean) : [];
 
-// Exposure inline (dupliziert aus `risks/domain/risk-matrix`, weil `work`/dieser
-// Composition-Root das `risks`-Modul nicht importieren darf — ADR-0013): score =
-// LEVEL_VALUE[probability]·LEVEL_VALUE[impact], Band per Schwellen ≤4/≤9/≤15/else.
-const LEVEL_VALUE: Record<string, number> = {
-  very_low: 1,
-  low: 2,
-  medium: 3,
-  high: 4,
-  very_high: 5,
-};
-function exposureBand(score: number): OverviewRiskBand {
-  if (score <= 4) return "low";
-  if (score <= 9) return "medium";
-  if (score <= 15) return "high";
-  return "critical";
-}
+// Die Schwellen standen hier als dritte Abschrift, weil `ExposureBand` im
+// `risks`-Modul lag. Seit die Skala im Kernel steht (wie ROAM), liest sie jeder
+// von dort — inklusive dieser Stelle.
 
 /**
  * Portfolio Übersicht — three parallel variants behind a `?view=` switcher so
@@ -213,7 +200,7 @@ export default async function PortfolioPage({ searchParams }: Props) {
         )
         .filter((r) => r.probability != null && r.impact != null)
         .map((r) => {
-          const score = LEVEL_VALUE[r.probability!]! * LEVEL_VALUE[r.impact!]!;
+          const score = riskExposure(r.probability as RiskLevel, r.impact as RiskLevel).score;
           const epic =
             r.initiative && r.initiative.level === 0
               ? { id: r.initiative.id, title: r.initiative.title }
@@ -222,7 +209,7 @@ export default async function PortfolioPage({ searchParams }: Props) {
             id: r.id,
             riskNumber: r.issueNumber,
             title: r.title,
-            band: exposureBand(score),
+            band: bandForScore(score),
             score,
             roamStatus: r.roamStatus as RoamStatus,
             epic,

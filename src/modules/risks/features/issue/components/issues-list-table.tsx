@@ -3,17 +3,15 @@
 import { useState } from "react";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import type { IssueListRow } from "@/modules/risks/server/views/issues-list";
-import {
-  ROAM_DOT,
-  ROAM_STATUSES,
-  normalizeRoamStatus,
-  type RoamStatus,
-} from "@/modules/core/kernel/domain/roam";
-import { ExposureBadge, RoamBadge, CategoryBadge } from "@/modules/risks/features/lib/issue-badges";
+import { ROAM_DOT, ROAM_STATUSES, type RoamStatus } from "@/modules/core/kernel/domain/roam";
+import { ExposureBadge, RoamBadge } from "@/modules/risks/features/lib/issue-badges";
+import { CATEGORY_LABELS } from "@/modules/risks/features/risk/components/labels";
 import type { ExposureBand } from "@/modules/risks/domain/risk-matrix";
 import type { RiskCategory } from "@/modules/risks/domain/risk-category";
 import { buildIssueTree, type TreeNode } from "@/modules/risks/domain/issue-tree";
 import { EmptyState } from "@/components/ui/empty-state";
+import { TableGroupRow, TableMoreRow } from "@/components/ui/table-group-row";
+import { groupIssues, type IssueGroupAxis } from "@/modules/risks/domain/issue-grouping";
 import { MoreVertical } from "lucide-react";
 import {
   DropdownMenu,
@@ -40,7 +38,27 @@ interface Props {
   compact: boolean;
   /** When set, rows are draggable (reparent) + drop targets (become child). */
   dnd?: IssueTreeDnd | null;
+  /** Achse, nach der gebündelt wird. `"flach"` = ein Rumpf, wie bisher. */
+  group?: IssueGroupAxis;
+  /**
+   * Die **aufgeklappten** Heads — `"alle"` öffnet jeden. Voreingestellt ist die
+   * leere Menge: bei 148 Issues trugen zwei Heads 75 Zeilen, und alles stand
+   * offen. Zu beginnen halbiert die Liste, ohne eine Zeile zu verstecken: die
+   * Zahl der Nachfahren steht am Head.
+   */
+  expanded?: ReadonlySet<string> | "alle";
+  onToggleRow?: (id: string) => void;
 }
+
+/**
+ * Wie viele **Wurzelzeilen** je Gruppe gerendert werden, bevor „+ n weitere"
+ * übernimmt. Dieselbe Zahl wie sonst im Haus (`paginate.ts` `DEFAULT_PAGE_SIZE`,
+ * Audit-Log `PAGE_SIZE`). Kinder eines aufgeklappten Heads zählen **nicht** mit:
+ * wer ihn öffnet, will ihn ganz sehen.
+ */
+const ROW_LIMIT = 50;
+
+const EMPTY_SET: ReadonlySet<string> = new Set();
 
 /**
  * Spaltenbreiten. Ohne `table-fixed` + feste Breiten richtet der Browser die
@@ -63,20 +81,28 @@ function ColGroup({ compact }: { compact: boolean }) {
   );
 }
 
-export function IssuesListTable({ rows, compact, dnd = null }: Props) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const toggle = (id: string) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+export function IssuesListTable({
+  rows,
+  compact,
+  dnd = null,
+  group = "flach",
+  expanded = EMPTY_SET,
+  onToggleRow = () => {},
+}: Props) {
+  // Wie viele Wurzeln eine Gruppe schon zeigt. Rein eine Anzeigefrage — sie
+  // gehört nicht in die URL, anders als Filter, Sortierung oder Gruppierung.
+  const [shown, setShown] = useState<Record<string, number>>({});
+  const [closedGroups, setClosedGroups] = useState<ReadonlySet<string>>(EMPTY_SET);
 
   if (rows.length === 0) {
     return <EmptyState title="Keine Issues" body="Für diese Filter gibt es keine Issues." />;
   }
   const forest = buildIssueTree(rows);
+  const colCount = compact ? 3 : 7;
+  const groups =
+    group === "flach"
+      ? [{ key: "", label: "", items: forest }]
+      : groupIssues(forest, group, (n) => n.row);
 
   return (
     <div className={TREE_CONTAINER}>
@@ -95,20 +121,60 @@ export function IssuesListTable({ rows, compact, dnd = null }: Props) {
             {!compact && <th className={TREE_TH}>Fällig</th>}
           </tr>
         </thead>
-        <tbody className="divide-y">
-          {forest.map((node) => (
-            <TreeRows
-              key={node.row.id}
-              node={node}
-              cols={[]}
-              compact={compact}
-              dnd={dnd}
-              allRows={rows}
-              collapsed={collapsed}
-              onToggle={toggle}
-            />
-          ))}
-        </tbody>
+        {groups.map((g) => {
+          const grouped = group !== "flach";
+          const open = !closedGroups.has(g.key);
+          const limit = shown[g.key] ?? ROW_LIMIT;
+          const sichtbar = open ? g.items.slice(0, limit) : [];
+          const rest = g.items.length - sichtbar.length;
+          return (
+            <tbody key={g.key || "flach"} className="divide-y">
+              {grouped && (
+                <TableGroupRow
+                  label={g.label}
+                  count={g.items.length}
+                  open={open}
+                  colSpan={colCount}
+                  onToggle={() =>
+                    setClosedGroups((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(g.key)) next.delete(g.key);
+                      else next.add(g.key);
+                      return next;
+                    })
+                  }
+                />
+              )}
+              {grouped && open && g.items.length === 0 && (
+                <tr className="border-b">
+                  <td colSpan={colCount} className="py-2 pl-9 text-meta text-muted-foreground">
+                    Keine Issues in dieser Gruppe
+                  </td>
+                </tr>
+              )}
+              {sichtbar.map((node) => (
+                <TreeRows
+                  key={node.row.id}
+                  node={node}
+                  cols={[]}
+                  compact={compact}
+                  dnd={dnd}
+                  allRows={rows}
+                  expanded={expanded}
+                  onToggle={onToggleRow}
+                />
+              ))}
+              {open && rest > 0 && (
+                <TableMoreRow
+                  remaining={rest}
+                  colSpan={colCount}
+                  indent={grouped ? "pl-9" : "pl-3"}
+                  onMore={() => setShown((prev) => ({ ...prev, [g.key]: limit + ROW_LIMIT }))}
+                />
+              )}
+            </tbody>
+          );
+        })}
       </table>
     </div>
   );
@@ -125,7 +191,7 @@ function TreeRows({
   compact,
   dnd,
   allRows,
-  collapsed,
+  expanded,
   onToggle,
 }: {
   node: TreeNode<IssueListRow>;
@@ -133,10 +199,10 @@ function TreeRows({
   compact: boolean;
   dnd: IssueTreeDnd | null;
   allRows: IssueListRow[];
-  collapsed: Set<string>;
+  expanded: ReadonlySet<string> | "alle";
   onToggle: (id: string) => void;
 }) {
-  const isCollapsed = collapsed.has(node.row.id);
+  const isCollapsed = expanded !== "alle" && !expanded.has(node.row.id);
   return (
     <>
       <Row
@@ -158,7 +224,7 @@ function TreeRows({
             compact={compact}
             dnd={dnd}
             allRows={allRows}
-            collapsed={collapsed}
+            expanded={expanded}
             onToggle={onToggle}
           />
         ))}
@@ -179,9 +245,14 @@ function ReparentMenu({
   allRows: IssueListRow[];
   dnd: IssueTreeDnd;
 }) {
-  const targets = allRows.filter((r) => dnd.canReparentTo(row.id, r.id));
+  // **Erst rechnen, wenn jemand hinsieht.** Diese Liste entstand im Rumpf der
+  // Komponente — also je Zeile und je Rendervorgang, auch ungeöffnet. Bei 148
+  // Zeilen waren das 21.904 Ahnen-Läufe pro Rendervorgang, und es ist der einzige
+  // Pfad der Fläche, der quadratisch mit der Zahl der Issues wächst.
+  const [open, setOpen] = useState(false);
+  const targets = open ? allRows.filter((r) => dnd.canReparentTo(row.id, r.id)) : [];
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         aria-label={`${row.title} verschieben`}
         className="rounded-sm p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 group-hover/row:opacity-100"
@@ -294,11 +365,10 @@ function Row({
       style={{ boxShadow: rowShadow({ head: depth === 0 }) }}
     >
       <td className={`${TREE_TD} relative`}>
-        {/* Linker Streifen = ROAM-Status (nicht Exposure — die Achsen sind farblich getrennt). */}
-        <span
-          aria-hidden
-          className={`absolute inset-y-0 left-0 w-[3px] ${ROAM_DOT[normalizeRoamStatus(row.roamStatus)]}`}
-        />
+        {/* Hier lag bis September 2026 ein 3-px-Streifen in der ROAM-Farbe —
+            Farbe ohne Wort, zwei Spalten neben der Pille, die dasselbe mit Wort
+            sagt (ADR-0021 §1). Der linke Rand gehört jetzt allein der
+            Head-Schiene (`rowShadow`), und die wird dadurch erst lesbar. */}
         <span className="flex min-w-0 items-center">
           {depth > 0 && (
             <span className="whitespace-pre font-mono text-xs text-muted-foreground/70">
@@ -352,7 +422,10 @@ function Row({
       </td>
       {!compact && (
         <td className={`${TREE_TD} text-muted-foreground`}>
-          {row.category ? <CategoryBadge category={row.category as RiskCategory} /> : "—"}
+          {/* Ohne Pille: die Kategorie hat keine Ordnung und trug in allen vier
+              Ausprägungen dasselbe Grau — eine Pille, die eine Skala vortäuscht
+              und keine ist. */}
+          {row.category ? CATEGORY_LABELS[row.category as RiskCategory] : "—"}
         </td>
       )}
       {!compact && (

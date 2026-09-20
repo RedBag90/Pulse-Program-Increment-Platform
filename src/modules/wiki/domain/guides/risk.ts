@@ -148,7 +148,7 @@ export const RISK: Guide = {
       stations: [
         {
           title: "Der Zustand, der zurückkommt",
-          route: "/issues",
+          route: "/issues?matrix=1",
           anchor: "risk-matrix",
           body: [
             {

@@ -47,6 +47,7 @@ const DOMAIN_ORDER: CapabilityDomain[] = [
       "role.onboarding.manage",
       "portfolio_filter.manage",
       "goal_filter.manage",
+      "issue_filter.manage",
     ],
   },
   { key: "target", label: "Target-Modell", actions: ["target.manage"] },

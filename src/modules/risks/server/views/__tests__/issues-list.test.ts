@@ -61,17 +61,28 @@ describe("buildIssuesListModel", () => {
     });
     // only the head (parentId==null) is plotted; the child collapses in.
     expect(m.matrix.plots.map((p) => p.issueId)).toEqual(["head"]);
-    const critical = m.matrix.cells.find((c) => c.key === cellKey("high", "high"))!;
-    expect(critical.count).toBe(1);
-    const low = m.matrix.cells.find((c) => c.key === cellKey("low", "low"))!;
-    expect(low.count).toBe(0);
+    // Die 25 Felder tragen ihr Band, aber keine Zahl mehr: gezählt wird in der
+    // Matrix, aus den Punkten, die sie zeichnet (sonst zählte der Server
+    // ungefiltert gegen eine gefilterte Darstellung).
+    expect(m.matrix.cells).toHaveLength(25);
+    expect(m.matrix.cells.find((c) => c.key === cellKey("high", "high"))!.band).toBe("critical");
+    expect(m.matrix.cells.find((c) => c.key === cellKey("low", "low"))!.band).toBe("low");
   });
 
   it("attaches a subtree rollup to head rows only", () => {
     const m = buildIssuesListModel({
       issues: [
-        makeIssue({ id: "head", roamStatus: "open", initiative: { id: "e1", title: "E1", level: 0, parentId: null } }),
-        makeIssue({ id: "c1", parentId: "head", roamStatus: "owned", initiative: { id: "f2", title: "F2", level: 1, parentId: "e2" } }),
+        makeIssue({
+          id: "head",
+          roamStatus: "open",
+          initiative: { id: "e1", title: "E1", level: 0, parentId: null },
+        }),
+        makeIssue({
+          id: "c1",
+          parentId: "head",
+          roamStatus: "owned",
+          initiative: { id: "f2", title: "F2", level: 1, parentId: "e2" },
+        }),
       ],
       prefix,
       userLabels,
@@ -87,7 +98,7 @@ describe("buildIssuesListModel", () => {
     expect(head.rollup!.spannedEpics).toBe(2);
   });
 
-  it("builds a ROAM funnel + category/owner facets", () => {
+  it("builds category/owner facets", () => {
     const m = buildIssuesListModel({
       issues: [
         makeIssue({ id: "a", roamStatus: "owned", ownerId: "u1", category: "technical" }),
@@ -96,8 +107,6 @@ describe("buildIssuesListModel", () => {
       prefix,
       userLabels,
     });
-    expect(m.roamFunnel.owned).toBe(1);
-    expect(m.roamFunnel.resolved).toBe(1);
     expect(m.facets.categories.sort()).toEqual(["business", "technical"]);
     expect(m.facets.owners.map((o) => o.label).sort()).toEqual(["Alice", "Bob"]);
   });

@@ -333,7 +333,9 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
         key: "portfolio_manager.risk_matrix",
         title: "Die Risikolage lesen",
         body: "Die Matrix stellt Wahrscheinlichkeit gegen Auswirkung. Mehrere Punkte in der rechten oberen Ecke sind dein Handlungssignal für den nächsten Review.",
-        route: "/issues",
+        // Die Matrix steht als Streifen über dem Register; der Schritt spricht über
+        // ihren Inhalt und bringt sie deshalb aufgeklappt mit.
+        route: "/issues?matrix=1",
         anchor: "risk-matrix",
         requires: "risk",
       },
@@ -518,7 +520,9 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
         key: "epic_owner.risk_matrix",
         title: "Die Risiken deines Epics bewerten",
         body: "Wahrscheinlichkeit mal Auswirkung ergibt die Exponierung. Jede Neubewertung bleibt als Spur erhalten, damit sichtbar wird, ob eure Maßnahmen wirken.",
-        route: "/issues",
+        // Die Matrix steht als Streifen über dem Register; der Schritt spricht über
+        // ihren Inhalt und bringt sie deshalb aufgeklappt mit.
+        route: "/issues?matrix=1",
         anchor: "risk-matrix",
         capability: "risk.update",
         requires: "risk",
@@ -763,7 +767,9 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
         key: "viewer.risk_matrix",
         title: "Die Risikolage",
         body: "Wahrscheinlichkeit gegen Auswirkung. Was rechts oben liegt, sollte in eurem nächsten Steuerungstermin zur Sprache kommen.",
-        route: "/issues",
+        // Die Matrix steht als Streifen über dem Register; der Schritt spricht über
+        // ihren Inhalt und bringt sie deshalb aufgeklappt mit.
+        route: "/issues?matrix=1",
         anchor: "risk-matrix",
         requires: "risk",
       },

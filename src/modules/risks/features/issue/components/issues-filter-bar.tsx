@@ -1,18 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, X } from "lucide-react";
+import { ChevronsDownUp, ChevronsUpDown, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { SearchSelect } from "@/components/ui/search-select";
 import { CATEGORY_LABELS } from "@/modules/risks/features/risk/components/labels";
+import {
+  ISSUE_GROUP_AXES,
+  ISSUE_GROUP_LABELS,
+  type IssueGroupAxis,
+} from "@/modules/risks/domain/issue-grouping";
 import type { RiskCategory } from "@/modules/risks/domain/risk-category";
 import {
   EXPOSURE_BANDS,
   EXPOSURE_LABEL,
-  EXPOSURE_HEX,
-} from "@/modules/risks/features/lib/issue-badges";
+  EXPOSURE_TONE,
+} from "@/modules/core/kernel/domain/exposure";
 
 export type IssueSortKey = "created:desc" | "daysOpen:desc" | "exposure:desc" | "title:asc";
 export type IssueDensity = "comfortable" | "compact";
@@ -26,6 +31,12 @@ const SORT_LABELS: Record<IssueSortKey, string> = {
 
 interface Props {
   query: string;
+  /**
+   * Die ROAM-Auswahl gehört der Chip-Leiste, nicht dieser hier — sie steht
+   * trotzdem in den Props: „Zurücksetzen" räumt sie mit ab und muss deshalb
+   * auch erscheinen, wenn **nur** ein Chip aktiv ist.
+   */
+  roams: string[];
   categories: string[];
   owners: string[];
   bands: string[];
@@ -43,8 +54,26 @@ interface Props {
   onBandsChange: (v: string[]) => void;
   onValueStreamsChange: (v: string[]) => void;
   onArtsChange: (v: string[]) => void;
+  /**
+   * Alles zurücksetzen — **ein** Schreibvorgang in die URL statt sechs, und mit
+   * dem Marker „bewusst leer", damit der gespeicherte Standard-Filter beim
+   * nächsten Öffnen nicht sofort wieder zuschlägt.
+   */
+  onClearAll: () => void;
   onSortChange: (v: IssueSortKey) => void;
   onDensityChange: (v: IssueDensity) => void;
+  group: IssueGroupAxis;
+  onGroupChange: (v: IssueGroupAxis) => void;
+  /**
+   * Die Baum-Schalter — nur da, wenn es überhaupt einen Head mit Kindern gibt.
+   * Zwei Knöpfe wie im Ziele-Baum, jeder im erreichten Zustand `disabled`.
+   */
+  tree?: {
+    alleAuf: boolean;
+    alleZu: boolean;
+    onAlleAuf: () => void;
+    onAlleZu: () => void;
+  };
 }
 
 function toggle(list: string[], value: string): string[] {
@@ -72,15 +101,11 @@ export function IssuesFilterBar(p: Props) {
     p.bands.length > 0 ||
     p.valueStreams.length > 0 ||
     p.arts.length > 0 ||
+    p.roams.length > 0 ||
     p.query !== "";
   const clearAll = () => {
-    p.onCategoriesChange([]);
-    p.onOwnersChange([]);
-    p.onBandsChange([]);
-    p.onValueStreamsChange([]);
-    p.onArtsChange([]);
     setDraft("");
-    p.onQueryChange("");
+    p.onClearAll();
   };
 
   return (
@@ -125,14 +150,16 @@ export function IssuesFilterBar(p: Props) {
         disabled={p.ownerOptions.length === 0}
       />
 
+      {/* „Exposure", nicht „Band": die Spalte daneben, die Sortierung und die
+          Matrix-Legende sagen alle Exposure — ein Wort je Größe. */}
       <MultiSelectFilter
-        label="Band"
+        label="Exposure"
         sections={[
           {
             options: EXPOSURE_BANDS.map((b) => ({
               value: b,
               label: EXPOSURE_LABEL[b],
-              color: EXPOSURE_HEX[b],
+              color: EXPOSURE_TONE[b].hex,
             })),
           },
         ]}
@@ -167,6 +194,43 @@ export function IssuesFilterBar(p: Props) {
       )}
 
       <div className="ml-auto flex items-center gap-2">
+        {p.tree && (
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={p.tree.onAlleAuf}
+              disabled={p.tree.alleAuf}
+              aria-label="Alle aufklappen"
+              title="Alle aufklappen"
+            >
+              <ChevronsUpDown className="size-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={p.tree.onAlleZu}
+              disabled={p.tree.alleZu}
+              aria-label="Alle zuklappen"
+              title="Alle zuklappen"
+            >
+              <ChevronsDownUp className="size-3.5" />
+            </Button>
+          </div>
+        )}
+        <SearchSelect
+          value={p.group}
+          onChange={(v) => p.onGroupChange(v as IssueGroupAxis)}
+          options={ISSUE_GROUP_AXES.map((a) => ({
+            value: a,
+            label: `Gruppen: ${ISSUE_GROUP_LABELS[a]}`,
+          }))}
+          placeholder="Gruppierung"
+          ariaLabel="Gruppierung"
+          className="w-48"
+        />
         <SearchSelect
           value={p.sort}
           onChange={(v) => p.onSortChange(v as IssueSortKey)}

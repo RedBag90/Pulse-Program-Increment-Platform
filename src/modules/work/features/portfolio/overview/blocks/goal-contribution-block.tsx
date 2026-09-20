@@ -3,9 +3,9 @@
 import { useMemo, useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
+import { CollapsingToggle } from "@/components/ui/collapsing-toggle";
 import { SectionLabel } from "@/components/ui/section-label";
 import { STICKY_THEAD } from "@/components/ui/table-chrome";
-import { ToggleGroup, type ToggleGroupOption } from "@/components/ui/toggle-group";
 import {
   benefitPerformance,
   totalContribution,
@@ -21,6 +21,15 @@ import {
   rollUpBySolution,
   type SolutionRollup,
 } from "@/modules/work/domain/epic-class-filter";
+import {
+  CONTRIBUTION_AXES,
+  CONTRIBUTION_AXIS_COLUMNS,
+  CONTRIBUTION_AXIS_LABELS,
+  groupContributions,
+  sumUnits,
+  type ContributionAxis,
+  type ContributionGroup,
+} from "@/modules/work/domain/contribution-grouping";
 import { HorizonBadge } from "@/modules/core/org/features/solution/components/horizon-badge";
 import {
   rollupCellTone,
@@ -61,7 +70,7 @@ type Emphasis = ContributionMode | null;
  * „—" heißt „kein Beitrag berechnet"; ein Ist von 0 rendert als „0 €", sonst
  * wäre das nicht von „noch nichts realisiert" zu unterscheiden.
  */
-function ValueCell({ values, emphasis }: { values: UnitValue[]; emphasis: Emphasis }) {
+function ValueCell({ values, emphasis }: { values: readonly UnitValue[]; emphasis: Emphasis }) {
   if (values.length === 0) {
     return <span className="text-muted-foreground">—</span>;
   }
@@ -80,19 +89,38 @@ function ValueCell({ values, emphasis }: { values: UnitValue[]; emphasis: Emphas
 }
 
 /**
- * Übertrifft das Epic seinen Plan?
+ * Übertrifft die Zeile ihren Plan?
  *
  * **Nur ab L4.2.** Der realisierte Nutzen wächst über die Zeit; ein Epic mitten
  * in der Umsetzung hat den Plan noch gar nicht erreichen können. Ohne diese
  * Schranke stünde bei fast jeder Zeile dasselbe Zeichen — und ein Indikator,
  * der immer dasselbe sagt, sagt nichts.
+ *
+ * In einer Summenzeile gilt dasselbe, nur schärfer: dort kommen Plan und Ist
+ * **allein aus den bewertbaren** Epics der Gruppe, und `hint` sagt, wie viele
+ * das waren. Ein Prozentwert ohne diese Angabe behauptete etwas über einen
+ * ganzen Wertstrom, während er neun seiner einundsechzig Epics beschreibt.
  */
-function PerformanceCell({ row, emphasised }: { row: ContributionRow; emphasised: boolean }) {
-  const perf = row.benefitAssessable ? rowPerformance(row) : null;
+function PerformanceCell({
+  planned,
+  realized,
+  assessable,
+  hint,
+  emphasised,
+}: {
+  planned: number;
+  realized: number;
+  assessable: boolean;
+  hint?: string;
+  emphasised: boolean;
+}) {
+  const perf = assessable ? benefitPerformance({ planned, realized }) : null;
   if (perf == null) {
+    // Der Strich einer Summenzeile bekommt seinen Grund gleich mit: „0 von 6
+    // bewertbar" ist eine Auskunft, ein blosser Strich eine Leerstelle.
     return (
-      <span className="text-muted-foreground" title="Erst ab L4.2 bewertbar">
-        —
+      <span className="block text-muted-foreground" title="Erst ab L4.2 bewertbar">
+        —{hint && <span className="block text-label">{hint}</span>}
       </span>
     );
   }
@@ -105,10 +133,13 @@ function PerformanceCell({ row, emphasised }: { row: ContributionRow; emphasised
     on: { sign: "→", cls: "text-muted-foreground" },
   }[perf.state];
   return (
-    <span
-      className={`whitespace-nowrap tabular-nums ${look.cls} ${emphasised ? "font-medium" : ""}`}
-    >
-      {look.sign} {perf.state === "on" ? "wie geplant" : pct}
+    <span className="block">
+      <span
+        className={`whitespace-nowrap tabular-nums ${look.cls} ${emphasised ? "font-medium" : ""}`}
+      >
+        {look.sign} {perf.state === "on" ? "wie geplant" : pct}
+      </span>
+      {hint && <span className="block text-label text-muted-foreground">{hint}</span>}
     </span>
   );
 }
@@ -119,27 +150,6 @@ function rowPerformance(row: ContributionRow) {
     planned: totalContribution(row, "planned"),
     realized: totalContribution(row, "realized"),
   });
-}
-
-/**
- * Gleiche Einheit addieren, verschiedene getrennt lassen — dieselbe Regel wie
- * `aggregateEpicContribution` sie für ein einzelnes Epic anwendet.
- */
-function sumUnits(lists: readonly UnitValue[][]): UnitValue[] {
-  const byUnit = new Map<string, UnitValue>();
-  for (const values of lists) {
-    for (const v of values) {
-      const key = v.unit ?? "";
-      const prev = byUnit.get(key);
-      if (prev) {
-        prev.planned += v.planned;
-        prev.realized += v.realized;
-      } else {
-        byUnit.set(key, { ...v });
-      }
-    }
-  }
-  return [...byUnit.values()];
 }
 
 /** Wertstrom oben, Solution darunter — sechsmal „Produktion" sagt für sich nichts. */
@@ -160,15 +170,21 @@ function StreamCell({ row }: { row: ContributionRow }) {
 /**
  * Die zusammengefasste Klasse — eine Zeile je Solution. Kein Link auf ein Epic,
  * weil sie keines ist; der eingefärbte Grund sagt, dass hier gebündelt wurde.
+ *
+ * Sie steht in **beiden** Ansichten: sie sagt, was der Klassenfilter ausblendet,
+ * und das hängt nicht daran, wie die sichtbaren Zeilen gruppiert sind. Nur ihre
+ * Spalten folgen der Tabelle darüber.
  */
 function SolutionRow({
   rollup,
   classFilter,
   emphasis,
+  grouped,
 }: {
   rollup: { group: SolutionRollup; recurring: UnitValue[]; oneTime: UnitValue[] };
   classFilter: ClassFilterState;
   emphasis: Emphasis;
+  grouped: boolean;
 }) {
   const tone = rollupCellTone(classFilter.hiddenClass);
   return (
@@ -179,8 +195,14 @@ function SolutionRow({
           {rollup.group.count} zusammengefasst
         </span>
       </td>
-      <td className={`px-3 py-2 ${tone}`} />
-      <td className={`px-3 py-2 text-label ${tone}`}>{classFilter.hiddenLabel}</td>
+      {grouped ? (
+        <td className={`px-3 py-2 text-right tabular-nums ${tone}`}>{rollup.group.count}</td>
+      ) : (
+        <>
+          <td className={`px-3 py-2 ${tone}`} />
+          <td className={`px-3 py-2 text-label ${tone}`}>{classFilter.hiddenLabel}</td>
+        </>
+      )}
       <td className={`px-3 py-2 text-right ${tone}`}>
         <ValueCell values={rollup.recurring} emphasis={emphasis} />
       </td>
@@ -214,13 +236,26 @@ const SORT_LABEL: Record<SortKey, string> = {
   deviation: "Abweichung",
 };
 
+/** Die Abweichung einer Summenzeile — aus den Beträgen, nie aus Prozentwerten. */
+function groupPerformance(g: ContributionGroup) {
+  return g.assessable.count === 0
+    ? null
+    : benefitPerformance({ planned: g.assessable.planned, realized: g.assessable.realized });
+}
+
 /**
- * „Epic-Beitrag zu Kopf-Zielen" — listet die Epics nach ihrem berechneten
- * Nutzen-Beitrag an die Top-Ziele (KPI × Conversion die Ziel-Kette hoch),
- * getrennt nach wiederkehrendem und einmaligem Effekt.
+ * „Epic-Beitrag zu Kopf-Zielen" — der berechnete Nutzen-Beitrag an die
+ * Top-Ziele (KPI × Conversion die Ziel-Kette hoch), getrennt nach
+ * wiederkehrendem und einmaligem Effekt.
  *
- * Der Umschalter **sortiert nur**. Beide Werte stehen ohnehin in jeder Zelle;
- * würde er auch die Anzeige drehen, wäre der Vergleich wieder ein Merkspiel.
+ * **Zwei Schalter, eine Kachel je Schalter.** Der eine fasst die Zeilen entlang
+ * der Struktur zusammen — aus 128 Epic-Zeilen werden drei Wertströme —, der
+ * andere sortiert. Beide zeigen zugeklappt nur, was gerade gilt: zwei volle
+ * Optionsreihen nebeneinander wären eine Kopfleiste, in der elf Wörter stehen
+ * und zwei davon zählen.
+ *
+ * Der Sortier-Umschalter **sortiert nur**. Beide Werte stehen ohnehin in jeder
+ * Zelle; würde er auch die Anzeige drehen, wäre der Vergleich ein Merkspiel.
  */
 export function GoalContributionBlock({
   rows,
@@ -229,26 +264,31 @@ export function GoalContributionBlock({
   rows: ContributionRow[];
   classFilter: ClassFilterState;
 }) {
+  const [axis, setAxis] = useState<ContributionAxis>("epic");
   const [sort, setSort] = useState<{ key: SortKey; asc: boolean }>({
     key: "planned",
     asc: DEFAULT_ASC.planned,
   });
   const emphasis: Emphasis = sort.key === "deviation" ? null : sort.key;
+  const grouped = axis !== "epic";
 
-  // Ein erneuter Klick auf die aktive Option dreht die Richtung; ein Klick auf
-  // eine andere setzt sie auf deren interessante Seite. `ToggleGroup` meldet
-  // jeden Klick, auch den auf die aktive Option — der Baustein bleibt dafuer
-  // unangetastet, sein Doc-Kommentar bittet ausdruecklich darum.
-  const pick = (key: SortKey) =>
+  // Ein erneutes Antippen der aktiven Option dreht die Richtung; eine andere
+  // setzt sie auf deren interessante Seite. `CollapsingToggle` meldet jede Wahl,
+  // auch die auf die aktive Option — genau dafür.
+  const pickSort = (key: SortKey) =>
     setSort((prev) =>
       prev.key === key ? { key, asc: !prev.asc } : { key, asc: DEFAULT_ASC[key] },
     );
 
-  const options: ReadonlyArray<ToggleGroupOption<SortKey>> = (
-    ["planned", "realized", "deviation"] as const
-  ).map((key) => ({
+  const sortOptions = (["planned", "realized", "deviation"] as const).map((key) => ({
     id: key,
     label: sort.key === key ? `${SORT_LABEL[key]} ${sort.asc ? "↑" : "↓"}` : SORT_LABEL[key],
+    srLabel: `${SORT_LABEL[key]}, ${sort.asc ? "aufsteigend" : "absteigend"}`,
+  }));
+
+  const axisOptions = CONTRIBUTION_AXES.map((id) => ({
+    id,
+    label: CONTRIBUTION_AXIS_LABELS[id],
   }));
 
   const visible = useMemo(
@@ -273,7 +313,7 @@ export function GoalContributionBlock({
   }, [rows, classFilter.selected]);
 
   // Dieselbe Formel wie der Server (`totalContribution`), nur hier auch fuer Ist
-  // und fuer die Abweichung. **Nicht bewertbare Epics stehen hinten**, in beiden
+  // und fuer die Abweichung. **Nicht bewertbare Zeilen stehen hinten**, in beiden
   // Richtungen: sie haben keine Abweichung, und sie ans andere Ende zu werfen
   // waere eine Aussage ueber sie, die es nicht gibt.
   const sorted = useMemo(() => {
@@ -295,30 +335,54 @@ export function GoalContributionBlock({
     });
   }, [visible, sort]);
 
+  const groups = useMemo(() => {
+    if (!grouped) return [];
+    const dir = sort.asc ? 1 : -1;
+    const list = groupContributions(visible, axis);
+    if (sort.key !== "deviation") {
+      const key = sort.key;
+      return list.sort((a, b) => (totalContribution(a, key) - totalContribution(b, key)) * dir);
+    }
+    return list.sort((a, b) => {
+      const da = groupPerformance(a)?.delta ?? null;
+      const db = groupPerformance(b)?.delta ?? null;
+      if (da == null) return db == null ? 0 : 1;
+      if (db == null) return -1;
+      return (da - db) * dir;
+    });
+  }, [visible, axis, grouped, sort]);
+
+  const shownCount = (grouped ? groups.length : sorted.length) + rollups.length;
+  const columnCount = grouped ? 5 : 6;
+
   return (
     <Card className="space-y-3 p-4">
       <div className="flex items-center justify-between gap-2">
         <SectionLabel>Epic-Beitrag zu Kopf-Zielen</SectionLabel>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
-            sortiert nach
-          </span>
-          <ToggleGroup
-            value={sort.key}
-            options={options}
-            onChange={pick}
-            ariaLabel="Sortierung"
-            className="bg-card text-meta"
+          <CollapsingToggle
+            value={axis}
+            options={axisOptions}
+            onSelect={setAxis}
+            label="Zusammenfassen nach"
+            className="text-meta"
           />
-          {sorted.length + rollups.length > 0 && (
+          <CollapsingToggle
+            value={sort.key}
+            options={sortOptions}
+            onSelect={pickSort}
+            label="Sortiert nach"
+            className="text-meta"
+          />
+          {shownCount > 0 && (
             <span className="font-mono text-xs tabular-nums text-muted-foreground">
-              {sorted.length + rollups.length}
+              {shownCount}
             </span>
           )}
         </div>
       </div>
 
-      {sorted.length + rollups.length === 0 ? (
+      {shownCount === 0 ? (
         <p className="text-sm text-muted-foreground">
           Noch keine Epic-Ziel-Beiträge berechnet.{" "}
           <Link href="/ziele" className="text-primary hover:underline">
@@ -330,12 +394,23 @@ export function GoalContributionBlock({
           <table className="w-full border-collapse text-xs">
             <thead className={STICKY_THEAD}>
               <tr>
-                <th className="px-3 py-2 text-left font-medium">Epic</th>
-                <th className="px-3 py-2 text-left font-medium">Horizont</th>
                 <th className="px-3 py-2 text-left font-medium">
-                  Wertstrom
-                  <span className="block font-normal normal-case">Solution</span>
+                  {CONTRIBUTION_AXIS_COLUMNS[axis]}
                 </th>
+                {grouped ? (
+                  // Horizont und Solution sind Eigenschaften **eines** Epics und
+                  // haben in einer Summenzeile nichts zu suchen; an ihrer Stelle
+                  // steht, aus wie vielen Epics die Summe kommt.
+                  <th className="px-3 py-2 text-right font-medium">Epics</th>
+                ) : (
+                  <>
+                    <th className="px-3 py-2 text-left font-medium">Horizont</th>
+                    <th className="px-3 py-2 text-left font-medium">
+                      Wertstrom
+                      <span className="block font-normal normal-case">Solution</span>
+                    </th>
+                  </>
+                )}
                 <th className="px-3 py-2 text-right font-medium">
                   Wiederkehrend
                   <span className="block font-normal normal-case">pro Jahr</span>
@@ -348,33 +423,60 @@ export function GoalContributionBlock({
               </tr>
             </thead>
             <tbody>
-              {sorted.map((r) => (
-                <tr key={r.epicId} className="border-b last:border-0 hover:bg-muted/20">
-                  <td className="px-3 py-2">
-                    <Link
-                      href={`/portfolio/epics/${r.epicId}`}
-                      className="font-medium hover:text-primary hover:underline"
-                    >
-                      {r.title}
-                    </Link>
-                  </td>
-                  <td className="px-3 py-2">
-                    <HorizonBadge horizon={r.horizon} short />
-                  </td>
-                  <td className="max-w-[14rem] px-3 py-2">
-                    <StreamCell row={r} />
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <ValueCell values={r.recurring} emphasis={emphasis} />
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <ValueCell values={r.oneTime} emphasis={emphasis} />
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <PerformanceCell row={r} emphasised={sort.key === "deviation"} />
-                  </td>
-                </tr>
-              ))}
+              {grouped
+                ? groups.map((g) => (
+                    <tr key={g.key || "ohne"} className="border-b last:border-0 hover:bg-muted/20">
+                      <td className="px-3 py-2 font-medium">{g.label}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{g.epicCount}</td>
+                      <td className="px-3 py-2 text-right">
+                        <ValueCell values={g.recurring} emphasis={emphasis} />
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <ValueCell values={g.oneTime} emphasis={emphasis} />
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <PerformanceCell
+                          planned={g.assessable.planned}
+                          realized={g.assessable.realized}
+                          assessable={g.assessable.count > 0}
+                          hint={`${g.assessable.count} von ${g.epicCount} bewertbar`}
+                          emphasised={sort.key === "deviation"}
+                        />
+                      </td>
+                    </tr>
+                  ))
+                : sorted.map((r) => (
+                    <tr key={r.epicId} className="border-b last:border-0 hover:bg-muted/20">
+                      <td className="px-3 py-2">
+                        <Link
+                          href={`/portfolio/epics/${r.epicId}`}
+                          className="font-medium hover:text-primary hover:underline"
+                        >
+                          {r.title}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-2">
+                        <HorizonBadge horizon={r.horizon} short />
+                      </td>
+                      <td className="max-w-[14rem] px-3 py-2">
+                        <StreamCell row={r} />
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <ValueCell values={r.recurring} emphasis={emphasis} />
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <ValueCell values={r.oneTime} emphasis={emphasis} />
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <PerformanceCell
+                          planned={totalContribution(r, "planned")}
+                          realized={totalContribution(r, "realized")}
+                          assessable={r.benefitAssessable}
+                          emphasised={sort.key === "deviation"}
+                        />
+                      </td>
+                    </tr>
+                  ))}
             </tbody>
 
             {/* Die Zusammenfassung bekommt einen **eigenen Abschnitt**. Vorher
@@ -385,7 +487,7 @@ export function GoalContributionBlock({
               <tbody>
                 <tr className="border-y bg-muted/40">
                   <th
-                    colSpan={6}
+                    colSpan={columnCount}
                     className="px-3 py-1.5 text-left text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground"
                   >
                     <span className="flex items-center gap-2">
@@ -402,6 +504,7 @@ export function GoalContributionBlock({
                     rollup={r}
                     classFilter={classFilter}
                     emphasis={emphasis}
+                    grouped={grouped}
                   />
                 ))}
               </tbody>

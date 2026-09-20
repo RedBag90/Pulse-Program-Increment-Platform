@@ -1,52 +1,42 @@
 /**
- * Risk matrix — the module's deep, pure business seam. A 5×5
- * probability × impact grid; `score = p·i` (1..25) maps to an exposure band.
- * This one function is the single source of truth for band colour, driving both
- * the list-row exposure badge and the matrix cell tint, so they never diverge.
+ * Risk matrix — das Raster, auf dem die Bewertung eines Issues sitzt.
+ *
+ * **Die Skala selbst liegt im Kernel** (`core/kernel/domain/exposure.ts`): sie
+ * ist keine Eigenheit dieses Moduls, sondern ein geteiltes Vokabular — die
+ * Portfolio-Übersicht in `work` zeigt dieselben Bänder, und ADR-0013 verbietet
+ * ihr den Weg hierher. Hier bleibt, was nur die Matrix braucht: der Zellschlüssel,
+ * die 25 Felder und der Bewertungs-Pfad eines Issues (inherent → Neubewertungen).
+ *
+ * Die Skala wird **weitergereicht**, damit die vierzehn vorhandenen Importe aus
+ * diesem Modul nichts merken.
  */
 
-export const RISK_LEVELS = ["very_low", "low", "medium", "high", "very_high"] as const;
-export type RiskLevel = (typeof RISK_LEVELS)[number];
-export type Probability = RiskLevel;
-export type Impact = RiskLevel;
+export {
+  RISK_LEVELS,
+  isRiskLevel,
+  LEVEL_VALUE,
+  EXPOSURE_BANDS,
+  exposureRank,
+  BAND_THRESHOLDS,
+  bandForScore,
+  riskExposure,
+  EXPOSURE_LABEL,
+  LEVEL_LABEL,
+  EXPOSURE_TONE,
+  type RiskLevel,
+  type Probability,
+  type Impact,
+  type ExposureBand,
+  type Exposure,
+} from "@/modules/core/kernel/domain/exposure";
 
-export function isRiskLevel(s: string): s is RiskLevel {
-  return (RISK_LEVELS as readonly string[]).includes(s);
-}
-
-/** Ordinal value 1..5 of each level (drives `score = p·i`). */
-export const LEVEL_VALUE: Record<RiskLevel, number> = {
-  very_low: 1,
-  low: 2,
-  medium: 3,
-  high: 4,
-  very_high: 5,
-};
-
-export type ExposureBand = "low" | "medium" | "high" | "critical";
-
-/** Upper-inclusive score cut-offs per band (tunable). `≤4 / ≤9 / ≤15 / else`. */
-export const BAND_THRESHOLDS: readonly { max: number; band: ExposureBand }[] = [
-  { max: 4, band: "low" },
-  { max: 9, band: "medium" },
-  { max: 15, band: "high" },
-  { max: 25, band: "critical" },
-];
-
-export function bandForScore(score: number): ExposureBand {
-  for (const t of BAND_THRESHOLDS) if (score <= t.max) return t.band;
-  return "critical";
-}
-
-export interface Exposure {
-  score: number;
-  band: ExposureBand;
-}
-
-export function riskExposure(p: RiskLevel, i: RiskLevel): Exposure {
-  const score = LEVEL_VALUE[p] * LEVEL_VALUE[i];
-  return { score, band: bandForScore(score) };
-}
+import {
+  isRiskLevel,
+  RISK_LEVELS,
+  riskExposure,
+  type ExposureBand,
+  type RiskLevel,
+} from "@/modules/core/kernel/domain/exposure";
 
 /** Stable cell key for a `(probability, impact)` pair. */
 export function cellKey(p: RiskLevel, i: RiskLevel): string {

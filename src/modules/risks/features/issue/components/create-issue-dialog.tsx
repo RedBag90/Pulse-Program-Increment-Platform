@@ -21,7 +21,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RISK_LEVELS } from "@/modules/risks/domain/risk-matrix";
 import { RISK_CATEGORIES } from "@/modules/risks/domain/risk-category";
-import { LEVEL_LABELS, CATEGORY_LABELS } from "@/modules/risks/features/risk/components/labels";
+import { CATEGORY_LABELS } from "@/modules/risks/features/risk/components/labels";
+import { LEVEL_LABEL } from "@/modules/core/kernel/domain/exposure";
 
 const SELECT_CLASS =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -128,7 +129,7 @@ export function CreateIssueDialog({
                   <option value="">—</option>
                   {RISK_LEVELS.map((l) => (
                     <option key={l} value={l}>
-                      {LEVEL_LABELS[l]}
+                      {LEVEL_LABEL[l]}
                     </option>
                   ))}
                 </select>
@@ -139,7 +140,7 @@ export function CreateIssueDialog({
                   <option value="">—</option>
                   {RISK_LEVELS.map((l) => (
                     <option key={l} value={l}>
-                      {LEVEL_LABELS[l]}
+                      {LEVEL_LABEL[l]}
                     </option>
                   ))}
                 </select>

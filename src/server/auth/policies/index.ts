@@ -72,6 +72,7 @@ export type Action =
   | "pi.demo.manage"
   | "portfolio_filter.manage"
   | "goal_filter.manage"
+  | "issue_filter.manage"
   | "role.onboarding.manage";
 
 /** A scope dimension a grant may additionally require the principal to match. */
@@ -357,6 +358,24 @@ export const POLICIES: Record<Action, Grant[]> = {
   // (user-scoped). Jede Rolle mit Portfolio-Zugang darf ihre eigenen Filter
   // anlegen/löschen; die Zeilen sind ohnehin per userId isoliert.
   "portfolio_filter.manage": [
+    {
+      roles: [
+        TENANT_ADMIN,
+        PORTFOLIO_MANAGER,
+        VALUE_STREAM_OWNER,
+        EPIC_OWNER,
+        RTE,
+        FEATURE_OWNER,
+        VIEWER,
+      ],
+    },
+  ],
+
+  // Und dasselbe für das Issue-Register. Eigene Capability aus demselben Grund
+  // wie bei den Zielen: sie hängt am `risks`-Modul, die beiden Geschwister an
+  // `work` bzw. `core`. Eine geteilte Berechtigung wäre in allen drei Modulen
+  // oder in keinem.
+  "issue_filter.manage": [
     {
       roles: [
         TENANT_ADMIN,

@@ -1,4 +1,5 @@
 import { ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { STICKY_THEAD } from "@/components/ui/table-chrome";
 
 /**
@@ -10,11 +11,29 @@ import { STICKY_THEAD } from "@/components/ui/table-chrome";
 /** Head-row left accent rail colour (Tailwind blue-400) — matches goals. */
 export const HEAD_ACCENT = "#60a5fa";
 
-/** Outer container around the `<table>`. */
-export const TREE_CONTAINER = "overflow-x-auto rounded-lg bg-card shadow-card";
+/**
+ * Der Kasten um die `<table>`.
+ *
+ * **`clip` statt `auto`, sobald die Tabelle passt.** `overflow-x: auto` rechnet
+ * `overflow-y` auf `auto` hoch und macht den Kasten damit zum Scroll-Container —
+ * und ein `sticky` Kopf klebt am oberen Rand **dieses** Kastens, der bei 148
+ * Zeilen 5070 px hoch ist und selbst nie scrollt. Der Kopf war deshalb nach dem
+ * ersten Bildschirm weg, obwohl er `sticky` trug.
+ *
+ * `overflow-x: clip` schneidet ab, **ohne** Scroll-Container zu sein: der Kopf
+ * hängt wieder an `main`. Gebraucht wird das Querscrollen ohnehin nur in
+ * schmalen Fenstern — bei 1440 px misst die Tabelle 1336 px in einem 1336 px
+ * breiten Kasten. Unterhalb von `xl` bleibt es deshalb bei `auto`.
+ */
+export const TREE_CONTAINER = "overflow-x-auto xl:overflow-x-clip rounded-lg bg-card shadow-card";
 
-/** `<thead>` chrome — sticky, muted, uppercase. Shared token, see table-chrome. */
-export const TREE_THEAD = STICKY_THEAD;
+/**
+ * `<thead>`-Chrom — klebend, gedämpft, versal (geteiltes Token, siehe
+ * `table-chrome.ts`). Es klebt **unter** der Bedienleiste: deren Höhe schwankt
+ * mit der Zahl der umbrechenden Filter-Chips, steht deshalb als CSS-Variable am
+ * Abschnitt und nicht als Zahl in einer Klasse.
+ */
+export const TREE_THEAD = cn(STICKY_THEAD, "top-[var(--issues-toolbar-h,0px)]");
 
 /** `<th>` cell. */
 export const TREE_TH = "px-3 py-1.5 text-left font-medium whitespace-nowrap";

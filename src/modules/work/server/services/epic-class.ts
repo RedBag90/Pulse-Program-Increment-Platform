@@ -12,7 +12,8 @@
  *
  * Die Primär-Solution kommt gleich mit: sie ist der Sammelpunkt, unter dem die
  * Portfolio-Übersicht ART-Epics zusammenfasst, und wäre sonst eine zweite
- * Abfrage über dieselben Zeilen.
+ * Abfrage über dieselben Zeilen. Dasselbe gilt für das ART — die Übersicht
+ * fasst den Epic-Beitrag wahlweise danach zusammen.
  */
 
 import type { PrismaClient } from "@/generated/prisma";
@@ -28,6 +29,12 @@ import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardra
 import type { SolutionRef } from "@/modules/work/domain/epic-class-filter";
 import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
 
+/** Das ART eines Epics — Sammelpunkt wie die Solution, gleiche Form. */
+export interface ArtRef {
+  id: string;
+  name: string;
+}
+
 export interface EpicClassInfo {
   /**
    * Aufgelöst: die entschiedene Klasse, sonst die beim Anlegen hinterlegte
@@ -42,6 +49,7 @@ export interface EpicClassInfo {
    */
   classSource: EpicClassSource;
   solution: SolutionRef | null;
+  art: ArtRef | null;
 }
 
 /**
@@ -75,6 +83,7 @@ export async function classifyEpics(
         // Die Erwartung springt ein, wo noch nichts entschieden ist.
         intendedClass: true,
         primarySolution: { select: { id: true, name: true } },
+        art: { select: { id: true, name: true } },
       },
     }),
     listValueStreamGuardrailTargets(db, tenantId),
@@ -103,6 +112,7 @@ export async function classifyEpics(
           isEpicClass(r.intendedClass) ? r.intendedClass : null,
         ),
         solution: r.primarySolution ?? null,
+        art: r.art ?? null,
       },
     ]),
   );
