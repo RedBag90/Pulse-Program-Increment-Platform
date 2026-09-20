@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 import type { FigureKind } from "@/modules/wiki/domain/blocks";
 import type { Guide, Perspective, Station } from "@/modules/wiki/domain/guide";
+import { anchorId } from "@/modules/wiki/domain/anchor";
 import { CADENCE_LABEL, CADENCE_HINT } from "@/modules/wiki/domain/cadence";
 import { isOwnPerspective } from "@/modules/wiki/domain/guide-filter";
 import { guideBySlug } from "@/modules/wiki/domain/guides";
@@ -180,19 +181,6 @@ function SeeAlso({ guide }: { guide: Guide }) {
       </ul>
     </section>
   );
-}
-
-/** Ein Anker-Slug, der auch mit Umlauten und Punkten stabil bleibt. */
-function anchorId(prefix: string, label: string): string {
-  const slug = label
-    .toLowerCase()
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .replace(/ß/g, "ss")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  return `${prefix}-${slug}`;
 }
 
 function PerspectiveSection({

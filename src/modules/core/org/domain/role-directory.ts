@@ -162,8 +162,22 @@ export interface DirectoryTreeVs {
   }[];
 }
 
-/** Die Anliegen, in der Reihenfolge, in der sie jemand stellt. */
-const VS_DUTIES: {
+/**
+ * **Der Katalog der Zuständigkeiten** — die sieben Plätze, die es gibt.
+ *
+ * Bis September 2026 stand hier nur die Wertstrom-Tabelle, und die beiden
+ * ART-Plätze samt dem der Solution lagen als Literale mitten in
+ * `buildRoleDirectory`. Für die Fläche reichte das: sie baut sie ohnehin nur
+ * dort. Wer sie **aufzählen** will — das Wiki erklärt sie —, musste sie
+ * abschreiben, und eine abgeschriebene Liste läuft auseinander.
+ *
+ * Deshalb je Ebene eine eigene Tabelle statt einer gemeinsamen: `of` benennt
+ * eine echte Spalte, und die ist je Ebene eine andere. Ein gemeinsamer Typ
+ * müsste `string` sagen und verlöre genau die Sicherung, die hier zählt — ein
+ * Vertippen im Feldnamen wäre ein **stiller** Datenfehler (siehe
+ * {@link EntryTarget}).
+ */
+export const VS_DUTIES: {
   key: DutyKey;
   duty: string;
   role: string;
@@ -194,6 +208,62 @@ const VS_DUTIES: {
     role: "Value Stream Architect Lead",
     of: "architectLeadId",
   },
+];
+
+/** Die zwei Plätze eines ARTs. Der Technical Lead trägt nie Tore. */
+export const ART_DUTIES: {
+  key: DutyKey;
+  duty: string;
+  role: string;
+  of: "rteId" | "technicalLeadId";
+}[] = [
+  { key: "art.cadence", duty: "Takt, Planung, PI", role: "RTE", of: "rteId" },
+  {
+    key: "art.technical",
+    duty: "Technik im Zug",
+    role: "ART Technical Lead",
+    of: "technicalLeadId",
+  },
+];
+
+/** Der eine Platz einer Solution. */
+export const SOLUTION_DUTIES: {
+  key: DutyKey;
+  duty: string;
+  role: string;
+  of: "productManagerId";
+}[] = [
+  {
+    key: "solution.product",
+    duty: "Dieses Produkt",
+    role: "Produkt-Manager",
+    of: "productManagerId",
+  },
+];
+
+/** Auf welcher Ebene ein Platz sitzt — die dritte Spalte beim Aufzählen. */
+export type DutyLevel = "valueStream" | "art" | "solution";
+
+export const DUTY_LEVEL_LABEL: Record<DutyLevel, string> = {
+  valueStream: "Wertstrom",
+  art: "ART",
+  solution: "Solution",
+};
+
+/**
+ * Alle sieben Plätze am Stück, von oben nach unten — für jeden, der sie
+ * **aufzählt** statt sie zu besetzen. Abgeleitet, damit es keine achte Liste
+ * gibt: wer oben eine Zuständigkeit ergänzt, findet sie hier von selbst wieder.
+ */
+export const ALL_DUTIES: readonly {
+  key: DutyKey;
+  duty: string;
+  role: string;
+  level: DutyLevel;
+}[] = [
+  ...VS_DUTIES.map((d) => ({ ...d, level: "valueStream" as const })),
+  ...ART_DUTIES.map((d) => ({ ...d, level: "art" as const })),
+  ...SOLUTION_DUTIES.map((d) => ({ ...d, level: "solution" as const })),
 ];
 
 /**
@@ -228,13 +298,13 @@ export function buildRoleDirectory(
       name: sol.name,
       horizon: sol.horizon,
       investmentMode: sol.investmentMode,
-      entries: [
-        entry("solution.product", "Dieses Produkt", "Produkt-Manager", sol.productManagerId, {
+      entries: SOLUTION_DUTIES.map((d) =>
+        entry(d.key, d.duty, d.role, sol[d.of], {
           kind: "solution",
           id: sol.id,
-          field: "productManagerId",
+          field: d.of,
         }),
-      ],
+      ),
     });
 
     const nested = nestSolutionsByArt(vs);
@@ -253,19 +323,14 @@ export function buildRoleDirectory(
         (art): ArtDirectory => ({
           id: art.id,
           name: art.name,
-          entries: [
-            entry("art.cadence", "Takt, Planung, PI", "RTE", art.rteId, {
+          // Der Technical Lead trägt nie Tore: vorerst nur benannt.
+          entries: ART_DUTIES.map((d) =>
+            entry(d.key, d.duty, d.role, art[d.of], {
               kind: "art",
               id: art.id,
-              field: "rteId",
+              field: d.of,
             }),
-            // Trägt nie Tore: vorerst nur benannt.
-            entry("art.technical", "Technik im Zug", "ART Technical Lead", art.technicalLeadId, {
-              kind: "art",
-              id: art.id,
-              field: "technicalLeadId",
-            }),
-          ],
+          ),
           solutions: (nested.byArt.get(art.id) ?? []).map(solution),
         }),
       ),

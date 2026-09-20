@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Link } from "@/i18n/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getActiveTargetModel } from "@/server/services/target-model";
@@ -36,8 +37,8 @@ export default async function MeineRollePage() {
 
       {entries.length === 0 ? (
         <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-          Dir ist in diesem Workspace noch keine Rolle zugewiesen. Sobald ein Administrator das
-          tut, findest du hier deine Aufgaben.
+          Dir ist in diesem Workspace noch keine Rolle zugewiesen. Sobald ein Administrator das tut,
+          findest du hier deine Aufgaben.
         </p>
       ) : (
         entries.map((e) => (
@@ -49,6 +50,16 @@ export default async function MeineRollePage() {
           />
         ))
       )}
+
+      {/* Die Naht zum Wiki. Diese Seite beantwortet „was soll **ich** tun"; die
+          Haelfte der Uebergaben, die hier stehen, zeigt aber auf jemand anderen
+          — und wer der ist, stand bisher nirgends zusammen. */}
+      <p className="text-sm text-muted-foreground">
+        Und was machen die anderen?{" "}
+        <Link href="/wiki/rollen" className="font-medium text-foreground hover:underline">
+          Alle Rollen im Wiki
+        </Link>
+      </p>
     </div>
   );
 }

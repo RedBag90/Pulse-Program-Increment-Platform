@@ -196,7 +196,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "tenant_admin.value_stream",
         title: "Den ersten Wertstrom anlegen",
-        body: "Wertströme finanzieren Epics — ohne sie bleibt das Portfolio leer. Der Knopf steht im Kopf der Struktur-Seite; ARTs legst du danach im Detailbereich des jeweiligen Wertstroms an.",
+        body: "Wertströme finanzieren Epics — ohne sie bleibt das Portfolio leer. Der Knopf steht im Kopf der Struktur-Seite; ARTs legst du danach auf der Detailseite des jeweiligen Wertstroms an.",
         route: "/structure",
         anchor: "value-stream-create-button",
         capability: "value_stream.create",
@@ -204,7 +204,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "tenant_admin.structure",
         title: "Die Organisation im Blick",
-        body: "Der Baum zeigt Wertströme und die daran hängenden ARTs. Ein Klick auf einen Knoten öffnet rechts die Details — dort pflegst du Verantwortliche und legst weitere ARTs an.",
+        body: "Die Karte zeigt je Wertstrom eine Bahn, darin die ARTs als Spalten und deren Solutions als Kacheln. Ein Klick führt auf die Detailseite des Knotens — dort pflegst du Verantwortliche und legst weitere ARTs an.",
         route: "/structure",
         anchor: "structure-tree",
         requires: "valueStream",
@@ -282,7 +282,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "portfolio_manager.overview",
         title: "Der Portfolio-Stand auf einen Blick",
-        body: "Das Board zeigt alle Epics nach Reifegrad L0–L5. Was sich links staut, ist unentschieden; was rechts steht, läuft bereits.",
+        body: "Das Board stellt alle Epics in ein Raster: Spalten sind die Reifegrade L0–L5, Zeilen die Investitionshorizonte H3 bis H0. Was sich links staut, ist unentschieden; was rechts steht, läuft bereits.",
         route: "/portfolio",
         anchor: "portfolio-kanban",
         practice: "portfolioLevel",
@@ -299,7 +299,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "portfolio_manager.approvals",
         title: "Deine Entscheidungen sammeln sich hier",
-        body: "Beantragte Reifegrad-Wechsel und Business Cases warten in dieser Inbox. Zustimmen oder begründet ablehnen — solange du nichts tust, steht das Epic still.",
+        body: 'Beantragte Reifegrad-Wechsel und Business Cases warten in „Meine Tasks", gestapelt unter deinen übrigen Aufgaben. Zustimmen oder begründet ablehnen — solange du nichts tust, steht das Epic still.',
         route: "/my-approvals",
         anchor: "approvals-list",
         capability: "epic.gate.decide",
@@ -308,7 +308,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "portfolio_manager.budget_pool",
         title: "Den Budget-Topf setzen",
-        body: "Je Halbjahr eine Kachel, und die Leiste oben nennt ihren Stand: Zeitraum, Topf, Abgaben, letzter eingefrorener Stand. Der Topf ist der Rahmen, gegen den alles Weitere gerechnet wird.",
+        body: "Je Halbjahr eine Kachel, und die Leiste oben nennt ihren Stand: laufende Kachel, Topf, Abgaben, letzter Stand. Der Topf ist der Rahmen, gegen den alles Weitere gerechnet wird.",
         route: "/budgeting/periods",
         anchor: "budget-pool",
         capability: "budget.manage",
@@ -325,14 +325,14 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "portfolio_manager.review",
         title: "Der wiederkehrende Steuerungstermin",
-        body: "Die Portfolio-Übersicht ist die Fläche des Termins: das Kanban zeigt, wo die Vorhaben stehen, die Kacheln darüber Fördertopf, Ziele und Risiken. Was hier stockt, gehört auf die Tagesordnung.",
+        body: "Die Portfolio-Übersicht ist die Fläche des Termins: oben Fördertopf und Ziele, darunter das Kanban mit dem Stand der Vorhaben, ganz unten die Risiken. Was hier stockt, gehört auf die Tagesordnung.",
         route: "/portfolio",
         practice: "portfolioLevel",
       },
       {
         key: "portfolio_manager.risk_matrix",
         title: "Die Risikolage lesen",
-        body: "Die Matrix stellt Wahrscheinlichkeit gegen Auswirkung. Mehrere Punkte in der rechten oberen Ecke sind dein Handlungssignal für den nächsten Review.",
+        body: "Die Matrix stellt Eintrittswahrscheinlichkeit gegen Auswirkung — ein Zeichen je Head-Issue, verschachtelte zählen in ihrem Head. Mehrere Zeichen in der rechten oberen Ecke sind dein Handlungssignal für den nächsten Review.",
         // Die Matrix steht als Streifen über dem Register; der Schritt spricht über
         // ihren Inhalt und bringt sie deshalb aufgeklappt mit.
         route: "/issues?matrix=1",
@@ -342,7 +342,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "portfolio_manager.risk_roam",
         title: "Risiken einordnen",
-        body: "Unter der Matrix liegen die ROAM-Cluster: resolved, owned, accepted, mitigated. Du bist der Einzige, der ein Risiko auch löschen darf — für alles andere reicht die Einordnung.",
+        body: 'Über der Liste filtert die ROAM-Leiste nach Einordnung — offen, resolved, owned, accepted, mitigated, jeweils mit Zähler. „Offen" ist die Menge, über die noch zu entscheiden ist. Du bist der Einzige, der ein Risiko auch löschen darf.',
         route: "/issues",
         anchor: "issue-create-button",
         capability: "risk.roam",
@@ -364,7 +364,14 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
         text: "Als benannter Abnehmer über Reifegrad-Wechsel entscheiden.",
         capability: "epic.gate.decide",
       },
-      { text: "Das Wertstrom-Budget auf die ARTs verteilen.", capability: "art_budget.manage" },
+      // `art_budget.manage` stand hier bis September 2026 — eine Attrappe: die
+      // Capability ist erteilbar und wird von keinem einzigen Seam geprueft.
+      // Ihr Konsument entfiel, als der ART-Rahmen eine **abgeleitete** Summe
+      // wurde (Σ der Zusprueche auf den Positionen der Art `art_change`); seither
+      // traegt das Recht daran `rtb_item.manage`. Ein Versprechen an einer
+      // Attrappe ist schlimmer als keines: wer es im Admin-UI entzieht, aendert
+      // nichts, und der Rollen-Test hier haette es nie gemerkt.
+      { text: "Das Wertstrom-Budget auf die ARTs verteilen.", capability: "rtb_item.manage" },
     ],
     handoffs: [
       {
@@ -404,7 +411,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "value_stream_owner.approvals",
         title: "Freigaben, die auf dich warten",
-        body: "Wo du als Abnehmer eingetragen bist, erscheint die Entscheidung hier. Ohne Begründung geht nur die Zustimmung — eine Ablehnung verlangt einen Text.",
+        body: 'Wo du als Abnehmer eingetragen bist, erscheint die Entscheidung in „Meine Tasks". Ohne Begründung geht nur die Zustimmung — eine Ablehnung verlangt einen Text.',
         route: "/my-approvals",
         anchor: "approvals-list",
         capability: "epic.gate.decide",
@@ -414,7 +421,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
         title: "Mittel auf die ARTs verteilen",
         body: "Der Finanzierungsrahmen deines Wertstroms wird im Controlling auf die ARTs heruntergebrochen. Die Detailansicht deines Wertstroms führt dich dorthin.",
         route: "/budgeting",
-        capability: "art_budget.manage",
+        capability: "rtb_item.manage",
       },
       {
         key: "value_stream_owner.risk",
@@ -477,7 +484,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "epic_owner.tabs",
         title: "Die Reiter sind deine Reihenfolge",
-        body: "In einem geöffneten Epic führt dich die linke Leiste durch die Ausarbeitung: Hypothese, Business Case, Deliverables, KPI, Reifegrad und Timeline. Von oben nach unten abarbeiten.",
+        body: "In einem geöffneten Epic führt dich die Reiter-Leiste durch die Ausarbeitung: Überblick, Reifegrad-Timeline, Hypothese, Business Case, Deliverables, Abhängigkeiten, KPI & Nutzen. Der Reihe nach abarbeiten — auf schmalen Schirmen liegt die Leiste oben statt links.",
         route: "/portfolio/epics",
         anchor: "epics-funnel-bar",
         capability: "epic.update",
@@ -486,7 +493,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "epic_owner.hypothesis",
         title: "Benefit-Hypothese zuerst",
-        body: "Der erste Reiter. Ist sie ausgearbeitet, beantragst du den Wechsel auf L1; mit der Abnahme ist die Hypothese freigegeben — der Startschuss für den Business Case.",
+        body: "Der dritte Reiter, direkt hinter der Reifegrad-Timeline. Ist sie ausgearbeitet, beantragst du den Wechsel auf L1; mit der Abnahme ist die Hypothese freigegeben — der Startschuss für den Business Case.",
         route: "/portfolio/epics",
         anchor: "epics-funnel-bar",
         capability: "epic.gate.request",
@@ -569,14 +576,14 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "rte.approvals",
         title: "Der Tag beginnt in der Inbox",
-        body: "Wo du als Stakeholder eingetragen bist, warten hier Entscheidungen. Kurz durchsehen, bevor du ins Cockpit gehst — Freigaben blockieren sonst die Planung anderer.",
+        body: 'Wo du als Stakeholder eingetragen bist, warten die Entscheidungen in „Meine Tasks". Kurz durchsehen, bevor du ins Cockpit gehst — Freigaben blockieren sonst die Planung anderer.',
         route: "/my-approvals",
         anchor: "approvals-list",
       },
       {
         key: "rte.cockpit",
         title: "Das Umsetzungs-Cockpit ist deine Zentrale",
-        body: "Vier Sichten auf dieselben Features: Board, Tabelle, Roadmap, Netzplan. Du wechselst je nach Frage — Board für den Fluss, Tabelle zum Pflegen.",
+        body: "Vier Sichten auf dieselben Features: Board, Tabelle, Fahrplan, Netzwerk. Du wechselst je nach Frage — Board für den Fluss, Tabelle zum Pflegen.",
         route: "/umsetzung",
         anchor: "cockpit-view-tabs",
         practice: "programLevel",
@@ -593,7 +600,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "rte.table",
         title: "Die Tabellensicht zum Pflegen",
-        body: "Hier siehst du jedes Feature mit ART, PI, Status, WSJF und Blockern in einer Zeile. Das ist die Sicht, in der du tatsächlich änderst.",
+        body: "Hier siehst du jedes Feature mit Titel, ART, PI, Status, WSJF und Blockern in einer Zeile. Das ist die Sicht, in der du tatsächlich änderst.",
         route: "/umsetzung?view=table",
         anchor: "cockpit-table",
         practice: "programLevel",
@@ -602,7 +609,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "rte.delivery",
         title: "Lieferstatus setzen",
-        body: "In der Status-Spalte jeder Zeile wählst du direkt aus: bereit, in Umsetzung, blockiert, fertig. Das erste gestartete Feature erfüllt das Kriterium, mit dem der Wechsel des Epics auf L4 beantragt wird.",
+        body: "In der Status-Spalte jeder Zeile wählst du direkt aus: freigegeben, in Umsetzung, blockiert, abgeschlossen, verworfen. Das erste gestartete Feature erfüllt das Kriterium, mit dem der Wechsel des Epics auf L4 beantragt wird.",
         route: "/umsetzung?view=table",
         anchor: "cockpit-table",
         capability: "feature.delivery.set",
@@ -620,7 +627,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "rte.issues",
         title: "Blockaden im Blick behalten",
-        body: "Risiken und Blockaden liegen in einem Register. Die Leiste sortiert alles nach ROAM — resolved, owned, accepted, mitigated. Was ohne Einordnung offen steht, hält am Ende deinen PI-Abschluss auf.",
+        body: 'Risiken und Blockaden liegen in einem Register. Die Leiste filtert nach Einordnung — offen, resolved, owned, accepted, mitigated. Was auf „offen" stehen bleibt, hält am Ende deinen PI-Abschluss auf.',
         route: "/issues",
         anchor: "issues-funnel-bar",
         capability: "risk.roam",
@@ -700,7 +707,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "feature_owner.wsjf",
         title: "Nach WSJF priorisieren",
-        body: "Die WSJF-Spalte macht die Reihenfolge begründbar statt verhandelbar. Bewertet wird im Zeilen-Menü des Features; die Zahl hier ist das Ergebnis.",
+        body: "Die WSJF-Spalte macht die Reihenfolge begründbar statt verhandelbar. Bewertet wird in der Detailansicht des Features; die Zahl in der Tabelle ist nur das Ergebnis.",
         route: "/umsetzung?view=table",
         anchor: "cockpit-table",
         capability: "feature.wsjf.set",
@@ -719,7 +726,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "feature_owner.dependencies",
         title: "Abhängigkeiten benennen",
-        body: "Was von anderen abhängt, gehört sichtbar gemacht — im Netzplan des Cockpits oder im Detail des Features. Diese Übersicht zeigt den Gesamtstand.",
+        body: "Was von anderen abhängt, gehört sichtbar gemacht — in der Netzwerk-Sicht des Cockpits oder im Detail des Features. Diese Übersicht zeigt den Gesamtstand.",
         route: "/dependencies",
         anchor: "dependencies-funnel",
         capability: "dependency.link",
@@ -758,7 +765,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "viewer.portfolio",
         title: "Der Gesamtstand",
-        body: "Das Board zeigt alle Epics nach Reifegrad. Links das Unentschiedene, rechts das Laufende — das ist der schnellste Überblick, den es gibt.",
+        body: "Das Board stellt alle Epics in ein Raster: Spalten sind die Reifegrade, Zeilen die Investitionshorizonte. Links das Unentschiedene, rechts das Laufende — das ist der schnellste Überblick, den es gibt.",
         route: "/portfolio",
         anchor: "portfolio-kanban",
         practice: "portfolioLevel",

@@ -38,6 +38,8 @@ export function WikiHub({ guides, roles }: { guides: readonly Guide[]; roles: re
 
   return (
     <div className="space-y-8">
+      <ReferenceTile />
+
       {mine.length > 0 && (
         <p className="max-w-[var(--reading-max-w)] text-prose text-muted-foreground">
           {mine.length === guides.length ? "Alle" : `${mine.length} von ${guides.length}`}{" "}
@@ -81,6 +83,35 @@ export function WikiHub({ guides, roles }: { guides: readonly Guide[]; roles: re
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * **Die Nachschlage-Kachel** — sie steht ueber dem Bogen, nicht darin.
+ *
+ * Der Bogen ordnet die Anleitungen nach ihrem **Rhythmus**, und das ist eine
+ * Aussage, keine Sortierung. Eine Rolle hat keinen Rhythmus: sie in eine der
+ * fuenf Zeilen zu legen hiesse zu behaupten, sie kaeme einmalig vor oder je PI.
+ * Deshalb eine eigene Zeile darueber — was man **nachschlaegt**, steht vor dem,
+ * was man **durchlaeuft**.
+ */
+function ReferenceTile() {
+  return (
+    <div className="space-y-2.5">
+      <h2 className="font-mono text-label uppercase tracking-[0.14em] text-muted-foreground">
+        Nachschlagen
+      </h2>
+      <Link
+        href="/wiki/rollen"
+        className="block rounded-lg bg-card shadow-card px-3.5 py-3 transition-colors hover:border-foreground/25"
+      >
+        <h3 className="font-heading text-sm font-semibold leading-snug">Wer was verantwortet</h3>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          Die acht Rollen mit Auftrag, Verantwortung und Übergaben — und die sieben Zuständigkeiten,
+          die je Wertstrom besetzt werden.
+        </p>
+      </Link>
     </div>
   );
 }

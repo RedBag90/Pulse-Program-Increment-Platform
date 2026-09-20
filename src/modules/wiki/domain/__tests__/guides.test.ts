@@ -1,3 +1,5 @@
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import { GUIDES, guideBySlug } from "@/modules/wiki/domain/guides";
 import { CADENCES } from "@/modules/wiki/domain/cadence";
@@ -74,6 +76,20 @@ describe("GUIDES — Aufbau", () => {
         g.slug,
       ).toEqual([]);
     }
+  });
+
+  it("kein Slug heisst wie eine statische Schwester-Route unter /wiki", () => {
+    // Next gibt einem statischen Segment den Vorrang vor `[slug]`. Eine
+    // Anleitung mit dem Slug einer solchen Schwester (heute: `rollen`) waere
+    // damit **stumm** unerreichbar — der Hub verlinkte sie, die Route zeigte
+    // etwas anderes, und `guideBySlug` faende sie trotzdem.
+    const statisch = readdirSync(join(process.cwd(), "src/app/[locale]/(dashboard)/wiki"), {
+      withFileTypes: true,
+    })
+      .filter((e) => e.isDirectory() && !e.name.startsWith("[") && !e.name.startsWith("_"))
+      .map((e) => e.name);
+    expect(statisch).toContain("rollen"); // sonst prueft dieser Test nichts
+    expect(GUIDES.map((g) => g.slug).filter((slug) => statisch.includes(slug))).toEqual([]);
   });
 
   it("guideBySlug findet jede Anleitung und nur die", () => {
