@@ -329,3 +329,76 @@ describe("feature.owner.assign", () => {
     expect(hasCapability(p, "feature.owner.assign", { valueStreamId: "vs-2" })).toBe(false);
   });
 });
+
+/**
+ * **Wer ein Feature loeschen darf.**
+ *
+ * `feature.delete` war bis September 2026 **nirgends** getestet — und trug
+ * deshalb zwei Fehler nebeneinander:
+ *
+ *  - **Kein ART-Scope.** `feature.create` und `feature.update` wurden fuer RTE
+ *    und Feature Owner `art`-scoped; `feature.delete` stand abgesetzt ueber dem
+ *    Feature-Block und rutschte durch. Ein RTE durfte ein Feature im **fremden**
+ *    ART loeschen, aber nicht bearbeiten.
+ *  - **Der Feature Owner hatte das Recht gar nicht** — die Flaeche zeigte ihm
+ *    den Knopf trotzdem, weil sie am Bearbeiten-Recht haengt.
+ *
+ * Beides ist behoben. Diese Datei haelt es fest.
+ */
+describe("feature.delete", () => {
+  const imArt = (role: (typeof ROLES)[keyof typeof ROLES], artIds: string[]) =>
+    principal({ roles: [role], scopes: { valueStreamIds: [], artIds, teamIds: [] } });
+
+  it.each([ROLES.RTE, ROLES.FEATURE_OWNER])("%s loescht im eigenen ART", (role) => {
+    expect(hasCapability(imArt(role, ["art-1"]), "feature.delete", { artId: "art-1" })).toBe(true);
+  });
+
+  it.each([ROLES.RTE, ROLES.FEATURE_OWNER])("%s loescht nicht im fremden ART", (role) => {
+    expect(hasCapability(imArt(role, ["art-1"]), "feature.delete", { artId: "art-2" })).toBe(false);
+  });
+
+  it("dieselbe Grenze wie beim Bearbeiten — sonst waere eine der beiden falsch", () => {
+    const p = imArt(ROLES.RTE, ["art-1"]);
+    for (const action of ["feature.create", "feature.update", "feature.delete"] as const) {
+      expect(hasCapability(p, action, { artId: "art-1" })).toBe(true);
+      expect(hasCapability(p, action, { artId: "art-2" })).toBe(false);
+    }
+  });
+
+  it("Portfolio-Management und Mandanten-Admin loeschen ART-uebergreifend", () => {
+    for (const role of [ROLES.PORTFOLIO_MANAGER, ROLES.TENANT_ADMIN] as const) {
+      const p = principal({ roles: [role] });
+      expect(hasCapability(p, "feature.delete", { artId: "art-1" })).toBe(true);
+      expect(hasCapability(p, "feature.delete", { artId: "art-99" })).toBe(true);
+    }
+  });
+
+  it.each([ROLES.EPIC_OWNER, ROLES.VIEWER])("%s loescht nirgends", (role) => {
+    expect(hasCapability(imArt(role, ["art-1"]), "feature.delete", { artId: "art-1" })).toBe(false);
+  });
+
+  /**
+   * **Der Fallstrick, ausgeschrieben.** `memberOrVacuous` liest eine **leere**
+   * Scope-Liste als „alles in Reichweite". Wer als RTE keinem ART zugewiesen ist,
+   * loescht danach weiterhin ueberall — der Scope in POLICIES allein reicht
+   * nicht, die Zuweisung muss ihn tragen. Das ist bestehende Semantik und hier
+   * festgehalten, damit es beim naechsten Mal nicht wieder ueberrascht.
+   */
+  it("ohne ART-Zuweisung greift der Scope nicht", () => {
+    expect(hasCapability(imArt(ROLES.RTE, []), "feature.delete", { artId: "art-99" })).toBe(true);
+  });
+
+  /**
+   * Die Gegenprobe zur Flaeche: `epic.update` gatet auf der Breakdown-Tabelle
+   * den Loesch-Knopf **nicht** mehr. Ausser dem Portfolio Manager traegt keine
+   * Rolle beide Rechte — ein Epic Owner sah den Knopf und wurde abgewiesen.
+   */
+  it("epic.update ist kein Loeschrecht", () => {
+    const eo = principal({
+      roles: [ROLES.EPIC_OWNER],
+      scopes: { valueStreamIds: [], artIds: ["art-1"], teamIds: [] },
+    });
+    expect(hasCapability(eo, "epic.update", { valueStreamId: "vs-1" })).toBe(true);
+    expect(hasCapability(eo, "feature.delete", { artId: "art-1" })).toBe(false);
+  });
+});

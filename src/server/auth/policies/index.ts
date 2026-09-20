@@ -437,8 +437,6 @@ export const POLICIES: Record<Action, Grant[]> = {
     },
   ],
 
-  "feature.delete": [{ roles: [PORTFOLIO_MANAGER, RTE, TENANT_ADMIN] }],
-
   // ── Feature ─────────────────────────────────────────────────────────────
   // Der Feature Owner fuehrt das Feature-Backlog und die WSJF-Bewertung; RTE
   // und Portfolio Manager duerfen ebenfalls handeln.
@@ -464,6 +462,26 @@ export const POLICIES: Record<Action, Grant[]> = {
   // steuert über ARTs hinweg.
   "feature.create": [{ roles: [PORTFOLIO_MANAGER] }, { roles: [RTE, FEATURE_OWNER], scope: "art" }],
   "feature.update": [{ roles: [PORTFOLIO_MANAGER] }, { roles: [RTE, FEATURE_OWNER], scope: "art" }],
+  // **Loeschen traegt seit 2026-09-20 dieselbe Form wie Anlegen und Bearbeiten.**
+  // Vorher stand die Zeile abgesetzt **ueber** diesem Block, zwischen
+  // `role.onboarding.manage` und der Feature-Ueberschrift — und genau deshalb
+  // rutschte sie beim ART-Scope-Nachzug oben durch: der RTE durfte ein Feature
+  // im **fremden** ART loeschen, aber nicht bearbeiten.
+  //
+  // **Der Feature Owner steht neu drin.** Bis dahin galt eine Funktionstrennung
+  // („wer anlegt und pflegt, entscheidet nicht allein, dass es verschwindet"),
+  // die die Flaeche nie umgesetzt hat: der Loesch-Knopf hing am Bearbeiten-Recht,
+  // also sah ihn genau der, der ihn nicht druecken durfte. Entschieden wurde
+  // gegen die Trennung und fuer das Recht — `art`-scoped wie seine uebrigen.
+  //
+  // `TENANT_ADMIN` bleibt stehen, obwohl `authorize()` ihn ohnehin ueber den
+  // Fast-Path durchlaesst und `create`/`update` ihn nicht nennen: ihn zu
+  // streichen hiesse, in **jedem** Mandanten eine `role_capabilities`-Zeile zu
+  // loeschen — ein Schreiblauf fuer null Wirkung.
+  "feature.delete": [
+    { roles: [PORTFOLIO_MANAGER, TENANT_ADMIN] },
+    { roles: [RTE, FEATURE_OWNER], scope: "art" },
+  ],
   "feature.wsjf.set": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
   // Delivery-lifecycle transitions on Features (approved → in_progress, pause,
   // resume, complete, cancel). Same audience as "feature.update".

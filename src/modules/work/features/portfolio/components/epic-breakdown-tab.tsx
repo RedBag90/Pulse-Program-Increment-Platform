@@ -78,6 +78,17 @@ export interface BreakdownFeature {
   wsjf: { bv: number; tc: number; rr: number; js: number; computed: number };
   /** SAFe Capacity-Guardrail (Roadmap-G2) — surfacet im Netzplan-Node. */
   featureType: string | null;
+  /**
+   * **Je Zeile, nicht je Tabelle.** `feature.delete` ist `art`-scoped, und die
+   * Features eines Epics koennen in verschiedenen ARTs liegen — ein Flag fuer
+   * die ganze Liste waere wieder falsch, nur unauffaelliger.
+   *
+   * Bis September 2026 hing der Loesch-Knopf hier an `canEdit`, und das ist auf
+   * dieser Flaeche `epic.update`: ein **Epic Owner** sah „Loeschen" an jedem
+   * Feature seines Epics und bekam nach dem Bestaetigen „Insufficient
+   * permissions". Ausser dem Portfolio Manager hat keine Rolle beide Rechte.
+   */
+  canDelete: boolean;
 }
 
 interface Props {
@@ -416,7 +427,9 @@ export function EpicBreakdownTab({
                       >
                         {expandedId === f.id ? "Schließen" : "Bearbeiten"}
                       </button>
-                      <DeleteFeatureButton id={f.id} artId={f.artId} title={f.title} />
+                      {f.canDelete && (
+                        <DeleteFeatureButton id={f.id} artId={f.artId} title={f.title} />
+                      )}
                     </div>
                   );
                 },

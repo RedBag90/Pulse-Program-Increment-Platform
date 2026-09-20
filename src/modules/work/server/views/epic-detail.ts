@@ -258,6 +258,14 @@ export interface EpicDetailInputs {
    * Lieferstatus ART-scoped am Feature hängt.
    */
   canSetDelivery: boolean;
+  /**
+   * `feature.delete`, **je ART aufgeloest**. Als Praedikat statt als Boolean,
+   * weil die Features eines Epics in verschiedenen ARTs liegen koennen und das
+   * Recht `art`-scoped ist — ein einzelnes Flag traefe die falsche Aussage fuer
+   * einen Teil der Zeilen. Der Builder autorisiert nach wie vor nicht; er ruft
+   * nur, was der Loader aufgeloest hat.
+   */
+  canDeleteFeature: (artId: string) => boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -455,6 +463,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     canLinkDependency,
     canOverrideHorizon,
     canSetDelivery,
+    canDeleteFeature,
     gate,
   } = inputs;
 
@@ -480,6 +489,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
       computed: Number(c.wsjfComputed ?? 0),
     },
     featureType: c.featureType,
+    canDelete: canDeleteFeature(c.artId ?? ""),
   }));
   const artIds = [...new Set(breakdownFeatures.map((f) => f.artId).filter(Boolean))];
   const featureIds = breakdownFeatures.map((f) => f.id);
@@ -855,6 +865,14 @@ export async function loadEpicDetailInputs(
     canSetDelivery: hasCapability(principal, "feature.delivery.set", {
       tenantId: principal.tenantId,
     }),
+    // Dasselbe fuer das Loeschen — nur muss es **je ART** entschieden werden,
+    // weil `feature.delete` `art`-scoped ist und die Kinder eines Epics ueber
+    // mehrere ARTs verteilt sein koennen.
+    canDeleteFeature: (artId: string) =>
+      hasCapability(principal, "feature.delete", {
+        tenantId: principal.tenantId,
+        ...(artId ? { artId } : {}),
+      }),
     principalId: principal.id,
     canEdit,
     canAssignOwner,

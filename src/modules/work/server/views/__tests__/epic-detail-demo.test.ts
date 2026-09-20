@@ -14,9 +14,13 @@ import { demoEpicDetailInputs, demoEpicDetailModel } from "../epic-detail-demo";
 describe("Beispiel-Epic (Fixture der Rollen-Tour)", () => {
   it("ist durchgängig schreibgeschützt — jedes can*-Flag ist false", () => {
     const inputs = demoEpicDetailInputs() as unknown as Record<string, unknown>;
+    // Ein `can*` ist entweder ein Flag oder ein Praedikat (`canDeleteFeature`
+    // loest `feature.delete` je ART auf). Beide muessen „nein" sagen — ein
+    // Praedikat einfach durchzulassen, weil es kein Boolean ist, waere genau das
+    // Loch, das dieser Test schliessen soll.
     const enabled = Object.entries(inputs)
       .filter(([k]) => k.startsWith("can"))
-      .filter(([, v]) => v !== false)
+      .filter(([, v]) => (typeof v === "function" ? (v as () => unknown)() !== false : v !== false))
       .map(([k]) => k);
     expect(enabled).toEqual([]);
   });

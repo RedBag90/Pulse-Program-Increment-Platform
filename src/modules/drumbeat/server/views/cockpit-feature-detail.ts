@@ -39,6 +39,13 @@ export interface DependencyEdge {
 export interface CockpitFeatureDetail {
   model: FeatureDetailModel;
   canEdit: boolean;
+  /**
+   * `feature.delete` — **nicht** dasselbe wie `canEdit`. Bis September 2026
+   * hing der Loesch-Knopf am Bearbeiten-Recht; seither ist das Loeschrecht
+   * eigenstaendig und `art`-scoped, und ein Knopf, der beim Druecken ablehnt,
+   * waere die schlechtere Auskunft.
+   */
+  canDelete: boolean;
   canTransition: boolean;
   /** `feature.owner.assign` — wertstrom-genau, nicht nur ART-weit. */
   canAssignOwner: boolean;
@@ -216,6 +223,7 @@ export async function loadCockpitFeatureDetail(
 
   const resource = { tenantId: principal.tenantId, artId: feature.artId };
   const canEdit = hasCapability(principal, "feature.update", resource);
+  const canDelete = hasCapability(principal, "feature.delete", resource);
   const canTransition = hasCapability(principal, "feature.delivery.set", resource);
   const canLinkDependency = hasCapability(principal, "dependency.link", resource);
   // Eigene Ressource: der Wertstrom entscheidet, ob ein Wertstrom-Verantwortlicher
@@ -253,6 +261,7 @@ export async function loadCockpitFeatureDetail(
   return {
     model,
     canEdit,
+    canDelete,
     canTransition,
     canAssignOwner,
     approvers,

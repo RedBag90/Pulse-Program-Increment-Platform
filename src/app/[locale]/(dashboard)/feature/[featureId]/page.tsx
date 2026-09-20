@@ -52,7 +52,7 @@ export default async function FeatureDetailPage({ params, searchParams }: Props)
       backLabel={`Zurück zu ${artName}`}
       basePath={`/feature/${featureId}`}
       {...(tab !== undefined ? { activeTab: tab } : {})}
-      {...(detail.canEdit
+      {...(detail.canDelete
         ? {
             headerActions: (
               <DeleteFeatureButton id={featureId} artId={artId} title={detail.model.title} />

@@ -16,7 +16,11 @@ export function DeleteFeatureButton({ id, artId, title }: DeleteFeatureButtonPro
       fields={{ id, artId }}
       label="Löschen"
       pendingLabel="Wird gelöscht …"
-      confirmPrompt={`Feature „${title}“ löschen? Alle untergeordneten Stories werden mitgelöscht.`}
+      // Hier stand „Alle untergeordneten Stories werden mitgeloescht." Stories
+      // gibt es nicht — `InitiativeLevel` kennt EPIC und FEATURE, es gibt kein
+      // `Story`-Modell und keine `story.*`-Capability —, und `softDeleteFeature`
+      // setzt `deletedAt` auf genau einer Zeile.
+      confirmPrompt={`Feature „${title}“ löschen?`}
       variant="ghost"
       destructive
       className="text-xs hover:underline"

@@ -177,6 +177,9 @@ export function demoEpicDetailInputs(): EpicDetailInputs {
     canOverrideHorizon: false,
     showWsjf: true,
     canSetDelivery: false,
+    // Die Beispielseite zeigt, wie das Produkt aussieht — nicht, was der Leser
+    // darf. Kein Loesch-Knopf.
+    canDeleteFeature: () => false,
   };
 }
 

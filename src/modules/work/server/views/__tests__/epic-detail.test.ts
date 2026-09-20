@@ -98,6 +98,7 @@ function makeInputs(over: Partial<EpicDetailInputs> = {}): EpicDetailInputs {
     canOverrideHorizon: false,
     showWsjf: true,
     canSetDelivery: false,
+    canDeleteFeature: () => false,
     ...over,
   };
 }
@@ -347,5 +348,64 @@ describe("buildEpicDetailModel — activity merge", () => {
 
     expect(m.activityEvents.map((e) => e.id)).toEqual(["new", "decided", "old"]);
     expect(m.activityEvents.find((e) => e.id === "decided")!.comment).toBe("Sieht gut aus");
+  });
+});
+
+/**
+ * **Der Loesch-Knopf wird je Zeile entschieden, nicht je Tabelle.**
+ *
+ * Bis September 2026 hing er hier an `canEdit` — und das ist auf dieser Flaeche
+ * `epic.update`. Ausser dem Portfolio Manager traegt keine Rolle `epic.update`
+ * **und** `feature.delete`: ein Epic Owner sah „Loeschen" an jedem Feature
+ * seines Epics und wurde nach dem Bestaetigen abgewiesen.
+ *
+ * Ein einzelnes Flag waere jetzt wieder falsch, nur unauffaelliger: die Kinder
+ * eines Epics koennen in **verschiedenen** ARTs liegen, und das Recht ist
+ * `art`-scoped.
+ */
+describe("Loeschrecht je Breakdown-Zeile", () => {
+  const kind = (id: string, artId: string) =>
+    ({
+      id,
+      title: id,
+      status: "approved",
+      description: null,
+      artId,
+      art: { id: artId, name: artId },
+      piId: null,
+      pi: null,
+      createdAt: new Date("2026-01-01"),
+      acceptanceCriteria: [],
+      wsjfBusinessValue: null,
+      wsjfTimeCriticality: null,
+      wsjfRiskReduction: null,
+      wsjfJobSize: null,
+      wsjfComputed: null,
+      featureType: null,
+    }) as unknown as EpicDetailInputs["epic"]["children"][number];
+
+  it("traegt das Recht des jeweiligen ARTs, nicht eines fuer alle", () => {
+    const m = buildEpicDetailModel(
+      makeInputs({
+        epic: makeEpic({ children: [kind("f-eigen", "art-1"), kind("f-fremd", "art-2")] }),
+        canEdit: true,
+        canDeleteFeature: (artId) => artId === "art-1",
+      }),
+    );
+    expect(m.breakdownFeatures.map((f) => [f.id, f.canDelete])).toEqual([
+      ["f-eigen", true],
+      ["f-fremd", false],
+    ]);
+  });
+
+  it("haengt nicht an canEdit — das ist hier `epic.update`", () => {
+    const m = buildEpicDetailModel(
+      makeInputs({
+        epic: makeEpic({ children: [kind("f1", "art-1")] }),
+        canEdit: true,
+        canDeleteFeature: () => false,
+      }),
+    );
+    expect(m.breakdownFeatures[0]!.canDelete).toBe(false);
   });
 });
