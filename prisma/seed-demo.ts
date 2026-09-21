@@ -29,14 +29,8 @@ import {
   type SeedArtFinal,
   type SeedPiMeta,
 } from "./seed-snapshot.js";
-import {
-  prisma,
-  ensureTenant,
-  upsertAuthUser,
-  assignRole,
-  wipeDomainData,
-  uid,
-} from "./seed-helpers.js";
+import { assignRoleIn, type RoleScopes } from "./seed-writes.js";
+import type { SeedContext } from "./seed-context.js";
 import {
   seedArtEpicAllocations,
   seedBudgetPeriod,
@@ -94,28 +88,19 @@ const CUR = `${YEAR}-H${now.getMonth() < 6 ? 1 : 2}`;
 const NEXT = now.getMonth() < 6 ? `${YEAR}-H2` : `${YEAR + 1}-H1`;
 const PREV = now.getMonth() < 6 ? `${YEAR - 1}-H2` : `${YEAR}-H1`;
 
-async function main() {
-  console.log("\n🌱  Pulse DEMO-Seed startet (dichter Story-Datensatz)\n");
-
-  // ── Phase 1: Auth-User ────────────────────────────────────────────────────
-  console.log("── Auth-User");
-  const U = {
-    admin: await upsertAuthUser("admin@pulse.dev", "Admin1234!"),
-    portfolio: await upsertAuthUser("portfolio@pulse.dev", "Test1234!"),
-    vmo: await upsertAuthUser("vmo@pulse.dev", "Test1234!"),
-    rte: await upsertAuthUser("rte@pulse.dev", "Test1234!"),
-    owner: await upsertAuthUser("owner@pulse.dev", "Test1234!"),
-    viewer: await upsertAuthUser("viewer@pulse.dev", "Test1234!"),
-    transformation: await upsertAuthUser("transformation@pulse.dev", "Test1234!"),
-    vso: await upsertAuthUser("vso@pulse.dev", "Test1234!"),
-    fo: await upsertAuthUser("fo@pulse.dev", "Test1234!"),
-  };
+/**
+ * **Der dichte Story-Datensatz, ohne zu wissen wohin.**
+ *
+ * Mandant, Ids und Personen kommen aus dem `SeedContext` (siehe dort). Die
+ * lokalen Namen `prisma`, `uid`, `U`, `assignRole` bleiben stehen — so trifft
+ * der Umbau nicht die zweitausend Anweisungen darunter, nur ihre Herkunft.
+ */
+export async function seedDense(ctx: SeedContext): Promise<void> {
+  const { db: prisma, tenantId, uid, users: U } = ctx;
+  const assignRole = (userId: string, t: string, role: string, scopes?: RoleScopes) =>
+    assignRoleIn(prisma, userId, t, role, scopes);
   const ADMIN = U.admin;
 
-  // ── Phase 1: Tenant + Ökonomie ────────────────────────────────────────────
-  console.log("\n── Tenant");
-  const tenantId = await ensureTenant();
-  await wipeDomainData(tenantId);
   await prisma.tenant.update({
     where: { id: tenantId },
     data: {
@@ -1427,6 +1412,7 @@ async function main() {
   const parts = [U.portfolio, U.vmo, U.rte, U.owner, U.vso, U.fo, U.viewer];
 
   const rtb = await seedRunTheBusiness(
+    { db: prisma, uid },
     tenantId,
     ADMIN,
     // Betriebskosten in beiden Ausprägungen: der Betrieb des H1-Kerns hängt an
@@ -1548,7 +1534,7 @@ async function main() {
   const reserve = POOL - acc;
 
   // 1) Abgeschlossen (Vergangenheit) — finalisiert, Reserve, alle Gruppen abgegeben.
-  await seedBudgetPeriod(tenantId, ADMIN, {
+  await seedBudgetPeriod({ db: prisma, uid }, tenantId, ADMIN, {
     key: "demo-closed",
     cycleKey: PREV,
     status: "closed",
@@ -1570,7 +1556,7 @@ async function main() {
   // damit im ganzen Mandanten **kein** Budget: Horizont-Trichter und
   // Epic-Kachel sagten überall „kein gültiger Rahmen". Der Datensatz führte
   // nirgends Geld vor.
-  await seedBudgetPeriod(tenantId, ADMIN, {
+  await seedBudgetPeriod({ db: prisma, uid }, tenantId, ADMIN, {
     key: "demo-running",
     cycleKey: CUR,
     status: "closed",
@@ -1587,7 +1573,7 @@ async function main() {
   // 3) **In Ausarbeitung** — läuft parallel zum geltenden Budget, genau wie im
   //    Prozess vorgesehen: die Vorbereitung der nächsten Kachel geschieht,
   //    während die aktuelle den Rahmen setzt.
-  await seedBudgetPeriod(tenantId, ADMIN, {
+  await seedBudgetPeriod({ db: prisma, uid }, tenantId, ADMIN, {
     key: "demo-draft",
     cycleKey: NEXT,
     status: "draft",
@@ -1735,7 +1721,7 @@ async function main() {
     // halten (`FIRST_FUNDABLE_STEP`). Zwei Geschichten an einem Epic, die
     // einander ausschliessen; die teurere ist gegangen.
   ];
-  await seedArtEpicAllocations(tenantId, ADMIN, artAllocs);
+  await seedArtEpicAllocations({ db: prisma, uid }, tenantId, ADMIN, artAllocs);
 
   // ── Die Budgetierungs-Regel gegenprüfen ───────────────────────────────────
   //
@@ -1800,7 +1786,7 @@ async function main() {
 
   // Nur EIN Wertstrom setzt eigene Ziele — erst der Unterschied zum geerbten
   // Tenant-Default macht die Herkunftsanzeige der Fläche sichtbar.
-  await seedValueStreamGuardrails(tenantId, ADMIN, [
+  await seedValueStreamGuardrails({ db: prisma, uid }, tenantId, ADMIN, [
     {
       valueStreamId: vsIds[1]!,
       targets: {
@@ -2867,7 +2853,7 @@ async function main() {
    * ein bis zwei KPIs mit voller Neun-Monats-Zeitreihe, eine Timeline und ein
    * Umsetzungsfenster.
    */
-  await assertWrittenContentMatchesGates(tenantId);
+  await assertWrittenContentMatchesGates(prisma, tenantId);
 
   console.log("\n✅ Demo-Seed fertig.\n");
 }
@@ -2954,20 +2940,16 @@ function buildSnapshotPayload(input: {
   return { snapshot, payload: { version: 1, snapshot } as unknown as Prisma.InputJsonValue };
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
-
 /**
  * Liest die geschriebenen Epics samt Nebenobjekten und haelt sie gegen
  * `contentForGate`. Der Reifegrad-**Schritt** wird aus denselben Stempeln
  * abgeleitet, aus denen die Anwendung ihn liest (`currentGateStep`) — nicht aus
  * der Absicht des Seeds.
  */
-async function assertWrittenContentMatchesGates(tenantId: string): Promise<void> {
+async function assertWrittenContentMatchesGates(
+  prisma: SeedContext["db"],
+  tenantId: string,
+): Promise<void> {
   const rows = await prisma.initiative.findMany({
     where: { tenantId, level: 0, deletedAt: null },
     select: {

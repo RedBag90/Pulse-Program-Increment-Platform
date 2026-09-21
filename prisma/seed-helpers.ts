@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { PrismaClient } from "../src/generated/prisma/index.js";
+import { wipeTenantData } from "@/server/services/tenant-teardown";
 
 /** Lädt `.env.local` (Repo-Root) in `process.env`, falls `DIRECT_URL` fehlt. */
 export function loadEnvLocal(): void {
@@ -157,115 +158,30 @@ export function assignRole(
 }
 
 /**
- * Wischt ALLE Domain-Daten eines Tenants FK-sicher (Blätter zuerst). Auth-User,
- * der Tenant selbst und Role-Assignments bleiben. Erweitert um die Tabellen, die
- * das Demo-Seed befüllt (Ziel-Kinder, Custom-Fields, Audit, Anfragen, …).
+ * Wischt alle Fachdaten eines Mandanten. Auth-Konten, der Mandant selbst und die
+ * Rollenzuweisungen bleiben.
+ *
+ * **Die Reihenfolge steht nicht mehr hier.** Sie liegt in
+ * `src/server/services/tenant-teardown.ts`, weil zwei Wege sie brauchen: dieser
+ * Reseed und das Loeschen eines Mandanten in der Plattform-Verwaltung. Zwei
+ * Listen waeren die Doppelung, an der dieses Repo schon mehrfach
+ * haengengeblieben ist — und ein Test dort haelt sie gegen Prismas DMMF.
+ *
+ * **Seit dem Umzug raeumt der Reseed sechs Tabellen mehr**, die vorher als
+ * Leichen liegenblieben: `ViewPreference`, `RoleOnboarding`, `JiraConfig`,
+ * `AzureDevOpsConfig`, `OutboxEvent`, `IdempotencyKey`.
  */
 export async function wipeDomainData(tenantId: string): Promise<void> {
   console.log("\n── Wiping domain data (tenant + auth + roles bleiben)");
-  const w = { where: { tenantId } };
-
-  // Ziele + Kinder (die meisten cascaden vom Objective, explizit ist sicher)
-  await prisma.goalCheckin.deleteMany(w);
-  await prisma.goalComment.deleteMany(w);
-  await prisma.goalCustomFieldValue.deleteMany(w);
-  await prisma.goalCustomFieldDef.deleteMany(w);
-  await prisma.goalRelatedWork.deleteMany(w);
-  await prisma.goalValueStreamLink.deleteMany(w);
-  await prisma.goalArtLink.deleteMany(w);
-  await prisma.goalEpicLink.deleteMany(w);
-  await prisma.themeEpicLink.deleteMany(w);
-  await prisma.objective.deleteMany(w);
-  await prisma.strategicTheme.deleteMany(w);
-
-  // Transformation
-  await prisma.transformationAction.deleteMany(w);
-  await prisma.targetOperatingModel.deleteMany(w);
-
-  // Budgeting — Kachel-Modell (budgetRound cascadet Gruppen→Mitglieder/Allocations,
-  // Kandidaten, Beteiligte, Decisions, ReportOuts). runTheBusinessItem ist
-  // VS-scoped → vor valueStream.deleteMany (unten) löschen.
-  // Vor den Runden: die Zuteilungen des ART-Rahmens und die Guardrail-Zeilen je
-  // Wertstrom. Beide würden zwar über Epic bzw. Wertstrom kaskadieren — sich
-  // darauf zu verlassen macht die Reihenfolge zu einer Zufälligkeit.
-  await prisma.artEpicAllocation.deleteMany(w);
-  await prisma.valueStreamGuardrailTargets.deleteMany(w);
-  await prisma.budgetRound.deleteMany(w);
-  // Die Aufteilung des Wertstrom-Zuspruchs hängt an der Position und würde über
-  // sie kaskadieren — auch hier gilt: nicht auf die Kaskade verlassen.
-  await prisma.rtbItemAward.deleteMany(w);
-  await prisma.runTheBusinessItem.deleteMany(w);
-  // Budgeting — Snapshot + die abgeleitete Epic-Zuteilung
-  await prisma.budgetPlanRevision.deleteMany(w);
-  await prisma.budgetAllocation.deleteMany(w);
-
-  // Initiative-Nebentabellen
-  // Reifegrad-Abnahme (ADR-0018): Approvals hängen an der Transition (Cascade),
-  // Transition an der Initiative → beide vor den Initiatives löschen.
-  await prisma.stageGateApproval.deleteMany(w);
-  await prisma.stageGateTransition.deleteMany(w);
-  await prisma.kpi.deleteMany(w);
-  await prisma.dependency.deleteMany(w);
-  await prisma.initiativeGraphPosition.deleteMany(w);
-
-  // Initiatives leaf-first (Feature vor Epic)
-  // Solution-Zuordnungen vor den Epics lösen (EpicSolution cascadet zwar, aber
-  // explizit hält die Reihenfolge robust).
-  await prisma.epicSolution.deleteMany(w);
-  await prisma.initiative.deleteMany({ where: { tenantId, level: 1 } });
-  await prisma.initiative.deleteMany({ where: { tenantId, level: 0 } });
-  // Solutions vor valueStream (Solution.valueStreamId).
-  await prisma.solution.deleteMany(w);
-
-  // Issues (single type) — satellites first, then rows (self-nesting drops together)
-  await prisma.issueMitigation.deleteMany(w);
-  await prisma.issueAssessment.deleteMany(w);
-  await prisma.issue.deleteMany(w);
-  await prisma.issueSettings.deleteMany(w);
-
-  // PI-scoped
-  await prisma.systemDemoItem.deleteMany(w);
-  await prisma.systemDemo.deleteMany(w);
-  await prisma.programIncrement.deleteMany(w);
-
-  // Org-Struktur
-  await prisma.art.deleteMany(w);
-  await prisma.timeline.deleteMany(w);
-  // Gate-Freigabe-Regeln referenzieren den Wertstrom → vor ihm löschen.
-  await prisma.stageGateApproverRule.deleteMany(w);
-  await prisma.valueStream.deleteMany(w);
-
-  // Standalone (tenantId-Scalar)
-  await prisma.piStandard.deleteMany(w);
-  await prisma.setupProgress.deleteMany(w);
-  await prisma.roleCapability.deleteMany(w);
-  await prisma.auditEvent.deleteMany(w);
-  await prisma.tenantInvite.deleteMany(w);
-  await prisma.tenantJoinRequest.deleteMany(w);
-  // Per-User Portfolio-Filter (tenant+user-scoped plain columns → per tenant löschen).
-  await prisma.savedFilter.deleteMany(w);
-
-  console.log("  ✓ Domain-Daten gelöscht");
+  const { total } = await wipeTenantData(prisma, tenantId);
+  console.log(`  ✓ Domain-Daten gelöscht (${total} Zeilen)`);
 }
 
 /**
- * Deterministische UUID aus einem String-Schlüssel (FNV-1a über mehrere Runden).
- * Gleicher Key ⇒ gleiche UUID ⇒ idempotenter Reseed + querverweisbare Relationen.
+ * **`uid` und `uidFor` liegen jetzt in `seed-ids.ts`** und werden hier nur
+ * weitergereicht, damit die bestehenden Importe stehen bleiben. Der Grund fuer
+ * die Trennung steht dort: diese Datei laedt beim Import `.env.local` und baut
+ * einen Prisma-Client — die Id-Regel muss ohne beides auskommen, sonst kann die
+ * App sie nicht importieren.
  */
-export function uid(key: string): string {
-  const bytes: number[] = [];
-  let h = 0x811c9dc5 >>> 0;
-  for (let round = 0; round < 16; round++) {
-    for (let i = 0; i < key.length; i++) {
-      h ^= key.charCodeAt(i) + round * 131;
-      h = Math.imul(h, 0x01000193) >>> 0;
-    }
-    bytes.push((h >>> 24) & 0xff, (h >>> 16) & 0xff, (h >>> 8) & 0xff, h & 0xff);
-    h = (h ^ (round * 0x9e3779b1)) >>> 0;
-  }
-  const b = bytes.slice(0, 16);
-  b[6] = (b[6]! & 0x0f) | 0x40; // Version 4
-  b[8] = (b[8]! & 0x3f) | 0x80; // Variante
-  const hex = b.map((x) => x.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
-}
+export { uid, uidFor, type Uid } from "./seed-ids.js";

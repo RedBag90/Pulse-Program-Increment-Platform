@@ -55,7 +55,8 @@ import {
   type SeedArtFinal,
   type SeedPiMeta,
 } from "./seed-snapshot.js";
-import { prisma, upsertAuthUser, assignRole, wipeDomainData, uid } from "./seed-helpers.js";
+import { assignRoleIn, type RoleScopes } from "./seed-writes.js";
+import type { SeedContext } from "./seed-context.js";
 import {
   seedArtEpicAllocations,
   seedBudgetPeriod,
@@ -153,7 +154,7 @@ const WINDOW_BACK = 5;
 const ALL_CYCLES = Array.from({ length: WINDOW_BACK + 3 }, (_, k) =>
   keyOfHalf(HALF_IDX - WINDOW_BACK + k),
 );
-const CURRENT_CYCLE = halfYearKey(realNow);
+export const CURRENT_CYCLE = halfYearKey(realNow);
 const CURRENT_IDX = ALL_CYCLES.indexOf(CURRENT_CYCLE);
 const MAX_IDX = ALL_CYCLES.length - 1;
 const PROGRAM_TARGET_YEAR = `${YEAR + 2}`;
@@ -180,7 +181,7 @@ const CYCLE_POOL = 2_000_000;
 const ART_FRAME = (c: number): number => 110_000 + c * 5_000;
 const RUN_COST = (c: number): number => 300_000 + c * 12_000;
 
-const TENANT_NAME = "Large Test Corp";
+export const TENANT_NAME = "Large Test Corp";
 
 /**
  * Wie viele Ideen je Halbjahr hereinkommen. Aus ihnen und der Zahl der Runden
@@ -189,42 +190,16 @@ const TENANT_NAME = "Large Test Corp";
  */
 const INTAKE_PER_CYCLE = 22;
 
-async function ensureLargeTenant(): Promise<string> {
-  const existing = await prisma.tenant.findFirst({ where: { name: TENANT_NAME } });
-  if (existing) {
-    console.log(`  ↳ ${TENANT_NAME} existiert`);
-    return existing.id;
-  }
-  const t = await prisma.tenant.create({
-    data: { id: uid("large:tenant"), name: TENANT_NAME, region: "eu", kind: "organization" },
-  });
-  console.log(`  ✓ ${TENANT_NAME} angelegt`);
-  return t.id;
-}
-
-async function main() {
-  console.log(
-    `\n🌱  LARGE-Seed startet (sechs gespielte Runden, laufendes Halbjahr ${CURRENT_CYCLE})\n`,
-  );
-
-  // ── Phase 1: Auth-User ─────────────────────────────────────────────────────
-  console.log("── Auth-User");
-  const U = {
-    admin: await upsertAuthUser("admin@pulse.dev", "Admin1234!"),
-    portfolio: await upsertAuthUser("portfolio@pulse.dev", "Test1234!"),
-    vmo: await upsertAuthUser("vmo@pulse.dev", "Test1234!"),
-    rte: await upsertAuthUser("rte@pulse.dev", "Test1234!"),
-    owner: await upsertAuthUser("owner@pulse.dev", "Test1234!"),
-    viewer: await upsertAuthUser("viewer@pulse.dev", "Test1234!"),
-    vso: await upsertAuthUser("vso@pulse.dev", "Test1234!"),
-    fo: await upsertAuthUser("fo@pulse.dev", "Test1234!"),
-  };
+/**
+ * **Der Lastdatensatz, ohne zu wissen wohin.** Mandant, Ids und Personen kommen
+ * aus dem `SeedContext`. Die lokalen Namen `prisma`, `uid`, `U`, `assignRole`
+ * bleiben stehen, damit der Umbau nur ihre Herkunft trifft.
+ */
+export async function seedLarge(ctx: SeedContext): Promise<void> {
+  const { db: prisma, tenantId, uid, users: U } = ctx;
+  const assignRole = (userId: string, t: string, role: string, scopes?: RoleScopes) =>
+    assignRoleIn(prisma, userId, t, role, scopes);
   const ADMIN = U.admin;
-
-  // ── Phase 1: Tenant + Ökonomie ────────────────────────────────────────────
-  console.log("\n── Tenant");
-  const tenantId = await ensureLargeTenant();
-  await wipeDomainData(tenantId);
 
   // 10-Jahres-Budget-Entwurf: ~€1 Mio. je Zyklus über alle 20 Zyklen (Controller,
   // Jahr 1). Nur noch eine lokale Vorgabe für die Kachel-Töpfe unten — einen
@@ -1722,6 +1697,7 @@ async function main() {
   // running für das nächste, draft für das übernächste.
   const parts = [U.portfolio, U.vmo, U.rte, U.owner, U.vso, U.fo, U.viewer];
   const rtb = await seedRunTheBusiness(
+    { db: prisma, uid },
     tenantId,
     ADMIN,
     // Zwei wertstrom-übergreifende Positionen (ohne Solution) plus der Betrieb
@@ -1864,7 +1840,7 @@ async function main() {
         : runAskSum === 0
           ? 0
           : Math.round((c.ask / runAskSum) * runBudget);
-    await seedBudgetPeriod(tenantId, ADMIN, {
+    await seedBudgetPeriod({ db: prisma, uid }, tenantId, ADMIN, {
       key: `large-closed-${round.cycleIdx}`,
       cycleKey,
       // Die finalen Beträge entstehen im Übergang `entschieden → abgeschlossen`.
@@ -1890,7 +1866,7 @@ async function main() {
   // Die laufende Runde ist die des **nächsten** Halbjahres — man budgetiert H2
   // im Lauf von H1. Hier konkurrieren die wartenden L2-Epics um den Rest.
   const runningCycle = ALL_CYCLES[Math.min(CURRENT_IDX + 1, MAX_IDX)]!;
-  await seedBudgetPeriod(tenantId, ADMIN, {
+  await seedBudgetPeriod({ db: prisma, uid }, tenantId, ADMIN, {
     key: "large-running",
     cycleKey: runningCycle,
     status: "running",
@@ -1906,7 +1882,7 @@ async function main() {
 
   // Eine Entwurfsrunde für das übernächste Halbjahr.
   const draftCycle = ALL_CYCLES[Math.min(CURRENT_IDX + 2, MAX_IDX)]!;
-  await seedBudgetPeriod(tenantId, ADMIN, {
+  await seedBudgetPeriod({ db: prisma, uid }, tenantId, ADMIN, {
     key: "large-draft",
     cycleKey: draftCycle,
     status: "draft",
@@ -2214,7 +2190,7 @@ async function main() {
       allocSpecs.push({ artId, epicId: epicIds[i]!, cycleKey, amount, ask: pe.cost });
     }
   }
-  await seedArtEpicAllocations(tenantId, ADMIN, allocSpecs);
+  await seedArtEpicAllocations({ db: prisma, uid }, tenantId, ADMIN, allocSpecs);
 
   // ── Die Budgetierungs-Regel gegenprüfen, Runde für Runde ─────────────────
   //
@@ -2267,6 +2243,7 @@ async function main() {
   );
 
   await seedValueStreamGuardrails(
+    { db: prisma, uid },
     tenantId,
     ADMIN,
     vsIds.map((vsId, k) => ({
@@ -2287,7 +2264,7 @@ async function main() {
    * Vorher hatten 28 von 30 Funnel-Ideen eine Timeline mit Umsetzungsterminen,
    * KPIs und teils Features. Das fiel niemandem auf, weil niemand danach fragte.
    */
-  await assertWrittenContentMatchesGates(tenantId);
+  await assertWrittenContentMatchesGates(prisma, tenantId);
 
   console.log(
     `\n✅ Large-Seed fertig (sechs gespielte Runden, laufendes Halbjahr ${CURRENT_CYCLE}).\n`,
@@ -2300,7 +2277,10 @@ async function main() {
  * abgeleitet, aus denen die Anwendung ihn liest (`currentGateStep`) — nicht aus
  * der Absicht des Seeds.
  */
-async function assertWrittenContentMatchesGates(tenantId: string): Promise<void> {
+async function assertWrittenContentMatchesGates(
+  prisma: SeedContext["db"],
+  tenantId: string,
+): Promise<void> {
   const rows = await prisma.initiative.findMany({
     where: { tenantId, level: 0, deletedAt: null },
     select: {
@@ -2475,10 +2455,3 @@ function buildSnapshotPayload(input: {
   });
   return { snapshot, payload: { version: 1, snapshot } as unknown as Prisma.InputJsonValue };
 }
-
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());

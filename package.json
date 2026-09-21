@@ -23,10 +23,10 @@
     "check:network-bundle": "node scripts/check-network-bundle.mjs",
     "prisma": "prisma",
     "db:seed": "tsx prisma/seed.ts",
-    "db:seed:demo": "tsx prisma/seed-demo.ts",
+    "db:seed:demo": "tsx prisma/seed-demo.cli.ts",
     "db:seed:offsite": "tsx prisma/seed-offsite.ts",
-    "db:seed:large": "tsx prisma/seed-large.ts",
-    "db:seed:large-setup": "tsx prisma/seed-large-setup.ts",
+    "db:seed:large": "tsx prisma/seed-large.cli.ts",
+    "db:seed:large-setup": "tsx prisma/seed-large-setup.cli.ts",
     "prepare": "husky"
   },
   "dependencies": {

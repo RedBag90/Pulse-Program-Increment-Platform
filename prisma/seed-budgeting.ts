@@ -10,7 +10,18 @@
  * `BudgetCandidate.finalAmount`.
  */
 
-import { prisma, uid } from "./seed-helpers.js";
+import type { SeedContext } from "./seed-context.js";
+
+/**
+ * **Client und Id-Regel kommen von aussen.**
+ *
+ * Diese Datei holte beide bis September 2026 aus `seed-helpers.ts` — und zog
+ * damit einen Prisma-Client auf `DIRECT_URL` und den Supabase-Service-Role-Key
+ * in jeden Import-Graphen, in dem sie vorkam. Ueber `seed-demo` und `seed-large`
+ * war das auch der von `seed-profiles.ts`, das die Plattform-Verwaltung
+ * importieren koennen muss.
+ */
+export type BudgetSeedCtx = Pick<SeedContext, "db" | "uid">;
 
 export interface RtbItemSpec {
   name: string;
@@ -44,6 +55,7 @@ export interface SeededRtbItem {
 
 /** Legt je Value Stream die Run-the-Business-Positionen an. Gibt sie zurück. */
 export async function seedRunTheBusiness(
+  { db: prisma, uid }: BudgetSeedCtx,
   tenantId: string,
   actorId: string,
   specs: RtbSpec[],
@@ -120,6 +132,7 @@ export interface PeriodSpec {
 
 /** Erzeugt eine vollständige Kachel (Runde + Beteiligte + Kandidaten + Gruppen + Verteilung). */
 export async function seedBudgetPeriod(
+  { db: prisma, uid }: BudgetSeedCtx,
   tenantId: string,
   actorId: string,
   cfg: PeriodSpec,
@@ -360,6 +373,7 @@ export interface ArtAllocationSpec {
  * ein Rahmen mit ungenutztem Rest, ein Epic ohne Deckung.
  */
 export async function seedArtEpicAllocations(
+  { db: prisma, uid }: BudgetSeedCtx,
   tenantId: string,
   actorId: string,
   specs: readonly ArtAllocationSpec[],
@@ -395,6 +409,7 @@ export interface GuardrailTargetsSpec {
  * „Tenant-Default") in der Fläche sichtbar.
  */
 export async function seedValueStreamGuardrails(
+  { db: prisma, uid }: BudgetSeedCtx,
   tenantId: string,
   actorId: string,
   specs: readonly GuardrailTargetsSpec[],

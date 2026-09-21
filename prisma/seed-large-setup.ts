@@ -31,11 +31,12 @@
  */
 
 import { enumerateDefaultCapabilities } from "@/server/auth/policies";
-import { prisma, upsertAuthUser, assignRole, wipeDomainData, uid } from "./seed-helpers.js";
+import { assignRoleIn } from "./seed-writes.js";
+import type { SeedContext } from "./seed-context.js";
 
 const DAY = 86_400_000;
 const YEAR = new Date().getFullYear();
-const TENANT_NAME = "Large Setup Corp";
+export const TENANT_NAME = "Large Setup Corp";
 
 /**
  * Derselbe Zehnjahres-Horizont wie im Lastdatensatz: Jahr 1 = YEAR-4, Jahr 10 =
@@ -45,43 +46,19 @@ const TENANT_NAME = "Large Setup Corp";
 const LAST_CYCLE_START = new Date(YEAR + 5, 6, 6);
 const LAST_CYCLE_END = new Date(LAST_CYCLE_START.getTime() + 178 * DAY);
 
-async function ensureTenant(): Promise<string> {
-  const existing = await prisma.tenant.findFirst({ where: { name: TENANT_NAME } });
-  if (existing) {
-    console.log(`  ↳ ${TENANT_NAME} existiert`);
-    return existing.id;
-  }
-  const t = await prisma.tenant.create({
-    data: {
-      id: uid("large-setup:tenant"),
-      name: TENANT_NAME,
-      region: "eu",
-      kind: "organization",
-    },
-  });
-  console.log(`  ✓ ${TENANT_NAME} angelegt`);
-  return t.id;
-}
-
-async function main() {
-  console.log(`\n🌱  LARGE-SETUP-Seed startet (${TENANT_NAME} — Aufbau ohne Inhalte)\n`);
-
-  console.log("── Auth-User");
-  const U = {
-    admin: await upsertAuthUser("admin@pulse.dev", "Admin1234!"),
-    portfolio: await upsertAuthUser("portfolio@pulse.dev", "Test1234!"),
-    vmo: await upsertAuthUser("vmo@pulse.dev", "Test1234!"),
-    rte: await upsertAuthUser("rte@pulse.dev", "Test1234!"),
-    owner: await upsertAuthUser("owner@pulse.dev", "Test1234!"),
-    viewer: await upsertAuthUser("viewer@pulse.dev", "Test1234!"),
-    vso: await upsertAuthUser("vso@pulse.dev", "Test1234!"),
-    fo: await upsertAuthUser("fo@pulse.dev", "Test1234!"),
-  };
+/**
+ * **Der Datensatz, ohne zu wissen wohin.** Mandant, Ids und Personen kommen aus
+ * dem `SeedContext`; die Kommandozeile unten besorgt sie fuer „Large Setup
+ * Corp", die Plattform-Verwaltung fuer einen frisch angelegten Mandanten.
+ *
+ * Die lokalen Namen `prisma`, `uid`, `U` bleiben absichtlich stehen — so trifft
+ * der Umbau die Anweisungen darunter nicht, nur ihre Herkunft.
+ */
+export async function seedSkeleton(ctx: SeedContext): Promise<void> {
+  const { db: prisma, tenantId, uid, users: U } = ctx;
+  const assignRole = (userId: string, t: string, role: string) =>
+    assignRoleIn(prisma, userId, t, role);
   const ADMIN = U.admin;
-
-  console.log("\n── Tenant + Ökonomie");
-  const tenantId = await ensureTenant();
-  await wipeDomainData(tenantId);
 
   // Wortgleich zu `seed-large.ts`. `enabledModules: []` heißt nicht „nichts",
   // sondern „Standardsatz" — `enabledModulesOrDefault` legt ihn je Tenant-Art fest.
@@ -167,15 +144,8 @@ async function main() {
   console.log("  ✓ TOM (3 Wertströme / 6 ARTs / 18 Teams angestrebt), Practice artEpics an");
 
   console.log(
-    `\n✅ ${TENANT_NAME} steht: Einstellungen, Rollen und acht Konten — keine Fachdaten.` +
+    `\n✅ Aufbau steht: Einstellungen, Rollen und acht Konten — keine Fachdaten.` +
       `\n   Erster Schritt in der App: Wertströme und ARTs anlegen; danach den` +
-      `\n   Wertstrom-Scope für vso@pulse.dev nachtragen.\n`,
+      `\n   Wertstrom-Scope für den Wertstrom-Owner nachtragen.\n`,
   );
 }
-
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());

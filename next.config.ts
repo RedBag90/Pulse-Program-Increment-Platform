@@ -38,6 +38,27 @@ const nextConfig: NextConfig = {
   // ist (Compile-Zeit-Routen-Strings) und der Code das Feature ohnehin mit
   // `as never`-Casts umgeht, ist es hier deaktiviert. Reaktivierbar, sobald alle
   // Query-String-Navigationen sauber getypt sind.
+
+  // **`./foo.js` darf auf `foo.ts` zeigen.**
+  //
+  // Der Seed-Baum unter `prisma/` schreibt relative Importe mit `.js`-Endung —
+  // so verlangt es ECMAScript-Module, und so laufen die Skripte unter `tsx` und
+  // unter blossem Node. `tsc` bildet das ab, Webpack nicht: seit die
+  // Plattform-Verwaltung einen Seeder importiert, brach der Build mit
+  // „Can't resolve './seed-demo.js'".
+  //
+  // Die Alternative waere gewesen, im ganzen Seed-Baum die Endungen zu
+  // streichen — vierzig Importe in acht Dateien, und die Skripte waeren dann
+  // nur noch mit einem Lader lauffaehig. Eine Zeile Aufloesungsregel ist der
+  // kleinere Eingriff. `.js` bleibt als letzte Moeglichkeit stehen, damit echte
+  // JavaScript-Dateien weiter gefunden werden.
+  webpack: (config) => {
+    config.resolve.extensionAlias = {
+      ...config.resolve.extensionAlias,
+      ".js": [".ts", ".tsx", ".js"],
+    };
+    return config;
+  },
 };
 
 const withIntl = withNextIntl(nextConfig);
@@ -51,8 +72,7 @@ const composed = withAnalyzer(withIntl);
 // timen aus). Die Laufzeit-Fehlererfassung läuft ohnehin über
 // `instrumentation.ts` (Sentry.init) und ist davon unberührt. Daher: Wrapper
 // nur in Produktion anwenden. Mit `DISABLE_SENTRY=1` auch für Prod-Builds abschaltbar.
-const useSentry =
-  process.env.NODE_ENV === "production" && process.env.DISABLE_SENTRY !== "1";
+const useSentry = process.env.NODE_ENV === "production" && process.env.DISABLE_SENTRY !== "1";
 
 export default useSentry
   ? withSentryConfig(composed, {

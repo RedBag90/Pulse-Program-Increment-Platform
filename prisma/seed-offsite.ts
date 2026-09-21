@@ -1004,7 +1004,7 @@ async function main() {
   const fowners = EPICS.map((e) => featureOwners[e.slug]!);
   const KPOOL = Math.round(BUDGET_TOTAL * 0.7);
 
-  const rtb = await seedRunTheBusiness(tenantId, admin, [
+  const rtb = await seedRunTheBusiness({ db: prisma, uid }, tenantId, admin, [
     {
       valueStreamId: vsId,
       items: [
@@ -1060,7 +1060,7 @@ async function main() {
     },
   ];
 
-  await seedBudgetPeriod(tenantId, admin, {
+  await seedBudgetPeriod({ db: prisma, uid }, tenantId, admin, {
     key: "offsite-running",
     cycleKey: PERIOD_NOW,
     status: "running",
