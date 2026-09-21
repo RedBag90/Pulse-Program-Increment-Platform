@@ -144,15 +144,15 @@ export const EPIC_INTAKE: Guide = {
         },
         {
           title: "Den Epic Owner benennen",
-          anchor: "epic-lifecycle-stepper",
+          anchor: "epic-owner-field",
           body: [
             {
               kind: "paragraph",
-              text: "Die Steuerung sitzt im Reiter **Reifegrad-Timeline**, aufklappbar am Meilenstein _Erstsichtung_, unter der Überschrift **Epic Owner**: ein Personen-Picker und die Schaltfläche **Owner zuweisen**. Ist niemand benannt, steht dort „Nicht zugewiesen“.",
+              text: "Die Steuerung sitzt im Reiter **Overview**, im Panel **Zuordnung** ganz oben unter **Owner**: ein Personen-Picker und die Schaltfläche **Owner zuweisen**. Ist niemand benannt, steht dort „Nicht zugewiesen“. Dorthin führt auch das Tor-Kriterium „Epic Owner ist benannt“, wenn man es anklickt.",
             },
             {
               kind: "note",
-              text: "**Der Hilfetext zeigt an die falsche Stelle.** Das Kriterium „Epic Owner ist benannt“ rät, ihn im Overview über das Owner-Feld zu benennen. Im Overview wird der Owner aber nur **angezeigt** — die einzige Stelle, an der man ihn setzt, ist der Reifegrad-Reiter.",
+              text: "**Einen benannten Owner kann man ersetzen, aber nicht wieder entfernen.** Wähle eine andere Person und weise erneut zu; eine leere Auswahl nimmt die Fläche nicht an.",
             },
             {
               kind: "paragraph",

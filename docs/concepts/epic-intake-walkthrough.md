@@ -142,15 +142,16 @@ Die dritte Frage ist der eigentliche Akt. Der Meilenstein heißt
 **„Erstsichtung"**, und die Fläche beschreibt ihn in einem Satz: _Der VMO sichtet
 das Epic und benennt den Epic Owner._
 
-Die Steuerung sitzt im Reiter **„Reifegrad-Timeline"**, aufklappbar am
-Meilenstein Erstsichtung, unter der Überschrift **„Epic Owner"**: ein Personen-
-Picker und die Schaltfläche **„Owner zuweisen"**. Ist niemand benannt, steht dort
-„Nicht zugewiesen".
+Die Steuerung sitzt im Reiter **„Overview"**, im Panel **„Zuordnung"** ganz oben
+unter **„Owner"**: ein Personen-Picker und die Schaltfläche **„Owner zuweisen"**.
+Ist niemand benannt, steht dort „Nicht zugewiesen".
 
-> **Der Hilfetext zeigt an die falsche Stelle.** Das Kriterium „Epic Owner ist
-> benannt" rät: _„Benenne ihn im Overview über das Owner-Feld."_ Im
-> Overview-Reiter wird der Owner aber nur **angezeigt** — die einzige Stelle, an
-> der man ihn setzt, ist der Reifegrad-Reiter.
+> **Sie sass bis September 2026 an zwei Stellen.** Die ältere war der Reiter
+> „Reifegrad-Timeline", aufklappbar am Meilenstein Erstsichtung. Das
+> Tor-Kriterium „Epic Owner ist benannt" verlinkte aber immer schon ins Overview
+> und rät dort: _„Benenne ihn im Overview über das Owner-Feld."_ Inzwischen
+> stimmt das — die Timeline hat die Zuweisung abgegeben und zeigt den
+> Meilenstein nur noch an.
 
 **Mit der ersten Benennung wandert die Karte** von _Funnel_ nach _Hypothese_.
 Der Reifegrad bleibt L0; was sich ändert, ist der Stempel

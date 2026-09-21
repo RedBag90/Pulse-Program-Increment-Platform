@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, startTransition } from "react";
-import { CheckCircle2, CircleDot, Circle, Lock, ChevronRight } from "lucide-react";
+import { CheckCircle2, CircleDot, Circle, Lock } from "lucide-react";
 import {
   lifecycleSpans,
   type LifecycleSpan,
@@ -18,8 +18,6 @@ import { reifegradGroups } from "@/modules/work/features/portfolio/lib/reifegrad
 import { GateHistoryList } from "./gate/gate-history-list";
 import type { LifecycleStep } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 import type { EpicGateHistoryView } from "@/modules/work/server/views/epic-detail";
-import { EpicOwnerAssign } from "./epic-owner-assign";
-import type { TenantApprover } from "./approver-picker";
 
 interface Props {
   epicId: string;
@@ -41,12 +39,7 @@ interface Props {
   canEdit: boolean;
   /** Antragshistorie der Reifegrad-Wechsel — wer wann was beantragt/abgenommen hat. */
   gateHistory: EpicGateHistoryView[];
-  /** Current Epic owner — nominated in the "Selected for Detailing" phase expander. */
-  ownerId: string | null;
-  /** May nominate/replace the Epic owner (`epic.owner.assign`). */
-  canAssignOwner: boolean;
-  /** Tenant approver pool (owner nomination + phase approvers). */
-  approvers: TenantApprover[];
+  /** Namen fuer die Antragshistorie — wer beantragt, wer abgenommen hat. */
   userLabels: Record<string, string>;
   /**
    * Gate-based lifecycle status — the SAME 9-phase derivation the lifecycle
@@ -133,23 +126,11 @@ export function EpicTimelineTab({
   implementationCompletedAt,
   timeline,
   canEdit,
-  ownerId,
-  canAssignOwner,
-  approvers,
   userLabels,
   lifecycleSteps,
   gateHistory,
 }: Props) {
   const [saveState, saveAction, saving] = useActionState(saveTimelineAction, {});
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
-  const toggle = (key: string) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-
   // Früher standen hier zwei fest verdrahtete Advance-Buttons (L1→L2 und
   // L3→L4) mit eigenen Sichtbarkeitsregeln — zwei von vier Stellen, an denen
   // sich ein Gate schieben liess. Beide sind in der Gate-Karte aufgegangen, die
@@ -354,6 +335,13 @@ export function EpicTimelineTab({
                 const gate = step.milestone;
                 const isNext = step.milestoneStatus === "current";
                 const isDone = step.milestoneStatus === "done";
+                // Weiches Tor: bewegt den Reifegrad nicht. Genau eines ist so —
+                // die Erstsichtung. Sie trug bis September 2026 als einzige Zeile
+                // einen Aufklapp-Pfeil, und darin die Zuweisung des Epic Owners;
+                // die sitzt jetzt im Reiter Overview, wo das Tor-Kriterium
+                // „Epic Owner ist benannt" ohnehin immer schon hinzeigte. Geblieben
+                // ist der Unterschied zum Tor: gestrichelter Rahmen, Abzeichen
+                // „Meilenstein" — sichtbar, aber nichts zu bedienen.
                 const soft = gate.step === null;
                 return (
                   <li key={step.key} className="relative">
@@ -391,25 +379,9 @@ export function EpicTimelineTab({
                         } ${soft ? "border-dashed" : ""}`}
                       >
                         <div className="min-w-0">
-                          {soft ? (
-                            <button
-                              type="button"
-                              onClick={() => toggle(step.key)}
-                              aria-expanded={expanded.has(step.key)}
-                              className={`flex items-center gap-1 text-sm font-semibold hover:text-primary ${isNext ? "text-primary" : ""}`}
-                            >
-                              <ChevronRight
-                                className={`size-3.5 shrink-0 transition-transform ${
-                                  expanded.has(step.key) ? "rotate-90" : ""
-                                }`}
-                              />
-                              {gate.label}
-                            </button>
-                          ) : (
-                            <p className={`text-sm font-semibold ${isNext ? "text-primary" : ""}`}>
-                              {gate.label}
-                            </p>
-                          )}
+                          <p className={`text-sm font-semibold ${isNext ? "text-primary" : ""}`}>
+                            {gate.label}
+                          </p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             <span className="mr-1.5 rounded-sm bg-muted px-1.5 py-0.5 text-label font-semibold uppercase tracking-[0.1em]">
                               {soft ? "Meilenstein" : "Gate"}
@@ -419,20 +391,6 @@ export function EpicTimelineTab({
                         </div>
                         <SollCell phase={step.key as TimelineEstimatePhase} />
                         <IstCell row={row} />
-                        {soft && expanded.has(step.key) && (
-                          <div className="sm:col-span-3">
-                            <div className="space-y-2 rounded-md border bg-muted/20 p-3">
-                              <SectionLabel>Epic Owner</SectionLabel>
-                              <EpicOwnerAssign
-                                epicId={epicId}
-                                ownerId={ownerId}
-                                canAssignOwner={canAssignOwner}
-                                approvers={approvers}
-                                userLabels={userLabels}
-                              />
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </li>

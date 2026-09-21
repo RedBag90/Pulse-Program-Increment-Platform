@@ -426,9 +426,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
               timeline={timeline}
               canEdit={model.canEdit}
               gateHistory={model.gate.disabled ? [] : model.gate.history}
-              ownerId={epic.ownerId}
-              canAssignOwner={model.canAssignOwner}
-              approvers={approvers}
               userLabels={userLabels}
               lifecycleSteps={model.lifecycleSteps}
             />

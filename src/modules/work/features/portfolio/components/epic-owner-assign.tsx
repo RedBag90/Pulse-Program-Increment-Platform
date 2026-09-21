@@ -21,9 +21,22 @@ interface Props {
 }
 
 /**
- * Epic owner — current owner plus, for authorised roles, the nomination control
- * (the Portfolio Manager and roles above it). Lives in the Timeline's "Selected for
- * Detailing" phase; assigning the first owner is what advances the Epic out of the Funnel.
+ * **Der Epic Owner: wer er ist, und — fuer wen es darf — wer er wird.**
+ *
+ * Sie steht im Reiter **Overview**, Panel „Zuordnung". Bis September 2026 stand
+ * sie zusaetzlich im Reifegrad-Reiter, aufgeklappt am Meilenstein Erstsichtung —
+ * zwei Stellen fuer dieselbe Benennung, und die Timeline war die aeltere. Das
+ * Tor-Kriterium „Epic Owner ist benannt" verlinkte immer schon hierher
+ * (`gate-readiness.ts`, `epic-gate-card.tsx`); seit die Timeline die Zuweisung
+ * abgegeben hat, stimmt sein Hilfetext.
+ *
+ * **Die erste Benennung stempelt `selectedForDetailingAt`** (set-once, im
+ * Service). Das bewegt den Reifegrad **nicht** — es bewegt die Karte im Kanban
+ * von „Funnel" nach „Hypothese", denn ab da wird an der Hypothese gearbeitet.
+ *
+ * Ein einmal gesetzter Owner laesst sich hier nicht mehr entfernen, nur
+ * ersetzen: der Knopf bleibt bei leerer Auswahl aus, und die Action verlangt
+ * eine UUID. `FeatureOwnerAssign` kann es — siehe deren Test.
  */
 export function EpicOwnerAssign({ epicId, ownerId, canAssignOwner, approvers, userLabels }: Props) {
   const [state, action, pending] = useActionState(assignEpicOwnerAction, {});

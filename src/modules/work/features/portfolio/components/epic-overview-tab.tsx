@@ -100,6 +100,9 @@ export interface EpicOverviewTabProps {
    * Der Owner-Block. Er stand bis zur Überarbeitung **nur** im Reifegrad-Reiter
    * — während das Tor-Kriterium „Epic Owner ist benannt" hierher verlinkte. Der
    * Deep-Link lief damit ins Leere.
+   *
+   * Seit September 2026 ist es umgekehrt vollständig: die Timeline hat die
+   * Zuweisung abgegeben, hier ist die einzige Stelle, an der man den Owner setzt.
    */
   ownerSlot?: ReactNode;
   /** Realisierter Mehrwert; die Seite reicht ihn durch, weil sie die KPIs hält. */
@@ -327,7 +330,9 @@ export function EpicOverviewTab({
            * er bringt einen Personen-Picker mit, und der kollabiert in einer
            * Spalte, die nach dem Feldnamen noch gut zwei Zentimeter übrig hat.
            */}
-          <div className="grid gap-1.5">
+          {/* `data-tour`: Ziel der Wiki-Station „Den Epic Owner benennen" — seit
+              die Timeline ihre Zuweisung abgegeben hat, ist das hier die einzige. */}
+          <div className="grid gap-1.5" data-tour="epic-owner-field">
             <p className="text-xs text-muted-foreground">Owner</p>
             {ownerSlot ?? <None>Nicht zugewiesen</None>}
           </div>
