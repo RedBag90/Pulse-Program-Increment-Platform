@@ -452,3 +452,88 @@ describe("buildProgressChart", () => {
     expect(chart.pace).toBeNull();
   });
 });
+
+/**
+ * **Der Satz, auf dem die Freischaltung im `core`-Mandanten steht.**
+ *
+ * Ein `kpi_tree`-**Ast** braucht keine Epics. Sein Wert ist die Summe der
+ * Kinder-Werte × `parentUnitPerChildUnit`, und der Eigenwert eines Kindes kommt
+ * aus dessen `baseline`/`target`/`current` — **modusunabhängig**
+ * (`goals-forest.ts`: `unitValueLeaf`). Ein `manual`-Blatt trägt ihn also mit.
+ *
+ * Nur das **Blatt** zieht seinen Ist aus verknüpften Epic-KPIs. Genau diese
+ * Trennung hat die Fläche bis September 2026 nicht gemacht: sie versteckte den
+ * Modus komplett, sobald das Portfolio-Modul fehlte.
+ *
+ * Der Test daneben (`tatTree`) prüft denselben Ast **mit** Epic-Beiträgen —
+ * hier steht bewusst `emptyLookups()`, also keine einzige Verknüpfung.
+ */
+describe("kpi_tree-Ast ohne jedes Epic", () => {
+  const ohneEpics = (): ForestObjective[] => [
+    obj({
+      id: "P",
+      title: "Durchlaufzeit halbieren",
+      progressMode: "kpi_tree",
+      metricUnit: "Std",
+      baseline: 0,
+      target: 100,
+    }),
+    obj({
+      id: "A",
+      parentObjectiveId: "P",
+      progressMode: "manual",
+      metricUnit: "Std",
+      baseline: 0,
+      target: 40,
+      current: 30,
+      parentUnitPerChildUnit: 1,
+    }),
+    obj({
+      id: "B",
+      parentObjectiveId: "P",
+      progressMode: "manual",
+      metricUnit: "Std",
+      baseline: 0,
+      target: 60,
+      current: 15,
+      parentUnitPerChildUnit: 1,
+    }),
+  ];
+
+  it("summiert die Werte manueller Blätter und misst wert-basiert", () => {
+    const { themes } = buildStrategyTree({ rows: ohneEpics(), lookups: emptyLookups() });
+    const P = themes[0]!;
+
+    // Die Blätter tragen ihren Eigenwert, obwohl sie `manual` sind.
+    expect(P.children[0]!.unitValue.realized).toBe(30);
+    expect(P.children[1]!.unitValue.realized).toBe(15);
+
+    // Der Ast summiert sie (Faktor 1) — 45 von 100 Std.
+    expect(P.unitValue.realized).toBe(45);
+    expect(P.progress).toBeCloseTo(0.45, 4);
+  });
+
+  /**
+   * **Der Unterschied, wegen dem es den Modus überhaupt braucht.** `rollup`
+   * mittelt die Prozentwerte der Kinder (75 % und 25 % ⇒ 50 %); `kpi_tree`
+   * rechnet über die Beträge (45 von 100 ⇒ 45 %). Die kleinere Zahl ist die
+   * richtige, weil die Kinder verschieden gross sind.
+   */
+  it("rechnet anders als rollup — sonst wäre er überflüssig", () => {
+    const alsAst = buildStrategyTree({ rows: ohneEpics(), lookups: emptyLookups() });
+    const rows = ohneEpics();
+    rows[0]!.progressMode = "rollup";
+    const alsRollup = buildStrategyTree({ rows, lookups: emptyLookups() });
+
+    expect(alsAst.themes[0]!.progress).toBeCloseTo(0.45, 4);
+    expect(alsRollup.themes[0]!.progress).toBeCloseTo(0.5, 4);
+  });
+
+  it("ohne Umrechnungsfaktor trägt ein Kind nichts bei — der Hinweis sagt das", () => {
+    const rows = ohneEpics();
+    rows[1]!.parentUnitPerChildUnit = null;
+    const { themes } = buildStrategyTree({ rows, lookups: emptyLookups() });
+    // Nur B (15) kommt an; A fehlt, obwohl es 30 trägt.
+    expect(themes[0]!.unitValue.realized).toBe(15);
+  });
+});

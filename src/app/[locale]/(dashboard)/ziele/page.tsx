@@ -14,7 +14,10 @@ import { ZieleShell } from "@/modules/core/goals/features/components/ziele-shell
  * Ziele-Modul — **eine** Surface für Übersicht **und** Pflege (die frühere
  * Trennung /ziele read-only vs. /strategy edit ist zusammengelegt). Wer
  * `target.manage` hält, sieht die Edit-Affordances; alle anderen dieselbe
- * Seite read-only. KPI-Coverage + Bindungen leben weiter unter `/budgeting`.
+ * Seite read-only.
+ *
+ * KPI-Bindungen (`kpi.bind`) laufen über den Ziel-Editor hier; eine eigene
+ * KPI-Coverage-Fläche unter `/budgeting` gibt es seit dem 2026-08-02 nicht mehr.
  */
 function parseTab(raw: string | undefined): ZieleSubTab {
   return raw === "money" ? raw : "strategie";
@@ -98,11 +101,12 @@ export default async function ZielePage({ searchParams }: PageProps) {
     // Freemium: welche Premium-Quell-Module der Tenant freigeschaltet hat —
     // steuert 🔒-Upsell-Hinweise statt leerer Premium-Picker im Personal-Tenant.
     modules: {
-      // Neue 4-Modul-Taxonomie: work (Epics/Portfolio), drumbeat (ARTs/Programm),
-      // budgeting (Geld) — steuern die 🔒-Upsell-Hinweise im Ziele-Shell.
+      // `work` (Epics/Portfolio) und `drumbeat` (ARTs/Programm) steuern die
+      // 🔒-Upsell-Hinweise im Ziele-Shell. **Budgeting steht hier nicht mehr:**
+      // das Flag hiess `controlling`, wurde gesetzt und nie gelesen — siehe
+      // `ZieleModuleAccess`.
       portfolio: principal.enabledModules.includes("work"),
       program: principal.enabledModules.includes("drumbeat"),
-      controlling: principal.enabledModules.includes("budgeting"),
     },
   };
 

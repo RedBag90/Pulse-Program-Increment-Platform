@@ -65,6 +65,36 @@ export function acceptsDirectValue(mode: ProgressMode): boolean {
   return mode === "manual" || mode === "confidence";
 }
 
+/**
+ * **Steht „KPI-Baum" in diesem Ziel zur Wahl?**
+ *
+ * Der Modus beantwortet zwei Fragen, und nur eine braucht das Portfolio-Modul:
+ *
+ *  - **Blatt** (ohne Unterziele) zieht seinen Ist aus verknuepften Epic-KPIs
+ *    ({@link derivesCurrentFromKpis}). Ohne `work` gibt es keine Epics, also
+ *    nichts zu verknuepfen — und das Ziel bliebe bei 0 %.
+ *  - **Ast** (mit Unterzielen) summiert die Werte seiner Kinder und misst
+ *    wert-basiert ({@link usesValueBasedCompletion}). Der Eigenwert eines
+ *    Kindes kommt aus dessen `baseline`/`target`/`current` und ist
+ *    **modusunabhaengig** — ein `manual`- oder `confidence`-Blatt traegt ihn
+ *    mit. **Dafuer braucht es kein einziges Epic.**
+ *
+ * Bis September 2026 fragte die Flaeche nur nach dem Modul und versteckte damit
+ * auch den Ast-Gebrauch: in einem Mandanten mit nur `core` liess sich der
+ * einzige Modus, der wert-basiert kaskadiert, nicht waehlen — obwohl er dort
+ * vollstaendig rechnet.
+ *
+ * Der dritte Grund ist der aelteste: ein bereits gesetzter Zustand darf nicht
+ * aus der Auswahl fallen.
+ */
+export function kpiTreeSelectable(args: {
+  mode: ProgressMode;
+  hasChildren: boolean;
+  hasPortfolioModule: boolean;
+}): boolean {
+  return args.mode === "kpi_tree" || args.hasChildren || args.hasPortfolioModule;
+}
+
 /** Ast misst magnituden-/wert-basiert (`realized/|target−baseline|`) statt Kinder-Ø — nur kpi_tree. */
 export function usesValueBasedCompletion(mode: ProgressMode, hasChildren: boolean): boolean {
   return mode === "kpi_tree" && hasChildren;

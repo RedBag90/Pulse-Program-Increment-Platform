@@ -32,14 +32,8 @@ interface ScopeOption {
  * Gruppen-„alle" deckt Aktiv/Geschlossen ab. Sentinel `none` = ohne Status.
  */
 export function GoalScopeFilterBar({
-  showValueStreams = true,
-  showArts = true,
   savedFilters = [],
 }: {
-  /** VS = Portfolio-Inhalt — im Free-Tenant ausgeblendet. */
-  showValueStreams?: boolean;
-  /** ARTs = Programm-Inhalt — dito. */
-  showArts?: boolean;
   /** Persönlich gespeicherte Filter dieser Fläche. */
   savedFilters?: SavedFilterDTO[];
 } = {}) {
@@ -71,8 +65,12 @@ export function GoalScopeFilterBar({
   const artSel = readSet("art");
   const statusSel = readSet("status");
 
-  const valueStreams = useEntityOptions<ScopeOption>("/api/v1/value-streams", showValueStreams);
-  const arts = useEntityOptions<ScopeOption>("/api/v1/arts", showArts);
+  // **Immer geladen.** Bis September 2026 hingen diese beiden Abfragen an
+  // `showValueStreams` / `showArts`, gefüttert aus den Modulen `work` und
+  // `drumbeat`. Wertströme und ARTs sind aber Core — die Filter fehlten damit
+  // ausgerechnet dort, wo es sonst nichts zu filtern gibt.
+  const valueStreams = useEntityOptions<ScopeOption>("/api/v1/value-streams", true);
+  const arts = useEntityOptions<ScopeOption>("/api/v1/arts", true);
 
   const anyActive = periodSel.size + vsSel.size + artSel.size + statusSel.size > 0;
 
@@ -120,24 +118,20 @@ export function GoalScopeFilterBar({
         onToggle={handlers("period", periodSel).onToggle}
         onClear={() => push({ period: null })}
       />
-      {showValueStreams && (
-        <MultiSelectFilter
-          label="Wertstrom"
-          sections={vsSections}
-          selected={vsSel}
-          disabled={valueStreams.loading}
-          {...handlers("vs", vsSel)}
-        />
-      )}
-      {showArts && (
-        <MultiSelectFilter
-          label="ART"
-          sections={artSections}
-          selected={artSel}
-          disabled={arts.loading}
-          {...handlers("art", artSel)}
-        />
-      )}
+      <MultiSelectFilter
+        label="Wertstrom"
+        sections={vsSections}
+        selected={vsSel}
+        disabled={valueStreams.loading}
+        {...handlers("vs", vsSel)}
+      />
+      <MultiSelectFilter
+        label="ART"
+        sections={artSections}
+        selected={artSel}
+        disabled={arts.loading}
+        {...handlers("art", artSel)}
+      />
       <MultiSelectFilter
         label="Status"
         sections={statusSections}

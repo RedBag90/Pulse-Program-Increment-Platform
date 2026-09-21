@@ -90,9 +90,16 @@ Core  (Kernel + Goals + Org-Struktur VS→ART→Team)      ← Fundament, immer 
 | Bereich                 | Inhalt                                                                                                                                           |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Participatory Budgeting | `features/budgeting`, Domain `budgeting`, `services/budgeting`                                                                                   |
-| Budget-Pläne            | `features/controlling` (budget-plan, budgeting, kpi-coverage), Domain `budget-plan-snapshot`, `services/budget-plan-revision`                    |
+| Budget-Pläne            | Domain `budget-plan-snapshot`, `services/budget-plan-revision`                                                                                   |
 | ART-Budget              | Domain `art-budget`, `services/art-budget`, `capacity/art-budget-breakdown`                                                                      |
 | Schreibpfad             | schreibt **nicht** in Work (ADR-0019 — das Epic-Fenster folgt dem Reifegrad-Plan); besitzt `BudgetAllocation`, `ArtBudget`, `BudgetPlanRevision` |
+
+> **Budgeting besitzt keine KPI.** `features/controlling` samt `kpi-coverage`
+> wurde am 2026-08-02 entfernt (`8ea9b318`); die Bindung KPI → Key Result läuft
+> seither über den Ziel-Editor (`kpi.bind`, Modul **core**), die Pflege der KPI
+> selbst über den Epic-Reiter (`epic.update`, Modul **work**). Die
+> „Budget-KPIs" unter `/budgeting/value-streams/[id]` sind etwas anderes —
+> ART-Deckung aus Job-Size und €-Satz, keine Ziel-KPIs.
 
 ## 5. Feature-Facetten-Modell
 

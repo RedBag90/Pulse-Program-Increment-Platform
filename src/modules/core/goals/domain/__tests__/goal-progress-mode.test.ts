@@ -10,6 +10,7 @@ import {
   aggregatesFromChildren,
   usesValueBasedCompletion,
   acceptsDirectValue,
+  kpiTreeSelectable,
 } from "@/modules/core/goals/domain/goal-progress-mode";
 
 describe("progress mode basics", () => {
@@ -257,5 +258,65 @@ describe("acceptsDirectValue", () => {
     expect(acceptsDirectValue("confidence")).toBe(true);
     expect(acceptsDirectValue("rollup")).toBe(false);
     expect(acceptsDirectValue("kpi_tree")).toBe(false);
+  });
+});
+
+/**
+ * **Wann „KPI-Baum" zur Wahl steht.**
+ *
+ * Bis September 2026 fragte die Flaeche nur nach dem Portfolio-Modul und
+ * versteckte damit auch den **Ast**-Gebrauch — den einzigen Modus, der
+ * wert-basiert kaskadiert statt Prozente zu mitteln, und der dafuer kein
+ * einziges Epic braucht. In einem Mandanten mit nur `core` war er nicht
+ * waehlbar, obwohl er dort vollstaendig rechnet.
+ *
+ * Getestet wird das Praedikat, nicht der Drawer: das ist die Stelle, an der die
+ * Regel steht, und sie ist rein.
+ */
+describe("kpiTreeSelectable", () => {
+  const ohneModul = { mode: "manual" as const, hasPortfolioModule: false };
+
+  it("ohne Modul und ohne Unterziele: nicht waehlbar", () => {
+    // Waere ein Blatt — und ein Blatt zieht seinen Ist aus Epic-KPIs, die es
+    // hier nicht gibt. Die Auswahl fuehrte zu einem Ziel, das auf 0 % steht.
+    expect(kpiTreeSelectable({ ...ohneModul, hasChildren: false })).toBe(false);
+  });
+
+  it("ohne Modul, aber mit Unterzielen: waehlbar", () => {
+    // Der Ast summiert die Werte seiner Kinder. Ein `manual`-Blatt traegt
+    // seinen Eigenwert bei — ganz ohne Epic.
+    expect(kpiTreeSelectable({ ...ohneModul, hasChildren: true })).toBe(true);
+  });
+
+  it("mit Modul: immer waehlbar", () => {
+    for (const hasChildren of [false, true]) {
+      expect(kpiTreeSelectable({ mode: "manual", hasChildren, hasPortfolioModule: true })).toBe(
+        true,
+      );
+    }
+  });
+
+  it("schon gesetzt: waehlbar, auch ohne Modul und ohne Kinder", () => {
+    // Sonst fiele ein bestehender Zustand aus der Auswahl und waere beim
+    // naechsten Speichern still weg.
+    expect(
+      kpiTreeSelectable({ mode: "kpi_tree", hasChildren: false, hasPortfolioModule: false }),
+    ).toBe(true);
+  });
+
+  it("die drei Gruende sind unabhaengig — jeder genuegt allein", () => {
+    const faelle: [boolean, boolean, boolean][] = [
+      // [schon gesetzt, hat Kinder, Modul an]
+      [false, false, false],
+    ];
+    for (const [gesetzt, kinder, modul] of faelle) {
+      expect(
+        kpiTreeSelectable({
+          mode: gesetzt ? "kpi_tree" : "manual",
+          hasChildren: kinder,
+          hasPortfolioModule: modul,
+        }),
+      ).toBe(gesetzt || kinder || modul);
+    }
   });
 });

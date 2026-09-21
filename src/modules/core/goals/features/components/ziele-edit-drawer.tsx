@@ -58,7 +58,10 @@ import {
   METRIC_TYPES,
   METRIC_TYPE_LABELS,
 } from "@/modules/core/goals/domain/goal-metric";
-import type { ProgressMode } from "@/modules/core/goals/domain/goal-progress-mode";
+import {
+  kpiTreeSelectable,
+  type ProgressMode,
+} from "@/modules/core/goals/domain/goal-progress-mode";
 import { useCreateResult } from "@/features/create/use-create-result";
 import { useActionResult } from "@/lib/hooks/use-action-result";
 
@@ -423,6 +426,15 @@ function GoalPane({
     </div>
   );
 
+  // Die Begruendung steht beim Praedikat (`goal-progress-mode.ts`) — kurz: nur
+  // der **Blatt**-Gebrauch braucht Epics, der **Ast** rechnet auch ohne.
+  const hatUnterziele = (node?.children.length ?? 0) > 0;
+  const kpiBaumWaehlbar = kpiTreeSelectable({
+    mode,
+    hasChildren: hatUnterziele,
+    hasPortfolioModule: model.modules.portfolio,
+  });
+
   const formNode = (
     <FormShell
       title={isNew ? `Neues ${kindLabel}` : (node?.title ?? "Ziel")}
@@ -484,7 +496,7 @@ function GoalPane({
 
       <Field
         label="Fortschrittsquelle"
-        hint="Woraus sich der Fortschritt berechnet: Manuell (du pflegst den Wert selbst), Aus Unterzielen (Ø der Kinder), KPI-Baum (Blatt: Ist aus verknüpften KPIs, Δ × Faktor; Ast: kaskadierte KPI-Werte über die Unterziele) oder Confidence Vote (Faust-zu-Fünf statt Metrik)."
+        hint="Woraus sich der Fortschritt berechnet: Manuell (du pflegst den Wert selbst), Aus Unterzielen (Ø der Kinder), KPI-Baum (Blatt: Ist aus verknüpften Epic-KPIs; Ast: Werte der Unterziele kaskadiert, wert-basiert gemessen) oder Confidence Vote (Faust-zu-Fünf statt Metrik)."
       >
         <select
           name="progressMode"
@@ -498,17 +510,32 @@ function GoalPane({
           {/* Nicht modul-gegatet: eine Zuversicht braucht kein Epic und keine
               KPI — sie ist Core und steht jedem Mandanten offen. */}
           <option value="confidence">Confidence Vote</option>
-          {/* Epic-KPIs sind Portfolio-Inhalt — Option nur mit Modul (oder wenn bereits gewählt). */}
-          {(model.modules.portfolio || mode === "kpi_tree") && (
-            <option value="kpi_tree">KPI-Baum</option>
-          )}
+          {kpiBaumWaehlbar && <option value="kpi_tree">KPI-Baum</option>}
         </select>
       </Field>
-      {mode === "kpi_tree" && (
+      {/* **Ein Satz je Rolle, nicht einer für beide.** Was hier gilt, hängt davon
+          ab, ob das Ziel Unterziele hat — und ohne Portfolio-Modul bleibt der
+          Blatt-Fall ohnehin leer. Stand das alles in einem Satz, las man beim
+          eigenen Fall die Hälfte, die nicht zutrifft. */}
+      {mode === "kpi_tree" && hatUnterziele && (
         <p className="text-xs text-muted-foreground">
-          KPI-Baum: als Blatt zieht das Ziel seinen Ist aus verknüpften KPIs (Δ × Faktor); mit
-          Unterzielen kaskadiert es deren Werte hoch und misst die Erfüllung wert-basiert
-          (erreichter Wert ÷ Zielwert).
+          KPI-Baum als <strong>Ast</strong>: die Werte der Unterziele kaskadieren hoch, und die
+          Erfüllung misst sich wert-basiert (erreichter Wert ÷ Zielwert) statt als Durchschnitt der
+          Unterziele. Jedes Unterziel braucht dafür seinen{" "}
+          <strong>Umrechnungsfaktor in diese Einheit</strong> — ohne ihn trägt es nichts bei.
+        </p>
+      )}
+      {mode === "kpi_tree" && !hatUnterziele && model.modules.portfolio && (
+        <p className="text-xs text-muted-foreground">
+          KPI-Baum als <strong>Blatt</strong>: der Ist kommt aus den verknüpften Epic-KPIs (Δ ×
+          Faktor). Ohne Verknüpfung bleibt das Ziel bei 0 %.
+        </p>
+      )}
+      {mode === "kpi_tree" && !hatUnterziele && !model.modules.portfolio && (
+        <p className="text-xs text-muted-foreground">
+          KPI-Baum als <strong>Blatt</strong> zieht seinen Ist aus verknüpften Epic-KPIs — dafür
+          fehlt hier das Portfolio-Modul. <strong>Mit Unterzielen</strong> rechnet der Modus auch
+          ohne: er kaskadiert deren Werte hoch und misst wert-basiert.
         </p>
       )}
       {mode === "rollup" && (
@@ -632,8 +659,6 @@ function GoalPane({
                   valueStreams={node.valueStreams}
                   arts={node.arts}
                   canEdit={canEdit}
-                  vsEnabled={model.modules.portfolio}
-                  artEnabled={model.modules.program}
                 />
               </div>
             </div>
@@ -1109,22 +1134,39 @@ function RelatedWorkUnified({
  * und/oder ARTs — rein organisatorisch, kein Auth-Eingriff. Chips + Add-Picker
  * (EntitySelect kind="valueStream"/"art" laufen standalone, keine Kaskade).
  */
-function GoalScopeLinks({
+/**
+ * **Verantwortung: Wertströme und ARTs am Ziel.**
+ *
+ * Gehängt allein an `canEdit` — also an `target.manage`, derselben Capability,
+ * die auch `linkGoalValueStreamAction` deklariert. **Kein Modul-Gate**, und das
+ * ist kein Versehen: Wertströme und ARTs sind Core (`MODULES.core` beansprucht
+ * `value_stream.` und `art.`, Segment `structure`), und die Verknüpfung ist
+ * laut Modell „additiv, ohne Auth-Eingriff … rein organisatorisch".
+ *
+ * Bis September 2026 standen hier `vsEnabled` / `artEnabled`, gefüttert aus
+ * `modules.portfolio` (= `work`) und `modules.program` (= `drumbeat`). In einem
+ * Mandanten mit nur `core` verschwanden damit **beide** Picker — ersatzlos, denn
+ * der im Prop-Kommentar versprochene 🔒-Hinweis war nie gebaut. Übrig blieb eine
+ * Überschrift über „Keine Zuordnung.", und ein Portfolio Manager, der beide
+ * Rechte hält, kam nicht weiter.
+ *
+ * Bestehende Verknüpfungen wurden dabei immer **angezeigt** — nur Hinzufügen
+ * ging nicht. Diese Asymmetrie war der Hinweis: ein echtes Entitlement hätte
+ * beides verborgen.
+ *
+ * Exportiert fuer den Test — bis September 2026 gab es keinen, und genau
+ * deshalb blieb die falsche Sperre ein Vierteljahr unbemerkt.
+ */
+export function GoalScopeLinks({
   goalId,
   valueStreams,
   arts,
   canEdit,
-  vsEnabled,
-  artEnabled,
 }: {
   goalId: string;
   valueStreams: ScopeRef[];
   arts: ScopeRef[];
   canEdit: boolean;
-  /** Value Streams = Portfolio-Inhalt; false ⇒ 🔒 statt Picker. */
-  vsEnabled: boolean;
-  /** ARTs = Programm-Inhalt; false ⇒ 🔒 statt Picker. */
-  artEnabled: boolean;
 }) {
   const [vsId, setVsId] = useState("");
   const [artId, setArtId] = useState("");
@@ -1185,7 +1227,7 @@ function GoalScopeLinks({
           removePending={unlinkVsPending}
           items={scopeItems(valueStreams)}
         >
-          {canEdit && vsEnabled && (
+          {canEdit && (
             <div className="flex items-end gap-1.5">
               <div className="flex-1">
                 <EntitySelect
@@ -1220,7 +1262,7 @@ function GoalScopeLinks({
           removePending={unlinkArtPending}
           items={scopeItems(arts)}
         >
-          {canEdit && artEnabled && (
+          {canEdit && (
             <div className="flex items-end gap-1.5">
               <div className="flex-1">
                 <EntitySelect

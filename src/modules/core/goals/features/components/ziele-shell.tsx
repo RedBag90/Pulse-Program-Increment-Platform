@@ -75,11 +75,8 @@ export function ZieleShell({
       {effectiveTab === "strategie" && (
         <PageSection>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <GoalScopeFilterBar
-              showValueStreams={modules.portfolio}
-              showArts={modules.program}
-              savedFilters={savedFilters}
-            />
+            {/* Kein Modul-Gate: Wertströme und ARTs sind Core. */}
+            <GoalScopeFilterBar savedFilters={savedFilters} />
             <StrategyLayoutToggle active={layout} />
           </div>
           {layout === "tabelle" && (

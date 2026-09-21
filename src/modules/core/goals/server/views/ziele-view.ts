@@ -169,13 +169,37 @@ export interface ZielePermissions {
  * `principal.enabledModules` abgeleitet.
  */
 export interface ZieleModuleAccess {
-  /** Epics/KPIs/Value Streams (€-Rollup, Epic-Verknüpfung, VS-Verantwortung). */
+  /**
+   * `work` — Epics und ihre KPIs: €-Rollup, Epic-Verknüpfung, der Blatt-Fall
+   * des KPI-Baums.
+   *
+   * **Nicht** Wertströme. Die standen hier bis zum 21.09.2026 und waren der
+   * Grund, warum ein Portfolio Manager in einem Mandanten mit nur `core` keinem
+   * Ziel einen Wertstrom zuordnen konnte.
+   */
   portfolio: boolean;
-  /** ARTs/Teams/Features/PIs (Team-Picker, ART-Verantwortung, Related Work). */
+  /**
+   * `drumbeat` — Teams, Features, PIs: Team-Picker und die Related-Work-Suche.
+   *
+   * **Nicht** ARTs. Siehe oben; derselbe Irrtum, dieselbe Folge.
+   */
   program: boolean;
-  /** KPI-Coverage-Pflegefläche (Controlling-Deeplink). */
-  controlling: boolean;
+  // **Hier stand `controlling: boolean`** — „KPI-Coverage-Pflegefläche
+  // (Controlling-Deeplink)". Die Fläche `/controlling/kpi-coverage` wurde am
+  // 2026-08-02 entfernt (8ea9b318); das Flag wurde seither gesetzt und von
+  // **niemandem** gelesen. Ein toter Schalter, der „controlling" heisst, ist
+  // die Spur, die zu der Annahme führte, der KPI-Baum hänge am Budgeting-Modul
+  // — er hängt an `work`.
 }
+
+/**
+ * **Wertströme und ARTs sind Core, nicht Premium.** `MODULES.core` beansprucht
+ * `value_stream.` und `art.` und trägt das Segment `structure`;
+ * `value_stream.create` und `art.create` liegen beim Portfolio Manager, und die
+ * Verknüpfung ans Ziel läuft über `target.manage` — ebenfalls Core. Wer hier
+ * eine Modul-Abfrage einbaut, sperrt einen Mandanten aus seinem eigenen
+ * Inhalt aus.
+ */
 
 export interface StrategyTree {
   /** Top-Level-Goal-Knoten (die „Themes"); je Knoten `children` beliebig tief. */
