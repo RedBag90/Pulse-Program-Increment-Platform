@@ -73,6 +73,13 @@ export interface EpicOverviewTabProps {
     epicType: string | null;
   };
   canEdit: boolean;
+  /**
+   * Der Stand des Epics auf der Reifegrad-Achse (`currentGateStep`). Die Seite
+   * reicht denselben Wert durch, der auch Kopf-Abzeichen, Leiter und
+   * Reiterschiene speist — nachgerechnet würde er hier ungenau, weil
+   * `implementationCompletedAt` in diesen Props fehlt.
+   */
+  currentGate?: string;
   /** `epic.portfolio_override` — zusätzliche Hürde für den eingefrorenen Horizont. */
   canOverrideHorizon: boolean;
   /** Guardrail 3: Portfolio- oder ART-Epic. `null` = Practice aus. */
@@ -138,18 +145,47 @@ export interface EpicOverviewTabProps {
 function Panel({
   label,
   action,
+  atGate = false,
   children,
 }: {
   label: string;
   action?: ReactNode;
+  /** Diese Kachel gehört zum Reifegrad, auf dem das Epic gerade steht. */
+  atGate?: boolean;
   children: ReactNode;
 }) {
   return (
-    <SectionCard title={label} {...(action ? { action } : {})} contentClassName="grid gap-3">
+    <SectionCard
+      title={label}
+      {...(action ? { action } : {})}
+      atGate={atGate}
+      contentClassName="grid gap-3"
+    >
       {children}
     </SectionCard>
   );
 }
+
+/**
+ * **Der Reifegrad, zu dem die Kacheln dieser Fläche gehören.**
+ *
+ * Auf L0 ist das Epic noch nicht eingeordnet: Typ und Horizont fehlen, Titel und
+ * Wertstrom sind roh, Owner und Solution unbesetzt, Ziele unverknüpft. Genau das
+ * tut man hier — und genau deshalb leuchten **Einordnung**, **Vorhaben
+ * bearbeiten**, **Zuordnung** und **Strategische Beiträge**, sobald ein Epic
+ * dort steht. Ab L1 führt die Reiterschiene weiter; die Kacheln sind dann still.
+ *
+ * **Das ist die zweite Reifegrad-Zuordnung im Haus** — die erste hängt als
+ * `gate` an `EPIC_TABS` (`epic-detail-shell.tsx`) und beschriftet die Reiter.
+ * Beide beschreiben denselben Weg auf verschiedenen Ebenen: die Schiene sagt
+ * *welcher Reiter*, die Kacheln *welche Stelle darin*. Sie dürfen sich
+ * ergänzen, aber nicht widersprechen — wer eine ändert, sieht bei der anderen
+ * nach.
+ *
+ * Exportiert, weil „Strategische Beiträge" als Slot von der Seite kommt: die
+ * Festlegung steht hier, nicht zweimal.
+ */
+export const OVERVIEW_PANELS_GATE = "L0";
 
 /** Eine Zeile der Akte: Feldname links, Wert rechts. */
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -188,11 +224,13 @@ export function EpicOverviewTab({
   budgetStanding,
   allocationState = null,
   fundable = { may: true, firstStep: "" },
+  currentGate,
   ownerSlot,
   realizedSlot,
   goalsSlot,
 }: EpicOverviewTabProps) {
   const completedChildren = epic.children.filter((c) => c.status === "completed").length;
+  const amZug = currentGate === OVERVIEW_PANELS_GATE;
 
   const summary = buildInitiativeSummary({
     stageGate: epic.stageGate as StageGate,
@@ -277,7 +315,12 @@ export function EpicOverviewTab({
 
         {realizedSlot}
 
-        <Panel label={canEdit ? "Vorhaben bearbeiten" : "Beschreibung"}>
+        {/*
+          Ohne Bearbeitungsrecht heisst die Kachel „Beschreibung" und ist reine
+          Anzeige — eine Aufforderung an eine Fläche, auf der man nichts tun
+          kann, wäre eine Lüge.
+        */}
+        <Panel label={canEdit ? "Vorhaben bearbeiten" : "Beschreibung"} atGate={amZug && canEdit}>
           {canEdit ? (
             <EpicEditForm
               id={epic.id}
@@ -304,7 +347,7 @@ export function EpicOverviewTab({
          * gehört. Die Klasse ist das Ergebnis, Typ und Horizont sind die
          * Eingaben; sie stehen jetzt untereinander in einer Karte.
          */}
-        <Panel label="Einordnung">
+        <Panel label="Einordnung" atGate={amZug}>
           {classification && (
             <EpicClassBadge
               classification={classification.classification}
@@ -324,7 +367,7 @@ export function EpicOverviewTab({
           />
         </Panel>
 
-        <Panel label="Zuordnung">
+        <Panel label="Zuordnung" atGate={amZug}>
           {/**
            * Der Owner steht **über** der Akte, nicht in einer ihrer Wertzellen:
            * er bringt einen Personen-Picker mit, und der kollabiert in einer

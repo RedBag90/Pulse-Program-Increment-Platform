@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Card, CardAction, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
+import { GateRing } from "@/components/ui/gate-ring";
 
 /**
  * **Ein Abschnitt ist eine Karte** — der eine Behälter, an dem das Auge eine
@@ -40,6 +41,7 @@ export function SectionCard({
   action,
   step,
   work = false,
+  atGate = false,
   bleed = false,
   className,
   contentClassName,
@@ -67,6 +69,22 @@ export function SectionCard({
    */
   work?: boolean;
   /**
+   * **Diese Fläche gehört zum Reifegrad, auf dem der Vorgang gerade steht.**
+   * Ring vor dem Titel, Akzentschiene links — dieselbe Sprache wie die
+   * Reiterschiene der Detailseite.
+   *
+   * Bewusst **nicht** `work`: das sagt „hier tue ich etwas" und verlangt eine
+   * Aufgabe (der Wächter in `section-structure.test.tsx` misst genau das).
+   * `atGate` sagt „jetzt" — dieselbe Karte kann morgen still sein, ohne ihre
+   * Natur zu ändern.
+   *
+   * **Beide tragen dieselbe Schiene, und das geht nur so lange gut, wie sie
+   * sich nicht auf einer Fläche begegnen.** Heute tun sie es nicht: die
+   * Epic-Overview, die `atGate` benutzt, führt keine einzige Arbeitsfläche.
+   * Wer das ändert, braucht hier zwei unterscheidbare Marken.
+   */
+  atGate?: boolean;
+  /**
    * Inhalt bis an die Kartenkante — für breite Zahlentabellen, die sonst 32 px
    * Breite an das Kartenpolster verlieren.
    */
@@ -79,10 +97,18 @@ export function SectionCard({
   return (
     <Card
       size="sm"
-      className={`${isWork ? "border-l-2 border-l-primary" : ""} ${className ?? ""}`.trim()}
+      className={`${isWork || atGate ? "border-l-2 border-l-primary" : ""} ${
+        className ?? ""
+      }`.trim()}
     >
       <CardHeader>
+        {/*
+          Der Ring steht **im Textfluss** der Überschrift, nicht links aus der
+          Karte heraus: `Card` trägt `overflow-hidden`, dort würde er
+          beschnitten.
+        */}
         <SectionLabel>
+          {atGate && <GateRing className="mr-1.5 inline-block" />}
           {step != null && <span className="text-primary">Schritt {step} · </span>}
           {title}
         </SectionLabel>

@@ -30,7 +30,10 @@ import { FeatureSlideOver } from "@/modules/drumbeat/features/cockpit/components
 import { InitiativeActivitySidebar } from "@/components/detail/initiative-activity-sidebar";
 import { EpicHistoryTimeline } from "@/modules/work/features/portfolio/components/epic-history-timeline";
 import { EPIC_TABS } from "@/modules/work/features/portfolio/components/epic-detail-shell";
-import { EpicOverviewTab } from "@/modules/work/features/portfolio/components/epic-overview-tab";
+import {
+  EpicOverviewTab,
+  OVERVIEW_PANELS_GATE,
+} from "@/modules/work/features/portfolio/components/epic-overview-tab";
 import { getTenantPractices } from "@/server/services/target-model";
 import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
 import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
@@ -263,10 +266,10 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     : [...EPIC_TABS.slice(0, -2), { key: "issues", label: "Issues" }, ...EPIC_TABS.slice(-2)];
   const activeTab = resolveTab(tabs, tab);
 
-  // Der Stand des Epics auf der Reifegrad-Achse. Er speist **drei** Flaechen:
-  // das Abzeichen im Kopf, die Leiter im Unterkopf und die Ringe an den
-  // Reitern. Dreimal derselbe Ausdruck waere dreimal dieselbe Gelegenheit,
-  // auseinanderzulaufen.
+  // Der Stand des Epics auf der Reifegrad-Achse. Er speist **vier** Flaechen:
+  // das Abzeichen im Kopf, die Leiter im Unterkopf, die Ringe an den Reitern
+  // und die Kacheln im Overview. Viermal derselbe Ausdruck waere viermal
+  // dieselbe Gelegenheit, auseinanderzulaufen.
   const gateNow = currentGateStep({
     stageGate: epic.stageGate as never,
     approvedAt: epic.approvedAt,
@@ -383,6 +386,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           <EpicOverviewTab
             epic={epic}
             canEdit={model.canEdit}
+            currentGate={gateNow}
             canOverrideHorizon={model.canOverrideHorizon}
             totals={model.heroTotals}
             solutions={availableSolutions}
@@ -404,7 +408,12 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             realizedSlot={
               <EpicRealizedTile kpis={model.kpis} frozenAt={epic.implementationCompletedAt} />
             }
-            goalsSlot={<EpicGoalsBadge goalLinks={goalLinks.links} />}
+            goalsSlot={
+              <EpicGoalsBadge
+                goalLinks={goalLinks.links}
+                atGate={gateNow === OVERVIEW_PANELS_GATE}
+              />
+            }
           />
         )}
 

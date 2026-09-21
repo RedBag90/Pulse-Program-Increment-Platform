@@ -12,10 +12,17 @@ export { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
  * Ableitung: sie sagt, woran auf dieser Stufe gearbeitet wird, und das ist eine
  * Entscheidung ueber den Prozess.
  *
- * Beschriftet sind heute zwei der acht Stufen (`GATE_STEPS`). Auf L0, L3.1,
- * L3.2, L4.1, L4.2 und L5 leuchtet darum kein Reiter — die Etiketten stehen
- * trotzdem da. Wer das ergaenzen will, setzt ein `gate` mehr; die Schiene
- * braucht dafuer keine Aenderung.
+ * **Ein Reiter traegt die Stufe, auf der man in ihm arbeitet — nicht das Tor
+ * danach.** Die Hypothese entsteht auf L0 (`LIFECYCLE_STEPS`: „Hypothese
+ * ausarbeiten", `gate: "L0"`); L1 ist der Meilenstein, der sie freigibt. Sie
+ * stand hier zuerst auf L1 und zeigte damit auf die Abnahme statt auf die
+ * Arbeit.
+ *
+ * Beschriftet sind zwei der acht Stufen (`GATE_STEPS`). Auf L1, L3.1, L3.2,
+ * L4.1, L4.2 und L5 leuchtet kein Reiter — auf L1 nicht, weil dort nicht
+ * gearbeitet, sondern abgenommen wird. Die Etiketten stehen trotzdem da. Wer das
+ * ergaenzen will, setzt ein `gate` mehr; die Schiene braucht dafuer keine
+ * Aenderung.
  *
  * Reiter **ohne** `gate` gehoeren zu keinem Schritt: Overview und
  * Reifegrad-Timeline gelten durchgehend, BC calculation und History sind
@@ -24,7 +31,7 @@ export { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 export const EPIC_TABS: readonly DetailTab[] = [
   { key: "overview", label: "Overview" },
   { key: "timeline", label: "Reifegrad-Timeline" },
-  { key: "benefit-hypothesis", label: "Hypothese", gate: "L1" },
+  { key: "benefit-hypothesis", label: "Hypothese", gate: "L0" },
   { key: "business-case", label: "Business Case", gate: "L2" },
   { key: "breakdown", label: "Deliverables", gate: "L2" },
   { key: "dependencies", label: "Dependencies", gate: "L2" },

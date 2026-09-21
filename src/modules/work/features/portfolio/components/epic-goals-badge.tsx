@@ -1,33 +1,46 @@
 import Link from "next/link";
 import type { EpicGoalLinkRow } from "@/modules/core/goals/server/views/epic-goal-contributions";
+import { SectionCard } from "@/components/ui/section-card";
 
 /**
  * Cross-Modul-Goal-Badge (read-only, gepflegt im KPI-Tab): die per `GoalEpicLink`
  * (Einheiten-Kaskade) verknüpften Ziele dieses Epics — je Ziel die Umrechnung
  * „1 KPI-Einheit → x Ziel-Einheit" der gewählten KPI.
+ *
+ * **Sie war bis September 2026 eine handgerollte Karte** — eigenes
+ * `rounded-lg bg-card p-4 shadow-card`, eigene `<h3>` — neben lauter
+ * `SectionCard`s auf derselben Fläche. Genau davor warnt deren Docblock. Jetzt
+ * ist sie eine von ihnen und trägt Kopf, Aktion und Hervorhebung ohne Sonderweg.
  */
 interface Props {
   /** Einheiten-Kaskaden-Verknüpfungen (GoalEpicLink); leer/undefined = keine. */
   goalLinks?: EpicGoalLinkRow[];
+  /**
+   * Das Verknüpfen von Zielen gehört zum Reifegrad, auf dem das Epic steht.
+   *
+   * **Ist nichts verknüpft, rendert die Kachel gar nichts** — auf einem frischen
+   * Epic ist sie also nicht bloss unmarkiert, sondern abwesend. Markiert wird,
+   * was da ist.
+   */
+  atGate?: boolean;
 }
 
-export function EpicGoalsBadge({ goalLinks = [] }: Props) {
+export function EpicGoalsBadge({ goalLinks = [], atGate = false }: Props) {
   if (goalLinks.length === 0) return null;
 
   return (
-    <section className="space-y-3 rounded-lg bg-card p-4 shadow-card">
-      <header className="flex items-baseline justify-between">
-        <h3 className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Strategische Beitraege
-        </h3>
+    <SectionCard
+      title="Strategische Beiträge"
+      atGate={atGate}
+      action={
         <Link
           href={"/ziele" as never}
           className="text-meta text-muted-foreground hover:text-foreground hover:underline"
         >
           → Ziele-Modul
         </Link>
-      </header>
-
+      }
+    >
       <ul className="space-y-1.5">
         {goalLinks.map((l) => (
           <li
@@ -54,6 +67,6 @@ export function EpicGoalsBadge({ goalLinks = [] }: Props) {
           </li>
         ))}
       </ul>
-    </section>
+    </SectionCard>
   );
 }

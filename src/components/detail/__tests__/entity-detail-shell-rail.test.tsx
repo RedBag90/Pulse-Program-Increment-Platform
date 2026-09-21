@@ -29,7 +29,7 @@ const { EntityDetailShell } = await import("@/components/detail/entity-detail-sh
 const EPIC_TABS = [
   { key: "overview", label: "Overview" },
   { key: "timeline", label: "Reifegrad-Timeline" },
-  { key: "benefit-hypothesis", label: "Hypothese", gate: "L1" },
+  { key: "benefit-hypothesis", label: "Hypothese", gate: "L0" },
   { key: "business-case", label: "Business Case", gate: "L2" },
   { key: "breakdown", label: "Deliverables", gate: "L2" },
   { key: "dependencies", label: "Dependencies", gate: "L2" },
@@ -61,7 +61,8 @@ function mitRing(container: HTMLElement): string[] {
 
 describe("Reifegrad in der Reiterschiene", () => {
   it("ringt genau die Reiter des aktuellen Reifegrads", () => {
-    expect(mitRing(setup({ currentGate: "L1" }))).toEqual(["Hypothese"]);
+    // Die Hypothese entsteht auf L0; L1 ist das Tor, das sie freigibt.
+    expect(mitRing(setup({ currentGate: "L0" }))).toEqual(["Hypothese"]);
 
     expect(mitRing(setup({ currentGate: "L2" }))).toEqual([
       "Business Case",
@@ -72,7 +73,7 @@ describe("Reifegrad in der Reiterschiene", () => {
   });
 
   it("zeigt das Etikett auch an Reitern, die gerade nicht dran sind", () => {
-    setup({ currentGate: "L1" });
+    setup({ currentGate: "L0" });
 
     // „Betiteln" heisst: immer sichtbar. Sonst wüsste man nur, was jetzt dran
     // ist — nicht, worauf man zusteuert.
@@ -88,7 +89,9 @@ describe("Reifegrad in der Reiterschiene", () => {
     // eine Folge der Zuordnung, kein Fehler. Ohne diesen Test wird sie später
     // als Defekt gemeldet.
     expect(mitRing(setup({ currentGate: "L3.1" }))).toEqual([]);
-    expect(mitRing(setup({ currentGate: "L0" }))).toEqual([]);
+    // **L1 gehört seit der Korrektur dazu.** Dort wird nicht gearbeitet,
+    // sondern abgenommen: die Hypothese entsteht eine Stufe früher.
+    expect(mitRing(setup({ currentGate: "L1" }))).toEqual([]);
   });
 
   it("lässt eine Fläche ohne Reifegrad unverändert", () => {

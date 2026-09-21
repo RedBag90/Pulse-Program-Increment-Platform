@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Breadcrumbs, type Crumb } from "@/components/nav/breadcrumbs";
+import { GateRing } from "@/components/ui/gate-ring";
 
 export interface DetailTab {
   key: string;
@@ -60,15 +61,14 @@ const BADGE = "ml-1.5 float-right text-meta font-semibold text-primary";
 const GATE = "ml-1.5 float-right text-meta tabular-nums";
 
 /**
- * Der Ring vor dem Namen — dieselbe Form wie der aktuelle Punkt der
- * Reifegrad-Leiter über der Schiene (`epic-gate-ladder.tsx`: `border-primary
- * bg-card`), nur kleiner und ohne den Strich, der dort die Stufen verbindet.
+ * Die Zugabe der Schiene zum gemeinsamen Ring (`components/ui/gate-ring.tsx`).
  *
  * **Nur ab `lg`.** Darunter ist die Schiene eine waagerechte Scroll-Reihe; ein
- * Ring vor jedem zweiten Namen wäre dort kein Hinweis, sondern Unruhe.
+ * Ring vor jedem zweiten Namen wäre dort kein Hinweis, sondern Unruhe. Das ist
+ * eine Entscheidung über **diese** Leiste — in einer Karte gilt sie nicht,
+ * deshalb steht sie hier und nicht im Bauteil.
  */
-const GATE_RING =
-  "mr-1.5 hidden size-2.5 shrink-0 rounded-full border-2 border-primary bg-card align-middle lg:inline-block";
+const RAIL_RING = "mr-1.5 hidden lg:inline-block";
 
 interface Props {
   /** Where the "back" link points, e.g. `/capacity`. Omit on a top-level hub. */
@@ -229,7 +229,7 @@ export function EntityDetailShell({
               // sich im Verhalten, nicht im Inhalt.
               const inhalt = (
                 <>
-                  {dran && <span aria-hidden className={GATE_RING} />}
+                  {dran && <GateRing className={RAIL_RING} />}
                   {tab.label}
                   {tab.badge != null && <span className={BADGE}>{tab.badge}</span>}
                   {tab.gate != null && (
