@@ -78,7 +78,7 @@ zeigt die aktive Runde als Widget (Status, Fortschritt, Reserve).
 | **decided** | Entscheidungsinstanz entscheidet die **Streuzone** (funded/rejected/deferred)                   | alle Streuzonen-Epics entschieden                         |
 | **closed**  | Reserve berechnet, **Übergabe** ans Detail-Board, Protokoll unveränderlich                      | —                                                         |
 
-## Drei-Zonen-Auswertung (`domain/three-zone.ts`)
+## Drei-Zonen-Auswertung (Code entfernt)
 
 Je Epic aus den Gruppen-Ja-Stimmen:
 
@@ -92,7 +92,7 @@ Abweichung definiert).
 
 ## Weitere Regeln (rein, `domain/`)
 
-- **Knappheitstor** (`scarcity.ts`): Nachfrage / verteilbares Budget muss ≥ **1,3** sein (sonst kein echter
+- **Knappheitstor** (Code entfernt): Nachfrage / verteilbares Budget muss ≥ **1,3** sein (sonst kein echter
   Trade-off).
 - **Reserve** (`reserve.ts`): verteilbar − Σ finanziert; Rest unter dem günstigsten Epic → Reserve, **additiver
   Übertrag** in die Folgerunde (nur der Betrag).
@@ -136,13 +136,25 @@ Abweichung definiert).
 Pitches (5 Min), räumliche Trennung, Timer, Regelzettel (PB D-04/05/07, G-02/03/04) sind **Prozess-Doku**,
 keine Software. Pulse liefert die digitale Erfassung + Auswertung.
 
-## Protokoll (ein Snapshot, beide Schichten)
+## Protokoll (eine Schicht)
 
-Beim Erfassen einer `BudgetPlanRevision` wird — wenn es für den Cycle eine Runde gibt — die PB-Schicht
-(Zonen, Entscheidungen, Report-outs, Reserve) über `domain/pb-round-snapshot.ts` in den **`round`-Block**
-derselben `payload` gefaltet (additiv, **kein** Version-Bruch). Der `close` löst dieses Einfrieren mit aus
-(`transitionRoundThenProtocol`, capability-gegated über `budget_plan.revision.capture`). Die Revisions-
-Detailseite rendert den Runden-Block unter dem €/ART-Snapshot (`PbRoundProtocol`).
+Beim Erfassen einer `BudgetPlanRevision` wird der **€/ART-Snapshot** in die `payload` geschrieben
+(`domain/budget-plan-snapshot.ts`, Schlüssel `snapshot`). Die Revisions-Detailseite rendert ihn.
+
+> **Die zweite Schicht ist im September 2026 zurückgebaut worden.** Daneben stand ein `round`-Block
+> (Zonen, Entscheidungen, Report-outs) aus `domain/pb-round-snapshot.ts`. Er ruhte auf dem
+> Drei-Zonen-Verfahren und las `GroupAllocation.funded` — ein Ja/Nein, das seit dem Wechsel auf freie
+> €-Beträge **kein Dienst mehr schreibt**. Gemessen: 518 Zuteilungen, davon 0 mit `funded`, 0 mit
+> `epicId`; und keine der 9 erfassten Revisionen trug je einen `round`-Block.
+>
+> Er war damit nicht bloß leer, sondern **falsch**: ohne Stimmen stuft `classifyZones` jedes Epic als
+> „Ablehnung" ein, und das Protokoll hätte beim nächsten Zyklus mit Runde behauptet, es sei nichts
+> finanziert worden. Entfernt wurden `pb-round-snapshot.ts`, `epic-zones.ts`, `three-zone.ts`,
+> `scarcity.ts`, `services/zones.ts` und `PbRoundProtocol`. **Alt-Payloads bleiben lesbar** — der Block
+> wird ignoriert, es gab keinen Version-Bruch und keinen Backfill.
+>
+> Die Tabellen `budget_decisions` und `group_report_outs` sowie die Spalten `GroupAllocation.funded`
+> und `.epicId` stehen **noch** — ihr letzter Leser ist fort, ihr Abbau ist ein eigener Zug.
 
 ## Bekannte Folge-Schritte
 
