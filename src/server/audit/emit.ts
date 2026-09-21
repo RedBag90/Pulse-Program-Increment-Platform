@@ -97,6 +97,7 @@ export type AuditAction =
   | "user.role.assigned"
   | "user.role.removed"
   | "platform.user.suspended"
+  | "platform.user.deleted"
   | "platform.user.reactivated"
   | "invite.rotated"
   | "invite.deactivated"

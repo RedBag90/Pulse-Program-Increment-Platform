@@ -162,3 +162,41 @@ async function writeUserAudit(
     resourceId: userId,
   });
 }
+
+/**
+ * **Ein Auth-Konto endgueltig loeschen.**
+ *
+ * Lag bis September 2026 in der *Mandanten*-Verwaltung (`features/admin/actions/
+ * gdpr.ts`) und war dort ein Loch: die Action prueft ein Mandanten-Recht, das
+ * Konto gehoert aber der Plattform. Wer eine fremde UUID kannte, loeschte es —
+ * jeder eingeloggte Nutzer ist in seinem „Mein Bereich" `tenant_admin` und
+ * passiert damit den Fast-Path in `authorize()`.
+ *
+ * Hier ist die richtige Nachbarschaft: {@link suspendUser} fasst Konten schon an.
+ * Der Unterschied zum Sperren ist die Umkehrbarkeit — gesperrt wird ein Konto
+ * mit einer Bann-Frist und laesst sich wieder oeffnen; hier ist es weg.
+ *
+ * **Die Rollenzeilen bleiben** und zeigen danach auf ein Konto, das es nicht mehr
+ * gibt. Das ist der Bestand des Modells (`UserRoleAssignment.userId` traegt keinen
+ * Fremdschluessel nach Supabase) und faellt dem Aufraeum-Lauf zu, nicht dieser
+ * Funktion — sie soll genau eine Sache tun.
+ */
+export async function deleteUserAccount(actor: Principal, userId: string): Promise<ServiceOutcome> {
+  assertPlatformAdmin(actor);
+  if (userId === actor.id) {
+    return { ok: false, error: "Das eigene Konto kann man nicht löschen" };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) return { ok: false, error: `Konto konnte nicht gelöscht werden: ${error.message}` };
+
+  await emitAuditEvent(platformDb(actor.id), {
+    tenantId: actor.tenantId as TenantId,
+    actorId: actor.id,
+    action: "platform.user.deleted",
+    resourceType: "user",
+    resourceId: userId,
+  });
+  return { ok: true };
+}

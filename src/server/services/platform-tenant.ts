@@ -7,6 +7,8 @@ import { emitAuditEvent } from "@/server/audit/emit";
 import { publishDomainEvent } from "@/server/events/publish";
 import { signInviteToken } from "@/server/services/invitation";
 import { findUserIdByEmail } from "@/server/services/user-directory";
+import { wipeTenantData, TEARDOWN_TX_OPTIONS } from "@/server/services/tenant-teardown";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * Cross-tenant Tenant-Verwaltung des `platform_admin` (Roadmap P2). Alle
@@ -395,4 +397,128 @@ export async function removeTenantMember(
     });
   });
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Löschen samt Inhalt
+// ---------------------------------------------------------------------------
+
+export interface DeleteWithDataInput {
+  /**
+   * Der abgetippte Mandantenname. **Der Dienst prüft ihn erneut** — eine
+   * Bestätigung, die nur im Browser stattfindet, ist keine: die Server-Action
+   * ist ein Endpunkt, der Knopf davor nur eine Schaltfläche.
+   */
+  confirmName: string;
+  /** Auch die Auth-Konten löschen — siehe die Einschränkung in `deleteTenantWithData`. */
+  alsoDeleteUsers?: boolean;
+}
+
+export interface DeleteWithDataResult {
+  /** Gelöschte Zeilen je Modell — die Rückmeldung an die Fläche. */
+  deleted: Record<string, number>;
+  /** Konten, die mitgelöscht wurden. */
+  deletedUsers: string[];
+  /** Mitglieder, die stehen bleiben, weil sie anderswo weiterarbeiten. */
+  keptUsers: string[];
+  /** Konten, deren Löschung bei Supabase scheiterte — die Zeilen sind trotzdem weg. */
+  failedUsers: string[];
+}
+
+/**
+ * **Einen Mandanten samt allem, was an ihm hängt, löschen.**
+ *
+ * Das Gegenstück zu {@link deleteTenant}, der jeden nicht-leeren Mandanten
+ * verweigert und auf „archivieren" verweist. Der sichere Weg bleibt daneben
+ * stehen; dieser hier ist der ausdrückliche.
+ *
+ * **Private Bereiche sind ausgenommen.** Ein Plattform-Admin, der den „Mein
+ * Bereich" eines Nutzers samt dessen Zielen löschen kann, ist genau das, was der
+ * September-Umbau abgeräumt hat (`mayEnterTenant`, `addTenantMember:193`). Leere
+ * private Bereiche lassen sich weiterhin über `deleteTenant` entfernen.
+ *
+ * **Die Konten-Einschränkung ist keine Vorsicht, sondern Notwendigkeit:**
+ * gelöscht wird nur, wessen **einzige** Mitgliedschaft dieser Mandant ist. Wer
+ * noch anderswo steht — und jeder Nutzer steht in seinem eigenen „Mein Bereich"
+ * — verliert hier nur seine Rolle. Ohne die Regel nähme das Löschen eines
+ * Testmandanten Konten mit, die in einem anderen Mandanten arbeiten.
+ *
+ * Reihenfolge: Mitglieder **vor** dem Räumen lesen (danach sind die Zuweisungen
+ * weg), Audit vor dem Löschen (der Mandant muss noch stehen), dann räumen und
+ * die Mandantenzeile löschen — alles in einer Transaktion. Die Auth-Konten
+ * fallen **danach** und ausserhalb: das ist ein fremder Dienst, und ein
+ * Netzwerkfehler dort darf die Datenbank-Transaktion nicht zurückrollen.
+ */
+export async function deleteTenantWithData(
+  actor: Principal,
+  tenantId: string,
+  input: DeleteWithDataInput,
+): Promise<ServiceOutcome<DeleteWithDataResult>> {
+  const denied = requireAdmin(actor);
+  if (denied) return { ok: false, error: denied };
+
+  const db = platformDb(actor.id);
+  const tenant = await db.tenant.findUnique({
+    where: { id: tenantId },
+    select: { id: true, name: true, kind: true },
+  });
+  if (!tenant) return { ok: false, error: "Tenant nicht gefunden" };
+
+  if (tenant.kind === "personal") {
+    return {
+      ok: false,
+      error:
+        "Private Bereiche können so nicht gelöscht werden. Leere Bereiche gehen über das normale Löschen.",
+    };
+  }
+  if (input.confirmName.trim() !== tenant.name) {
+    return { ok: false, error: "Der eingegebene Name stimmt nicht mit dem Mandanten überein" };
+  }
+
+  // Mitglieder VOR dem Räumen — danach gibt es keine Zuweisungen mehr.
+  const members = await db.userRoleAssignment.findMany({
+    where: { tenantId },
+    select: { userId: true },
+    distinct: ["userId"],
+  });
+  const memberIds = members.map((m) => m.userId).filter((id) => id !== actor.id);
+
+  const elsewhere = await db.userRoleAssignment.findMany({
+    where: { userId: { in: memberIds }, tenantId: { not: tenantId } },
+    select: { userId: true },
+    distinct: ["userId"],
+  });
+  const anderswo = new Set(elsewhere.map((r) => r.userId));
+  const loeschbar = input.alsoDeleteUsers ? memberIds.filter((id) => !anderswo.has(id)) : [];
+  const behalten = memberIds.filter((id) => !loeschbar.includes(id));
+
+  const deleted = await db.$transaction(async (tx) => {
+    await emitAuditEvent(tx, {
+      tenantId: tenantId as TenantId,
+      actorId: actor.id,
+      action: "tenant.deleted",
+      resourceType: "tenant",
+      resourceId: tenantId,
+      changes: {
+        name: { before: tenant.name, after: null },
+        withUsers: { before: null, after: input.alsoDeleteUsers === true },
+      },
+    });
+    const res = await wipeTenantData(tx, tenantId, { includeMembers: true });
+    await tx.tenant.delete({ where: { id: tenantId } });
+    return res.deleted;
+  }, TEARDOWN_TX_OPTIONS);
+
+  const deletedUsers: string[] = [];
+  const failedUsers: string[] = [];
+  if (loeschbar.length > 0) {
+    const admin = createAdminClient();
+    for (const userId of loeschbar) {
+      const { error } = await admin.auth.admin.deleteUser(userId);
+      if (error) failedUsers.push(userId);
+      else deletedUsers.push(userId);
+    }
+  }
+
+  return { ok: true, deleted, deletedUsers, keptUsers: behalten, failedUsers };
 }

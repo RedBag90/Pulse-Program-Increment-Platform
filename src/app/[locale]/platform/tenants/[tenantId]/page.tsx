@@ -10,6 +10,7 @@ import { TenantModulesEditor } from "@/features/platform/components/tenant-modul
 import { TenantMembers } from "@/features/platform/components/tenant-members";
 import { TenantStatusBadge } from "@/features/platform/components/tenant-status-badge";
 import { TenantLifecycleControls } from "@/features/platform/components/tenant-lifecycle-controls";
+import { TenantDangerZone } from "@/features/platform/components/tenant-danger-zone";
 
 interface PageProps {
   params: Promise<{ tenantId: string }>;
@@ -55,7 +56,20 @@ export default async function PlatformTenantDetailPage({ params }: PageProps) {
 
       {detail.kind !== "personal" && (
         <PageSection title="Lifecycle">
-          <TenantLifecycleControls tenantId={detail.id} status={detail.status} name={detail.name} />
+          <div className="space-y-4">
+            <TenantLifecycleControls
+              tenantId={detail.id}
+              status={detail.status}
+              name={detail.name}
+            />
+            {/* Zurücksetzen und Löschen samt Inhalt stehen abgesetzt: beides ist
+                nicht umkehrbar und braucht den abgetippten Namen. */}
+            <TenantDangerZone
+              tenantId={detail.id}
+              name={detail.name}
+              memberCount={detail.members.length}
+            />
+          </div>
         </PageSection>
       )}
     </Page>

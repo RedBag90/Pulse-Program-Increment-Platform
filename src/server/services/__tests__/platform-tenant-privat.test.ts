@@ -82,12 +82,46 @@ describe("addTenantMember — private Bereiche", () => {
  * Wunsch mit Mitgliederliste und E-Mail-Adressen.
  */
 describe("listAllTenants — private Bereiche", () => {
-  it("fragt nur Organisationen ab", async () => {
+  /**
+   * Die Liste holt seit September 2026 ausserdem die Groessen je Mandant
+   * (`groupBy` ueber Initiativen, Ziele und Audit). Das Doppel fuehrt sie mit,
+   * damit der Test die **eine** Zusage prueft, um die es hier geht — und nicht
+   * daran scheitert, dass die Sicht mehr laedt als frueher.
+   */
+  const doppel = () => {
     const findMany = vi.fn(async () => []);
+    const groupBy = vi.fn(async () => []);
+    return {
+      findMany,
+      groupBy,
+      db: {
+        tenant: { findMany, count: vi.fn(async () => 0) },
+        initiative: { groupBy },
+        objective: { groupBy },
+        auditEvent: { groupBy },
+      } as never,
+    };
+  };
+
+  it("fragt nur Organisationen ab", async () => {
+    const { findMany, db } = doppel();
     const { listAllTenants } = await import("@/server/views/platform-tenants");
-    await listAllTenants({ tenant: { findMany } } as never);
+    await listAllTenants(db);
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { kind: "organization" } }),
     );
+  });
+
+  /**
+   * Die Zahl der privaten Bereiche steht auf der Flaeche — **nur die Zahl**.
+   * Namen, Mitglieder und ein Weg hinein waeren genau das, was hier entfernt
+   * wurde.
+   */
+  it("die Zusammenfassung zaehlt, statt Namen zu liefern", async () => {
+    const count = vi.fn(async () => 0);
+    const { personalWorkspaceSummary } = await import("@/server/views/platform-tenants");
+    const out = await personalWorkspaceSummary({ tenant: { count } } as never);
+    expect(Object.keys(out)).toEqual(["total", "empty"]);
+    expect(count).toHaveBeenCalledWith(expect.objectContaining({ where: { kind: "personal" } }));
   });
 });

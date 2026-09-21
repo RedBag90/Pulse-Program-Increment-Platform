@@ -2,7 +2,12 @@
 
 import { z } from "zod";
 import { requirePlatformAdmin } from "@/server/auth/platform";
-import { setPlatformRole, suspendUser, reactivateUser } from "@/server/services/platform-user";
+import {
+  setPlatformRole,
+  suspendUser,
+  reactivateUser,
+  deleteUserAccount,
+} from "@/server/services/platform-user";
 import type { ActionState } from "@/features/platform/actions/tenant-actions";
 
 /**
@@ -52,6 +57,29 @@ export async function reactivateUserAction(
 
   const actor = await requirePlatformAdmin();
   const res = await reactivateUser(actor, parsed.data.userId);
+  if (!res.ok) return { error: res.error };
+  return { success: true };
+}
+
+/**
+ * **Konto endgueltig loeschen.** Lag bis September 2026 in der
+ * Mandanten-Verwaltung und war dort ein Loch — der Grund steht in
+ * `platform-user.ts` bei {@link deleteUserAccount}.
+ *
+ * Kein `createServerAction`: die Fabrik autorisiert gegen den **aktiven
+ * Mandanten**, und ein Plattform-Recht haengt an keinem.
+ */
+export async function deleteUserAccountAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = z
+    .object({ userId: z.string().uuid() })
+    .safeParse({ userId: formData.get("userId") });
+  if (!parsed.success) return { error: "Ungültige Eingabe" };
+
+  const actor = await requirePlatformAdmin();
+  const res = await deleteUserAccount(actor, parsed.data.userId);
   if (!res.ok) return { error: res.error };
   return { success: true };
 }

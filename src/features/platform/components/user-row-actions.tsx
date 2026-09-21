@@ -6,13 +6,20 @@ import {
   setPlatformRoleAction,
   suspendUserAction,
   reactivateUserAction,
+  deleteUserAccountAction,
 } from "@/features/platform/actions/user-actions";
 import type { ActionState } from "@/features/platform/actions/tenant-actions";
 
 /**
- * Aktionen je Nutzer-Zeile: Plattform-Admin-Rolle vergeben/entziehen und Konto
- * sperren/entsperren. Selbst-Sperrung ist ausgeblendet (zusätzlich im Service
- * blockiert). Destruktive Aktionen sind confirm-gated.
+ * Aktionen je Nutzer-Zeile: Plattform-Admin-Rolle vergeben/entziehen, Konto
+ * sperren/entsperren und endgültig löschen. Selbst-Sperrung und Selbst-Löschung
+ * sind ausgeblendet (zusätzlich im Service blockiert). Destruktive Aktionen sind
+ * confirm-gated.
+ *
+ * **Das endgültige Löschen kam im September 2026 hierher.** Es lag in der
+ * *Mandanten*-Verwaltung (`/admin/users`), die ein Mandanten-Recht prüft — und
+ * löschte trotzdem ein globales Konto. Der Unterschied zum Sperren daneben ist
+ * die Umkehrbarkeit, und deshalb steht der Knopf am Ende der Reihe.
  */
 export function UserRowActions({
   userId,
@@ -40,17 +47,21 @@ export function UserRowActions({
     reactivateUserAction,
     {},
   );
+  const [dState, deleteAction, dPending] = useActionState<ActionState, FormData>(
+    deleteUserAccountAction,
+    {},
+  );
 
   useEffect(() => {
-    if (rState.success || sState.success || aState.success) router.refresh();
-  }, [rState, sState, aState, router]);
+    if (rState.success || sState.success || aState.success || dState.success) router.refresh();
+  }, [rState, sState, aState, dState, router]);
 
   const confirmOr = (msg: string) => (e: MouseEvent<HTMLButtonElement>) => {
     if (!window.confirm(msg)) e.preventDefault();
   };
   const who = email ?? userId;
-  const error = rState.error ?? sState.error ?? aState.error;
-  const busy = rPending || sPending || aPending;
+  const error = rState.error ?? sState.error ?? aState.error ?? dState.error;
+  const busy = rPending || sPending || aPending || dPending;
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-1.5">
@@ -94,6 +105,24 @@ export function UserRowActions({
             className="rounded-md border px-2.5 py-1 text-xs transition-colors hover:bg-muted disabled:opacity-50"
           >
             Entsperren
+          </button>
+        </form>
+      )}
+
+      {!isSelf && (
+        <form action={deleteAction} className="contents">
+          <input type="hidden" name="userId" value={userId} />
+          <button
+            type="submit"
+            disabled={busy}
+            onClick={confirmOr(
+              `„${who}" endgültig löschen? Das Konto ist danach weg und lässt sich nicht ` +
+                `wiederherstellen. Rollenzuweisungen bleiben als verwaiste Zeilen stehen. ` +
+                `Zum Aussperren reicht „Sperren".`,
+            )}
+            className="rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/15 disabled:opacity-50"
+          >
+            Löschen
           </button>
         </form>
       )}
