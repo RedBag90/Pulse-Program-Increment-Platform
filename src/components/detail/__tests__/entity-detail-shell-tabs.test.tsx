@@ -71,6 +71,13 @@ describe("Reiter-Links der Detail-Schale", () => {
  * = ~141 px  ≈ 20 Zeichen bei text-sm
  * ```
  *
+ * **Reiter mit Reifegrad haben weniger.** Ring (10 px + 6 px Abstand) und
+ * Etikett („L2", ~12 px + 6 px) nehmen zusammen ~34 px, es bleiben ~107 px
+ * ≈ 15 Zeichen. Der längste solche Name ist heute „Business Case" (13). Die
+ * Schranke unten bleibt trotzdem bei 20: sie gilt für **alle** Reiter, und ein
+ * zweiter Grenzwert, der nur für fünf Einträge gilt, wäre mehr Buchhaltung als
+ * Schutz. Wer einen langen Namen mit `gate` versieht, misst ihn hier nach.
+ *
  * Gemessen wird am Quelltext, nicht an importierten Konstanten: die Hälfte der
  * Reitersätze steht als `const TABS` in einer `page.tsx` und lässt sich in
  * einem Unit-Test nicht laden. Dieselbe Haltung wie bei `visualViolations` —

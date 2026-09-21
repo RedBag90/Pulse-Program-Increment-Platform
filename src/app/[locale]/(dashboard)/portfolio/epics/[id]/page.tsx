@@ -263,6 +263,16 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     : [...EPIC_TABS.slice(0, -2), { key: "issues", label: "Issues" }, ...EPIC_TABS.slice(-2)];
   const activeTab = resolveTab(tabs, tab);
 
+  // Der Stand des Epics auf der Reifegrad-Achse. Er speist **drei** Flaechen:
+  // das Abzeichen im Kopf, die Leiter im Unterkopf und die Ringe an den
+  // Reitern. Dreimal derselbe Ausdruck waere dreimal dieselbe Gelegenheit,
+  // auseinanderzulaufen.
+  const gateNow = currentGateStep({
+    stageGate: epic.stageGate as never,
+    approvedAt: epic.approvedAt,
+    implementationCompletedAt: epic.implementationCompletedAt,
+  });
+
   // Slide-Over-Detail nur laden wenn ?featureId= im URL — gleiche Sicht wie im
   // Cockpit; ein Klick auf eine Feature-Karte springt nicht in eine Voll-Route.
   const slideOverDetail = featureId
@@ -290,13 +300,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           <>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
               <span aria-hidden className="size-1.5 rounded-full bg-current" />
-              {gateStepLabel(
-                currentGateStep({
-                  stageGate: epic.stageGate as never,
-                  approvedAt: epic.approvedAt,
-                  implementationCompletedAt: epic.implementationCompletedAt,
-                }),
-              )}
+              {gateStepLabel(gateNow)}
             </span>
             {epicClassification ? (
               <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
@@ -326,6 +330,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
         }
         tabs={tabs}
         activeTab={activeTab}
+        currentGate={gateNow}
         basePath={`/portfolio/epics/${epic.id}`}
         headerActions={
           model.canEdit ? (
@@ -350,13 +355,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
          */
         subHeader={
           <div className="space-y-3">
-            <EpicGateLadder
-              current={currentGateStep({
-                stageGate: epic.stageGate as never,
-                approvedAt: epic.approvedAt,
-                implementationCompletedAt: epic.implementationCompletedAt,
-              })}
-            />
+            <EpicGateLadder current={gateNow} />
             <EpicGateCard
               epicId={epic.id}
               gate={model.gate}

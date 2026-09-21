@@ -18,6 +18,17 @@ export interface DetailTab {
   group?: string;
   /** Kleine Zahl rechts im Reiter — „hier liegt etwas". Nur setzen, wenn es stimmt. */
   badge?: string;
+  /**
+   * Der Reifegrad, zu dem dieser Reiter gehört — „L1", „L2".
+   *
+   * Nur dort gesetzt, wo die Fläche überhaupt eine Reifegrad-Achse hat: heute
+   * das Epic. Steht er, zeigt die Schiene ihn rechts am Reiter an, und trifft er
+   * den Stand des Vorgangs (`currentGate`), bekommt der Reiter den Ring davor.
+   *
+   * Reiter **ohne** Reifegrad sind kein Sonderfall, sondern die Mehrheit —
+   * Overview, Verlauf und Auswertungen gehören zu keinem Schritt.
+   */
+  gate?: string;
 }
 
 /**
@@ -40,6 +51,24 @@ export function resolveTab(
 
 /** „Hier liegt etwas" — die einzige Zahl in der Navigation, deshalb leise. */
 const BADGE = "ml-1.5 float-right text-meta font-semibold text-primary";
+
+/**
+ * Der Reifegrad am Reiter. Rechts und **ausserhalb des Textflusses**, wie
+ * `BADGE`: die Schiene ist ~141 px breit, und ein Etikett, das dem Namen Platz
+ * wegnimmt, liesse ihn abschneiden.
+ */
+const GATE = "ml-1.5 float-right text-meta tabular-nums";
+
+/**
+ * Der Ring vor dem Namen — dieselbe Form wie der aktuelle Punkt der
+ * Reifegrad-Leiter über der Schiene (`epic-gate-ladder.tsx`: `border-primary
+ * bg-card`), nur kleiner und ohne den Strich, der dort die Stufen verbindet.
+ *
+ * **Nur ab `lg`.** Darunter ist die Schiene eine waagerechte Scroll-Reihe; ein
+ * Ring vor jedem zweiten Namen wäre dort kein Hinweis, sondern Unruhe.
+ */
+const GATE_RING =
+  "mr-1.5 hidden size-2.5 shrink-0 rounded-full border-2 border-primary bg-card align-middle lg:inline-block";
 
 interface Props {
   /** Where the "back" link points, e.g. `/capacity`. Omit on a top-level hub. */
@@ -64,6 +93,15 @@ interface Props {
   badges?: ReactNode;
   tabs: readonly DetailTab[];
   activeTab: string;
+  /**
+   * Der Reifegrad, auf dem der Vorgang gerade steht. Jeder Reiter mit
+   * demselben `gate` wird hervorgehoben.
+   *
+   * Die Epic-Seite reicht hier denselben `currentGateStep(...)` durch, der auch
+   * die Reifegrad-Leiter im `subHeader` speist — damit Leiter und Schiene nicht
+   * auseinanderlaufen können. Ohne diese Prop bleibt die Schiene, wie sie war.
+   */
+  currentGate?: string;
   /** Detail route **without query**, e.g. `/structure/value-stream/<id>`; tab
    *  links append `?tab=`. Wer hier eine Query anhängt, erzeugt ein zweites
    *  `?` — der Tab-Parameter kommt dann nie an. Für zusätzliche Parameter gibt
@@ -102,6 +140,7 @@ export function EntityDetailShell({
   badges,
   tabs,
   activeTab,
+  currentGate,
   basePath,
   tabQuery,
   onTabChange,
@@ -180,6 +219,30 @@ export function EntityDetailShell({
                   ? "bg-primary/10 font-medium text-primary lg:border-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground lg:border-transparent"
               }`;
+              // Steht dieser Reiter auf dem Reifegrad, auf dem der Vorgang
+              // gerade ist? Nur dann der Ring. Die uebrigen bekommen **nichts**
+              // — kein grauer Punkt: eine Schiene, in der jede Zeile eine Marke
+              // traegt, hebt nichts mehr hervor.
+              const dran = tab.gate != null && tab.gate === currentGate;
+              const titel = tab.gate != null ? `${tab.label} · Reifegrad ${tab.gate}` : tab.label;
+              // Einmal gebaut, zweimal eingesetzt: Link und Knopf unterscheiden
+              // sich im Verhalten, nicht im Inhalt.
+              const inhalt = (
+                <>
+                  {dran && <span aria-hidden className={GATE_RING} />}
+                  {tab.label}
+                  {tab.badge != null && <span className={BADGE}>{tab.badge}</span>}
+                  {tab.gate != null && (
+                    <span
+                      className={`${GATE} hidden lg:inline ${
+                        dran ? "font-semibold text-primary" : "text-muted-foreground"
+                      }`}
+                    >
+                      {tab.gate}
+                    </span>
+                  )}
+                </>
+              );
               return (
                 <li key={tab.key}>
                   {gruppenkopf != null && (
@@ -196,21 +259,19 @@ export function EntityDetailShell({
                       type="button"
                       onClick={() => onTabChange(tab.key)}
                       aria-current={active ? "page" : undefined}
-                      title={tab.label}
+                      title={titel}
                       className={cls}
                     >
-                      {tab.label}
-                      {tab.badge != null && <span className={BADGE}>{tab.badge}</span>}
+                      {inhalt}
                     </button>
                   ) : (
                     <Link
                       href={`${basePath}?tab=${tab.key}${tabSuffix}`}
                       aria-current={active ? "page" : undefined}
-                      title={tab.label}
+                      title={titel}
                       className={cls}
                     >
-                      {tab.label}
-                      {tab.badge != null && <span className={BADGE}>{tab.badge}</span>}
+                      {inhalt}
                     </Link>
                   )}
                 </li>
