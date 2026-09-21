@@ -863,6 +863,8 @@ export async function getEpic(db: PrismaClient, tenantId: TenantId, id: EpicId) 
           financeApproverId: true,
           vmoId: true,
           businessOwnerId: true,
+          // Vorbelegung der Partei `epic.party.architect` am L3.1-Antrag.
+          architectLeadId: true,
         },
       },
       // Primär-Solution → abgeleiteter Horizont; alle Links → Solutions-Abschnitt.

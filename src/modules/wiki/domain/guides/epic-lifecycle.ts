@@ -166,7 +166,7 @@ export const EPIC_LIFECYCLE: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Beim Antrag besetze ich die fünf Parteien: **MGMT, Business Owner, Finance, IRT-Owner und LACE/VMO**. Finance und LACE/VMO sind aus der Wertstrom-Governance vorbelegt, die anderen drei benenne ich.",
+              text: "Beim Antrag besetze ich die fünf Parteien: **Architect Lead, Business Owner, Finance, IRT-Owner und LACE/VMO**. Vier davon sind aus der Wertstrom-Governance vorbelegt — nur den IRT-Owner benenne ich selbst. Vorbelegt heisst vorbelegt: ich kann jede davon überschreiben.",
             },
             {
               kind: "paragraph",
@@ -357,7 +357,7 @@ export const EPIC_LIFECYCLE: Guide = {
             },
             {
               kind: "aside",
-              text: "Die fünf Parteien an → L3.1 sind zugleich der Ausdruck der Practice **Mehrparteien-Freigabe**. Ist sie im Zielbild aus, zeichnet dort der VMO allein. Wer für MGMT, Business Owner und IRT-Owner _dieses_ Epics steht, benennt der Antragsteller beim Antrag — das ist eine Eigenschaft des Epics, keine Regel des Wertstroms.",
+              text: "Die fünf Parteien an → L3.1 sind zugleich der Ausdruck der Practice **Mehrparteien-Freigabe**. Ist sie im Zielbild aus, zeichnet dort der VMO allein. Wer für _dieses_ Epic zeichnet, entscheidet der Antragsteller beim Antrag — die Vorbelegung aus dem Wertstrom ist ein Vorschlag, keine Regel. Das bleibt eine Eigenschaft des Epics.",
             },
           ],
         },

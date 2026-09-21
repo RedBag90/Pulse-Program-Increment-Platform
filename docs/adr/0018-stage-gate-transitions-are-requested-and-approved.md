@@ -292,7 +292,8 @@ Drei Details, die den Umbau tragen:
   der Abnahme-Zeile hinterher zwar eine Person, aber nicht mehr, für welche
   Partei sie gezeichnet hat — und Guardrail 4 (Business-Owner-Engagement)
   verlöre seine Datenbasis.
-- **Zwei Parteien lösen aus dem Wertstrom auf, drei nicht.** Finance und
+- **Zwei Parteien lösen aus dem Wertstrom auf, drei nicht.** (Stand 2026-09-18;
+  seit dem Nachtrag unten sind es vier von fünf.) Finance und
   LACE/VMO ziehen die vorhandenen Governance-Spalten (`financeApproverId`,
   `vmoId`). Für MGMT, Business Owner und IRT-Owner gibt es keine solche Spalte —
   und das ist richtig so: wer dafür steht, ist eine Eigenschaft des _Epics_.
@@ -331,7 +332,28 @@ Portfolios ist der Business Owner eines Wertstroms über Monate derselbe, und ih
 bei jedem Antrag neu einzutippen erzeugt genau die Lücken, die Guardrail 4
 (Business-Owner-Engagement) anschließend misst.
 
-MGMT und IRT-Owner bleiben unverändert ohne Spalte.
+Der IRT-Owner bleibt unverändert ohne Spalte.
+
+### Nachtrag 2026-09-21 — MGMT weicht dem Architect Lead
+
+MGMT war die **einzige** der fünf Parteien ohne jede Quelle: `resolveRole` gab
+`null` zurück, also stand am Antrag ein leeres Personenfeld, und wer nichts
+eintrug, hatte schlicht eine Partei weniger — still, ohne Hinweis.
+
+`DEFAULT_GATE_POLICIES["L3.1"]` führt an seiner Stelle jetzt
+`epic.party.architect`, vorbelegt aus `ValueStream.architectLeadId`,
+überschreibbar am Antrag — **dasselbe Paar wie beim Business Owner**. Die Zahl
+der Parteien bleibt fünf; es kommt keine dazu.
+
+**Das ist trotzdem eine Verhaltensänderung, und sie gehört benannt:** wo MGMT
+still wegfiel, zeichnet künftig eine Person. Am Bestand gemessen tragen 8 von 9
+Wertströmen einen Architekten. Wer das nicht will, trägt am Wertstrom keinen ein
+oder überschreibt die Partei am Antrag.
+
+`epic.party.mgmt` bleibt ein **gültiger Schlüssel**, nur in keiner Vorgabe mehr:
+`isGateApproverRole` filtert unbekannte Schlüssel still weg, und 126 bestehende
+Abnahme-Zeilen tragen ihn als Rolle. Wertstrom-Regeln, die ihn eigens führen
+(gemessen: 2 von 32), ehren ihn weiterhin. Ein Datenskript braucht es nicht.
 
 **Dazu zwei weitere benannte Personen**, die keine Festlegung umkehren:
 

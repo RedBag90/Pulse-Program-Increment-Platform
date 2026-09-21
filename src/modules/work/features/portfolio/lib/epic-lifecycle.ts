@@ -79,7 +79,7 @@ export const LIFECYCLE_STEPS: readonly LifecycleStepMeta[] = [
     description: "Lean Business Case erstellen und zur Freigabe stellen.",
     milestone: {
       label: "L3.1 · Business Case freigegeben",
-      approver: "MGMT · Business Owner · Finance · IRT · VMO · Produkt-Manager",
+      approver: "Architect Lead · Business Owner · Finance · IRT · VMO · Produkt-Manager",
       step: "L3.1",
     },
   },

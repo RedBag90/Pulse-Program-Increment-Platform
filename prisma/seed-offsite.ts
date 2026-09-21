@@ -648,14 +648,14 @@ async function main() {
   // Epics stehen auf L3, also liegt hinter jedem ein abgeschlossener Antrag mit
   // den fünf Parteien als Abnehmern.
   const PARTY_ROLES = [
-    "epic.party.mgmt",
+    "epic.party.architect",
     "epic.party.business_owner",
     "epic.party.finance",
     "epic.party.irt_owner",
     "epic.party.lace_vmo",
   ] as const;
   const partyApprover: Record<(typeof PARTY_ROLES)[number], string> = {
-    "epic.party.mgmt": portfolio,
+    "epic.party.architect": portfolio,
     "epic.party.business_owner": vso,
     "epic.party.finance": admin,
     "epic.party.irt_owner": rte,
@@ -665,7 +665,7 @@ async function main() {
    * **Eine Person, eine Abnahme-Zeile.**
    *
    * In einem Vier-Personen-Mandanten fallen mehrere Sitze auf dieselbe Person —
-   * hier MGMT und LACE/VMO. `expandApprovers` entfernt solche Doppelungen und
+   * hier der Architect Lead und LACE/VMO. `expandApprovers` entfernt solche Doppelungen und
    * behält die **erste** Rolle (`gate-policy.ts`); der partielle Unique-Index
    * `(transition_id, approver_user_id)` erzwingt dasselbe in der Datenbank.
    * Der Seed schrieb bis dahin fünf Zeilen und scheiterte beim Insert.

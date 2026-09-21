@@ -80,7 +80,7 @@ for (const pe of plan.epics) {
         kind: "open",
         to: nextStep,
         requestedAt: after(overdue ? -30 - (i % 7) : -6 - (i % 4)),
-        decidedRoles: ["epic.party.mgmt", "epic.party.finance"],
+        decidedRoles: ["epic.party.architect", "epic.party.finance"],
         decidedAt: after(overdue ? -24 : -3),
       });
     } else if (i % 7 === 3) {
@@ -123,7 +123,7 @@ for (const pe of plan.epics) {
     valueStreamVmoId: U.vmo,
     valueStreamFinanceApproverId: U.fo,
     rules,
-    parties: { mgmt: U.vso, businessOwner: i % 3 === 2 ? null : U.vso, irtOwner: U.rte },
+    parties: { architect: U.vso, businessOwner: i % 3 === 2 ? null : U.vso, irtOwner: U.rte },
     solutionProductManagerId: U.pm,
     epicClass: pe.epicClass,
     benefitHypothesis: null,

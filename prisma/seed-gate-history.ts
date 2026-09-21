@@ -81,9 +81,17 @@ export type GateMove =
       decidedAt?: Date;
     };
 
-/** Die fünf Business-Case-Parteien, soweit sie nicht aus dem Wertstrom kommen. */
+/**
+ * Die fünf Business-Case-Parteien, soweit sie nicht aus dem Wertstrom kommen.
+ *
+ * `architect` hiess bis September 2026 `mgmt`. MGMT war die einzige Partei ohne
+ * Governance-Spalte am Wertstrom; an ihrer Stelle steht jetzt der Architect
+ * Lead, der aus `ValueStream.architectLeadId` vorbelegt wird. Der Seed benennt
+ * ihn trotzdem ausdruecklich — eine Override-Liste verdraengt in
+ * `expandApprovers` alle Platzhalter, also muss sie vollstaendig sein.
+ */
 export interface PartySeats {
-  mgmt: string;
+  architect: string;
   /** `null` ⇒ dieser Antrag geht ohne Business Owner raus (Guardrail-4-Lücke). */
   businessOwner: string | null;
   irtOwner: string;
@@ -300,7 +308,7 @@ function approversFor(input: GateHistoryInput, to: GateStep): ResolvedApprover[]
   const override: ApproverOverride[] | undefined =
     to === "L3.1" && (input.multiPartyApproval ?? true)
       ? [
-          { userId: input.parties.mgmt, role: "epic.party.mgmt" },
+          { userId: input.parties.architect, role: "epic.party.architect" },
           ...(input.parties.businessOwner
             ? [
                 {
@@ -526,7 +534,7 @@ export const GATE_STEP_RULES: { toGate: GateStep; approverRoles: GateApproverRol
   {
     toGate: "L3.1",
     approverRoles: [
-      "epic.party.mgmt",
+      "epic.party.architect",
       "epic.party.business_owner",
       "epic.party.finance",
       "epic.party.irt_owner",

@@ -30,7 +30,7 @@ const base = (over: Partial<GateHistoryInput> = {}): GateHistoryInput => ({
   valueStreamVmoId: "vmo",
   valueStreamFinanceApproverId: "fin",
   rules: gateRuleRows(null),
-  parties: { mgmt: "pm", businessOwner: "bo", irtOwner: "rte" },
+  parties: { architect: "pm", businessOwner: "bo", irtOwner: "rte" },
   benefitHypothesis: { measuresHypothesis: "x" },
   businessCase: { costSlices: [] },
   timeline: { estimates: {}, actuals: {} },
@@ -134,7 +134,7 @@ describe("buildGateHistory — die Abnehmer", () => {
     const rolesOf = (i: number) =>
       r.approvals.filter((a) => a.transitionId === r.transitions[i]!.id).map((a) => a.role);
     expect(rolesOf(2)).toEqual([
-      "epic.party.mgmt",
+      "epic.party.architect",
       "epic.party.business_owner",
       "epic.party.irt_owner",
       "epic.party.finance",
@@ -145,7 +145,10 @@ describe("buildGateHistory — die Abnehmer", () => {
 
   it("lässt den Business Owner weg, wenn der Sitz unbesetzt ist", () => {
     const r = buildGateHistory(
-      base({ parties: { mgmt: "pm", businessOwner: null, irtOwner: "rte" }, moves: plain("L3.1") }),
+      base({
+        parties: { architect: "pm", businessOwner: null, irtOwner: "rte" },
+        moves: plain("L3.1"),
+      }),
     );
     const roles = r.approvals
       .filter((a) => a.transitionId === r.transitions[2]!.id)
@@ -216,7 +219,7 @@ describe("buildGateHistory — die unbequemen Zustände", () => {
             kind: "open",
             to: "L3.1",
             requestedAt: d(20),
-            decidedRoles: ["epic.party.mgmt", "epic.party.finance"],
+            decidedRoles: ["epic.party.architect", "epic.party.finance"],
             decidedAt: d(15),
           },
         ],

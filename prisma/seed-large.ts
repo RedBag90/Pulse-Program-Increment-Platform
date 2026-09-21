@@ -824,7 +824,7 @@ export async function seedLarge(ctx: SeedContext): Promise<void> {
           kind: "open",
           to: nextStep,
           requestedAt: after(overdue ? -30 - (i % 7) : -6 - (i % 4)),
-          decidedRoles: ["epic.party.mgmt", "epic.party.finance"],
+          decidedRoles: ["epic.party.architect", "epic.party.finance"],
           decidedAt: after(overdue ? -24 : -3),
         });
       } else if (i % 7 === 3) {
@@ -875,11 +875,11 @@ export async function seedLarge(ctx: SeedContext): Promise<void> {
       valueStreamVmoId: U.vmo,
       valueStreamFinanceApproverId: U.fo,
       rules: gateRules,
-      // MGMT und IRT-Owner haben keine Wertstrom-Spalte; jeder dritte Antrag
+      // Der IRT-Owner hat keine Wertstrom-Spalte; jeder dritte Antrag
       // geht ohne Business Owner raus, damit Guardrail 4 keine triviale
       // 100-%-Abdeckung zeigt.
       parties: {
-        mgmt: U.portfolio,
+        architect: U.portfolio,
         businessOwner: i % 3 === 2 ? null : U.vso,
         irtOwner: U.rte,
       },

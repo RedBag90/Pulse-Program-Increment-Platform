@@ -4,6 +4,8 @@ import {
   expandApprovers,
   DEFAULT_GATE_POLICIES,
   GATE_APPROVER_ROLES,
+  GATE_APPROVER_ROLE_LABELS,
+  isGateApproverRole,
   MAX_APPROVER_ROLES_PER_RULE,
   allowsAdHocApprovers,
   type ApproverContext,
@@ -34,6 +36,7 @@ function ctx(over: Partial<ApproverContext> = {}): ApproverContext {
     valueStreamFinanceApproverId: FINANCE,
     valueStreamVmoId: VMO,
     valueStreamBusinessOwnerId: BO,
+    valueStreamArchitectLeadId: ARCHITECT,
     epicOwnerId: OWNER,
     ...over,
   };
@@ -196,23 +199,33 @@ describe("expandApprovers — Platzhalter-Auflösung", () => {
 
   it("ein leerer Override wird auch an L3.1 ignoriert", () => {
     const p = resolveGatePolicy("L3.1", [], VS);
-    expect(expandApprovers(p, ctx(), []).map((a) => a.userId)).toEqual([BO, FINANCE, VMO]);
+    expect(expandApprovers(p, ctx(), []).map((a) => a.userId)).toEqual([
+      ARCHITECT,
+      BO,
+      FINANCE,
+      VMO,
+    ]);
   });
 
   it("L3.1 besetzt im Code-Default die fünf Parteien plus den Produkt-Manager", () => {
     const p = resolveGatePolicy("L3.1", [], VS);
+    // **An erster Stelle steht der Architekt, nicht MGMT.** MGMT war die einzige
+    // Partei ohne Quelle — sie fiel still weg, und wer am Antrag niemanden
+    // eintrug, hatte eine Partei weniger. Der Schlüssel lebt als Alias weiter
+    // (Historie), nur führt ihn keine Vorgabe mehr.
     expect(p.approverRoles).toEqual([
-      "epic.party.mgmt",
+      "epic.party.architect",
       "epic.party.business_owner",
       "epic.party.finance",
       "epic.party.irt_owner",
       "epic.party.lace_vmo",
       "solution.product_manager",
     ]);
-    // Seit der Wertstrom einen Business Owner trägt, lösen **drei** der fünf
-    // Parteien vorbelegend auf. MGMT und IRT-Owner haben weiter keine
-    // Wertstrom-Spalte: sie fallen still weg und werden am Antrag benannt.
+    // **Vier** der fünf Parteien lösen vorbelegend auf. Nur der IRT-Owner hat
+    // weiter keine Wertstrom-Spalte: er fällt still weg und wird am Antrag
+    // benannt.
     expect(expandApprovers(p, ctx())).toEqual([
+      { userId: ARCHITECT, role: "epic.party.architect", source: "value_stream" },
       { userId: BO, role: "epic.party.business_owner", source: "value_stream" },
       { userId: FINANCE, role: "epic.party.finance", source: "value_stream" },
       { userId: VMO, role: "epic.party.lace_vmo", source: "value_stream" },
@@ -272,9 +285,17 @@ describe("expandApprovers — Produkt-Manager der Solution", () => {
  * Epics". Er hat jetzt eine — aber nur als **Vorbelegung**: der Picker an L3.1
  * schlägt sie, und damit bleibt der Kern der Festlegung wahr.
  *
- * Der Architect Lead ist neu und steht in **keiner** Code-Vorgabe. Das ist die
- * eigentliche Zusicherung dieser Suite: bestehende Mandanten bekommen über Nacht
- * keinen zusätzlichen Abnehmer.
+ * **Der Architekt stand bis September 2026 in keiner Code-Vorgabe** — die
+ * Zusicherung lautete: bestehende Mandanten bekommen über Nacht keinen
+ * zusätzlichen Abnehmer. Sie gilt so nicht mehr, und das ist eine bewusste
+ * Entscheidung, keine Nachlässigkeit: er steht jetzt an L3.1 **an der Stelle
+ * von MGMT**, nicht zusätzlich. Die Zahl der Parteien bleibt fünf.
+ *
+ * Der Unterschied ist trotzdem spürbar, und darum steht er hier: MGMT hatte
+ * keine Quelle und fiel still weg, der Architekt löst aus dem Wertstrom auf.
+ * Wo ein `architectLeadId` gepflegt ist, zeichnet ab sofort jemand, wo vorher
+ * niemand stand. Wer das nicht will, traegt am Wertstrom keinen ein oder
+ * ueberschreibt die Partei am Antrag.
  */
 describe("expandApprovers — Business Owner und Architect Lead", () => {
   it("der Business Owner des Wertstroms belegt die Partei vor", () => {
@@ -300,10 +321,37 @@ describe("expandApprovers — Business Owner und Architect Lead", () => {
     expect(out.map((a) => a.role)).not.toContain("epic.party.business_owner");
   });
 
-  it("der Architect Lead steht in keiner Code-Vorgabe", () => {
-    for (const policy of Object.values(DEFAULT_GATE_POLICIES)) {
-      expect(policy.approverRoles).not.toContain("value_stream.architect_lead");
-    }
+  it("der Architekt steht an der Stelle von MGMT, nicht zusätzlich", () => {
+    const parteien = DEFAULT_GATE_POLICIES["L3.1"]!.approverRoles;
+
+    expect(parteien).toContain("epic.party.architect");
+    expect(parteien).not.toContain("epic.party.mgmt");
+    // Fünf Parteien plus den Produkt-Manager — wie zuvor. Das ist der Kern der
+    // alten Zusicherung, der erhalten bleibt.
+    expect(parteien).toHaveLength(6);
+  });
+
+  it("MGMT bleibt ein gültiger Schlüssel — die Historie trägt ihn", () => {
+    // 126 bestehende Abnahme-Zeilen stehen auf `epic.party.mgmt`, und
+    // `isGateApproverRole` filtert unbekannte Schlüssel **still** weg. Ohne den
+    // Alias verlöre die Historie ihr Etikett, ohne dass es jemand merkt.
+    expect(isGateApproverRole("epic.party.mgmt")).toBe(true);
+    expect(GATE_APPROVER_ROLE_LABELS["epic.party.mgmt"]).toBe("MGMT");
+  });
+
+  it("ehrt MGMT weiter, wenn eine Wertstrom-Regel ihn eigens führt", () => {
+    const p = resolveGatePolicy(
+      "L3.1",
+      [rule({ valueStreamId: VS, approverRoles: ["epic.party.mgmt"] })],
+      VS,
+    );
+    expect(p.approverRoles).toEqual(["epic.party.mgmt"]);
+  });
+
+  it("ohne gepflegten Architekten fällt die Partei still weg", () => {
+    const p = resolveGatePolicy("L3.1", [], VS);
+    const out = expandApprovers(p, ctx({ valueStreamArchitectLeadId: null }));
+    expect(out.map((a) => a.role)).not.toContain("epic.party.architect");
   });
 
   it("löst auf, sobald ihn eine Wertstrom-Regel einträgt", () => {

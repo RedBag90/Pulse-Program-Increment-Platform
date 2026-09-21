@@ -688,7 +688,7 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
         kind: "open",
         to: "L3.1",
         requestedAt: addDays(now, -5),
-        decidedRoles: ["epic.party.mgmt", "epic.party.finance"],
+        decidedRoles: ["epic.party.architect", "epic.party.finance"],
         decidedAt: addDays(now, -3),
       },
     ],
@@ -721,7 +721,7 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
         kind: "open",
         to: "L3.1",
         requestedAt: addDays(now, -38),
-        decidedRoles: ["epic.party.mgmt", "epic.party.lace_vmo"],
+        decidedRoles: ["epic.party.architect", "epic.party.lace_vmo"],
         decidedAt: addDays(now, -30),
       },
     ],
@@ -862,7 +862,11 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
       // MGMT und IRT-Owner haben keine Wertstrom-Spalte: sie werden am Antrag
       // benannt. Jedes vierte Epic geht ohne Business Owner raus — sonst waere
       // die Abdeckungsquote von Guardrail 4 trivial 100 %.
-      parties: { mgmt: U.portfolio, businessOwner: i % 4 === 1 ? null : U.vso, irtOwner: U.rte },
+      parties: {
+        architect: U.portfolio,
+        businessOwner: i % 4 === 1 ? null : U.vso,
+        irtOwner: U.rte,
+      },
       // Der sechste Sitz an L3.1 und der zweite an L4. Er löst sich nur auf,
       // wenn die Primär-Solution einen Produkt-Manager trägt — und an L4 nur
       // bei ART-Epics.

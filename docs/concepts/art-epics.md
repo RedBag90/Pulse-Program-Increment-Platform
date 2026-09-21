@@ -392,7 +392,7 @@ Weitere Berührungen, alle additiv:
 
 Die Vorgabe lautet: ART-Epics funktionieren wie bisher, nur die Geldquelle
 unterscheidet sich. Damit braucht ein 40.000-€-Vorhaben weiterhin **an L3.1 die
-Zeichnung von fünf Parteien** (MGMT, Business Owner, Finance, IRT-Owner,
+Zeichnung von fünf Parteien** (Architect Lead, Business Owner, Finance, IRT-Owner,
 LACE/VMO) und **an L3.2 die von VMO und Finance**.
 
 Das ist genau der Aufwand, den Guardrail 3 eigentlich abschaffen soll — der Sinn

@@ -224,8 +224,10 @@ export function GateApproverRulesSection({
           : "kein Architect Lead hinterlegt";
       case "epic.owner":
         return "je Epic";
-      // Die Business-Case-Parteien: drei ziehen die Wertstrom-Governance als
-      // **Vorbelegung**, die anderen zwei werden am Antrag je Epic benannt.
+      // Die Business-Case-Parteien: **vier** ziehen die Wertstrom-Governance als
+      // Vorbelegung, nur der IRT-Owner wird am Antrag je Epic benannt. Der
+      // Architekt kam im September 2026 dazu — an der Stelle von MGMT, das als
+      // einzige Partei gar keine Quelle hatte.
       case "epic.party.lace_vmo":
         return vmoId ? userLabel(vmoId, userLabels) : "kein VMO hinterlegt";
       case "epic.party.finance":
@@ -236,6 +238,12 @@ export function GateApproverRulesSection({
         return businessOwnerId
           ? `${userLabel(businessOwnerId, userLabels)} — am Antrag änderbar`
           : "je Epic am Antrag";
+      case "epic.party.architect":
+        return architectLeadId
+          ? `${userLabel(architectLeadId, userLabels)} — am Antrag änderbar`
+          : "je Epic am Antrag";
+      // MGMT steht in keiner Vorgabe mehr; der Schlüssel lebt als Alias für die
+      // Historie und für Wertstrom-Regeln, die ihn eigens führen.
       case "epic.party.mgmt":
       case "epic.party.irt_owner":
         return "je Epic am Antrag";

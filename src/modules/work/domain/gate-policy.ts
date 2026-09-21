@@ -29,9 +29,9 @@ export const GATE_APPROVER_ROLES = [
   "value_stream.finance_approver",
   "value_stream.vmo",
   "value_stream.business_owner",
-  // Steht in **keiner** Code-Vorgabe: wer ihn zeichnen lassen will, trägt ihn je
-  // Wertstrom ein. Ein neuer Abnehmer in einer Vorgabe wäre eine Abnahme, mit der
-  // bestehende Mandanten nicht rechnen.
+  // Der Wertstrom-Platzhalter. Seine Epic-Partei `epic.party.architect` ist das
+  // Gegenstück — dasselbe Paar wie beim Business Owner: aus dem Wertstrom
+  // vorbelegt, am Antrag überschreibbar.
   "value_stream.architect_lead",
   "epic.owner",
   // Die fünf Business-Case-Parteien. Sie hatten eine eigene Freigabe-Achse
@@ -39,6 +39,19 @@ export const GATE_APPROVER_ROLES = [
   // Business-Case-Freigabe ist, sind sie dessen Abnehmer. Die Rolle wandert auf
   // die Abnahme-Zeile mit — sonst wüsste hinterher niemand mehr, wer für
   // Finance und wer für den Business Owner unterschrieben hat (Guardrail 4).
+  //
+  // **`epic.party.architect` steht seit September 2026 an der Stelle von
+  // `epic.party.mgmt`.** MGMT war neben dem IRT-Owner die einzige Partei ohne
+  // Quelle: sie löste zu `null` auf, also stand am Antrag ein leeres
+  // Personenfeld, und wer nichts eintrug, hatte eine Partei weniger. Der
+  // Architekt wird am Wertstrom ohnehin gepflegt (`architectLeadId`).
+  //
+  // **`epic.party.mgmt` bleibt als Alias stehen**, obwohl keine Vorgabe ihn mehr
+  // führt: `isGateApproverRole` filtert unbekannte Schlüssel **still** weg, und
+  // an 126 bestehenden Abnahme-Zeilen steht er als Rolle. Ohne ihn verlöre die
+  // ganze Historie ihr Etikett. Wertstrom-Regeln, die ihn eigens führen, ehren
+  // ihn weiterhin.
+  "epic.party.architect",
   "epic.party.mgmt",
   "epic.party.business_owner",
   "epic.party.finance",
@@ -73,6 +86,8 @@ export const GATE_APPROVER_ROLE_LABELS: Record<GateApproverRole, string> = {
   "value_stream.business_owner": "Business Owner",
   "value_stream.architect_lead": "Architect Lead",
   "epic.owner": "Epic Owner",
+  // Beide Hälften des Paares tragen dasselbe Etikett — wie beim Business Owner.
+  "epic.party.architect": "Architect Lead",
   "epic.party.mgmt": "MGMT",
   "epic.party.business_owner": "Business Owner",
   "epic.party.finance": "Finance",
@@ -86,7 +101,7 @@ export const GATE_APPROVER_ROLE_LABELS: Record<GateApproverRole, string> = {
  * Abnehmer-Picker am L3.1-Antrag geht diese Liste durch.
  */
 export const BUSINESS_CASE_PARTY_ROLES = [
-  "epic.party.mgmt",
+  "epic.party.architect",
   "epic.party.business_owner",
   "epic.party.finance",
   "epic.party.irt_owner",
@@ -298,7 +313,12 @@ function resolveRole(role: GateApproverRole, ctx: ApproverContext): ResolvedAppr
       return ctx.valueStreamBusinessOwnerId
         ? { userId: ctx.valueStreamBusinessOwnerId, role, source: "value_stream" }
         : null;
+    // Dasselbe Paar wie beim Business Owner darüber: Wertstrom-Platzhalter und
+    // Epic-Partei lösen aus derselben Spalte auf. Die Vorbelegung schlägt der
+    // Picker an L3.1 weiterhin — `expandApprovers` ersetzt bei nicht-leerem
+    // `override` die ganze Liste.
     case "value_stream.architect_lead":
+    case "epic.party.architect":
       return ctx.valueStreamArchitectLeadId
         ? { userId: ctx.valueStreamArchitectLeadId, role, source: "value_stream" }
         : null;

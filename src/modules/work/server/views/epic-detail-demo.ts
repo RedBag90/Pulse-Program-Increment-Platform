@@ -146,6 +146,7 @@ export function demoEpicDetailInputs(): EpicDetailInputs {
       id: DEMO_VS_ID,
       name: "Digital Banking",
       financeApproverId: null,
+      architectLeadId: null,
       vmoId: null,
       businessOwnerId: null,
     },

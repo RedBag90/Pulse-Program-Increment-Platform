@@ -831,10 +831,15 @@ export async function loadEpicDetailInputs(
               role,
               label: GATE_APPROVER_ROLE_LABELS[role],
             })),
-            // Drei der fünf Parteien haben eine Governance-Spalte am Wertstrom
-            // und werden daraus vorbelegt; MGMT und IRT-Owner benennt der
-            // Antragsteller. Vorbelegt heißt vorbelegt: der Picker schlägt sie.
+            // **Vier** der fünf Parteien haben eine Governance-Spalte am
+            // Wertstrom und werden daraus vorbelegt; nur den IRT-Owner benennt
+            // der Antragsteller. Vorbelegt heißt vorbelegt: der Picker schlägt
+            // sie. Bis September 2026 waren es drei — an der Stelle des
+            // Architekten stand MGMT, und das hatte gar keine Spalte.
             defaults: {
+              ...(epic.valueStream?.architectLeadId && {
+                "epic.party.architect": [epic.valueStream.architectLeadId],
+              }),
               ...(epic.valueStream?.financeApproverId && {
                 "epic.party.finance": [epic.valueStream.financeApproverId],
               }),

@@ -33,7 +33,7 @@ Zwei dieser Schritte tragen zugleich eine inhaltliche Aussage:
 
 - Die Abnahme von **L0 → L1** ist die Freigabe der **Benefit-Hypothese**.
 - Die Abnahme von **L2 → L3.1** ist die Freigabe des **Lean Business Case** —
-  dort zeichnen MGMT, Business Owner, Finance, IRT-Owner und LACE/VMO, dazu der
+  dort zeichnen Architect Lead, Business Owner, Finance, IRT-Owner und LACE/VMO, dazu der
   **Produkt-Manager** der Primär-Solution, sofern einer benannt ist.
 
 Dieselbe Abnahme entscheidet noch etwas Drittes: **mit ihr entsteht die
@@ -112,9 +112,9 @@ Tasks — das ist die einzige Stelle im Ablauf, an der ich um Unterstützung bit
 statt etwas zu beantragen.
 
 Steht der Business Case, beantrage ich **L2 → L3.1**. Beim Antrag besetze ich die
-fünf Parteien: MGMT, Business Owner, Finance, IRT-Owner und LACE/VMO — Finance
-und LACE/VMO sind aus der Wertstrom-Governance vorbelegt, die anderen drei
-benenne ich. Hat die Primär-Solution meines Epics einen benannten
+fünf Parteien: Architect Lead, Business Owner, Finance, IRT-Owner und LACE/VMO —
+vier davon sind aus der Wertstrom-Governance vorbelegt, nur den IRT-Owner benenne
+ich selbst. Vorbelegt heißt vorbelegt: ich kann jede davon überschreiben. Hat die Primär-Solution meines Epics einen benannten
 **Produkt-Manager**, zeichnet er als sechster mit: das Vorhaben verändert sein
 Produkt. Ist keiner benannt, fällt er still weg — der Antrag läuft wie zuvor.
 
@@ -392,14 +392,14 @@ Stempel wird dort gesetzt, nicht geprüft — und von den Folgeschritten → L2 
 Die Code-Defaults, je Wertstrom überschreibbar. Das Quorum ist durchgehend
 einstimmig — wer eingetragen ist, muss zustimmen.
 
-| Schritt   | Abnahme                                                                                       |
-| --------- | --------------------------------------------------------------------------------------------- |
-| → L1 · L2 | VMO                                                                                           |
-| → L3.1    | MGMT, Business Owner, Finance, IRT-Owner, LACE/VMO — plus Produkt-Manager der Primär-Solution |
-| → L3.2    | VMO **und** Finance                                                                           |
-| → L4.1    | VMO — plus Produkt-Manager, aber **nur bei einem ART-Epic**                                   |
-| → L4.2    | VMO                                                                                           |
-| → L5      | Finance                                                                                       |
+| Schritt   | Abnahme                                                                                                 |
+| --------- | ------------------------------------------------------------------------------------------------------- |
+| → L1 · L2 | VMO                                                                                                     |
+| → L3.1    | Architect Lead, Business Owner, Finance, IRT-Owner, LACE/VMO — plus Produkt-Manager der Primär-Solution |
+| → L3.2    | VMO **und** Finance                                                                                     |
+| → L4.1    | VMO — plus Produkt-Manager, aber **nur bei einem ART-Epic**                                             |
+| → L4.2    | VMO                                                                                                     |
+| → L5      | Finance                                                                                                 |
 
 Der Produkt-Manager steht an **zwei** Schritten, mit unterschiedlicher
 Reichweite. An → L3.1 zeichnet er bei **jedem** Epic seiner Solution mit — dort
@@ -415,9 +415,9 @@ gehen können.
 
 Die fünf Parteien an → L3.1 sind der Code-Default und zugleich der Ausdruck der
 Practice „Mehrparteien-Freigabe". Ist sie im Zielbild aus, zeichnet dort der VMO
-allein. Wer für MGMT, den Business Owner und den IRT-Owner _dieses_ Epics steht,
-benennt der Antragsteller beim Antrag — das ist eine Eigenschaft des Epics, keine
-Regel des Wertstroms.
+allein. Wer für _dieses_ Epic zeichnet, entscheidet der Antragsteller beim
+Antrag — die Vorbelegung aus dem Wertstrom ist ein Vorschlag, keine Regel. Das
+bleibt eine Eigenschaft des Epics.
 
 ## Nachschlagepunkte im Code
 

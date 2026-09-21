@@ -51,6 +51,7 @@ const ROLE_TO_DUTY: Partial<Record<GateApproverRole, DutyKey>> = {
   "value_stream.business_owner": "vs.business",
   "epic.party.business_owner": "vs.business",
   "value_stream.architect_lead": "vs.architecture",
+  "epic.party.architect": "vs.architecture",
   "solution.product_manager": "solution.product",
 };
 
