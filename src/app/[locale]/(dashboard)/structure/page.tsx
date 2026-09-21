@@ -26,6 +26,7 @@ import {
 import { StructureToolbar } from "@/modules/core/org/features/structure/components/structure-toolbar";
 import { ConceptCallout } from "@/modules/core/org/features/solution/components/concept-callout";
 import { SolutionsCreateControl } from "@/modules/core/org/features/solution/components/solutions-create-control";
+import { CreateArtDialog } from "@/modules/core/org/features/art/components/create-art-dialog";
 import { CreateValueStreamDialog } from "@/modules/core/org/features/value-stream/components/create-value-stream-dialog";
 import { Page, PageHeader } from "@/components/layout";
 
@@ -135,6 +136,9 @@ export default async function StructurePage({ searchParams }: Props) {
   const canCreateSolution = hasCapability(principal, "solution.create", {
     tenantId: principal.tenantId,
   });
+  const canCreateArt = hasCapability(principal, "art.create", {
+    tenantId: principal.tenantId,
+  });
 
   /**
    * **Drei Schalter, weil es drei Herkünfte sind.** Die Epic-Zahl ist Work, der
@@ -167,6 +171,12 @@ export default async function StructurePage({ searchParams }: Props) {
                 <SolutionsCreateControl />
               </Suspense>
             )}
+            {/* Solution · ART · Wertstrom — die Hierarchie von innen nach aussen.
+                `CreateArtDialog` bringt unkontrolliert seinen eigenen Ausloeser
+                mit, wie der Wertstrom daneben; den `Suspense`-Wrapper braucht
+                nur die Solution, weil sie `?create=solution` bedient und dafuer
+                `useSearchParams()` liest. */}
+            {canCreateArt && <CreateArtDialog />}
             {canCreateVs && <CreateValueStreamDialog />}
           </>
         }

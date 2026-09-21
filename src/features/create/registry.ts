@@ -40,7 +40,11 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     group: "portfolio",
     indentLevel: 0,
     inPlace: true,
-    resolveHref: () => "/capacity?create=value-stream",
+    // Rückfall, falls `inPlace` je entfällt. Zeigte bis September 2026 auf
+    // `/capacity` — eine Route, die es nie gab. Ohne `?create=`, weil
+    // `/structure` den Parameter nur für `solution` liest; ein Param, den
+    // niemand auswertet, wäre die nächste Fährte ins Leere.
+    resolveHref: () => "/structure",
   },
   {
     key: "art",
@@ -48,7 +52,7 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     group: "portfolio",
     indentLevel: 1,
     inPlace: true,
-    resolveHref: () => "/capacity?create=art",
+    resolveHref: () => "/structure",
   },
   {
     key: "solution",

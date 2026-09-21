@@ -37,7 +37,16 @@ const initialState: ActionState = {};
 
 /**
  * ART anlegen — **kadenz-frei**: nur Wertstrom + Name. Eine PI-Timeline/Kadenz
- * ist Drumbeat und wird nachträglich pro ART zugewiesen, nicht hier.
+ * ist Drumbeat und wird nachträglich pro ART zugewiesen, nicht hier (ADR-0014).
+ * Ein Test hält das fest — sonst trägt es jemand nach, weil es zu fehlen scheint.
+ *
+ * **Zwei Aufrufstellen, ein Vertrag:** unkontrolliert (ohne `open`) bringt der
+ * Dialog seinen eigenen Auslöser mit — so steht er in der Kopfzeile von
+ * `/structure`. Kontrolliert öffnet ihn das globale „+"-Menü.
+ *
+ * Bis September 2026 war das Menü die **einzige** Aufrufstelle. Deshalb fiel
+ * auch nicht auf, dass der Dialog englisch war, während alles um ihn herum
+ * deutsch ist.
  */
 export function CreateArtDialog({ open, onOpenChange, valueStreams }: CreateArtDialogProps) {
   const isControlled = open !== undefined;
@@ -60,19 +69,19 @@ export function CreateArtDialog({ open, onOpenChange, valueStreams }: CreateArtD
       {!isControlled && (
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="size-4 mr-1.5" />
-          New ART
+          ART
         </Button>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Create Agile Release Train</DialogTitle>
+            <DialogTitle>Agile Release Train anlegen</DialogTitle>
           </DialogHeader>
           <form action={action} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="art-vs">
-                Value Stream <span className="text-destructive">*</span>
+                Wertstrom <span className="text-destructive">*</span>
               </Label>
               <select
                 id="art-vs"
@@ -81,7 +90,9 @@ export function CreateArtDialog({ open, onOpenChange, valueStreams }: CreateArtD
                 disabled={fetched.loading}
                 className={SELECT_CLASS}
               >
-                <option value="">{fetched.loading ? "Loading…" : "Select a value stream…"}</option>
+                <option value="">
+                  {fetched.loading ? "Wird geladen …" : "Wertstrom wählen …"}
+                </option>
                 {options.map((vs) => (
                   <option key={vs.id} value={vs.id}>
                     {vs.name}
@@ -100,7 +111,7 @@ export function CreateArtDialog({ open, onOpenChange, valueStreams }: CreateArtD
                 name="name"
                 required
                 maxLength={100}
-                placeholder="e.g. Platform ART"
+                placeholder="z. B. Plattform-ART"
               />
             </div>
 
@@ -116,10 +127,10 @@ export function CreateArtDialog({ open, onOpenChange, valueStreams }: CreateArtD
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
+                Abbrechen
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Creating…" : "Create ART"}
+                {isPending ? "Wird angelegt …" : "ART anlegen"}
               </Button>
             </DialogFooter>
           </form>
