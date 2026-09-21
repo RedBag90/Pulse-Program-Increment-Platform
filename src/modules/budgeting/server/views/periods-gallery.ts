@@ -24,6 +24,7 @@ import {
   type PeriodValidity,
 } from "@/modules/budgeting/domain/period-validity";
 import type { RoundStatus } from "@/modules/budgeting/domain/round-status";
+import { rtbAskByValueStream } from "@/modules/budgeting/domain/rtb-interval";
 
 export interface PeriodTile {
   id: string;
@@ -204,6 +205,31 @@ export async function loadPeriodsGallery(
     },
   });
 
+  // **Wie viele RtB-Zeilen entstuenden beim Start?** Im Entwurf gibt es sie noch
+  // nicht — sie materialisieren erst dann (`materializeRtbCandidates`), also
+  // zaehlt `_count.candidates` dort nur die Epics. Eine Kachel mit „0 Epics ·
+  // 1 RtB" stuende sonst auf „Erst mit Kandidaten auf der PB-Liste", waehrend
+  // ihr Setup-Reiter den Start laengst erlaubt.
+  //
+  // Die Zahl ist **rundenunabhaengig** — die aktiven Positionen gehoeren dem
+  // Mandanten, nicht der Kachel. Eine Abfrage, dieselbe Zahl fuer jeden Entwurf.
+  const [rtbItems, streams] = await Promise.all([
+    db.runTheBusinessItem.findMany({
+      where: { tenantId, active: true },
+      select: { plannedAmount: true, interval: true, valueStreamId: true },
+    }),
+    db.valueStream.findMany({ where: { tenantId, deletedAt: null }, select: { id: true } }),
+  ]);
+  const askByStream = rtbAskByValueStream(
+    rtbItems.map((i) => ({
+      plannedAmount: Number(i.plannedAmount),
+      interval: i.interval,
+      active: true,
+      valueStreamId: i.valueStreamId,
+    })),
+  );
+  const rtbPreviewCount = streams.filter((v) => askByStream.has(v.id)).length;
+
   // Ein eingefrorener Stand je Zyklus (`@@unique([tenantId, cycleKey])`) — die
   // letzte Phase einer Kachel.
   const revisions = await db.budgetPlanRevision.findMany({
@@ -225,7 +251,10 @@ export async function loadPeriodsGallery(
       groupCount: r._count.groups,
       submittedCount: r.groups.filter((g) => g.submittedAt != null).length,
       reserveAmount: r.reserveAmount ? Number(r.reserveAmount) : 0,
-      candidateCount: r._count.candidates,
+      // Ab `running` sind die RtB-Zeilen echte Kandidaten und stecken schon in
+      // `_count`; nur der Entwurf braucht die Vorschau dazu.
+      candidateCount:
+        r.status === "draft" ? r._count.candidates + rtbPreviewCount : r._count.candidates,
       staffedGroupCount: r.groups.filter((g) => g._count.members > 0).length,
       hasRevision: captured.has(r.cycleKey),
     })),

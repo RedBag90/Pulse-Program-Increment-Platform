@@ -209,3 +209,39 @@ describe("buildPeriodsGallery — Phase je Kachel", () => {
     expect(m.past[0]!.validity).toBe("expired");
   });
 });
+
+/**
+ * **Im Entwurf zählen die Run-the-Business-Zeilen mit, die beim Start entstehen.**
+ *
+ * `_count.candidates` zählt gespeicherte Kandidaten — und RtB materialisiert
+ * erst beim Start. Eine Kachel mit „0 Epics · 1 RtB" stand darum in der Galerie
+ * auf Phase 2, während ihr Setup-Reiter den Start längst erlaubte: zwei
+ * Flächen, dieselbe Kachel, zwei Aussagen.
+ *
+ * Geprüft wird der **Builder** mit der Zahl, die der Loader ihm reicht — die
+ * Zusammensetzung selbst (`draft ? _count + Vorschau : _count`) ist eine Zeile
+ * in `loadPeriodsGallery`.
+ */
+describe("Kachel mit ausschließlich Run-the-Business", () => {
+  const draft = (over: Partial<PeriodRoundInput>) =>
+    round({
+      id: "r",
+      status: "draft",
+      startDate: new Date("2026-01-01"),
+      endDate: new Date("2026-06-30"),
+      staffedGroupCount: 1,
+      groupCount: 1,
+      ...over,
+    });
+
+  const phase = (r: PeriodRoundInput) => buildPeriodsGallery([r], true, NOW).focus[0]!.phase;
+
+  it("steht auf Phase 4, wenn die Vorschau-Zeile mitzählt", () => {
+    // 0 Epics + 1 RtB-Vorschau — genau das, was der Loader im Entwurf addiert.
+    expect(phase(draft({ candidateCount: 1 }))).toBe("Phase 4 · Runde starten");
+  });
+
+  it("bleibt auf der PB-Liste, wenn wirklich nichts darauf steht", () => {
+    expect(phase(draft({ candidateCount: 0 }))).toBe("Phase 2 · PB-Liste");
+  });
+});

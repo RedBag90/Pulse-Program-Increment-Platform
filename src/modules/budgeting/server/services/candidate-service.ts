@@ -16,7 +16,7 @@ import {
   isPbEligible,
   type EpicClassState,
 } from "@/modules/work/domain/pb-submission";
-import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
+import { rtbAskByValueStream } from "@/modules/budgeting/domain/rtb-interval";
 
 /**
  * Materialisiert die **RtB**-Kandidaten einer Kachel — **eine Zeile je
@@ -58,11 +58,18 @@ export async function materializeRtbCandidates(
     }),
   ]);
 
-  const askByValueStream = new Map<string, number>();
-  for (const it of items) {
-    const cycle = rtbCycleAmount(Number(it.plannedAmount), it.interval);
-    askByValueStream.set(it.valueStreamId, (askByValueStream.get(it.valueStreamId) ?? 0) + cycle);
-  }
+  // Dieselbe Rechnung wie in der Entwurfs-Vorschau (`loadRtbPreview`) — seit
+  // September 2026 buchstaeblich dieselbe Funktion, nicht mehr zwei Abschriften.
+  // Die Query filtert bereits auf `active: true`; `rtbAskByValueStream` tut es
+  // noch einmal, weil es die Vorschau ungefiltert hereinreicht.
+  const askByValueStream = rtbAskByValueStream(
+    items.map((it) => ({
+      plannedAmount: Number(it.plannedAmount),
+      interval: it.interval,
+      active: true,
+      valueStreamId: it.valueStreamId,
+    })),
+  );
 
   for (const vs of valueStreams) {
     const ask = askByValueStream.get(vs.id);

@@ -5,6 +5,7 @@ import {
   rtbCycleAmount,
   sumRtbAnnual,
   sumRtbCycle,
+  rtbAskByValueStream,
   RTB_INTERVALS,
   type RtbAmountLike,
 } from "@/modules/budgeting/domain/rtb-interval";
@@ -83,5 +84,56 @@ describe("Summen", () => {
   it("eine leere Liste ergibt 0", () => {
     expect(sumRtbAnnual([])).toBe(0);
     expect(sumRtbCycle([])).toBe(0);
+  });
+});
+
+describe("rtbAskByValueStream — eine Zeile je Wertstrom", () => {
+  const item = (valueStreamId: string, plannedAmount: number, interval: string, active = true) => ({
+    valueStreamId,
+    plannedAmount,
+    interval,
+    active,
+  });
+
+  it("summiert gemischte Perioden auf den Kachel-Ask", () => {
+    // 1.000 monatlich = 12.000 p. a. = 6.000 je Kachel;
+    // 4.000 je Halbjahr bleibt 4.000; 2.000 jährlich = 1.000 je Kachel.
+    const ask = rtbAskByValueStream([
+      item("vs1", 1_000, "monthly"),
+      item("vs1", 4_000, "half_yearly"),
+      item("vs1", 2_000, "yearly"),
+    ]);
+
+    expect(ask.get("vs1")).toBe(11_000);
+  });
+
+  it("hält die Wertströme auseinander", () => {
+    const ask = rtbAskByValueStream([
+      item("vs1", 4_000, "half_yearly"),
+      item("vs2", 1_500, "half_yearly"),
+    ]);
+
+    expect([...ask.entries()].sort()).toEqual([
+      ["vs1", 4_000],
+      ["vs2", 1_500],
+    ]);
+  });
+
+  it("lässt einen Wertstrom ohne aktive Position ganz weg", () => {
+    // Keine 0-Zeile: ein Antrag über nichts ist kein fehlender Antrag, sondern
+    // keiner. Die Materialisierung überspringt solche Wertströme deshalb.
+    const ask = rtbAskByValueStream([item("vs1", 4_000, "half_yearly", false)]);
+
+    expect(ask.has("vs1")).toBe(false);
+    expect(ask.size).toBe(0);
+  });
+
+  it("zählt nur die aktiven Positionen eines Wertstroms", () => {
+    const ask = rtbAskByValueStream([
+      item("vs1", 4_000, "half_yearly"),
+      item("vs1", 9_999, "half_yearly", false),
+    ]);
+
+    expect(ask.get("vs1")).toBe(4_000);
   });
 });

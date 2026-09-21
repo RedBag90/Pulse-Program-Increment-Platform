@@ -2,8 +2,15 @@
  * Participatory-Budgeting-Runde — Lebenszyklus + Rahmen (Spec P2).
  *
  * Eine Runde je Halbjahres-Cycle (`@@unique(tenantId, cycleKey)`). Rahmen (Topf,
- * Entscheider, Termin) wird in `draft` gesetzt; `startRound` (draft→running)
- * erzwingt Topf > 0 und ≥3 Gruppen. Weitere Übergänge folgen in P4/P5.
+ * Entscheider, Termin) wird in `draft` gesetzt.
+ *
+ * **Der Start erzwingt nichts ausser dem Status.** Hier stand bis September 2026
+ * „`startRound` (draft→running) erzwingt Topf > 0 und ≥3 Gruppen" — die Funktion
+ * heisst `startPeriod` und prueft weder das eine noch das andere. Dass eine
+ * Kandidatenliste und eine besetzte Gruppe vorliegen muessen, erzwingt die
+ * **Oberflaeche**; ueber die Schnittstelle liesse sich eine Runde ohne beides
+ * starten. Das ist so gewollt und im Wiki festgehalten — nur der Kommentar
+ * behauptete eine Sperre, die es nie gab.
  */
 
 import type { Prisma, PrismaClient } from "@/generated/prisma";

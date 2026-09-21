@@ -82,7 +82,10 @@ export default async function BudgetingPeriodDetailPage({ params, searchParams }
     status: model.round.status as RoundStatus,
     poolTotal: model.round.poolTotal,
     hasTimeframe: model.round.startDate != null && model.round.endDate != null,
-    candidateCount: model.epicCandidates.length,
+    // Epics **und** Run-the-Business-Positionen. Die Leiste sagte sonst „Erst
+    // mit Kandidaten auf der PB-Liste", waehrend der Knopf im Reiter darunter
+    // laengst darf — dieselbe Halbwahrheit, die `period-setup-tab` hatte.
+    candidateCount: model.epicCandidates.length + model.rtbCandidates.length,
     staffedGroupCount: model.groups.filter((g) => g.members.length > 0).length,
     groupCount: overview?.groups.length ?? model.groups.length,
     submittedCount: overview?.submittedCount ?? 0,

@@ -14,7 +14,7 @@ import { getTenantPractices } from "@/server/services/target-model";
 import { classifyEpics } from "@/modules/work/server/services/epic-class";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
-import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
+import { rtbAskByValueStream } from "@/modules/budgeting/domain/rtb-interval";
 
 export interface PeriodMemberView {
   id: string;
@@ -242,15 +242,16 @@ export async function loadPeriodDetail(
 async function loadRtbPreview(db: PrismaClient, tenantId: string): Promise<PbListEntry[]> {
   const [items, streams] = await Promise.all([
     listRtbItems(db, tenantId as Parameters<typeof listRtbItems>[1]),
-    db.valueStream.findMany({ where: { tenantId }, select: { id: true, name: true } }),
+    // `deletedAt: null` wie in `materializeRtbCandidates`. Ohne den Filter stand
+    // ein geloeschter Wertstrom in der Vorschau und verschwand beim Start —
+    // genau der Sprung, vor dem der Docblock oben warnt. Was startet, zaehlt.
+    db.valueStream.findMany({
+      where: { tenantId, deletedAt: null },
+      select: { id: true, name: true },
+    }),
   ]);
 
-  const askByValueStream = new Map<string, number>();
-  for (const i of items) {
-    if (!i.active) continue;
-    const cycle = rtbCycleAmount(i.plannedAmount, i.interval);
-    askByValueStream.set(i.valueStreamId, (askByValueStream.get(i.valueStreamId) ?? 0) + cycle);
-  }
+  const askByValueStream = rtbAskByValueStream(items);
 
   return streams.flatMap((v) => {
     const ask = askByValueStream.get(v.id);

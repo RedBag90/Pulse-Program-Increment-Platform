@@ -46,6 +46,18 @@ export function PeriodSetupTab({ model }: { model: PeriodDetailModel }) {
   const draft = model.round.status === "draft";
   const r = model.round;
   const staffedGroups = model.groups.filter((g) => g.members.length > 0).length;
+  // **Ein Kandidat ist ein Epic ODER eine Run-the-Business-Position** — so
+  // definiert es die Spezifikation, und so baut `PbList` die Liste auch.
+  //
+  // Bis September 2026 zaehlten Haken und Sperre nur die Epics. Das ging lange
+  // gut, weil fast jede Kachel Epics traegt; bei einer Kachel mit „0 Epics ·
+  // 1 RtB" stand dann aber „Die PB-Liste ist leer" ueber einer Liste mit
+  // 147.500 € darin.
+  //
+  // Die RtB-Zeilen sind im Entwurf eine **Vorschau** (`rtbIsPreview`): sie
+  // materialisieren erst beim Start. Genau sie zu zaehlen ist trotzdem richtig
+  // — es ist das, was beim Start entsteht.
+  const candidates = model.epicCandidates.length + model.rtbCandidates.length;
 
   return (
     <ol className="divide-y rounded-lg bg-card shadow-card">
@@ -63,7 +75,7 @@ export function PeriodSetupTab({ model }: { model: PeriodDetailModel }) {
         n={2}
         title="PB-Liste"
         desc="Was zur Abstimmung steht: vorgemerkte Epics plus die aktiven Run-the-Business-Positionen, die beim Start dazukommen."
-        done={model.epicCandidates.length > 0}
+        done={candidates > 0}
         state={
           model.rtbCandidates.length > 0
             ? `${model.epicCandidates.length} Epics · ${model.rtbCandidates.length} RtB`
@@ -94,7 +106,12 @@ export function PeriodSetupTab({ model }: { model: PeriodDetailModel }) {
         done={!draft}
         state={draft ? "ausstehend" : "gestartet"}
       >
-        <StartRound model={model} draft={draft} staffedGroups={staffedGroups} />
+        <StartRound
+          model={model}
+          draft={draft}
+          staffedGroups={staffedGroups}
+          candidates={candidates}
+        />
       </Step>
     </ol>
   );
@@ -190,10 +207,13 @@ function StartRound({
   model,
   draft,
   staffedGroups,
+  candidates,
 }: {
   model: PeriodDetailModel;
   draft: boolean;
   staffedGroups: number;
+  /** Epics **und** Run-the-Business-Positionen — siehe `PeriodSetupTab`. */
+  candidates: number;
 }) {
   const [state, action, pending] = useActionState(startPeriodAction, {});
 
@@ -211,7 +231,7 @@ function StartRound({
   const blocked =
     staffedGroups === 0
       ? "Erst möglich, wenn mindestens eine Gruppe ein Mitglied hat."
-      : model.epicCandidates.length === 0
+      : candidates === 0
         ? "Die PB-Liste ist leer — ohne Kandidaten gibt es nichts zu verteilen."
         : null;
 

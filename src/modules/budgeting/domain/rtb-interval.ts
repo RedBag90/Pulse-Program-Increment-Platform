@@ -78,3 +78,34 @@ export function sumRtbAnnual(items: readonly RtbAmountLike[]): number {
 export function sumRtbCycle(items: readonly RtbAmountLike[]): number {
   return sumRtbAnnual(items) / 2;
 }
+
+/** Eine Position, so weit die Buendelung je Wertstrom sie kennen muss. */
+export interface RtbGroupable extends RtbAmountLike {
+  valueStreamId: string;
+}
+
+/**
+ * **Der Kachel-Ask je Wertstrom** — die Grundlage der PB-Listen-Zeilen.
+ *
+ * Ein Wertstrom beantragt sein Run-the-Business-Budget als **eine** Summe;
+ * welche Positionen dahinterstehen, entscheidet er selbst. Nur **aktive**
+ * zaehlen, und ein Wertstrom ohne aktive Position taucht **gar nicht** auf:
+ * ein Antrag ueber nichts ist kein fehlender Antrag, sondern keiner.
+ *
+ * **Warum hier und nicht zweimal daneben.** Dieselbe Rechnung stand in
+ * `loadRtbPreview` (Entwurfs-Vorschau) und in `materializeRtbCandidates`
+ * (Einfrieren beim Start). Der Docblock der ersten warnte selbst davor, dass
+ * beide gleich rechnen muessen — „sonst zeigte der Entwurf n Zeilen und die
+ * laufende Runde eine, und die Liste spraenge genau in dem Moment, in dem
+ * niemand mehr etwas aendern kann". Die Kachel-Galerie waere die dritte
+ * Abschrift geworden. Jetzt ist es eine.
+ */
+export function rtbAskByValueStream(items: readonly RtbGroupable[]): Map<string, number> {
+  const byStream = new Map<string, number>();
+  for (const i of items) {
+    if (!i.active) continue;
+    const cycle = rtbCycleAmount(i.plannedAmount, i.interval);
+    byStream.set(i.valueStreamId, (byStream.get(i.valueStreamId) ?? 0) + cycle);
+  }
+  return byStream;
+}
