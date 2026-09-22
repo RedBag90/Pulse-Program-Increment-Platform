@@ -60,7 +60,9 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
   return (
     <section className="space-y-2" data-tour="portfolio-kanban">
       <div className="flex items-center justify-between">
-        <SectionLabel>Epic Portfolio-Kanban · Horizonte</SectionLabel>
+        <SectionLabel>
+          Epic Portfolio-Kanban{data.horizonOnOverview ? " · Horizonte" : ""}
+        </SectionLabel>
         <Link
           href="/portfolio/epics"
           className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
@@ -72,17 +74,26 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
       <RollupHint classFilter={data.classFilter} detail="die Spaltenzähler bleiben vollständig" />
 
       <div className="overflow-x-auto">
-        <div className="grid min-w-[960px] grid-cols-[180px_repeat(6,minmax(140px,1fr))] gap-2">
+        <div
+          className={cn(
+            "grid min-w-[960px] gap-2",
+            data.horizonOnOverview
+              ? "grid-cols-[180px_repeat(6,minmax(140px,1fr))]"
+              : "grid-cols-[repeat(6,minmax(140px,1fr))]",
+          )}
+        >
           {/* Kopfzeile: die Prozess-Spalten. Karten und Zaehler lesen seit dem
               Neuschnitt beide `epicsByColumn` — vorher kam der Zaehler von der
               Prozess-Achse und die Karte von der Reifegrad-Achse, und ein
               gesichtetes L0-Epic wurde unter „Hypothese" gezaehlt, waehrend es
               unter „Funnel" lag. */}
-          <div className="flex items-end">
-            <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
-              Budget · {cycleLabel(data.budgetCycleKey)}
-            </span>
-          </div>
+          {data.horizonOnOverview && (
+            <div className="flex items-end">
+              <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
+                Budget · {cycleLabel(data.budgetCycleKey)}
+              </span>
+            </div>
+          )}
           {PORTFOLIO_COLUMNS.map((col) => {
             const work = COLUMN_ACTIVITY[col] === "work";
             return (
@@ -110,10 +121,15 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
             );
           })}
 
-          {/* Swimlanes */}
-          {HORIZON_LANES.map((lane) => (
-            <LaneRow key={lane} lane={lane} data={data} />
-          ))}
+          {/* Swimlanes — oder eine einzige Bahn, wenn die Horizont-Achse
+              abgeschaltet ist. Dafuer braucht es keine neuen Daten:
+              `epicsByColumn` traegt dieselben Karten ohne die Gliederung, und
+              die Spaltenkoepfe oben zaehlen ohnehin schon daraus. */}
+          {data.horizonOnOverview ? (
+            HORIZON_LANES.map((lane) => <LaneRow key={lane} lane={lane} data={data} />)
+          ) : (
+            <FlatRow data={data} />
+          )}
         </div>
       </div>
     </section>
@@ -134,6 +150,31 @@ function LaneRow({ lane, data }: { lane: string; data: PortfolioOverview }) {
           key={col}
           lane={lane}
           epics={row[col]}
+          classFilter={data.classFilter}
+          work={COLUMN_ACTIVITY[col] === "work"}
+        />
+      ))}
+    </>
+  );
+}
+
+/**
+ * Das Board ohne Horizont-Gliederung: eine Zeile, dieselben Karten.
+ *
+ * `epicsByColumn` ist hier die Quelle — nicht die Summe der Bahnen. Beides
+ * ergaebe dieselben Epics, aber nur eine davon ist die Achse, die die
+ * Spaltenkoepfe zaehlen; zwei Wege zur selben Zahl driften irgendwann.
+ */
+function FlatRow({ data }: { data: PortfolioOverview }) {
+  return (
+    <>
+      {PORTFOLIO_COLUMNS.map((col) => (
+        <KanbanCell
+          key={col}
+          // Kein Bahn-Grund: „none" waere die Bahn *ohne Horizont* und damit
+          // eine Aussage ueber die Epics. Hier gibt es gar keine Bahnen.
+          lane=""
+          epics={data.epicsByColumn[col]}
           classFilter={data.classFilter}
           work={COLUMN_ACTIVITY[col] === "work"}
         />

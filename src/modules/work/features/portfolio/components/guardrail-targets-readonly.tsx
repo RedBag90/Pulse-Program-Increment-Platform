@@ -43,6 +43,15 @@ export function GuardrailTargetsReadOnly({ targets }: Props) {
             <Row label="H1.2 · Extracting" value={targets.horizon["h1.2"]} />
             <Row label={HORIZON_LABEL.h0} value={targets.horizon.h0} />
           </ul>
+          {/* Der Zwilling des Schalters im Formular. Ohne ihn zeigten die zwei
+              Ansichten Verschiedenes — und wer nur lesen darf, saehe nicht,
+              warum die Uebersicht die Achse weglaesst. */}
+          <p className="mt-2 border-t pt-2 text-meta text-muted-foreground">
+            Auf der Portfolio-Übersicht:{" "}
+            <span className="font-medium text-foreground">
+              {targets.display.horizonOnOverview ? "wird gezeigt" : "ausgeblendet"}
+            </span>
+          </p>
         </div>
         <div className="rounded-md border p-3">
           <p className="mb-2 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">

@@ -159,6 +159,24 @@ export interface GuardrailTargets {
     /** Zeitrahmen, in dem eine BO-Freigabe bedient sein soll (Tage). */
     responseDays: number;
   };
+  /**
+   * **Anzeige-Entscheidungen — keine Soll-Werte.**
+   *
+   * Sie stehen **neben** den Achsen, nicht in ihnen, und zwar aus zwei Gründen:
+   * sie summieren auf nichts (`validateGuardrailTargets` geht sie deshalb nichts
+   * an), und ein Wertstrom soll sie nicht überschreiben können. Ob die
+   * Portfolio-Übersicht eine Achse überhaupt zeigt, ist eine Entscheidung für
+   * die Seite — nicht für einen gefilterten Ausschnitt davon.
+   */
+  display: {
+    /**
+     * Zeigt die Portfolio-Übersicht die Horizont-Achse? Aus ⇒ weder der
+     * Trichter „Produkte im Investitionshorizont" noch die Horizont-Bahnen des
+     * Kanbans. Die Guardrail-Karte „Investment by Horizon" bleibt unberührt —
+     * sie steht auf der Guardrails-Seite, also dort, wo dieser Schalter sitzt.
+     */
+    horizonOnOverview: boolean;
+  };
 }
 
 export const DEFAULT_GUARDRAIL_TARGETS: GuardrailTargets = {
@@ -172,6 +190,7 @@ export const DEFAULT_GUARDRAIL_TARGETS: GuardrailTargets = {
   capacity: { business: 70, enabler: 20, maintenance: 10 },
   approval: { portfolioThreshold: 100_000 },
   engagement: { coverage: 90, responseDays: 10 },
+  display: { horizonOnOverview: true },
 };
 
 /**
@@ -290,6 +309,19 @@ export function parseGuardrailTargetsDetailed(raw: unknown): GuardrailTargetsPar
     return DEFAULT_GUARDRAIL_TARGETS.approval[key];
   };
 
+  // Dieselbe Toleranz wie bei `engagement` und `approval`, eine Ebene hoeher:
+  // jedes Bestands-JSON hat kein `display` (der Schalter kam spaeter). Fehlt der
+  // Block ganz, ist der Default der GEWOLLTE Pfad — kein Fallback vermerken,
+  // sonst meldete jeder Alt-Tenant ab dem ersten Laden Drift. Nur ein teilweise
+  // befuellter Block gilt als solche.
+  const displayPresent = typeof r.display === "object" && r.display !== null;
+  const dsp = (r.display ?? {}) as Record<string, unknown>;
+  const displayField = (key: "horizonOnOverview"): boolean => {
+    if (typeof dsp[key] === "boolean") return dsp[key] as boolean;
+    if (displayPresent) recordFallback(`display.${key}`);
+    return DEFAULT_GUARDRAIL_TARGETS.display[key];
+  };
+
   const targets: GuardrailTargets = {
     horizon: Object.fromEntries(STATIONS.map((st) => [st, horizonField(st)])) as Record<
       Station,
@@ -305,6 +337,7 @@ export function parseGuardrailTargetsDetailed(raw: unknown): GuardrailTargetsPar
       coverage: engagementField("coverage"),
       responseDays: engagementField("responseDays"),
     },
+    display: { horizonOnOverview: displayField("horizonOnOverview") },
   };
 
   return {
@@ -421,7 +454,14 @@ export function resolveGuardrailTargets(
 
   // Nur die gesetzten Achsen ersetzen; für sie gilt derselbe tolerante Parser,
   // damit eine halbe Achse nicht die ganze Auflösung kippt.
+  //
+  // **Das `...inherited` davor ist kein Schmuck.** Ohne es zaehlte dieses
+  // Literal die Schluessel des Typs auf — und jeder, der spaeter einen
+  // hinzufuegt, ohne hier nachzutragen, verloere ihn still, sobald irgendein
+  // Wertstrom irgendeine Achse ueberschreibt. Genau so waere `display`
+  // verschwunden. Was keine Achse ist, wird geerbt und nie ueberschrieben.
   const merged = parseGuardrailTargets({
+    ...inherited,
     horizon: overriddenAxes.includes("horizon") ? r.horizon : inherited.horizon,
     capacity: overriddenAxes.includes("capacity") ? r.capacity : inherited.capacity,
     approval: overriddenAxes.includes("approval") ? r.approval : inherited.approval,

@@ -49,6 +49,8 @@ export function GuardrailTargetsForm({ targets }: Props) {
     setDraft((p) => ({ ...p, engagement: { ...p.engagement, [key]: num(v) } }));
   const setThreshold = (v: number) =>
     setDraft((p) => ({ ...p, approval: { portfolioThreshold: num(v) } }));
+  const setHorizonOnOverview = (v: boolean) =>
+    setDraft((p) => ({ ...p, display: { ...p.display, horizonOnOverview: v } }));
 
   const horizonSum = STATIONS.reduce((sum, st) => sum + draft.horizon[st], 0);
   const capacitySum = CAPACITY_BUCKETS.reduce((sum, b) => sum + draft.capacity[b], 0);
@@ -102,6 +104,29 @@ export function GuardrailTargetsForm({ targets }: Props) {
               onChange={(v) => setHorizon("h0", v)}
             />
             <SumHint sum={horizonSum} />
+            {/* Der Schalter steht dort, wo die Achse definiert wird: wer sie
+                nicht pflegt, entscheidet hier, dass die Uebersicht sie auch
+                nicht zeigt. Er betrifft **nur** die Portfolio-Uebersicht —
+                die Karte „Investment by Horizon" auf dieser Seite bleibt. */}
+            <label className="flex items-start gap-2 border-t pt-2 text-xs">
+              {/* Eine abgehakte Checkbox sendet nichts. Das Hidden-Feld davor
+                  macht „aus" ueberhaupt erst uebertragbar. */}
+              <input type="hidden" name="guardrail_horizon_on_overview" value="0" />
+              <input
+                type="checkbox"
+                name="guardrail_horizon_on_overview"
+                value="1"
+                checked={draft.display.horizonOnOverview}
+                onChange={(e) => setHorizonOnOverview(e.target.checked)}
+                className="mt-0.5 size-3.5 shrink-0"
+              />
+              <span>
+                Auf der Portfolio-Übersicht zeigen
+                <span className="block text-meta text-muted-foreground">
+                  Trichter „Produkte im Investitionshorizont" und die Horizont-Bahnen des Kanbans.
+                </span>
+              </span>
+            </label>
           </fieldset>
 
           <fieldset className="space-y-2 rounded-md border p-3">

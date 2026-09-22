@@ -93,6 +93,7 @@ function baseInputs(): PortfolioOverviewInputs {
     funnelItems: [],
     budgetingEnabled: true,
     horizonTargets: null,
+    horizonOnOverview: true,
     selectedClasses: [],
     activePis: [],
     structureGap: { hasTarget: false, targetDate: null, dimensions: [], overallProgress: 0 },

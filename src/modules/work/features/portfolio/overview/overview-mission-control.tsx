@@ -45,13 +45,19 @@ export function OverviewMissionControl({
 
       {/* Die Ebene zwischen Epic und Portfolio: welches Produkt steht wo, und
           wie viel Geld bindet es dort. Über dem Kanban, weil es den Rahmen
-          setzt, in dem die Epics darunter laufen. */}
-      <HorizonFunnelBlock
-        items={data.funnelItems}
-        cycleKey={data.budgetCycleKey}
-        horizonTargets={data.horizonTargets}
-        budgetingEnabled={data.budgetingEnabled}
-      />
+          setzt, in dem die Epics darunter laufen.
+
+          Wer nicht nach Horizonten steuert, schaltet die Achse im
+          Guardrail-Formular ab — dann fehlt hier nicht nur die Zeichnung,
+          sondern auch die Abfragewelle dahinter. */}
+      {data.horizonOnOverview && (
+        <HorizonFunnelBlock
+          items={data.funnelItems}
+          cycleKey={data.budgetCycleKey}
+          horizonTargets={data.horizonTargets}
+          budgetingEnabled={data.budgetingEnabled}
+        />
+      )}
 
       <CompactKanban data={data} />
 

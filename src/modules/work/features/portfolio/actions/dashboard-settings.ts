@@ -42,6 +42,10 @@ const guardrailTargetsSchema = z
       coverage: z.number().min(0).max(100),
       responseDays: z.number().int().min(1),
     }),
+    // Anzeige, kein Soll-Wert — vom Summen-Refinement unten darum unberührt.
+    display: z.object({
+      horizonOnOverview: z.boolean(),
+    }),
   })
   .refine(
     (t) => {
@@ -99,6 +103,13 @@ export const savePortfolioDashboardSettingsAction = createServerAction({
           engagement: {
             coverage: num("guardrail_coverage"),
             responseDays: num("guardrail_response_days"),
+          },
+          display: {
+            // **Eine abgehakte Checkbox sendet gar nichts.** Ohne das
+            // vorangestellte Hidden-Feld („0") liesse der Schalter sich
+            // einschalten, aber nie wieder aus — `fd.get` faende dann
+            // schlicht nichts und der Leser fiele auf den Default „an".
+            horizonOnOverview: fd.getAll("guardrail_horizon_on_overview").includes("1"),
           },
         }
       : undefined;

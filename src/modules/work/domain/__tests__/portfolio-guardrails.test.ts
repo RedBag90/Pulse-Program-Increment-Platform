@@ -351,3 +351,72 @@ describe("resolveGuardrailTargets", () => {
     expect(r.source).toBe("tenant");
   });
 });
+
+const TENANT_JSON = {
+  horizon: { h0: 5, "h1.1": 30, "h1.2": 35, h2: 20, h3: 10 },
+  capacity: { business: 80, enabler: 20, maintenance: 0 },
+  approval: { portfolioThreshold: 100_000 },
+  engagement: { coverage: 90, responseDays: 10 },
+};
+
+describe("Anzeige-Schalter · Horizont auf der Übersicht", () => {
+  it("ist an, wenn der Block im Bestands-JSON fehlt — und das ist keine Drift", () => {
+    // Jedes vor September 2026 gespeicherte JSON hat kein `display`. Der
+    // Default ist dort der **gewollte** Pfad; würde er als Fallback vermerkt,
+    // meldete jeder Alt-Mandant ab dem ersten Laden Drift.
+    const r = parseGuardrailTargetsDetailed({
+      horizon: { h0: 10, "h1.1": 30, "h1.2": 30, h2: 20, h3: 10 },
+      capacity: { business: 70, enabler: 20, maintenance: 10 },
+    });
+    expect(r.targets.display.horizonOnOverview).toBe(true);
+    expect(r.fellBackFields).not.toContain("display.horizonOnOverview");
+  });
+
+  it("liest ein gesetztes Aus als Aus", () => {
+    const r = parseGuardrailTargetsDetailed({ display: { horizonOnOverview: false } });
+    expect(r.targets.display.horizonOnOverview).toBe(false);
+  });
+
+  it("meldet einen halb befüllten Block als Drift", () => {
+    const r = parseGuardrailTargetsDetailed({ display: { horizonOnOverview: "nein" } });
+    expect(r.targets.display.horizonOnOverview).toBe(true);
+    expect(r.fellBackFields).toContain("display.horizonOnOverview");
+  });
+
+  it("überlebt eine Wertstrom-Überschreibung", () => {
+    // Die Auflösung ersetzt **Achsen**. Sie baute ihr Ergebnis aus einem
+    // Literal mit genau vier Schlüsseln neu zusammen — ein Schalter daneben
+    // wäre still verschwunden, sobald ein Wertstrom irgendeine Achse setzt.
+    // Genau dieser Fall, und er ist unauffällig: der Mandant hat entschieden,
+    // der Wertstrom hat zu dieser Frage nichts gesagt.
+    const tenant = { ...TENANT_JSON, display: { horizonOnOverview: false } };
+    const r = resolveGuardrailTargets(
+      [{ valueStreamId: "vs-1", targets: { approval: { portfolioThreshold: 50_000 } } }],
+      tenant,
+      "vs-1",
+    );
+    expect(r.overriddenAxes).toEqual(["approval"]);
+    expect(r.targets.approval.portfolioThreshold).toBe(50_000);
+    expect(r.targets.display.horizonOnOverview).toBe(false);
+  });
+
+  it("lässt einen Wertstrom den Schalter nicht umlegen", () => {
+    // Ob eine Seite eine Achse zeigt, ist keine Frage des Ausschnitts. Ein
+    // Wertstrom, der es trotzdem in seine Zeile schriebe, wird überhört.
+    const tenant = { ...TENANT_JSON, display: { horizonOnOverview: true } };
+    const r = resolveGuardrailTargets(
+      [
+        {
+          valueStreamId: "vs-1",
+          targets: {
+            display: { horizonOnOverview: false },
+            approval: { portfolioThreshold: 1 },
+          },
+        },
+      ],
+      tenant,
+      "vs-1",
+    );
+    expect(r.targets.display.horizonOnOverview).toBe(true);
+  });
+});

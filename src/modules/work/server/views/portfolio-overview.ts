@@ -366,6 +366,15 @@ export interface PortfolioOverview {
    * Betriebskosten eingeschlossen, misst also dieselbe Größe wie die Öffnung.
    */
   horizonTargets: HorizonTargets | null;
+  /**
+   * Zeigt diese Seite die Horizont-Achse? Gesetzt im Guardrail-Formular unter
+   * dem HORIZON-Block. Aus ⇒ weder der Trichter noch die Horizont-Bahnen des
+   * Kanbans; `funnelItems` ist dann leer, weil gar nicht erst geladen.
+   *
+   * Sie kommt **immer vom Mandanten**, nie von einem gefilterten Wertstrom: ob
+   * eine Seite eine Achse zeigt, ist keine Frage des Ausschnitts.
+   */
+  horizonOnOverview: boolean;
 
   goals: OverviewGoal[];
   goalsOnTrack: number;
@@ -463,6 +472,8 @@ export interface PortfolioOverviewInputs {
    * — oder `null`, wenn der Trichter nichts zu vergleichen hat.
    */
   horizonTargets: HorizonTargets | null;
+  /** Zeigt die Uebersicht die Horizont-Achse? Siehe `PortfolioOverview`. */
+  horizonOnOverview: boolean;
   board: PortfolioBudgetingBoard;
   vsBudgets: PortfolioVsBudgets;
   /** Zyklus-Allokation je Epic (laufender Zyklus) — Budgeting-Adapter, ADR-0013. */
@@ -551,6 +562,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     funnelItems,
     budgetingEnabled,
     horizonTargets,
+    horizonOnOverview,
     now,
   } = inputs;
   const nowMs = now.getTime();
@@ -925,6 +937,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     funnelItems,
     budgetingEnabled,
     horizonTargets,
+    horizonOnOverview,
     goals,
     goalsOnTrack,
     goalAverageProgress,
@@ -1089,6 +1102,22 @@ export async function loadPortfolioOverviewInputs(
 
   const { board, vsBudgets, cycleAllocations, budgetCycleKey } = budgeting;
 
+  /**
+   * **Welche Ziele gelten, wenn gefiltert ist.** Genau ein Wertstrom gewaehlt →
+   * dessen Zeile; keiner oder mehrere → der Tenant-Default. Eine Linie kann die
+   * abweichenden Ziele mehrerer Wertstroeme nicht darstellen, und sie zu mitteln
+   * waere eine erfundene Zahl.
+   *
+   * Hier oben statt in der Rueckgabe, weil der Schalter darin die naechste
+   * Abfragewelle entscheidet.
+   */
+  const guardrails = resolveGuardrailTargets(
+    guardrailRows,
+    tenantRow?.guardrailTargets ?? null,
+    filter.valueStreamIds.length === 1 ? (filter.valueStreamIds[0] ?? null) : null,
+  ).targets;
+  const horizonOnOverview = guardrails.display.horizonOnOverview;
+
   // Zweite Welle. Die Klassen werden **immer** geladen, nicht mehr nur bei
   // gesetzter Facette: der Horizont-Trichter braucht sie, um je Epic den
   // richtigen Topf zu wählen (`chooseAllocation`). Der Preis ist der
@@ -1101,14 +1130,21 @@ export async function loadPortfolioOverviewInputs(
 
   // Der Trichter erst hier: sein Invest **ist** die Zuteilung des angewandten
   // Zyklus — aus beiden Töpfen, je Epic genau einer.
-  const funnelItems = await loadHorizonFunnelItems(db, tenantId, {
-    runBySolution: runCosts.bySolution,
-    unassignedRun: runCosts.unassigned,
-    cycleAllocations,
-    artAllocations,
-    epicClasses,
-    budgetingEnabled,
-  });
+  //
+  // Ist die Achse abgeschaltet, entfaellt diese ganze Welle: sie dient
+  // ausschliesslich dem Trichter, und der wird dann nicht gezeichnet. Die
+  // vorgelagerten Ports (`cycleRunCosts`, `artEpicCycleAllocations`) laufen
+  // weiter — sie abzuraeumen hiesse, in einem Zug zwei Dinge zu tun.
+  const funnelItems = horizonOnOverview
+    ? await loadHorizonFunnelItems(db, tenantId, {
+        runBySolution: runCosts.bySolution,
+        unassignedRun: runCosts.unassigned,
+        cycleAllocations,
+        artAllocations,
+        epicClasses,
+        budgetingEnabled,
+      })
+    : [];
 
   return {
     epics,
@@ -1128,17 +1164,8 @@ export async function loadPortfolioOverviewInputs(
     selectedClasses: filter.epicClasses,
     funnelItems,
     budgetingEnabled,
-    /**
-     * **Welche Ziele gelten, wenn gefiltert ist.** Genau ein Wertstrom gewaehlt
-     * → dessen Zeile; keiner oder mehrere → der Tenant-Default. Eine Linie kann
-     * die abweichenden Ziele mehrerer Wertstroeme nicht darstellen, und sie zu
-     * mitteln waere eine erfundene Zahl.
-     */
-    horizonTargets: resolveGuardrailTargets(
-      guardrailRows,
-      tenantRow?.guardrailTargets ?? null,
-      filter.valueStreamIds.length === 1 ? (filter.valueStreamIds[0] ?? null) : null,
-    ).targets.horizon,
+    horizonTargets: guardrails.horizon,
+    horizonOnOverview,
     now: new Date(),
   };
 }
