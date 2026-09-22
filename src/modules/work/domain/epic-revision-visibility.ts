@@ -80,7 +80,7 @@ export function computeEpicRevisionVisibility(
 
   const rank = RANK[stageGate];
   const hypoUnderReview = openGateRequestTo === "L1";
-  const bcUnderReview = openGateRequestTo === "L3.1";
+  const bcUnderReview = openGateRequestTo === "L2";
 
   // Die Hypothese ist frei, solange das Epic auf L0 steht und niemand über sie
   // entscheidet. Der Business Case ab L1 bis zu seiner Freigabe an L3.1.

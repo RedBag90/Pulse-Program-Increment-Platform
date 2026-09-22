@@ -16,17 +16,17 @@ const epic = (id: string, step: GateStep, amountInCycle: number): AllocationFact
   amountInCycle,
 });
 
-describe("mayHoldAllocation — Budget erst ab L3.1", () => {
-  it("lässt die vier frühen Schritte nicht zu", () => {
-    // Funnel, Hypothese, Analyse-Einplanung, Business Case: vorher gibt es
-    // keine freigegebene Investitionsentscheidung.
-    for (const step of ["L0", "L1", "L2"] as const) {
+describe("mayHoldAllocation — Budget erst ab L2", () => {
+  it("lässt die drei frühen Schritte nicht zu", () => {
+    // Funnel, Hypothese, Analyse-Entscheidung: vorher gibt es keinen
+    // freigegebenen Business Case.
+    for (const step of ["L0", "L1", "analysis"] as const) {
       expect(mayHoldAllocation(step)).toBe(false);
     }
   });
 
-  it("lässt alles ab L3.1 zu", () => {
-    for (const step of ["L3.1", "L3.2", "L4", "L4.2", "L5"] as const) {
+  it("lässt alles ab L2 zu", () => {
+    for (const step of ["L2", "L3", "L4", "L4.2", "L5"] as const) {
       expect(mayHoldAllocation(step)).toBe(true);
     }
   });
@@ -56,12 +56,14 @@ describe("requiresCurrentAllocation — nur die Umsetzung verlangt Geld", () => 
 describe("allocationRuleViolations", () => {
   it("findet Geld in zu frühen Reifegraden", () => {
     const v = allocationRuleViolations(
-      [epic("a", "L0", 80_000), epic("b", "L2", 50_000), epic("c", "L3.1", 90_000)],
+      // „analysis" ist der letzte Schritt vor der Business-Case-Freigabe — dort
+      // darf noch kein Geld liegen. Auf L2 darf es das.
+      [epic("a", "L0", 80_000), epic("b", "analysis", 50_000), epic("c", "L2", 90_000)],
       "2026-H2",
     );
     expect(v.map((x) => x.id)).toEqual(["a", "b"]);
     expect(v[0]!.kind).toBe("funded_too_early");
-    expect(v[0]!.reason).toContain("L3.1");
+    expect(v[0]!.reason).toContain("L2");
   });
 
   it("findet laufende Epics ohne Budget", () => {
@@ -74,8 +76,8 @@ describe("allocationRuleViolations", () => {
   it("lässt die erlaubten Zustände in Ruhe", () => {
     // Alle fünf, die im laufenden Zeitraum vorkommen dürfen.
     const ok: AllocationFacts[] = [
-      epic("a", "L3.1", 60_000),
-      epic("b", "L3.2", 60_000),
+      epic("a", "L2", 60_000),
+      epic("b", "L3", 60_000),
       epic("c", "L4", 60_000),
       epic("d", "L4.2", 60_000),
       epic("e", "L5", 60_000),

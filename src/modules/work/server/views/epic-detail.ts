@@ -655,7 +655,6 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
   };
   const subStage = subStageFor({
     stageGate: epic.stageGate as StageGate,
-    approvedAt: epic.approvedAt,
     implementationCompletedAt: epic.implementationCompletedAt,
   });
   const nextStep = epicNextStep({
@@ -667,6 +666,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     hasBusinessCase: businessCaseHasContent(businessCase.current),
     budgetAllocated,
     budgetingEnabled: enabled.budgeting,
+    selectedForAnalyzingAt: epic.selectedForAnalyzingAt,
     impactRecognizedAt: epic.impactRecognizedAt,
     childFeatureStats: childStats,
   });
@@ -677,9 +677,11 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     stageGate: epic.stageGate as StageGate,
     subStage,
     impactRecognizedAt: epic.impactRecognizedAt,
-    // Die Erstsichtung bewegt den Reifegrad nicht — solange das Epic in L0
-    // steht, ist dieser Stempel die einzige Auskunft darueber, ob sie war.
+    // Zwei Meilensteine bewegen den Reifegrad nicht — die Erstsichtung auf L0
+    // und die Analyse-Entscheidung auf L1. Auf ihrem jeweiligen Grad sind diese
+    // Stempel die einzige Auskunft darueber, ob sie schon waren.
     selectedForDetailingAt: epic.selectedForDetailingAt,
+    selectedForAnalyzingAt: epic.selectedForAnalyzingAt,
   });
 
   return {
@@ -773,7 +775,7 @@ export async function loadEpicDetailInputs(
   };
   const current = currentGateStep({
     stageGate: epic.stageGate as StageGate,
-    approvedAt: epic.approvedAt,
+    selectedForAnalyzingAt: epic.selectedForAnalyzingAt,
     implementationCompletedAt: epic.implementationCompletedAt,
   });
   const to = nextGate(current);

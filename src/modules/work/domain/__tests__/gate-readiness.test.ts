@@ -44,15 +44,15 @@ function keys(f: EpicGateFacts, to: GateStep, which: "unsatisfied" | "blocking-u
 
 describe("nextGate / previousGate", () => {
   it("läuft die kanonische Schritt-Reihenfolge ab und endet an den Rändern", () => {
-    // L3.2 („Budget alloziert") und L4.2 („Umsetzung fertig") liegen als eigene
-    // Schritte in ihrem Haupt-Gate.
+    // `analysis` („zur Analyse ausgewählt") und L4.2 („Umsetzung fertig")
+    // liegen als eigene Schritte in einem fremden Haupt-Gate.
     expect(
-      ["L0", "L1", "L2", "L3.1", "L3.2", "L4", "L4.2"].map((g) => nextGate(g as GateStep)),
-    ).toEqual(["L1", "L2", "L3.1", "L3.2", "L4", "L4.2", "L5"]);
+      ["L0", "L1", "analysis", "L2", "L3", "L4", "L4.2"].map((g) => nextGate(g as GateStep)),
+    ).toEqual(["L1", "analysis", "L2", "L3", "L4", "L4.2", "L5"]);
     expect(nextGate("L5")).toBeNull();
     expect(previousGate("L0")).toBeNull();
-    expect(previousGate("L3.1")).toBe("L2");
-    expect(previousGate("L4")).toBe("L3.2");
+    expect(previousGate("L2")).toBe("analysis");
+    expect(previousGate("L4")).toBe("L3");
     expect(previousGate("L5")).toBe("L4.2");
   });
 });
@@ -83,39 +83,42 @@ describe("gateReadiness — L1 (Selektion ins Detailing)", () => {
   });
 });
 
-describe("gateReadiness — L2 (Eintritt in die Analyse)", () => {
+describe("gateReadiness — die Analyse-Entscheidung", () => {
   it("spiegelt L1: die Hypothese ist die Vorleistung, nicht der Business Case", () => {
     const f = facts("L1", { hypothesisApprovedAt: AT });
-    expect(gateReadiness(f, "L2").ready).toBe(true);
-    expect(keys(f, "L2", "unsatisfied")).toEqual(["owner_nominated", "business_case_started"]);
+    expect(gateReadiness(f, "analysis").ready).toBe(true);
+    expect(keys(f, "analysis", "unsatisfied")).toEqual([
+      "owner_nominated",
+      "business_case_started",
+    ]);
   });
 
-  it("ohne freigegebene Hypothese blockiert L2", () => {
-    expect(keys(facts("L1"), "L2", "blocking-unsatisfied")).toEqual(["hypothesis_approved"]);
+  it("ohne freigegebene Hypothese blockiert der Schritt", () => {
+    expect(keys(facts("L1"), "analysis", "blocking-unsatisfied")).toEqual(["hypothesis_approved"]);
   });
 });
 
-describe("gateReadiness — L3 (Investitionsentscheidung)", () => {
-  it("der Eintritt in L3 verlangt den ausgearbeiteten Business Case, nicht seine Freigabe", () => {
+describe("gateReadiness — L2 (Business-Case-Freigabe)", () => {
+  it("verlangt den ausgearbeiteten Business Case, nicht seine Freigabe", () => {
     // Die Abnahme dieses Schritts *ist* die Freigabe — sie zur Vorbedingung zu
     // machen wäre zirkulär.
-    expect(keys(facts("L2"), "L3.1", "blocking-unsatisfied")).toEqual(["business_case_drafted"]);
-    expect(gateReadiness(facts("L2", { hasBusinessCaseContent: true }), "L3.1").ready).toBe(true);
+    expect(keys(facts("L2"), "L2", "blocking-unsatisfied")).toEqual(["business_case_drafted"]);
+    expect(gateReadiness(facts("L2", { hasBusinessCaseContent: true }), "L2").ready).toBe(true);
     // Das Geld ist hier ausdrücklich noch kein Thema; offen bleibt allenfalls
     // die beratende Owner-Nennung.
-    expect(keys(facts("L2", { hasBusinessCaseContent: true }), "L3.1", "unsatisfied")).toEqual([
+    expect(keys(facts("L2", { hasBusinessCaseContent: true }), "L2", "unsatisfied")).toEqual([
       "owner_nominated",
     ]);
   });
 
   it("L3.2 verlangt das allozierte Budget", () => {
-    expect(keys(facts("L3"), "L3.2", "blocking-unsatisfied")).toEqual(["budget_allocated"]);
-    expect(gateReadiness(facts("L3", { budgetAllocationSum: 1 }), "L3.2").ready).toBe(true);
+    expect(keys(facts("L3"), "L3", "blocking-unsatisfied")).toEqual(["budget_allocated"]);
+    expect(gateReadiness(facts("L3", { budgetAllocationSum: 1 }), "L3").ready).toBe(true);
   });
 
   it("ein Budget von exakt 0 zählt nicht als alloziert", () => {
     const f = facts("L3", { budgetAllocationSum: 0 });
-    expect(gateReadiness(f, "L3.2").ready).toBe(false);
+    expect(gateReadiness(f, "L3").ready).toBe(false);
   });
 
   /**
@@ -130,20 +133,20 @@ describe("gateReadiness — L3 (Investitionsentscheidung)", () => {
    */
   it("ohne Budget-Modul entfällt das Kriterium — der Schritt ruht auf der Abnahme", () => {
     const f = facts("L3", { budgetingEnabled: false, budgetAllocationSum: 0 });
-    expect(gateReadiness(f, "L3.2").ready).toBe(true);
+    expect(gateReadiness(f, "L3").ready).toBe(true);
   });
 
   it("zeigt das Kriterium dann gar nicht — ein Häkchen daran wäre gelogen", () => {
     const f = facts("L3", { budgetingEnabled: false });
-    expect(gateReadiness(f, "L3.2").criteria).toEqual([]);
-    expect(readinessBlockReason(gateReadiness(f, "L3.2"))).toBeNull();
+    expect(gateReadiness(f, "L3").criteria).toEqual([]);
+    expect(readinessBlockReason(gateReadiness(f, "L3"))).toBeNull();
   });
 
   it("lässt die anderen Schritte unberührt — nur L3.2 kennt das Modul", () => {
     const ohne = facts("L2", { budgetingEnabled: false });
     const mit = facts("L2", { budgetingEnabled: true });
-    expect(gateReadiness(ohne, "L3.1").criteria.map((c) => c.key)).toEqual(
-      gateReadiness(mit, "L3.1").criteria.map((c) => c.key),
+    expect(gateReadiness(ohne, "L2").criteria.map((c) => c.key)).toEqual(
+      gateReadiness(mit, "L2").criteria.map((c) => c.key),
     );
   });
 });
@@ -202,11 +205,11 @@ describe("gateReadiness — L5 (Impact)", () => {
 
 describe("readinessBlockReason", () => {
   it("nennt nur die blockierenden, unerfüllten Kriterien", () => {
-    expect(readinessBlockReason(gateReadiness(facts("L1"), "L2"))).toBe(
-      "Reifegrad L2 verlangt: Benefit-Hypothese ist freigegeben.",
+    expect(readinessBlockReason(gateReadiness(facts("L1"), "analysis"))).toBe(
+      "Reifegrad analysis verlangt: Benefit-Hypothese ist freigegeben.",
     );
-    expect(readinessBlockReason(gateReadiness(facts("L3"), "L3.2"))).toBe(
-      "Reifegrad L3.2 verlangt: Budget ist alloziert (Σ > 0).",
+    expect(readinessBlockReason(gateReadiness(facts("L2"), "L3"))).toBe(
+      "Reifegrad L3 verlangt: Budget ist alloziert (Σ > 0).",
     );
   });
 
@@ -216,6 +219,6 @@ describe("readinessBlockReason", () => {
 
   it("ist null, wenn alles erfüllt ist", () => {
     const f = facts("L2", { hasBusinessCaseContent: true, budgetAllocationSum: 10 });
-    expect(readinessBlockReason(gateReadiness(f, "L3.1"))).toBeNull();
+    expect(readinessBlockReason(gateReadiness(f, "L2"))).toBeNull();
   });
 });

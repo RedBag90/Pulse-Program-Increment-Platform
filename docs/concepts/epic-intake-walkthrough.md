@@ -59,7 +59,7 @@ ART-Epic. Sein Hilfstext sagt in zwei Sätzen, was das ist und was nicht:
 > freigegebenen Business Case — weicht sie ab, fragt die Fläche vor dem Antrag
 > nach."
 
-Vor L3.1 hat ein Epic **gar keine Klasse**: `epicClass` ist `null`, das Abzeichen
+Vor L2 hat ein Epic **gar keine Klasse**: `epicClass` ist `null`, das Abzeichen
 sagt „Noch nicht eingeordnet". Erst der freigegebene Business Case liefert
 Kosten, und `classifyEpic` vergleicht sie mit dem Portfolio-Limit des Wertstroms
 — **darüber** Portfolio-Epic, **darunter oder gleich** ART-Epic.
@@ -143,8 +143,14 @@ Die dritte Frage ist der eigentliche Akt. Der Meilenstein heißt
 das Epic und benennt den Epic Owner._
 
 Die Steuerung sitzt im Reiter **„Overview"**, im Panel **„Zuordnung"** ganz oben
-unter **„Owner"**: ein Personen-Picker und die Schaltfläche **„Owner zuweisen"**.
-Ist niemand benannt, steht dort „Nicht zugewiesen".
+unter **„Owner"**. Ein Klick auf den Namen öffnet die Personenauswahl; die
+Auswahl speichert sofort, ein Haken bestätigt es, **„— Niemand —"** entfernt die
+Benennung wieder. Ist niemand benannt, steht dort „Benennen".
+
+Das ist dieselbe Bedienung wie in der [Rollenverteilung](../../src/modules/core/org/features/structure/components/role-slot.tsx)
+unter `/structure/rollen` — ein Platz, ein Klick, sofort gespeichert. Vorher
+standen hier Picker und ein Knopf dauerhaft untereinander, und der Knopf war
+meistens ausgegraut, weil die Auswahl schon stimmte.
 
 > **Sie sass bis September 2026 an zwei Stellen.** Die ältere war der Reiter
 > „Reifegrad-Timeline", aufklappbar am Meilenstein Erstsichtung. Das
@@ -232,7 +238,7 @@ hat einen fachlichen und einen mechanischen Grund:
   Fortsetzung der Discovery, sondern ihre Folge.
 - **Mechanisch** friert der Horizont eines Epics mit der Business-Case-Freigabe
   ein. `epicHorizon` liefert `frozen: true`, sobald ein eigener Wert am Epic
-  steht **und** L3.1 gestempelt ist; danach sagt `horizonEditDeniedReason`:
+  steht **und** L2 gestempelt ist; danach sagt `horizonEditDeniedReason`:
   _„Der Horizont ist mit der Business-Case-Freigabe eingefroren. Ihn nachträglich
   zu ändern ist dem Portfolio-Management vorbehalten (Capability
   `epic.portfolio_override`)."_
@@ -243,7 +249,7 @@ umgeschrieben.** Die gemessene Portfolio-Balance vergangener Halbjahre hinge dan
 davon ab, wo ein Vorhaben heute steht. Drei Epics in drei Horizonten sind drei
 Belege; ein Epic, das dreimal die Bahn wechselt, ist keiner.
 
-> **Der Horizont eines Epics ist vor L3.1 frei.** Wer ihn am Epic selbst setzt,
+> **Der Horizont eines Epics ist vor L2 frei.** Wer ihn am Epic selbst setzt,
 > übersteuert damit den der Primär-Solution — explizit schlägt abgeleitet. Genau
 > das braucht ein R&D-Epic, das an einer bereits laufenden Solution hängt: die
 > Solution steht in H1, das Vorhaben ist Discovery.
@@ -304,7 +310,7 @@ nachzieht.
 | Epic anlegen                           | Portfolio Manager, Epic Owner; Wertstrom-Owner in seinem Strom       | `epic.create`                  |
 | Wertstrom / ART / Solution korrigieren | dieselben                                                            | `epic.update`                  |
 | Epic Owner benennen                    | Portfolio Manager; Wertstrom-Owner in seinem Strom                   | `epic.owner.assign`            |
-| Horizont am Epic setzen (vor L3.1)     | wer das Epic bearbeiten darf                                         | `epic.update`                  |
+| Horizont am Epic setzen (vor L2)       | wer das Epic bearbeiten darf                                         | `epic.update`                  |
 | Horizont nach der BC-Freigabe ändern   | Portfolio-Management                                                 | `epic.portfolio_override`      |
 | „I need help" setzen                   | **nur der Owner selbst**                                             | Eigentümerschaft               |
 | Die Bitten in „Meine Tasks" sehen      | Portfolio Manager (alle); sonst der Portfolio Manager des Wertstroms | Rolle bzw. `ValueStream.vmoId` |
@@ -330,5 +336,5 @@ nachzieht.
 | Horizont eines Epics, Einfrieren, Übersteuern    | `src/modules/work/domain/epic-horizon.ts`                                       |
 | Die zwei Merker und ihre Beschriftung            | `src/modules/work/features/portfolio/components/epic-governance-flags.tsx`      |
 | Der Merker als Voraussetzung der Kandidatenliste | `src/modules/budgeting/server/services/pb-list.ts`                              |
-| Aufnahme auf die PB-Liste (erst ab L3.1)         | `src/modules/work/domain/pb-submission.ts` (`isPbEligible`)                     |
+| Aufnahme auf die PB-Liste (erst ab L2)           | `src/modules/work/domain/pb-submission.ts` (`isPbEligible`)                     |
 | Was welche Rolle darf                            | `src/server/auth/policies/index.ts`                                             |

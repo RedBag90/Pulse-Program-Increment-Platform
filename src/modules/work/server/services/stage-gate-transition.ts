@@ -302,7 +302,7 @@ async function applyGateStamps(
 ): Promise<void> {
   const data = stampsToUpdate(stamps, actorId);
   const needsTimeline = stamps.implementationCompletedAt !== undefined;
-  const needsBaseline = to === "L1" || to === "L3.1";
+  const needsBaseline = to === "L1" || to === "L2";
   if (needsTimeline || needsBaseline) {
     const row = await tx.initiative.findUnique({
       where: { id: epicId },
@@ -320,12 +320,12 @@ async function applyGateStamps(
     if (to === "L1" && row?.benefitHypothesis != null) {
       data.baselineBenefitHypothesis = row.benefitHypothesis as Prisma.InputJsonValue;
     }
-    if (to === "L3.1" && row?.businessCase != null) {
+    if (to === "L2" && row?.businessCase != null) {
       data.baselineBusinessCase = row.businessCase as Prisma.InputJsonValue;
     }
   }
   await tx.initiative.update({ where: { id: epicId }, data });
-  if (to === "L3.1") await snapshotPlanTerms(tx, epicId);
+  if (to === "L2") await snapshotPlanTerms(tx, epicId);
 }
 
 /**

@@ -1201,7 +1201,7 @@ async function assertWrittenContentMatchesGates(tenantId: string): Promise<void>
       id: true,
       title: true,
       stageGate: true,
-      approvedAt: true,
+      selectedForAnalyzingAt: true,
       implementationCompletedAt: true,
       benefitHypothesis: true,
       businessCase: true,
@@ -1225,7 +1225,7 @@ async function assertWrittenContentMatchesGates(tenantId: string): Promise<void>
       title: r.title,
       step: currentGateStep({
         stageGate: r.stageGate as StageGate,
-        approvedAt: r.approvedAt,
+        selectedForAnalyzingAt: r.selectedForAnalyzingAt,
         implementationCompletedAt: r.implementationCompletedAt,
       }),
       has: {

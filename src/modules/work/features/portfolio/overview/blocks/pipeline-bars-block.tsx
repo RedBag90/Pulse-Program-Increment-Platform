@@ -1,7 +1,9 @@
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
-import { STAGE_SHORT } from "@/components/detail/initiative-labels";
-import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
+import {
+  PORTFOLIO_COLUMNS,
+  PORTFOLIO_COLUMN_LABELS,
+} from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 import { PORTFOLIO_WIP_LIMITS } from "@/modules/work/features/portfolio/overview/column-meta";
 
@@ -11,8 +13,12 @@ import { PORTFOLIO_WIP_LIMITS } from "@/modules/work/features/portfolio/overview
  * "in-flight". Soft-limit overruns get a ⚠ trailing note.
  */
 export function PipelineBarsBlock({ data }: { data: PortfolioOverview }) {
+  // **Die Balken zaehlen Spalten, nicht Reifegrade.** Vorher kam die Zahl aus
+  // `epicsByGate` und die Grenze aus `PORTFOLIO_WIP_LIMITS` — zwei Achsen in
+  // einer Zeile, und die Warnung „Limit ueberschritten" galt einem Engpass, den
+  // das Kanban daneben anders zaehlte.
   const maxCount = Math.max(
-    ...STAGE_GATES.map((g) => data.epicsByGate[g].length),
+    ...PORTFOLIO_COLUMNS.map((c) => data.epicsByColumn[c].length),
     data.doneInLast90Days,
     1,
   );
@@ -21,13 +27,13 @@ export function PipelineBarsBlock({ data }: { data: PortfolioOverview }) {
     <Card className="space-y-3 p-4">
       <SectionLabel>Pipeline</SectionLabel>
       <ul className="space-y-2 text-xs">
-        {STAGE_GATES.filter((g) => g !== "L5").map((g) => {
-          const count = data.epicsByGate[g].length;
-          const limit = PORTFOLIO_WIP_LIMITS[g];
+        {PORTFOLIO_COLUMNS.map((col) => {
+          const count = data.epicsByColumn[col].length;
+          const limit = PORTFOLIO_WIP_LIMITS[col];
           const over = limit !== null && count > limit;
           return (
-            <li key={g} className="grid grid-cols-[7rem_1fr_auto] items-center gap-3">
-              <span className="text-xs text-muted-foreground">{STAGE_SHORT[g]}</span>
+            <li key={col} className="grid grid-cols-[7rem_1fr_auto] items-center gap-3">
+              <span className="text-xs text-muted-foreground">{PORTFOLIO_COLUMN_LABELS[col]}</span>
               <div className="h-2 overflow-hidden rounded-full bg-muted">
                 <div
                   className={`h-full rounded-full ${over ? "bg-amber-500" : "bg-primary/70"}`}

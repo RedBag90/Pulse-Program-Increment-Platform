@@ -10,13 +10,13 @@ import {
  *
  * Bis dahin trug allein das Geld die Größe; ohne Modul war es überall null und
  * jedes Produkt schrumpfte auf denselben leeren Umriss. Jetzt zählen die Epics
- * im Lieferfenster L3.2–L4.2 — und die Ränder dieses Fensters sind die
+ * im Lieferfenster L3–L4.2 — und die Ränder dieses Fensters sind die
  * eigentliche Entscheidung.
  */
 const epic = (over: Partial<CountableEpic> = {}): CountableEpic => ({
   primarySolutionId: "s1",
   stageGate: "L4",
-  approvedAt: null,
+  selectedForAnalyzingAt: null,
   implementationCompletedAt: null,
   ...over,
 });
@@ -28,14 +28,15 @@ describe("countDeliveryLoad", () => {
     expect(m.get("s2")).toBe(1);
   });
 
-  it("zählt L3.2 mit — der Budget-Beschluss ist die untere Grenze", () => {
-    // L3.2 = `stage_gate` L3 **plus** der Abnahme-Stempel der Investition.
-    const m = countDeliveryLoad([epic({ stageGate: "L3", approvedAt: new Date() })]);
+  it("zählt L3 mit — der Budget-Beschluss ist die untere Grenze", () => {
+    // Seit dem Neuschnitt ist „Budget alloziert" ein eigener Reifegrad; der
+    // Stempel `approvedAt` muss dafuer nicht mehr befragt werden.
+    const m = countDeliveryLoad([epic({ stageGate: "L3" })]);
     expect(m.get("s1")).toBe(1);
   });
 
-  it("zählt L3.1 nicht — ein freigegebener Business Case ist noch kein Beschluss", () => {
-    const m = countDeliveryLoad([epic({ stageGate: "L3", approvedAt: null })]);
+  it("zählt L2 nicht — ein freigegebener Business Case ist noch kein Beschluss", () => {
+    const m = countDeliveryLoad([epic({ stageGate: "L2" })]);
     expect(m.has("s1")).toBe(false);
   });
 

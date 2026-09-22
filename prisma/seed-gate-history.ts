@@ -306,7 +306,7 @@ function approversFor(input: GateHistoryInput, to: GateStep): ResolvedApprover[]
     epicClass: input.epicClass ?? null,
   };
   const override: ApproverOverride[] | undefined =
-    to === "L3.1" && (input.multiPartyApproval ?? true)
+    to === "L2" && (input.multiPartyApproval ?? true)
       ? [
           { userId: input.parties.architect, role: "epic.party.architect" },
           ...(input.parties.businessOwner
@@ -496,7 +496,7 @@ export function buildGateHistory(input: GateHistoryInput): GateHistoryResult {
     if (move.to === "L1" && input.benefitHypothesis != null) {
       stamps.baselineBenefitHypothesis = input.benefitHypothesis;
     }
-    if (move.to === "L3.1" && input.businessCase != null) {
+    if (move.to === "L2" && input.businessCase != null) {
       stamps.baselineBusinessCase = input.businessCase;
     }
   }
@@ -530,9 +530,9 @@ export function buildGateHistory(input: GateHistoryInput): GateHistoryResult {
  */
 export const GATE_STEP_RULES: { toGate: GateStep; approverRoles: GateApproverRole[] }[] = [
   { toGate: "L1", approverRoles: ["value_stream.vmo"] },
-  { toGate: "L2", approverRoles: ["value_stream.vmo"] },
+  { toGate: "analysis", approverRoles: ["value_stream.vmo"] },
   {
-    toGate: "L3.1",
+    toGate: "L2",
     approverRoles: [
       "epic.party.architect",
       "epic.party.business_owner",
@@ -540,13 +540,13 @@ export const GATE_STEP_RULES: { toGate: GateStep; approverRoles: GateApproverRol
       "epic.party.irt_owner",
       "epic.party.lace_vmo",
       // Der sechste Sitz. Er löst sich nur auf, wenn die Primär-Solution einen
-      // Produkt-Manager trägt — und er kommt an L3.1 nur zum Zug, wenn der
+      // Produkt-Manager trägt — und er kommt an L2 nur zum Zug, wenn der
       // Antragsteller die fünf Parteien *nicht* selbst besetzt: eine
       // Override-Liste verdrängt in `expandApprovers` alle Platzhalter.
       "solution.product_manager",
     ],
   },
-  { toGate: "L3.2", approverRoles: ["value_stream.vmo", "value_stream.finance_approver"] },
+  { toGate: "L3", approverRoles: ["value_stream.vmo", "value_stream.finance_approver"] },
   // An L4 zeichnet der Produkt-Manager mit — aber nur bei ART-Epics, weil das
   // Vorhaben dort den Rahmen seines ARTs verändert (`appliesAtGate`).
   { toGate: "L4", approverRoles: ["value_stream.vmo", "solution.product_manager"] },

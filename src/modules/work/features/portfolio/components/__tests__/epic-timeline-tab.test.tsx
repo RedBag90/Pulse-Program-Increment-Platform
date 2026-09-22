@@ -48,6 +48,7 @@ function setup(over: Partial<Parameters<typeof EpicTimelineTab>[0]> = {}) {
         subStage: null,
         impactRecognizedAt: null,
         selectedForDetailingAt: null,
+        selectedForAnalyzingAt: null,
       })}
       {...over}
     />,

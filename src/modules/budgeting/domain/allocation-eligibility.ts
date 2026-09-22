@@ -26,7 +26,7 @@ import { GATE_STEPS, type GateStep } from "@/modules/work/domain/stage-gate";
  */
 
 /** Der früheste Schritt, ab dem ein Epic Budget tragen darf. */
-export const FIRST_FUNDABLE_STEP: GateStep = "L3.1";
+export const FIRST_FUNDABLE_STEP: GateStep = "L2";
 
 /**
  * Der Schritt, der Budget im laufenden Zyklus **verlangt**: `"L4"` ist L4.1,

@@ -161,23 +161,30 @@ export const DEFAULT_GATE_POLICIES: Record<
   L0: { required: false, quorum: "all", approverUserIds: [], approverRoles: [] },
   // Selektion ins Detailing: der VMO entscheidet, was Aufwand bekommt.
   L1: { required: true, quorum: "all", approverUserIds: [], approverRoles: ["value_stream.vmo"] },
-  // Eintritt in die Analyse.
-  L2: { required: true, quorum: "all", approverUserIds: [], approverRoles: ["value_stream.vmo"] },
-  // Eintritt in die Investitionsphase. Dieser Schritt *ist* die
-  // Business-Case-Freigabe, deshalb zeichnen hier die fünf Parteien — nicht der
-  // VMO allein. Er steckt als LACE/VMO in der Liste.
+  // Die Entscheidung, ein Vorhaben auszuarbeiten. Sie bewegt den Reifegrad
+  // nicht, wird aber wie jeder Schritt abgenommen — der VMO entscheidet, was
+  // Aufwand bekommt.
+  analysis: {
+    required: true,
+    quorum: "all",
+    approverUserIds: [],
+    approverRoles: ["value_stream.vmo"],
+  },
+  // Die Business-Case-Freigabe. Dieser Schritt *ist* sie, deshalb zeichnen hier
+  // die fünf Parteien — nicht der VMO allein. Er steckt als LACE/VMO in der
+  // Liste.
   // Der Produkt-Manager der Primär-Solution zeichnet mit: das Vorhaben
   // verändert sein Produkt. Hier bei **allen** Epics seiner Solution — eine
   // Einschränkung auf ART-Epics wäre nicht entscheidbar, weil die Klasse erst
   // aus dieser Freigabe entsteht.
-  "L3.1": {
+  L2: {
     required: true,
     quorum: "all",
     approverUserIds: [],
     approverRoles: [...BUSINESS_CASE_PARTY_ROLES, "solution.product_manager"],
   },
   // Die Investitionsentscheidung selbst — Finance zeichnet mit.
-  "L3.2": {
+  L3: {
     required: true,
     quorum: "all",
     approverUserIds: [],
@@ -218,13 +225,15 @@ export const DEFAULT_GATE_POLICIES: Record<
  * Wertstrom-Konfiguration, nicht die Wahl pro Epic: „der VMO dieses Wertstroms"
  * ist eine Regel und keine Entscheidung des Antragstellers.
  *
- * **L3.1 ist die Ausnahme.** Wer für MGMT, den Business Owner oder den
- * IRT-Owner *dieses* Epics zeichnet, ist eine Eigenschaft des Epics und nicht
- * des Wertstroms — genau das hat vorher der Approver-Dialog des Business Case
- * erfasst. Er lebt jetzt am Antrag weiter.
+ * **Die Business-Case-Freigabe ist die Ausnahme.** Wer für den Architect Lead,
+ * den Business Owner oder den IRT-Owner *dieses* Epics zeichnet, ist eine
+ * Eigenschaft des Epics und nicht des Wertstroms — genau das hat vorher der
+ * Approver-Dialog des Business Case erfasst. Er lebt jetzt am Antrag weiter.
+ *
+ * Der Schritt hiess bis September 2026 `L3.1`.
  */
 export function allowsAdHocApprovers(toGate: GateStep): boolean {
-  return toGate === "L3.1";
+  return toGate === "L2";
 }
 
 /**
@@ -246,12 +255,12 @@ export function resolveGatePolicy(
 
   if (!row) {
     const fallback = DEFAULT_GATE_POLICIES[toGate];
-    // Die fünf Parteien an L3.1 sind der Ausdruck der Practice
-    // `multiPartyApproval`. Ist sie aus, zeichnet der VMO allein — ein schlanker
-    // Tenant soll für den Business Case nicht plötzlich fünf Unterschriften
-    // brauchen, nur weil die Freigabe auf die Reifegrad-Achse gewandert ist.
-    // Eine gepflegte Regel-Zeile (unten) sticht das ohnehin.
-    if (toGate === "L3.1" && opts?.multiPartyApproval === false) {
+    // Die fünf Parteien an der Business-Case-Freigabe sind der Ausdruck der
+    // Practice `multiPartyApproval`. Ist sie aus, zeichnet der VMO allein — ein
+    // schlanker Tenant soll für den Business Case nicht plötzlich fünf
+    // Unterschriften brauchen, nur weil die Freigabe auf die Reifegrad-Achse
+    // gewandert ist. Eine gepflegte Regel-Zeile (unten) sticht das ohnehin.
+    if (toGate === "L2" && opts?.multiPartyApproval === false) {
       return {
         toGate,
         source: "code_default",

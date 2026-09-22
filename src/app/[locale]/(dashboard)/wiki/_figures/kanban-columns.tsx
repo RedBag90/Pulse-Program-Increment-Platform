@@ -1,35 +1,52 @@
-import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
-import { STAGE_SHORT } from "@/components/detail/initiative-labels";
+import {
+  PORTFOLIO_COLUMNS,
+  PORTFOLIO_COLUMN_LABELS,
+} from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 
 /**
  * Die sechs Spalten des Portfolio-Kanbans — und die Besonderheit, um die es in
- * dieser Phase geht: **Funnel und Hypothese tragen denselben Reifegrad.**
+ * dieser Phase geht: **die Spalte ist nicht der Reifegrad.**
  *
- * Die Spalten kommen aus `STAGE_GATES` und ihre Namen aus `STAGE_SHORT`, also
- * aus denselben zwei Konstanten, aus denen das Kanban selbst sie nimmt. Die
- * Ausnahme steht als Fussnote daneben statt als vierte Spalte in der Tabelle —
- * sie gilt fuer genau eine Kante und soll nicht aussehen wie eine Regel.
+ * Sie kommen aus `PORTFOLIO_COLUMNS`, also aus derselben Liste, aus der das
+ * Kanban sie nimmt. Bis September 2026 entstanden sie aus `STAGE_GATES` — Spalte
+ * und Grad waren dasselbe, und die eine Ausnahme (Funnel/Hypothese) stand als
+ * Fussnote daneben. Seit dem Neuschnitt der Achse sind es drei Abweichungen; sie
+ * gehoeren damit in die Tabelle, nicht in eine Fussnote.
  */
+const REIFEGRAD: Record<string, string> = {
+  funnel: "L0",
+  hypothesis: "L0 · L1",
+  business_case: "L1",
+  investment: "L2 · L3",
+  implementation: "L4.1",
+  impact: "L4.2",
+};
+
 export function KanbanColumns() {
   return (
     <div className="space-y-3">
       <div className="overflow-x-auto rounded-lg bg-card shadow-card">
         <div className="flex min-w-[520px] divide-x">
-          {STAGE_GATES.map((g) => (
-            <div key={g} className="flex-1 px-3 py-3 text-center">
+          {PORTFOLIO_COLUMNS.map((c) => (
+            <div key={c} className="flex-1 px-3 py-3 text-center">
               <p className="font-mono text-meta uppercase tracking-[0.1em] text-muted-foreground">
-                {g === "L1" ? "L0" : g}
+                {REIFEGRAD[c]}
               </p>
-              <p className="mt-1 text-xs font-medium text-foreground">{STAGE_SHORT[g]}</p>
+              <p className="mt-1 text-xs font-medium text-foreground">
+                {PORTFOLIO_COLUMN_LABELS[c]}
+              </p>
             </div>
           ))}
         </div>
       </div>
       <p className="max-w-[var(--reading-max-w)] text-xs leading-relaxed text-muted-foreground">
-        <strong className="font-medium text-foreground">Die zweite Spalte ist die Ausnahme.</strong>{" "}
-        Sie heisst <em>Hypothese</em>, trägt aber weiterhin den Reifegrad <code>L0</code>. Was ein
-        Epic dorthin bewegt, ist kein Tor, sondern ein Stempel: die erste Benennung eines Epic
-        Owners.
+        <strong className="font-medium text-foreground">Drei Grenzen sind keine Tore.</strong>{" "}
+        <em>Funnel</em> und <em>Hypothese</em> tragen beide <code>L0</code> — dazwischen liegt die
+        erste Benennung eines Epic Owners. <em>Hypothese</em> und <em>Business Case</em> tragen
+        beide <code>L1</code> — dazwischen liegt die Entscheidung, das Vorhaben zur Analyse
+        auszuwählen. Und <em>Umsetzung</em> und <em>Impact</em> tragen beide <code>L4</code> —
+        dazwischen liegt die Fertigmeldung. Ein Epic mit bestätigtem Impact (<code>L5</code>)
+        verlässt das Board.
       </p>
     </div>
   );

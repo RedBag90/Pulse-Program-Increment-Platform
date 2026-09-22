@@ -5,8 +5,10 @@ import { Link } from "@/i18n/navigation";
 import { ArrowRight, Flag } from "lucide-react";
 import { SectionLabel } from "@/components/ui/section-label";
 import { cn } from "@/lib/utils";
-import { STAGE_SHORT } from "@/components/detail/initiative-labels";
-import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
+import {
+  PORTFOLIO_COLUMNS,
+  PORTFOLIO_COLUMN_LABELS,
+} from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 import { HORIZON_LANES } from "@/modules/work/domain/portfolio-guardrails";
 import type {
   PortfolioOverview,
@@ -71,17 +73,21 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
 
       <div className="overflow-x-auto">
         <div className="grid min-w-[960px] grid-cols-[180px_repeat(6,minmax(140px,1fr))] gap-2">
-          {/* Kopfzeile: Stage-Gate-Spalten + WIP */}
+          {/* Kopfzeile: die Prozess-Spalten. Karten und Zaehler lesen seit dem
+              Neuschnitt beide `epicsByColumn` — vorher kam der Zaehler von der
+              Prozess-Achse und die Karte von der Reifegrad-Achse, und ein
+              gesichtetes L0-Epic wurde unter „Hypothese" gezaehlt, waehrend es
+              unter „Funnel" lag. */}
           <div className="flex items-end">
             <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
               Budget · {cycleLabel(data.budgetCycleKey)}
             </span>
           </div>
-          {STAGE_GATES.map((gate) => {
-            const work = COLUMN_ACTIVITY[gate] === "work";
+          {PORTFOLIO_COLUMNS.map((col) => {
+            const work = COLUMN_ACTIVITY[col] === "work";
             return (
               <div
-                key={gate}
+                key={col}
                 className={cn(
                   "flex items-baseline justify-between gap-1 rounded-md px-2 py-1.5",
                   work ? "border border-border/80 bg-card shadow-sm" : "border border-transparent",
@@ -95,10 +101,10 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
                   )}
                 >
                   {work && <span className="size-1.5 rounded-full bg-primary/70" />}
-                  {STAGE_SHORT[gate]}
+                  {PORTFOLIO_COLUMN_LABELS[col]}
                 </span>
                 <span className="font-mono text-label tabular-nums text-muted-foreground">
-                  {data.epicsByColumn[gate].length}
+                  {data.epicsByColumn[col].length}
                 </span>
               </div>
             );
@@ -123,13 +129,13 @@ function LaneRow({ lane, data }: { lane: string; data: PortfolioOverview }) {
         <HorizonBadge horizon={lane === "none" ? null : lane} withHelp />
         {budget && budget.budgetiert > 0 && <HorizonBudget budget={budget} />}
       </div>
-      {STAGE_GATES.map((gate) => (
+      {PORTFOLIO_COLUMNS.map((col) => (
         <KanbanCell
-          key={gate}
+          key={col}
           lane={lane}
-          epics={row[gate]}
+          epics={row[col]}
           classFilter={data.classFilter}
-          work={COLUMN_ACTIVITY[gate] === "work"}
+          work={COLUMN_ACTIVITY[col] === "work"}
         />
       ))}
     </>

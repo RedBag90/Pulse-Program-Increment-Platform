@@ -15,13 +15,13 @@ import {
  */
 
 describe("GATE_CRITERIA_DOC", () => {
-  it("deckt genau die sieben Vorwärts-Schritte ab (inkl. L3→L3.2 und L4→L4.2)", () => {
+  it("deckt genau die sieben Vorwärts-Schritte ab (inkl. analysis und L4.2)", () => {
     expect(GATE_CRITERIA_DOC.map((g) => `${g.stageFrom}->${g.stageTo}`)).toEqual([
       "L0->L1",
-      "L1->L2",
-      "L2->L3.1",
-      "L3.1->L3.2",
-      "L3.2->L4",
+      "L1->analysis",
+      "analysis->L2",
+      "L2->L3",
+      "L3->L4",
       "L4->L4.2",
       "L4.2->L5",
     ]);
@@ -59,15 +59,15 @@ describe("GATE_CRITERIA_DOC", () => {
       multiPartyApproval: true,
       budgetingEnabled: true,
     };
-    const doc = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L3.1");
-    const evaluated = gateReadiness(facts, "L3.1");
+    const doc = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L2");
+    const evaluated = gateReadiness(facts, "L2");
     expect(doc?.criteria.map((c) => [c.label, c.blocking])).toEqual(
       evaluated.criteria.map((c) => [c.label, c.blocking]),
     );
   });
 
   it("markiert bei L3.1 den Business Case als blockierend, bei L4 keines", () => {
-    const l3 = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L3.1");
+    const l3 = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L2");
     const l4 = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L4");
     // Die Owner-Nennung ist auch hier nur beratend — blockierend ist der Inhalt.
     expect(l3?.criteria.filter((c) => c.blocking).map((c) => c.label)).toEqual([

@@ -255,7 +255,7 @@ function NoRequest({
 
   // Nur an L3.1: dort entsteht die Klasse, und dort wird die Abweichung
   // erstmals sichtbar.
-  const driftBlocks = classDrift != null && classDrift.drift !== "none" && gate.next === "L3.1";
+  const driftBlocks = classDrift != null && classDrift.drift !== "none" && gate.next === "L2";
 
   return (
     <div className="space-y-3">

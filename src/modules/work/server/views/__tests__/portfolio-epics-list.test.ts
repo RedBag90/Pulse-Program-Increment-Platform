@@ -32,6 +32,7 @@ const epic = (over: Partial<Parameters<typeof buildEpicsListModel>[0]["epics"][n
   childFeatureCount: 0,
   completedChildFeatureCount: 0,
   implementationCompletedAt: null,
+  selectedForAnalyzingAt: null,
   epicType: null,
   investmentHorizon: null,
   ...over,
@@ -143,7 +144,7 @@ describe("buildEpicsListModel", () => {
       epics: [
         epic({
           id: "e",
-          pendingGateRequest: { toGate: "L3.1", pendingCount: 2, totalCount: 5 },
+          pendingGateRequest: { toGate: "L2", pendingCount: 2, totalCount: 5 },
         }),
         epic({ id: "ohne" }),
       ],

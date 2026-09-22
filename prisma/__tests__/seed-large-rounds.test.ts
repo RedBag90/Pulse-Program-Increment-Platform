@@ -202,7 +202,7 @@ describe("Rundenmotor — eine Zahl, drei Stellen", () => {
 describe("Rundenmotor — die Einordnung entsteht mit L3.1", () => {
   it("vor der Business-Case-Freigabe gibt es keine Klasse", () => {
     for (const e of plan().epics) {
-      const reachedBc = e.moves.some((m) => m.to === "L3.1");
+      const reachedBc = e.moves.some((m) => m.to === "L2");
       if (!reachedBc) expect(e.epicClass, `#${e.idx}`).toBeNull();
       else expect(e.epicClass, `#${e.idx}`).not.toBeNull();
     }
@@ -259,7 +259,7 @@ describe("Rundenmotor — die Zeit", () => {
 describe("Rundenmotor — der Funnel steht", () => {
   it("jeder Reifegrad kommt vor", () => {
     const steps = new Set(plan().epics.map((e) => e.finalStep));
-    for (const s of ["L0", "L1", "L2", "L3.1", "L3.2", "L4", "L4.2", "L5"]) {
+    for (const s of ["L0", "L1", "analysis", "L2", "L3", "L4", "L4.2", "L5"]) {
       expect(steps.has(s as GateStep), s).toBe(true);
     }
   });

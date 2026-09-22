@@ -750,13 +750,12 @@ export async function listEpicsForOverview(
       status: true,
       stageGate: true,
       ownerId: true,
-      // Die Erstsichtung bewegt den Reifegrad nicht — im Kanban trennt dieser
-      // Stempel die Spalte „Funnel" von „Hypothese", beide bei stageGate L0.
+      // **Zwei gradlose Meilensteine, zwei Kanban-Grenzen.** Die Erstsichtung
+      // trennt „Funnel" von „Hypothese" (beide L0), die Analyse-Entscheidung
+      // „Hypothese" von „Business Case" (beide L1). Der Reifegrad tut es nicht.
       selectedForDetailingAt: true,
+      selectedForAnalyzingAt: true,
       businessCaseApprovedAt: true,
-      // Die beiden Schritt-Stempel innerhalb von L3 bzw. L4. `subStageFor`
-      // leitet daraus L3.1/L3.2 bzw. L4.1/L4.2 ab — `stageGate` allein kann das
-      // nicht, es traegt nur die Haupt-Gates.
       approvedAt: true,
       // Fuer den Over-/Underperform-Indikator der Beitrags-Kachel: erst wenn die
       // Umsetzung fertig gemeldet ist (L4.2), ist ein Vergleich von Ist gegen

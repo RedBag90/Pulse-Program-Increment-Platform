@@ -10,6 +10,7 @@ const base = (over: Partial<EpicNextStepInput> = {}): EpicNextStepInput => ({
   hasBusinessCase: false,
   budgetAllocated: false,
   budgetingEnabled: true,
+  selectedForAnalyzingAt: null,
   impactRecognizedAt: null,
   childFeatureStats: { total: 0, completed: 0 },
   ...over,
@@ -42,14 +43,14 @@ describe("epicNextStep", () => {
     });
   });
 
-  it("L1 → Wechsel auf L2 beantragen", () => {
+  it("L1 ohne Analyse-Entscheidung → sie beantragen", () => {
     const step = epicNextStep(base({ stageGate: "L1", hasHypothesis: true }));
-    expect(step?.title).toBe("Wechsel auf L2 beantragen");
-    expect(step?.cta).toEqual({ kind: "gate-request", to: "L2" });
+    expect(step?.title).toBe("Zur Analyse auswählen lassen");
+    expect(step?.cta).toEqual({ kind: "gate-request", to: "analysis" });
   });
 
-  it("L2 ohne BC-Inhalt → BC ausarbeiten", () => {
-    const step = epicNextStep(base({ stageGate: "L2" }));
+  it("L1 mit Analyse-Entscheidung, ohne BC-Inhalt → BC ausarbeiten", () => {
+    const step = epicNextStep(base({ stageGate: "L1", selectedForAnalyzingAt: new Date() }));
     expect(step?.title).toBe("Business Case ausarbeiten");
     expect(step?.cta).toMatchObject({
       kind: "link",
@@ -57,21 +58,23 @@ describe("epicNextStep", () => {
     });
   });
 
-  it("L2 mit BC-Inhalt → Wechsel auf L3.1 beantragen", () => {
-    const step = epicNextStep(base({ stageGate: "L2", hasBusinessCase: true }));
-    expect(step?.title).toBe("Wechsel auf L3.1 beantragen");
-    expect(step?.cta).toEqual({ kind: "gate-request", to: "L3.1" });
+  it("L1 mit BC-Inhalt → Wechsel auf L2 beantragen", () => {
+    const step = epicNextStep(
+      base({ stageGate: "L1", selectedForAnalyzingAt: new Date(), hasBusinessCase: true }),
+    );
+    expect(step?.title).toBe("Wechsel auf L2 beantragen");
+    expect(step?.cta).toEqual({ kind: "gate-request", to: "L2" });
   });
 
   it("L2 mit offenem L3.1-Antrag → auf die Parteien warten", () => {
     const step = epicNextStep(
-      base({ stageGate: "L2", hasBusinessCase: true, openGateRequestTo: "L3.1" }),
+      base({ stageGate: "L2", hasBusinessCase: true, openGateRequestTo: "L2" }),
     );
-    expect(step?.title).toBe("Auf die Abnahme von L3.1 warten");
+    expect(step?.title).toBe("Auf die Abnahme von L2 warten");
   });
 
-  it("L3 / L3.1 ohne Budget → Budget allozieren mit Link auf /budgeting", () => {
-    const step = epicNextStep(base({ stageGate: "L3", subStage: "L3.1" }));
+  it("L2 ohne Budget → Budget allozieren mit Link auf /budgeting", () => {
+    const step = epicNextStep(base({ stageGate: "L2" }));
     expect(step?.title).toBe("Budget allozieren");
     expect(step?.cta).toEqual({
       kind: "link",
@@ -80,20 +83,19 @@ describe("epicNextStep", () => {
     });
   });
 
-  it("L3 / L3.1 mit Budget → Investition abnehmen lassen (L3.2)", () => {
+  it("L2 mit Budget → Investition abnehmen lassen (L3)", () => {
     const step = epicNextStep(
       base({
-        stageGate: "L3",
-        subStage: "L3.1",
+        stageGate: "L2",
         budgetAllocated: true,
       }),
     );
     expect(step?.title).toBe("Investition abnehmen lassen");
-    expect(step?.cta).toEqual({ kind: "gate-request", to: "L3.2" });
+    expect(step?.cta).toEqual({ kind: "gate-request", to: "L3" });
   });
 
-  it("L3 / L3.2 → Erstes Feature starten", () => {
-    const step = epicNextStep(base({ stageGate: "L3", subStage: "L3.2", budgetAllocated: true }));
+  it("L3 → Erstes Feature starten", () => {
+    const step = epicNextStep(base({ stageGate: "L3", budgetAllocated: true }));
     expect(step?.title).toBe("Erstes Feature starten");
     expect(step?.cta).toMatchObject({ kind: "link", href: expect.stringContaining("breakdown") });
   });
@@ -136,19 +138,19 @@ describe("epicNextStep", () => {
   });
 });
 
-describe("epicNextStep — L3.1 ohne Budget-Modul", () => {
+describe("epicNextStep — L2 ohne Budget-Modul", () => {
   it("verweist nicht mehr ins Budgeting, sondern auf die Abnahme", () => {
     const step = epicNextStep(
-      base({ stageGate: "L3", subStage: "L3.1", budgetAllocated: false, budgetingEnabled: false }),
+      base({ stageGate: "L2", budgetAllocated: false, budgetingEnabled: false }),
     );
     expect(step?.title).toBe("Investition abnehmen lassen");
-    expect(step?.cta).toEqual({ kind: "gate-request", to: "L3.2" });
+    expect(step?.cta).toEqual({ kind: "gate-request", to: "L3" });
     expect(JSON.stringify(step)).not.toContain("/budgeting");
   });
 
   it("rät mit Modul weiterhin, erst Budget zu allozieren", () => {
     const step = epicNextStep(
-      base({ stageGate: "L3", subStage: "L3.1", budgetAllocated: false, budgetingEnabled: true }),
+      base({ stageGate: "L2", budgetAllocated: false, budgetingEnabled: true }),
     );
     expect(step?.title).toBe("Budget allozieren");
   });

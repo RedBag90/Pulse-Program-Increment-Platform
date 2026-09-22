@@ -243,7 +243,7 @@ export const BUDGETING: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Der Reifegrad-Schritt **L3.1 → L3.2** hat genau eine blockierende Bedingung: Budget ist alloziert. **Diese Summe entsteht auf zwei Wegen**, und welcher gilt, hängt allein an den Kosten gegen das Portfolio-Limit des Wertstroms.",
+              text: "Der Reifegrad-Schritt **L2 → L3** hat genau eine blockierende Bedingung: Budget ist alloziert. **Diese Summe entsteht auf zwei Wegen**, und welcher gilt, hängt allein an den Kosten gegen das Portfolio-Limit des Wertstroms.",
             },
             {
               kind: "table",
@@ -264,7 +264,7 @@ export const BUDGETING: Guide = {
             },
             {
               kind: "note",
-              text: "Wird ein Portfolio-Epic in der Runde nicht finanziert, bleibt es auf L3.1 stehen — **nicht abgelehnt, sondern unbezahlt**, und beim nächsten Zeitraum wieder dabei. Ein ART-Epic ohne Rahmen an seinem ART hat dagegen **keinen** Weg. Pulse weist das an der Epic-Seite aus, statt es zu verschweigen.",
+              text: "Wird ein Portfolio-Epic in der Runde nicht finanziert, bleibt es auf L2 stehen — **nicht abgelehnt, sondern unbezahlt**, und beim nächsten Zeitraum wieder dabei. Ein ART-Epic ohne Rahmen an seinem ART hat dagegen **keinen** Weg. Pulse weist das an der Epic-Seite aus, statt es zu verschweigen.",
             },
           ],
         },

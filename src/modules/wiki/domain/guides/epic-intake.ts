@@ -44,7 +44,7 @@ export const EPIC_INTAKE: Guide = {
     },
     {
       kind: "paragraph",
-      text: "Vor L3.1 hat ein Epic **gar keine Klasse**; das Abzeichen sagt „Noch nicht eingeordnet“. Erst der freigegebene Business Case liefert Kosten, und die werden mit dem Portfolio-Limit **des Wertstroms** verglichen: darüber Portfolio-Epic, darunter oder gleich ART-Epic.",
+      text: "Vor L2 hat ein Epic **gar keine Klasse**; das Abzeichen sagt „Noch nicht eingeordnet“. Erst der freigegebene Business Case liefert Kosten, und die werden mit dem Portfolio-Limit **des Wertstroms** verglichen: darüber Portfolio-Epic, darunter oder gleich ART-Epic.",
     },
     {
       kind: "note",
@@ -148,11 +148,11 @@ export const EPIC_INTAKE: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Die Steuerung sitzt im Reiter **Overview**, im Panel **Zuordnung** ganz oben unter **Owner**: ein Personen-Picker und die Schaltfläche **Owner zuweisen**. Ist niemand benannt, steht dort „Nicht zugewiesen“. Dorthin führt auch das Tor-Kriterium „Epic Owner ist benannt“, wenn man es anklickt.",
+              text: "Die Steuerung sitzt im Reiter **Overview**, im Panel **Zuordnung** ganz oben unter **Owner**. Ein Klick auf den Namen öffnet die Personenauswahl; die Auswahl **speichert sofort**, ein Haken bestätigt es. Ist niemand benannt, steht dort **Benennen**. Dorthin führt auch das Tor-Kriterium „Epic Owner ist benannt“, wenn man es anklickt.",
             },
             {
               kind: "note",
-              text: "**Einen benannten Owner kann man ersetzen, aber nicht wieder entfernen.** Wähle eine andere Person und weise erneut zu; eine leere Auswahl nimmt die Fläche nicht an.",
+              text: "**Der Eintrag „— Niemand —“ entfernt die Benennung wieder.** Die Erstsichtung bleibt davon unberührt: sie hat stattgefunden, und die Karte wandert im Kanban nicht zurück.",
             },
             {
               kind: "paragraph",
@@ -265,7 +265,7 @@ export const EPIC_INTAKE: Guide = {
             },
             {
               kind: "aside",
-              text: "**Der Horizont eines Epics ist vor L3.1 frei.** Wer ihn am Epic selbst setzt, übersteuert den der Primär-Solution — explizit schlägt abgeleitet. Genau das braucht ein R&D-Epic an einer laufenden Solution: die Solution steht in H1, das Vorhaben ist Discovery.",
+              text: "**Der Horizont eines Epics ist vor L2 frei.** Wer ihn am Epic selbst setzt, übersteuert den der Primär-Solution — explizit schlägt abgeleitet. Genau das braucht ein R&D-Epic an einer laufenden Solution: die Solution steht in H1, das Vorhaben ist Discovery.",
             },
           ],
         },
@@ -354,7 +354,7 @@ export const EPIC_INTAKE: Guide = {
       capability: "epic.owner.assign",
     },
     {
-      step: "Horizont am Epic setzen (vor L3.1)",
+      step: "Horizont am Epic setzen (vor L2)",
       who: "wer das Epic bearbeiten darf",
       capability: "epic.update",
     },

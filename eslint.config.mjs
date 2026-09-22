@@ -11,6 +11,12 @@ const config = [
       "node_modules/**",
       ".next/**",
       "src/generated/**",
+      // Gelaufene Einmal-Skripte. Sie sprechen die Achsen und Schemata ihrer
+      // Zeit und werden nicht mitgezogen — `tsconfig.json` nimmt sie aus
+      // demselben Grund aus. Dass eslint sie bisher trotzdem las, war kein
+      // Nutzen, sondern acht Parsing-Fehler: der Parser findet sie in keinem
+      // Projekt, weil tsc sie ausschliesst.
+      "prisma/scripts/_archive/**",
       "coverage/**",
       "playwright-report/**",
       "test-results/**",

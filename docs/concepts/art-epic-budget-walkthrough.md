@@ -4,7 +4,7 @@ Derselbe Weg, dreimal erzählt: aus Sicht des **Epic Owners**, der sein Vorhaben
 durchbringt, des **Produkt-Managers**, dem das Produkt gehört, das verändert
 wird, und des **Wertstrom-Owners**, der den Rahmen führt, aus dem bezahlt wird.
 Mit den Namen, die Pulse tatsächlich verwendet: ART-Epic-Budget, Zuteilung,
-L3.2, L4.1.
+L3, L4.1.
 
 Das Schwesterdokument ist [budgeting-walkthrough.md](budgeting-walkthrough.md).
 Es erzählt den **anderen** Weg zum selben Geld — den über die Kachel und ihren
@@ -56,13 +56,13 @@ für das Gespräch über den nächsten Rahmen.
 ### Die Reihenfolge ist die, die man andersherum erwartet
 
 **Erst die Zuteilung, dann der Antrag.** Der Reifegrad-Schritt
-**L3.1 → L3.2 · Budget alloziert** hat genau ein Kriterium, und es ist
+**L2 → L3 · Budget alloziert** hat genau ein Kriterium, und es ist
 **blockierend**: die Summe der Zuteilung ist größer null. Der Antrag scheitert
 sonst schon beim Anlegen, nicht erst bei der Abnahme.
 
 Das ist kein Versehen, sondern eine Festlegung: die Investitionsentscheidung
 soll ein eigener, beantragter Schritt sein und nicht die Nebenwirkung einer
-Budgetzuteilung (ADR-0018). Die Abnahme von L3.2 genehmigt deshalb kein Geld —
+Budgetzuteilung (ADR-0018). Die Abnahme von L3 genehmigt deshalb kein Geld —
 sie stellt fest, dass welches da ist.
 
 ### Reserviert wird nichts
@@ -87,7 +87,7 @@ geschrieben hätte. Für den Reifegrad ist es gleichgültig, woher das Geld kam.
 
 Meine Frage lautet: **wie komme ich an das Geld, das ich brauche?**
 
-Mein Business Case ist freigegeben, das Epic steht auf **L3.1**. Mit dieser
+Mein Business Case ist freigegeben, das Epic steht auf **L2**. Mit dieser
 Abnahme ist etwas passiert, das vorher nicht möglich war: **die Einordnung ist
 entstanden.** Pulse hat die Kostenscheiben zusammengerechnet und dem
 Portfolio-Limit meines Wertstroms gegenübergestellt — meine liegen darunter,
@@ -118,7 +118,7 @@ Vier von ihnen können nicht nur Auskunft geben, sondern selbst zuteilen; der RT
 allerdings nur auf seinem eigenen ART und der Produkt-Manager nur für die Epics
 seiner Solution.
 
-Ist der Betrag eingetragen, **beantrage ich L3.2 · Budget alloziert.** Jetzt
+Ist der Betrag eingetragen, **beantrage ich L3 · Budget alloziert.** Jetzt
 erst: vorher wäre der Antrag gar nicht herausgekommen, das Kriterium blockiert.
 Abgenommen wird von zwei Seiten — dem VMO meines Wertstroms und der
 Finance-Partei. Mit der Abnahme stempelt Pulse Genehmiger und Datum an mein
@@ -153,7 +153,7 @@ Drei Dinge hängen daran, und sie bauen aufeinander auf.
 **Ich darf mein Produkt bearbeiten** — Horizont, Beschreibung, ART-Zuweisung —
 auch ohne die allgemeine Solution-Berechtigung.
 
-**Ich zeichne bei Reifegrad-Freigaben mit.** Am Business Case (→ L3.1) bei jedem
+**Ich zeichne bei Reifegrad-Freigaben mit.** Am Business Case (→ L2) bei jedem
 Epic meiner Solution: dort ist die Einordnung noch gar nicht entschieden, eine
 Einschränkung auf ART-Epics wäre also nicht möglich. Am Start der Umsetzung
 (→ L4.1) nur bei ART-Epics — dort ist die Klasse bekannt, und dort wird mein
@@ -217,7 +217,7 @@ eine Rolle zu brauchen — und das **Portfolio-Management**. Dazu der
 **RTE** auf seinem eigenen ART. Der RTE verteilt den Rahmen, er **setzt** ihn
 aber nicht: wie groß er ist, entscheide ich beim Aufteilen des Zuspruchs.
 
-**Und ich zeichne nicht mit.** An L3.2 stehen der VMO und die Finance-Partei;
+**Und ich zeichne nicht mit.** An L3 stehen der VMO und die Finance-Partei;
 die Investitionsentscheidung ist die ihre, nicht meine. Ich stelle das Geld
 bereit und teile es zu — über den Reifegrad entscheidet die Governance.
 
@@ -225,7 +225,7 @@ bereit und teile es zu — über den Reifegrad entscheidet die Governance.
 
 ## Die Nähte
 
-**Zum Epic.** Der Schritt L3.1 → L3.2 ist die einzige harte Verbindung: ohne
+**Zum Epic.** Der Schritt L2 → L3 ist die einzige harte Verbindung: ohne
 Zuteilung kein Antrag. Beide Finanzierungswege — Kachel wie ART-Rahmen —
 schreiben in dieselbe `BudgetAllocation`, für den Schritt ist es also
 gleichgültig, woher das Geld kam. Siehe
@@ -250,14 +250,14 @@ absichtlich nebeneinander.
 
 ## Sechs Sätze, die naheliegen und nicht stimmen
 
-| Was man erwartet                                           | Was gilt                                                                                                                                                   |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| „Ich beantrage L3.2, **damit** das Budget genehmigt wird." | Umgekehrt. L3.2 **setzt** die Zuteilung voraus — sie ist das einzige, blockierende Kriterium des Schritts.                                                 |
-| „Ich frage den **Solution Manager**."                      | Diese Rolle gibt es nicht. Pulse kennt acht Rollen, keine heißt so. Der Nächstliegende ist der **Produkt-Manager** einer Solution — ein Feld, keine Rolle. |
-| „… wie viel **Run-the-Business-Budget** übrig ist."        | Falsche Größe. Der ART-Epic-Budget ist eine eigene Art (`art_change`); Betriebsgeld finanziert nie ein Epic.                                               |
-| „… aus dem **letzten** Budget-Zyklus."                     | Der Rahmen gilt je Halbjahr und wandert nicht. Vergangene Halbjahre sind gesperrt.                                                                         |
-| „Das Budget wird **reserviert**."                          | Einen Zwischenzustand gibt es nicht. Zugeteilt ist zugeteilt, der Rest sinkt sofort.                                                                       |
-| „Mit **L4.1** kommen die Features ins nächste PI."         | Keine Abnahme rührt die Features an. Ein Feature muss _schon_ in einem PI liegen, um gestartet werden zu können.                                           |
+| Was man erwartet                                         | Was gilt                                                                                                                                                   |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| „Ich beantrage L3, **damit** das Budget genehmigt wird." | Umgekehrt. L3 **setzt** die Zuteilung voraus — sie ist das einzige, blockierende Kriterium des Schritts.                                                   |
+| „Ich frage den **Solution Manager**."                    | Diese Rolle gibt es nicht. Pulse kennt acht Rollen, keine heißt so. Der Nächstliegende ist der **Produkt-Manager** einer Solution — ein Feld, keine Rolle. |
+| „… wie viel **Run-the-Business-Budget** übrig ist."      | Falsche Größe. Der ART-Epic-Budget ist eine eigene Art (`art_change`); Betriebsgeld finanziert nie ein Epic.                                               |
+| „… aus dem **letzten** Budget-Zyklus."                   | Der Rahmen gilt je Halbjahr und wandert nicht. Vergangene Halbjahre sind gesperrt.                                                                         |
+| „Das Budget wird **reserviert**."                        | Einen Zwischenzustand gibt es nicht. Zugeteilt ist zugeteilt, der Rest sinkt sofort.                                                                       |
+| „Mit **L4.1** kommen die Features ins nächste PI."       | Keine Abnahme rührt die Features an. Ein Feature muss _schon_ in einem PI liegen, um gestartet werden zu können.                                           |
 
 ## Wer welchen Schritt macht
 
@@ -268,8 +268,8 @@ absichtlich nebeneinander.
 | Epic vormerken                       | Epic Owner                                                                                                                               | `epic.update`                   |
 | Freien Rahmen sehen                  | Tenant-Admin, Portfolio Manager, Wertstrom-Owner; RTE auf seinem ART; Finance-Partei; Produkt-Manager auf seinen ARTs                    | `budget.read` + Seams           |
 | Aus dem Rahmen zuteilen              | Wertstrom-Owner, Portfolio-Management; **RTE** auf seinem eigenen ART; Finance-Partei; **Produkt-Manager** für die Epics seiner Solution | `art_budget.distribute` + Seams |
-| L3.2 beantragen                      | Epic Owner                                                                                                                               | `epic.gate.request`             |
-| L3.2 abnehmen                        | VMO **und** Finance-Partei des Wertstroms                                                                                                | Gate-Policy                     |
+| L3 beantragen                        | Epic Owner                                                                                                                               | `epic.gate.request`             |
+| L3 abnehmen                          | VMO **und** Finance-Partei des Wertstroms                                                                                                | Gate-Policy                     |
 | L4.1 beantragen                      | Epic Owner                                                                                                                               | `epic.gate.request`             |
 | L4.1 abnehmen                        | VMO; bei ART-Epics zusätzlich der Produkt-Manager                                                                                        | Gate-Policy                     |
 
@@ -278,7 +278,7 @@ absichtlich nebeneinander.
 | Aussage                                             | Quelle                                                     |
 | --------------------------------------------------- | ---------------------------------------------------------- |
 | Die Einordnung eines Epics                          | `src/modules/work/domain/pb-submission.ts`                 |
-| L3.2 verlangt Σ > 0, blockierend                    | `src/modules/work/domain/gate-readiness.ts`                |
+| L3 verlangt Σ > 0, blockierend                      | `src/modules/work/domain/gate-readiness.ts`                |
 | Wer den ART-Rahmen verteilen darf                   | `src/modules/budgeting/domain/art-pot-access.ts`           |
 | Laufendes und nächstes Halbjahr, sonst gesperrt     | `src/modules/budgeting/domain/art-pot-window.ts`           |
 | Rahmen je Halbjahr, Deckel in derselben Transaktion | `src/modules/budgeting/server/services/art-pot.ts`         |

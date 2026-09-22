@@ -13,16 +13,20 @@ export { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
  * Entscheidung ueber den Prozess.
  *
  * **Ein Reiter traegt die Stufe, auf der man in ihm arbeitet — nicht das Tor
- * danach.** Die Hypothese entsteht auf L0 (`LIFECYCLE_STEPS`: „Hypothese
- * ausarbeiten", `gate: "L0"`); L1 ist der Meilenstein, der sie freigibt. Sie
- * stand hier zuerst auf L1 und zeigte damit auf die Abnahme statt auf die
- * Arbeit.
+ * danach.** Beide Male zeigten die Reiter zuerst auf die Abnahme:
  *
- * Beschriftet sind zwei der acht Stufen (`GATE_STEPS`). Auf L1, L3.1, L3.2,
- * L4.1, L4.2 und L5 leuchtet kein Reiter — auf L1 nicht, weil dort nicht
- * gearbeitet, sondern abgenommen wird. Die Etiketten stehen trotzdem da. Wer das
- * ergaenzen will, setzt ein `gate` mehr; die Schiene braucht dafuer keine
- * Aenderung.
+ *  - Die **Hypothese** entsteht auf L0 (`LIFECYCLE_STEPS`: „Hypothese
+ *    ausarbeiten", `gate: "L0"`); L1 ist der Meilenstein, der sie freigibt.
+ *  - **Business Case, Deliverables, Dependencies und KPI** entstehen auf L1,
+ *    nachdem das Vorhaben zur Analyse ausgewaehlt wurde; L2 ist die Freigabe
+ *    des Business Case, nicht seine Ausarbeitung.
+ *
+ * Beschriftet sind damit zwei der acht Stufen (`GATE_STEPS`) — die beiden, auf
+ * denen ein Epic tatsaechlich Arbeit traegt. Auf L2, L3, L4.1, L4.2 und L5
+ * leuchtet kein Reiter: dort wird abgenommen, Geld zugeteilt oder geliefert,
+ * und das geschieht nicht in einem Reiter dieser Seite. Die Etiketten stehen
+ * trotzdem da. Wer das ergaenzen will, setzt ein `gate` mehr; die Schiene
+ * braucht dafuer keine Aenderung.
  *
  * Reiter **ohne** `gate` gehoeren zu keinem Schritt: Overview und
  * Reifegrad-Timeline gelten durchgehend, BC calculation und History sind
@@ -32,10 +36,10 @@ export const EPIC_TABS: readonly DetailTab[] = [
   { key: "overview", label: "Overview" },
   { key: "timeline", label: "Reifegrad-Timeline" },
   { key: "benefit-hypothesis", label: "Hypothese", gate: "L0" },
-  { key: "business-case", label: "Business Case", gate: "L2" },
-  { key: "breakdown", label: "Deliverables", gate: "L2" },
-  { key: "dependencies", label: "Dependencies", gate: "L2" },
-  { key: "kpis", label: "KPI & Nutzen", gate: "L2" },
+  { key: "business-case", label: "Business Case", gate: "L1" },
+  { key: "breakdown", label: "Deliverables", gate: "L1" },
+  { key: "dependencies", label: "Dependencies", gate: "L1" },
+  { key: "kpis", label: "KPI & Nutzen", gate: "L1" },
   // Bewusst weit hinten (direkt vor History; ein etwaiger Issues-Tab wird in
   // der Page DAVOR injiziert): die Kalkulation ist eine Auswertungs-Sicht.
   { key: "business-case-calc", label: "BC calculation" },

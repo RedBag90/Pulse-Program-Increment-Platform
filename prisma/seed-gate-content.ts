@@ -82,7 +82,8 @@ export interface GateContent {
  * Ab welchem Schritt ein Feld erlaubt ist. Ein Feld, das hier fehlt, gehört
  * nach L0 — also in die Menge, die schon das Anlege-Formular kennt.
  *
- * **L2 ist die Schwelle, hinter der ein Epic „in Arbeit" ist.** Dort wird der
+ * **Die Analyse-Entscheidung ist die Schwelle, hinter der ein Epic „in Arbeit"
+ * ist.** Danach wird der
  * Business Case ausgearbeitet, und dafür braucht es die Zahlen (KPIs,
  * `costToMvp`), den Schnitt (Features), die Einordnung (`epicType`, Theme) und
  * die Reibung (Issues, Abhängigkeiten, Hilferufe). Vorher ist das Vorhaben
@@ -91,17 +92,18 @@ export interface GateContent {
 const EARLIEST: Record<keyof GateContent, GateStep> = {
   benefitHypothesis: "L1",
   timeline: "L1",
-  businessCase: "L2",
-  costToMvp: "L2",
-  epicType: "L2",
-  kpis: "L2",
-  features: "L2",
-  themeLink: "L2",
-  epicDependency: "L2",
-  issues: "L2",
-  helpRequested: "L2",
-  stagedForBudgeting: "L2",
-  budget: "L3.1",
+  businessCase: "analysis",
+  costToMvp: "analysis",
+  epicType: "analysis",
+  kpis: "analysis",
+  features: "analysis",
+  themeLink: "analysis",
+  epicDependency: "analysis",
+  issues: "analysis",
+  helpRequested: "analysis",
+  stagedForBudgeting: "analysis",
+  // Unbenutzt: `budget` haengt an `mayHoldAllocation`, siehe unten.
+  budget: "L2",
 };
 
 const atLeast = (step: GateStep, floor: GateStep): boolean =>
@@ -117,7 +119,7 @@ export function contentForGate(step: GateStep): GateContent {
     epicType: atLeast(step, EARLIEST.epicType),
     kpis: atLeast(step, EARLIEST.kpis),
     features: atLeast(step, EARLIEST.features),
-    // Nicht `atLeast(step, "L3.1")`: die Budget-Schwelle gehört dem
+    // Nicht `atLeast(step, "L2")`: die Budget-Schwelle gehört dem
     // Budgeting-Modul, und zwei Fassungen derselben Zahl laufen auseinander.
     budget: mayHoldAllocation(step),
     themeLink: atLeast(step, EARLIEST.themeLink),

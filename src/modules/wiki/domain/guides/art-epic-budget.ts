@@ -43,7 +43,7 @@ export const ART_EPIC_BUDGET: Guide = {
     { kind: "quote", text: "Erst die Zuteilung, dann der Antrag." },
     {
       kind: "paragraph",
-      text: "Der Schritt **L3.1 → L3.2** hat genau ein Kriterium, und es ist **blockierend**: die Summe der Zuteilung ist größer null. Der Antrag scheitert sonst schon beim Anlegen, nicht erst bei der Abnahme.",
+      text: "Der Schritt **L2 → L3** hat genau ein Kriterium, und es ist **blockierend**: die Summe der Zuteilung ist größer null. Der Antrag scheitert sonst schon beim Anlegen, nicht erst bei der Abnahme.",
     },
     {
       kind: "paragraph",
@@ -76,7 +76,7 @@ export const ART_EPIC_BUDGET: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Mein Business Case ist freigegeben, das Epic steht auf **L3.1**. Mit dieser Abnahme ist etwas passiert, das vorher nicht möglich war: Pulse hat die Kostenscheiben zusammengerechnet und dem Portfolio-Limit meines Wertstroms gegenübergestellt — meine liegen darunter, also ist mein Vorhaben ein **ART-Epic**.",
+              text: "Mein Business Case ist freigegeben, das Epic steht auf **L2**. Mit dieser Abnahme ist etwas passiert, das vorher nicht möglich war: Pulse hat die Kostenscheiben zusammengerechnet und dem Portfolio-Limit meines Wertstroms gegenübergestellt — meine liegen darunter, also ist mein Vorhaben ein **ART-Epic**.",
             },
             {
               kind: "paragraph",
@@ -115,7 +115,7 @@ export const ART_EPIC_BUDGET: Guide = {
           ],
         },
         {
-          title: "L3.2 beantragen — jetzt erst",
+          title: "L3 beantragen — jetzt erst",
           body: [
             {
               kind: "paragraph",
@@ -233,7 +233,7 @@ export const ART_EPIC_BUDGET: Guide = {
             },
             {
               kind: "paragraph",
-              text: "An L3.2 stehen der VMO und die Finance-Partei; die Investitionsentscheidung ist die ihre, nicht meine. **Ich stelle das Geld bereit und teile es zu — über den Reifegrad entscheidet die Governance.**",
+              text: "An L3 stehen der VMO und die Finance-Partei; die Investitionsentscheidung ist die ihre, nicht meine. **Ich stelle das Geld bereit und teile es zu — über den Reifegrad entscheidet die Governance.**",
             },
           ],
         },
@@ -243,8 +243,8 @@ export const ART_EPIC_BUDGET: Guide = {
 
   misconceptions: [
     {
-      claim: "Ich beantrage L3.2, damit das Budget genehmigt wird.",
-      why: "Umgekehrt. L3.2 **setzt** die Zuteilung voraus — sie ist das einzige, blockierende Kriterium des Schritts.",
+      claim: "Ich beantrage L3, damit das Budget genehmigt wird.",
+      why: "Umgekehrt. L3 **setzt** die Zuteilung voraus — sie ist das einzige, blockierende Kriterium des Schritts.",
     },
     {
       claim: "Ich frage den Solution Manager.",
@@ -294,8 +294,8 @@ export const ART_EPIC_BUDGET: Guide = {
       who: "Wertstrom-Owner, Portfolio-Management; **RTE** auf seinem eigenen ART; Finance-Partei; **Produkt-Manager** für die Epics seiner Solution",
       capability: "art_budget.distribute",
     },
-    { step: "L3.2 und L4.1 beantragen", who: "Epic Owner", capability: "epic.gate.request" },
-    { step: "L3.2 abnehmen", who: "VMO **und** Finance-Partei des Wertstroms" },
+    { step: "L3 und L4.1 beantragen", who: "Epic Owner", capability: "epic.gate.request" },
+    { step: "L3 abnehmen", who: "VMO **und** Finance-Partei des Wertstroms" },
     { step: "L4.1 abnehmen", who: "VMO; bei ART-Epics zusätzlich der Produkt-Manager" },
   ],
 };

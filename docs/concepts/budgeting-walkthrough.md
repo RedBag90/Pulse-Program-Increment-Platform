@@ -50,7 +50,7 @@ Drei Übergänge tragen eine inhaltliche Aussage:
 Die Regeln, die man kennen sollte, um nicht überrascht zu werden:
 
 - **Was auf die PB-Liste darf.** Ein Epic braucht einen **freigegebenen Lean
-  Business Case** — also mindestens L3.1. Der Richtwert ist die Summe seiner
+  Business Case** — also mindestens L2. Der Richtwert ist die Summe seiner
   Kostenscheiben. Bis September 2026 reichte auch eine freigegebene
   Benefit-Hypothese, und der Richtwert war dann ein tenant-weiter
   Default-Aufwand; damit budgetierte das Portfolio die **Erstellung** des
@@ -232,7 +232,7 @@ Reserve wandern mit.
 
 ## Die Naht zum Epic
 
-Der Reifegrad-Schritt **L3.1 → L3.2** eines Epics — die Investitionsentscheidung
+Der Reifegrad-Schritt **L2 → L3** eines Epics — die Investitionsentscheidung
 — hat genau eine blockierende Bedingung: _Budget ist alloziert (Σ > 0)_.
 
 **Diese Summe entsteht auf zwei Wegen.** Bis Guardrail 3 gab es nur einen: die
@@ -262,10 +262,10 @@ Wie der zweite Weg im Einzelnen abläuft — wer fragt, wer zuteilt, wer abnimmt
 erzählt [art-epic-budget-walkthrough.md](art-epic-budget-walkthrough.md).
 
 Ein Epic **ohne** freigegebenen Business Case hat noch gar keine Klasse — vor
-L3.1 ist nicht entschieden, wie groß es ist. Es bleibt deshalb auf der PB-Liste:
+L2 ist nicht entschieden, wie groß es ist. Es bleibt deshalb auf der PB-Liste:
 genau dieses Geld braucht es, um den Business Case überhaupt zu schreiben.
 
-Wird ein Portfolio-Epic in der Runde nicht finanziert, bleibt es auf L3.1 stehen
+Wird ein Portfolio-Epic in der Runde nicht finanziert, bleibt es auf L2 stehen
 — nicht abgelehnt, sondern unbezahlt, und beim nächsten Zeitraum wieder dabei.
 Ein ART-Epic, für dessen ART kein Rahmen angelegt ist, hat dagegen **keinen**
 Weg: es steht nicht auf der PB-Liste und hat keinen Topf. Pulse weist das an der
@@ -329,4 +329,4 @@ auf „Phase 1" zurück, bloß weil jemand später einen Kandidaten entfernt.
 | Budget-Plan-Revision                                  | `src/modules/budgeting/server/services/budget-plan-revision.ts`       |
 | Der Hinweis in My Tasks                               | `src/modules/budgeting/server/services/my-budgeting-tasks.ts`         |
 | Was welche Rolle darf                                 | `src/server/auth/policies/index.ts`                                   |
-| Die Naht zum Reifegrad L3.2                           | `src/modules/work/domain/gate-readiness.ts`                           |
+| Die Naht zum Reifegrad L3                             | `src/modules/work/domain/gate-readiness.ts`                           |

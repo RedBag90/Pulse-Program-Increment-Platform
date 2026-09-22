@@ -22,7 +22,7 @@ stattfinden, führt [Struktur](structure-walkthrough.md) vor.
 ## Die gemeinsame Mechanik
 
 Ein Epic durchläuft acht Schritte:
-`L0 · L1 · L2 · L3.1 · L3.2 · L4 · L4.2 · L5`. Jeder einzelne bewegt sich
+`L0 · L1 · L2 · L2 · L3 · L4 · L4.2 · L5`. Jeder einzelne bewegt sich
 dadurch, dass jemand ihn **beantragt** und benannte Personen ihn **abnehmen** —
 je Wertstrom und Gate konfigurierbar. Vor dem Antrag zeigt Pulse eine
 Checkliste: welche Kriterien erfüllt sind und welche fehlen. Beim Antrag wird
@@ -32,7 +32,7 @@ nachvollziehbar bleibt, worauf hin freigegeben wurde.
 Zwei dieser Schritte tragen zugleich eine inhaltliche Aussage:
 
 - Die Abnahme von **L0 → L1** ist die Freigabe der **Benefit-Hypothese**.
-- Die Abnahme von **L2 → L3.1** ist die Freigabe des **Lean Business Case** —
+- Die Abnahme von **Analyse → L2** ist die Freigabe des **Lean Business Case** —
   dort zeichnen Architect Lead, Business Owner, Finance, IRT-Owner und LACE/VMO, dazu der
   **Produkt-Manager** der Primär-Solution, sofern einer benannt ist.
 
@@ -48,7 +48,7 @@ ihnen ändert.
 
 Sieben der acht Stufen werden so beantragt. Eine wird rein **abgeleitet**:
 `L4.1 · Umsetzung läuft` heißt „L4, aber noch nicht bestätigt fertig". Dass
-`L3.1` und `L3.2` daneben als Sub-Stage unter dem Gate L3 erscheinen, ist die
+`L2` und `L3` daneben als Sub-Stage unter dem Gate L3 erscheinen, ist die
 Anzeige: die Spalte trägt „L3", und der Investitions-Stempel entscheidet, welche
 der beiden Stufen zu sehen ist.
 
@@ -96,7 +96,7 @@ Business Case kostet. Ich setze im Overview den Haken **„Fürs nächste
 Budget-Meeting vormerken"**.
 
 Die Runde entscheidet, ich bekomme das Geld für die Konkretisierung. Ich
-beantrage **L1 → L2**, „Für Analyse ausgewählt". Auf L2 zu stehen _ist_ „Business
+beantrage **L1 → Analyse**, „Für Analyse ausgewählt". Auf L2 zu stehen _ist_ „Business
 Case in Arbeit" — einen Sub-Stage-Split gibt es hier nicht.
 
 Jetzt die eigentliche Arbeit. Im Reiter _Deliverables_ schneide ich die
@@ -111,7 +111,7 @@ Portfolio-Management und der VMO meines Wertstroms sehen mein Epic dann in ihren
 Tasks — das ist die einzige Stelle im Ablauf, an der ich um Unterstützung bitte,
 statt etwas zu beantragen.
 
-Steht der Business Case, beantrage ich **L2 → L3.1**. Beim Antrag besetze ich die
+Steht der Business Case, beantrage ich **Analyse → L2**. Beim Antrag besetze ich die
 fünf Parteien: Architect Lead, Business Owner, Finance, IRT-Owner und LACE/VMO —
 vier davon sind aus der Wertstrom-Governance vorbelegt, nur den IRT-Owner benenne
 ich selbst. Vorbelegt heißt vorbelegt: ich kann jede davon überschreiben. Hat die Primär-Solution meines Epics einen benannten
@@ -119,7 +119,7 @@ ich selbst. Vorbelegt heißt vorbelegt: ich kann jede davon überschreiben. Hat 
 Produkt. Ist keiner benannt, fällt er still weg — der Antrag läuft wie zuvor.
 
 Ab dem gestellten Antrag ist der Business Case gesperrt. Sind alle durch, ist er
-freigegeben und das Epic steht auf **L3.1 · BC freigegeben**. Lehnt eine Partei
+freigegeben und das Epic steht auf **L2 · BC freigegeben**. Lehnt eine Partei
 begründet ab, bleibt das Epic auf L2 und der Text ist wieder frei.
 
 **Vor dem Absenden kann ein Dialog dazwischentreten.** Beim Anlegen habe ich
@@ -179,11 +179,11 @@ das liegt oberhalb des Epic Owners. Was ich sehe, ist, **ob** überhaupt ein
 Rahmen da ist. Der Rest ist ein Gespräch, und das ist Absicht.
 
 Und die Reihenfolge ist die, die man leicht andersherum erwartet: **erst die
-Zuteilung, dann der Antrag.** Die Freigabe von L3.2 genehmigt kein Geld, sie
+Zuteilung, dann der Antrag.** Die Freigabe von L3 genehmigt kein Geld, sie
 stellt fest, dass welches da ist. Der ganze Weg, aus drei Perspektiven, steht in
 [art-epic-budget-walkthrough.md](art-epic-budget-walkthrough.md).
 
-Jetzt kommt der Schritt, den man leicht übersieht: **L3.1 → L3.2 · Budget
+Jetzt kommt der Schritt, den man leicht übersieht: **L2 → L3 · Budget
 alloziert**. Das ist die Investitionsentscheidung, und sie ist ein eigener
 Antrag — nicht die Nebenwirkung einer Budgetzuteilung. Ein blockierendes
 Kriterium: die Summe der Zuteilung ist größer null. Beide Wege — Kachel wie
@@ -264,8 +264,8 @@ Reifegrad bewegt sich nur durch eine Unterschrift.
 Wo ich zeichne, hängt an der Gate-Policy meines Wertstroms. Nach den
 Code-Defaults bin ich als VMO an **→ L1** (und gebe damit die Benefit-Hypothese
 frei), an **→ L2**, an **→ L4.1** und an **→ L4.2**; beim Business Case sitze ich
-als LACE/VMO neben den vier anderen Parteien an **→ L3.1**; die
-Investitionsentscheidung **→ L3.2** zeichne ich zusammen mit Finance. Wer für
+als LACE/VMO neben den vier anderen Parteien an **→ L2**; die
+Investitionsentscheidung **→ L3** zeichne ich zusammen mit Finance. Wer für
 welchen Schritt eingetragen ist, konfiguriere ich je Wertstrom — die Defaults
 sind nur der Startpunkt.
 
@@ -284,7 +284,7 @@ Wie das abläuft, steht in
 
 Für mein Epic zählt das Ergebnis: Wird es dort finanziert, bekommt es seine
 Budget-Zuteilung für dieses Halbjahr. Das schiebt das Epic **nicht** weiter — es
-erfüllt das blockierende Kriterium für **→ L3.2**, mehr nicht. Die
+erfüllt das blockierende Kriterium für **→ L3**, mehr nicht. Die
 Investitionsentscheidung ist der Antrag plus meine und Finance' Abnahme; dort
 werden Genehmiger und Datum gestempelt.
 
@@ -295,7 +295,7 @@ bis zu einzelnen Epics. Über den Stichtag vergleiche ich Stände.
 Auf der **Guardrails**-Fläche lese ich, ob die Verteilung noch zum Zielbild
 passt: der Horizont-Mix, die Capacity Allocation zwischen Business und Enabler,
 und das **Business-Owner-Engagement** — ob die Business Owner ihre Zeichnung an
-L3.1 überhaupt leisten und wie lange sie dafür brauchen. Die Zielwerte dieser
+L2 überhaupt leisten und wie lange sie dafür brauchen. Die Zielwerte dieser
 Guardrails setze ich selbst.
 
 Geht etwas schief, bin ich die Korrektur-Instanz: **nur ich darf einen Reifegrad
@@ -319,7 +319,7 @@ Budget-Zeiträumen; ich lese es, ich setze es nicht.
 
 Ich habe **drei Sitze** im Lebenszyklus eines Epics:
 
-**→ L3.1 · Business Case.** Ich bin eine der fünf Parteien. Was ich prüfe, hat
+**→ L2 · Business Case.** Ich bin eine der fünf Parteien. Was ich prüfe, hat
 der Epic Owner aufgeschrieben, aber mit mir gerechnet: die Kostenscheiben auf der
 einen Seite, auf der anderen die KPI-Kalkulation — Wert je Einheit, Nutzenart
 einmalig oder laufend, und daraus der Nutzenbeitrag. Die Felder pflegt der Owner;
@@ -327,7 +327,7 @@ meine Zeichnung ist die Gegenprobe. Sie deckt Deliverables und KPIs mit ab, es
 gibt keine getrennte Abnahme je Abschnitt. Zeichne ich nicht, ist der Business
 Case nicht freigegeben — das Quorum ist einstimmig.
 
-**→ L3.2 · Investitionsentscheidung.** Hier zeichne ich zusammen mit dem VMO, und
+**→ L3 · Investitionsentscheidung.** Hier zeichne ich zusammen mit dem VMO, und
 hier fällt das Geld. Blockierendes Kriterium ist eine Zuteilung größer null; die
 Abnahme stempelt Genehmiger und Datum ans Epic. Dass dieser Schritt vom Eintritt
 in L3 getrennt ist, ist Absicht: ein freigegebener Business Case ist noch keine
@@ -349,7 +349,7 @@ bei der Freigabe galten. Nur so misst Plan gegen Ist etwas.
 Darin steckt eine Asymmetrie, die den Schnitt erklärt: ich zeichne die
 **Geld**-Entscheidung mit und bestätige am Ende den **Nutzen** — den Eintritt in
 L3 mit dem freigegebenen Business Case aber nicht allein. Genau deshalb sind
-L3.1 und L3.2 zwei Schritte und nicht einer.
+L2 und L3 zwei Schritte und nicht einer.
 
 Ein Epic kann damit auf **zwei Achsen** über- oder unterliefern, und die
 Kalkulation weist beide getrennt aus: die **Menge** (hat die KPI ihr Ziel
@@ -362,7 +362,7 @@ Zwischen den Sitzen ist die **Dashboard-Ökonomie** meine Lesefläche: Break-Eve
 Benefit Velocity gegen den Plan, die Kostenkurve gegen den Kostenneutralitäts-
 Zielwert, und der Wasserfall „Wert je Reifegrad-Status" gegen den Zielwert des
 jeweiligen Kopf-Ziels. Was dort als Forecast steht, ist genau das, was ich an
-L3.1 mitgezeichnet habe — und was als Ist danebensteht, das, was an L5 daraus
+L2 mitgezeichnet habe — und was als Ist danebensteht, das, was an L5 daraus
 geworden ist.
 
 ---
@@ -376,16 +376,16 @@ Antrag nicht durch. **Beratend** heißt: Pulse zeigt es an, hält aber nicht auf
 | ------- | ------------------------------------------------ | ------------------------------------------- |
 | → L1    | Benefit-Hypothese ist ausgearbeitet              | Epic Owner ist benannt                      |
 | → L2    | Benefit-Hypothese ist freigegeben                | Epic Owner benannt · Business Case begonnen |
-| → L3.1  | Business Case ist ausgearbeitet                  | Epic Owner ist benannt                      |
-| → L3.2  | Budget alloziert (Σ > 0)                         | —                                           |
+| → L2    | Business Case ist ausgearbeitet                  | Epic Owner ist benannt                      |
+| → L3    | Budget alloziert (Σ > 0)                         | —                                           |
 | → L4.1  | —                                                | Mindestens ein Feature ist gestartet        |
 | → L4.2  | —                                                | Alle Child-Features sind abgeschlossen      |
 | → L5    | Umsetzung ist als abgeschlossen bestätigt (L4.2) | —                                           |
 
 Zwei dieser Kriterien fragen nach **Inhalt** statt nach einer Freigabe: → L1 und
-→ L3.1 tragen die Freigabe selbst, sie können sie also nicht voraussetzen. Der
+→ L2 tragen die Freigabe selbst, sie können sie also nicht voraussetzen. Der
 Stempel wird dort gesetzt, nicht geprüft — und von den Folgeschritten → L2 und
-→ L3.2 abgefragt.
+→ L3 abgefragt.
 
 ## Wer nimmt welchen Schritt ab
 
@@ -395,14 +395,14 @@ einstimmig — wer eingetragen ist, muss zustimmen.
 | Schritt   | Abnahme                                                                                                 |
 | --------- | ------------------------------------------------------------------------------------------------------- |
 | → L1 · L2 | VMO                                                                                                     |
-| → L3.1    | Architect Lead, Business Owner, Finance, IRT-Owner, LACE/VMO — plus Produkt-Manager der Primär-Solution |
-| → L3.2    | VMO **und** Finance                                                                                     |
+| → L2      | Architect Lead, Business Owner, Finance, IRT-Owner, LACE/VMO — plus Produkt-Manager der Primär-Solution |
+| → L3      | VMO **und** Finance                                                                                     |
 | → L4.1    | VMO — plus Produkt-Manager, aber **nur bei einem ART-Epic**                                             |
 | → L4.2    | VMO                                                                                                     |
 | → L5      | Finance                                                                                                 |
 
 Der Produkt-Manager steht an **zwei** Schritten, mit unterschiedlicher
-Reichweite. An → L3.1 zeichnet er bei **jedem** Epic seiner Solution mit — dort
+Reichweite. An → L2 zeichnet er bei **jedem** Epic seiner Solution mit — dort
 existiert die Einordnung ja noch gar nicht, eine Einschränkung auf ART-Epics
 wäre nicht entscheidbar. An → L4.1 ist sie bekannt, und dort zeichnet er nur bei
 ART-Epics: sein Produkt wird aus dem Rahmen seines ARTs verändert. Ist kein
@@ -413,7 +413,7 @@ des ARTs, aber nur an die Epics ihrer eigenen Solution. Wer über eine Freigabe
 entscheidet, deren Gegenstand sein eigenes Produkt ist, soll auch den Weg dorthin
 gehen können.
 
-Die fünf Parteien an → L3.1 sind der Code-Default und zugleich der Ausdruck der
+Die fünf Parteien an → L2 sind der Code-Default und zugleich der Ausdruck der
 Practice „Mehrparteien-Freigabe". Ist sie im Zielbild aus, zeichnet dort der VMO
 allein. Wer für _dieses_ Epic zeichnet, entscheidet der Antragsteller beim
 Antrag — die Vorbelegung aus dem Wertstrom ist ein Vorschlag, keine Regel. Das
@@ -421,24 +421,24 @@ bleibt eine Eigenschaft des Epics.
 
 ## Nachschlagepunkte im Code
 
-| Aussage                                                 | Quelle                                                                     |
-| ------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Schritte + Sub-Stages, L3.2 und L4.2 als echte Schritte | `src/modules/work/domain/stage-gate.ts`                                    |
-| Kriterien je Schritt, blockierend vs. beratend          | `src/modules/work/domain/gate-readiness.ts`                                |
-| Wer nimmt welchen Schritt ab                            | `src/modules/work/domain/gate-policy.ts`                                   |
-| Sperre, Diff und Baseline der beiden Texte              | `src/modules/work/domain/epic-revision-visibility.ts`                      |
-| Welcher Schritt welchen Stempel setzt und abräumt       | `src/modules/work/domain/gate-transition.ts`                               |
-| Rollensatz und Labels                                   | `src/modules/core/kernel/domain/roles.ts`                                  |
-| Was welche Rolle darf                                   | `src/server/auth/policies/index.ts`                                        |
-| Finance-Seam ohne Rolle (Run the Business)              | `src/modules/budgeting/server/services/rtb-item-service.ts`                |
-| Empfänger der „I need help"-Bitten                      | `src/modules/work/server/services/my-help-requests.ts`                     |
-| Business-Owner-Engagement (Guardrail 4)                 | `src/modules/work/server/views/portfolio-guardrails-view.ts`               |
-| PB-Liste-Fähigkeit + Default-Aufwand                    | `src/modules/work/domain/pb-submission.ts`                                 |
-| Einordnung: Kosten gegen Portfolio-Limit                | `src/modules/work/domain/pb-submission.ts` (`classifyEpic`)                |
-| Abweichung Erwartung ↔ Ableitung                        | `src/modules/work/domain/pb-submission.ts` (`classificationDrift`)         |
-| Das Limit je Wertstrom (mit Tenant-Vorgabe)             | `src/modules/work/domain/portfolio-guardrails.ts`                          |
-| ART-Epics werden vom PB-Liste ausgenommen               | `src/modules/budgeting/server/views/period-detail.ts`                      |
-| ART-Epic-Budget und Zuteilung an ART-Epics              | `src/modules/budgeting/server/services/art-pot.ts`                         |
-| Phasen und Status eines Budget-Zeitraums                | `src/modules/budgeting/domain/period-phases.ts`                            |
-| Beschriftung der zwei Merker                            | `src/modules/work/features/portfolio/components/epic-governance-flags.tsx` |
-| Timeline-Estimates = geplantes Fenster                  | `src/modules/work/domain/epic-schedule.ts`                                 |
+| Aussage                                               | Quelle                                                                     |
+| ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| Schritte + Sub-Stages, L3 und L4.2 als echte Schritte | `src/modules/work/domain/stage-gate.ts`                                    |
+| Kriterien je Schritt, blockierend vs. beratend        | `src/modules/work/domain/gate-readiness.ts`                                |
+| Wer nimmt welchen Schritt ab                          | `src/modules/work/domain/gate-policy.ts`                                   |
+| Sperre, Diff und Baseline der beiden Texte            | `src/modules/work/domain/epic-revision-visibility.ts`                      |
+| Welcher Schritt welchen Stempel setzt und abräumt     | `src/modules/work/domain/gate-transition.ts`                               |
+| Rollensatz und Labels                                 | `src/modules/core/kernel/domain/roles.ts`                                  |
+| Was welche Rolle darf                                 | `src/server/auth/policies/index.ts`                                        |
+| Finance-Seam ohne Rolle (Run the Business)            | `src/modules/budgeting/server/services/rtb-item-service.ts`                |
+| Empfänger der „I need help"-Bitten                    | `src/modules/work/server/services/my-help-requests.ts`                     |
+| Business-Owner-Engagement (Guardrail 4)               | `src/modules/work/server/views/portfolio-guardrails-view.ts`               |
+| PB-Liste-Fähigkeit + Default-Aufwand                  | `src/modules/work/domain/pb-submission.ts`                                 |
+| Einordnung: Kosten gegen Portfolio-Limit              | `src/modules/work/domain/pb-submission.ts` (`classifyEpic`)                |
+| Abweichung Erwartung ↔ Ableitung                      | `src/modules/work/domain/pb-submission.ts` (`classificationDrift`)         |
+| Das Limit je Wertstrom (mit Tenant-Vorgabe)           | `src/modules/work/domain/portfolio-guardrails.ts`                          |
+| ART-Epics werden vom PB-Liste ausgenommen             | `src/modules/budgeting/server/views/period-detail.ts`                      |
+| ART-Epic-Budget und Zuteilung an ART-Epics            | `src/modules/budgeting/server/services/art-pot.ts`                         |
+| Phasen und Status eines Budget-Zeitraums              | `src/modules/budgeting/domain/period-phases.ts`                            |
+| Beschriftung der zwei Merker                          | `src/modules/work/features/portfolio/components/epic-governance-flags.tsx` |
+| Timeline-Estimates = geplantes Fenster                | `src/modules/work/domain/epic-schedule.ts`                                 |

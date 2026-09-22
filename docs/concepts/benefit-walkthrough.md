@@ -46,12 +46,12 @@ Korrektur wirkt **rückwirkend** auf die ganze Ist-Rechnung.
 
 ### Der Plan entsteht mit der Business-Case-Freigabe
 
-Vor **L3.1** gibt es keinen Plan-Bezug: jede Änderung am Faktor ist zugleich der
+Vor **L2** gibt es keinen Plan-Bezug: jede Änderung am Faktor ist zugleich der
 Plan. Mit der Freigabe wird er festgehalten, und ab da ist „Plan gegen Ist" eine
 Aussage statt einer Tautologie. Die Fläche sagt das an, solange es fehlt:
 
 > „Kein Plan-Bezug — festgehalten wird er mit der Freigabe des Business Case
-> (L2 → L3.1). Bis dahin ist jede Änderung des Faktors sofort auch der Plan."
+> (Analyse → L2). Bis dahin ist jede Änderung des Faktors sofort auch der Plan."
 
 ### Die Richtung steckt im Vorzeichen
 
@@ -302,7 +302,7 @@ Zuteilung übersteuert sie. Woher die Zuteilung kommt, steht in
 | „Eine KPI braucht eine Richtungsangabe."                      | Die Richtung steckt im Vorzeichen von `Ziel − Baseline`.                                |
 | „KPIs pflegen verlangt `kpi.bind`."                           | Nein — `epic.update`. `kpi.bind` regelt nur die Brücke KPI → Key Result.                |
 | „Wer ein Epic anlegen darf, darf es auch an ein Ziel binden." | Anhängen ja, **beziffern** nein. Das ist seit September 2026 getrennt.                  |
-| „Plan gegen Ist gilt von Anfang an."                          | Der Plan-Bezug entsteht mit L3.1. Davor ist jede Faktor-Änderung zugleich der Plan.     |
+| „Plan gegen Ist gilt von Anfang an."                          | Der Plan-Bezug entsteht mit L2. Davor ist jede Faktor-Änderung zugleich der Plan.       |
 | „Wiederkehrender Nutzen ist immer jährlich."                  | Standard ja, aber `monthly` gibt es — dann zählt der Periodenwert direkt je Monat.      |
 | „Ein Check-in trägt immer das heutige Datum."                 | Das Datum ist wählbar und setzt den Punkt im Graphen.                                   |
 | „Related work am Ziel zählt in den Fortschritt."              | Es ist ein Deeplink, kein Wertbeitrag.                                                  |

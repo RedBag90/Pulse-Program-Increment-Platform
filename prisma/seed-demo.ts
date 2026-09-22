@@ -385,7 +385,7 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
       vs: 0,
       epicType: "enabler",
       horizon: "H2",
-      gate: "L3",
+      gate: "L2",
       steering: false,
       size: "gross",
     },
@@ -395,7 +395,7 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
       vs: 1,
       epicType: "epic",
       horizon: "H3",
-      gate: "L2",
+      gate: "L1",
       steering: true,
       size: "mittel",
     },
@@ -425,7 +425,7 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
       vs: 1,
       epicType: "epic",
       horizon: "H2",
-      gate: "L3",
+      gate: "L2",
       steering: false,
       size: "klein",
     },
@@ -435,7 +435,7 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
       vs: 2,
       epicType: "epic",
       horizon: "H2",
-      gate: "L2",
+      gate: "L1",
       steering: false,
       size: "mittel",
     },
@@ -465,7 +465,7 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
       vs: 0,
       epicType: "epic",
       horizon: "H2",
-      gate: "L2",
+      gate: "L1",
       steering: true,
       size: "mittel",
     },
@@ -535,7 +535,7 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
       vs: 1,
       epicType: "enabler",
       horizon: "H3",
-      gate: "L2",
+      gate: "L1",
       steering: true,
       size: "gross",
     },
@@ -662,15 +662,22 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
   // Spalten, Anträge und Abnahmen mit derselben Domänenlogik ab, die auch die
   // App benutzt.
 
-  /** Ziel-Schritt je Epic — für einzelne auf die Unterstufe geschärft. */
+  /**
+   * Ziel-Schritt je Epic, wo er nicht einfach der Reifegrad ist.
+   *
+   * Zwei Schritte bewegen den Reifegrad nicht und sind aus `gate` darum nicht
+   * ablesbar: `analysis` („zur Analyse ausgewaehlt", auf L1) und `L4.2`
+   * („Umsetzung fertig", auf L4). Genau sie stehen hier.
+   */
   const SUB_STEP: Record<number, GateStep> = {
-    8: "L3.2", // Data Platform — Investition abgenommen
-    12: "L3.2", // Biometric Auth — Investition abgenommen
+    2: "analysis", // AI Fraud Detection — Business Case in Arbeit
+    6: "analysis",
+    9: "analysis",
+    16: "analysis",
     13: "L4.2", // Regulatory Reporting — Umsetzung bestätigt fertig
     19: "L4.2", // Payments Observability — Umsetzung bestätigt fertig
   };
-  const targetStep = (i: number, def: EpicDef): GateStep =>
-    SUB_STEP[i] ?? ((def.gate === "L3" ? "L3.1" : def.gate) as GateStep);
+  const targetStep = (i: number, def: EpicDef): GateStep => SUB_STEP[i] ?? (def.gate as GateStep);
 
   /**
    * Die Zustände, die der Walkthrough beschreibt — je einmal an einem benannten
@@ -679,14 +686,16 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
    * unsichtbar.
    */
   const STORY: Record<number, GateMove[]> = {
-    // Open-Banking (L3.1): das Geld ist da, die Investitionsentscheidung läuft.
-    1: [{ kind: "open", to: "L3.2", requestedAt: addDays(now, -6) }],
-    // AI Fraud Detection (L2): Business Case liegt bei den fünf Parteien,
-    // zwei haben gezeichnet — frisch genug, um nicht überfällig zu sein.
+    // Open-Banking (L2): der Business Case ist frei, die
+    // Investitionsentscheidung läuft.
+    1: [{ kind: "open", to: "L3", requestedAt: addDays(now, -6) }],
+    // AI Fraud Detection (L1, zur Analyse ausgewählt): Business Case liegt bei
+    // den fünf Parteien, zwei haben gezeichnet — frisch genug, um nicht
+    // überfällig zu sein.
     2: [
       {
         kind: "open",
-        to: "L3.1",
+        to: "L2",
         requestedAt: addDays(now, -5),
         decidedRoles: ["epic.party.architect", "epic.party.finance"],
         decidedAt: addDays(now, -3),
@@ -697,39 +706,39 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
     5: [
       {
         kind: "revert",
-        to: "L2",
+        to: "analysis",
         at: addDays(now, -40),
         reason:
           "Nutzenrechnung hält der Prüfung durch Finance nicht stand — bitte mit belastbaren Zahlen erneut vorlegen.",
       },
-      { kind: "advance", to: "L3.1", requestedAt: addDays(now, -30), decidedAt: addDays(now, -24) },
+      { kind: "advance", to: "L2", requestedAt: addDays(now, -30), decidedAt: addDays(now, -24) },
     ],
-    // Self-Service Contact Center (L2): der erste Anlauf wurde abgelehnt.
+    // Self-Service Contact Center: der erste Anlauf wurde abgelehnt.
     6: [
       {
         kind: "rejected",
-        to: "L3.1",
+        to: "L2",
         requestedAt: addDays(now, -36),
         decidedAt: addDays(now, -32),
         reason: "Die Kostenscheiben decken den Betrieb nach Go-live nicht ab.",
       },
     ],
-    // Core Banking (L2): der Antrag liegt seit Wochen, der Business Owner hat
+    // Core Banking: der Antrag liegt seit Wochen, der Business Owner hat
     // nicht gezeichnet — genau der Fall, den Guardrail 4 messen soll.
     9: [
       {
         kind: "open",
-        to: "L3.1",
+        to: "L2",
         requestedAt: addDays(now, -38),
         decidedRoles: ["epic.party.architect", "epic.party.lace_vmo"],
         decidedAt: addDays(now, -30),
       },
     ],
-    // Developer Platform (L2): Antrag gestellt und selbst zurückgezogen.
+    // Developer Platform: Antrag gestellt und selbst zurückgezogen.
     16: [
       {
         kind: "withdrawn",
-        to: "L3.1",
+        to: "L2",
         requestedAt: addDays(now, -45),
         decidedAt: addDays(now, -42),
       },
@@ -823,7 +832,7 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
     // Die Klasse entsteht **erst mit der Freigabe des Business Case**. Vorher
     // gibt es sie nicht — „noch nicht eingeordnet" ist keine Lücke, sondern die
     // Wahrheit. Der Override hebt sie unabhängig von den Kosten auf Portfolio.
-    const bcApproved = businessCase != null && stepsUpTo(target).includes("L3.1");
+    const bcApproved = businessCase != null && stepsUpTo(target).includes("L2");
     const epicClass: "portfolio" | "art" | null = !bcApproved
       ? null
       : i === OVERRIDE_EPIC || sliceSum > threshold
@@ -2960,7 +2969,7 @@ async function assertWrittenContentMatchesGates(
       id: true,
       title: true,
       stageGate: true,
-      approvedAt: true,
+      selectedForAnalyzingAt: true,
       implementationCompletedAt: true,
       benefitHypothesis: true,
       businessCase: true,
@@ -2984,7 +2993,7 @@ async function assertWrittenContentMatchesGates(
       title: r.title,
       step: currentGateStep({
         stageGate: r.stageGate as StageGate,
-        approvedAt: r.approvedAt,
+        selectedForAnalyzingAt: r.selectedForAnalyzingAt,
         implementationCompletedAt: r.implementationCompletedAt,
       }),
       has: {

@@ -22,7 +22,7 @@
  * Index. Ein zweiter Lauf liefert denselben Bauplan.
  */
 
-import type { GateStep } from "@/modules/work/domain/stage-gate";
+import { GATE_STEPS, type GateStep } from "@/modules/work/domain/stage-gate";
 import { classifyEpic } from "@/modules/work/domain/pb-submission";
 import { computeBusinessCaseTotals, parseBusinessCase } from "@/modules/work/domain/business-case";
 import type { GateMove } from "./seed-gate-history.js";
@@ -226,14 +226,14 @@ export function buildRoundPlan(cfg: RoundsConfig): RoundPlan {
       // steht eher vor der Investitionsentscheidung als im Funnel.
       const reach = [0, 1, 2, 3, 3, 3][spread(i, 41, 6)]!; // 0 = L0 … 3 = L3.1
       if (reach >= 1) push(e, mk("L1", before(120 - spread(i, 42, 10))));
-      if (reach >= 2) push(e, mk("L2", before(80 - spread(i, 43, 10))));
+      if (reach >= 2) push(e, mk("analysis", before(80 - spread(i, 43, 10))));
       if (reach >= 3) {
         const at = before(30 - spread(i, 44, 10));
         e.costSlices = sliceCosts(e, 0, cycles);
         e.cost = computeBusinessCaseTotals(
           parseBusinessCase({ costSlices: e.costSlices }).current,
         ).implementationCost;
-        push(e, mk("L3.1", at));
+        push(e, mk("L2", at));
         e.epicClass = classifyEpic(
           {
             businessCase: { costSlices: e.costSlices },
@@ -282,14 +282,14 @@ export function buildRoundPlan(cfg: RoundsConfig): RoundPlan {
 
     // ── 4 · Investitionsentscheidung: erst die Zuteilung, dann der Antrag ─
     for (const e of epics) {
-      if (e.step !== "L3.1") continue;
+      if (e.step !== "L2") continue;
       if (!e.tranches.some((t) => t.cycleIdx === c)) continue;
-      advanceIfDue(e, "L3.2", dayIn(c, PHASE.invest + spread(e.idx, 8, 8)));
+      advanceIfDue(e, "L3", dayIn(c, PHASE.invest + spread(e.idx, 8, 8)));
     }
 
     // ── 5 · Umsetzung starten ───────────────────────────────────────────
     for (const e of epics) {
-      if (e.step !== "L3.2") continue;
+      if (e.step !== "L3") continue;
       const at = dayIn(c, PHASE.implement + spread(e.idx, 9, 10));
       if (!happened(at)) continue;
       push(e, { kind: "advance", to: "L4", requestedAt: addDays(at, -5), decidedAt: at });
@@ -297,7 +297,7 @@ export function buildRoundPlan(cfg: RoundsConfig): RoundPlan {
       e.implEndCycle = c + e.implCycles - 1;
     }
 
-    // ── 6 · Reifen: L0 → L1 → L2 → L3.1 ─────────────────────────────────
+    // ── 6 · Reifen: L0 → L1 → zur Analyse ausgewaehlt ───────────────────
     //
     // Nicht jedes Epic marschiert im Gleichschritt: `startPace` lässt manche
     // Ideen ein oder zwei Halbjahre liegen, bevor überhaupt jemand die
@@ -306,7 +306,10 @@ export function buildRoundPlan(cfg: RoundsConfig): RoundPlan {
       if (e.ownerSlot == null) continue;
       if (c - e.bornCycle < e.startPace) continue;
       advanceIfDue(e, "L1", dayIn(c, PHASE.hypothesis + spread(e.idx, 5, 6)));
-      if (e.step === "L1" && advanceIfDue(e, "L2", dayIn(c, PHASE.analyze + spread(e.idx, 6, 8)))) {
+      if (
+        e.step === "L1" &&
+        advanceIfDue(e, "analysis", dayIn(c, PHASE.analyze + spread(e.idx, 6, 8)))
+      ) {
         e.l2Cycle = c;
       }
     }
@@ -323,7 +326,7 @@ export function buildRoundPlan(cfg: RoundsConfig): RoundPlan {
 
     // ── 8 · Der Business Case wird freigegeben ──────────────────────────
     for (const e of epics) {
-      if (e.step !== "L2") continue;
+      if (e.step !== "analysis") continue;
       /**
        * **Ein Business Case entsteht nicht in vier Wochen.** Er wird im
        * Halbjahr nach der Auswahl geschrieben — sonst stünde die Spalte
@@ -340,7 +343,7 @@ export function buildRoundPlan(cfg: RoundsConfig): RoundPlan {
       e.cost = computeBusinessCaseTotals(
         parseBusinessCase({ costSlices: e.costSlices }).current,
       ).implementationCost;
-      push(e, { kind: "advance", to: "L3.1", requestedAt: addDays(at, -6), decidedAt: at });
+      push(e, { kind: "advance", to: "L2", requestedAt: addDays(at, -6), decidedAt: at });
       e.epicClass = classifyEpic(
         {
           businessCase: { costSlices: e.costSlices },
@@ -468,7 +471,7 @@ function runBudgetRound(
   //     Rahmen ihres ARTs. Beide warten seit ihrer Freigabe; wer länger wartet,
   //     kommt zuerst.
   const fresh = epics
-    .filter((e) => e.step === "L3.1" && e.cost > 0 && !e.tranches.some((t) => t.cycleIdx === c))
+    .filter((e) => e.step === "L2" && e.cost > 0 && !e.tranches.some((t) => t.cycleIdx === c))
     .sort((a, b) => b.timesPassedOver - a.timesPassedOver || a.idx - b.idx);
 
   for (const e of fresh) {
@@ -553,11 +556,16 @@ export function moveRequestedAt(move: GateMove): Date {
   return move.kind === "revert" ? move.at : move.requestedAt;
 }
 
-/** Der Schritt, der einem Schritt vorausgeht — die Leiter rückwärts. */
+/**
+ * Der Schritt, der einem Schritt vorausgeht — die Leiter rückwärts.
+ *
+ * Sie stand hier als eigene Abschrift und war damit die fuenfte Kopie derselben
+ * Reihenfolge. Jetzt kommt sie aus `GATE_STEPS`; eine Umnummerierung der Achse
+ * zieht sie mit, statt sie stillschweigend falsch werden zu lassen.
+ */
 function previousStepOf(step: GateStep): GateStep | null {
-  const order: GateStep[] = ["L0", "L1", "L2", "L3.1", "L3.2", "L4", "L4.2", "L5"];
-  const i = order.indexOf(step);
-  return i <= 0 ? null : order[i - 1]!;
+  const i = GATE_STEPS.indexOf(step);
+  return i <= 0 ? null : (GATE_STEPS[i - 1] as GateStep);
 }
 
 /**

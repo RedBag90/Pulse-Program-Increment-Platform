@@ -38,25 +38,29 @@ export function isValidTransition(from: StageGate, to: StageGate): boolean {
 // ---------------------------------------------------------------------------
 // Gate-Steps — die Schritte, die beantragt und abgenommen werden.
 //
-// Die Reifegrad-Leiter hat sechs Haupt-Gates (L0–L5), aber **acht** Schritte:
-// zwei Haupt-Gates tragen einen zweiten beantragbaren Schritt.
+// Die Reifegrad-Leiter hat sechs Haupt-Gates (L0–L5), aber **acht** Schritte.
+// Zwei davon bewegen den Reifegrad **nicht**:
 //
-//  - **L3.2 „Budget alloziert"** — L3 wird mit der freigegebenen Business-Case-
-//    Freigabe betreten (Schritt **L3.1**); die Investitionsentscheidung selbst
-//    ist der Schritt danach. „Wir haben einen Business Case" und „wir geben Geld" sind
-//    zwei Aussagen, und die zweite darf nicht als Nebenwirkung einer
-//    Budgetzuteilung entstehen.
+//  - **`analysis` „Zur Analyse ausgewaehlt"** — die Entscheidung, ein Vorhaben
+//    auszuarbeiten. Sie wird beantragt und abgenommen wie jeder andere Schritt,
+//    aber sie ist **kein Reifegrad**: das Epic bleibt auf L1 stehen und traegt
+//    danach den Stempel `selectedForAnalyzingAt`. Deshalb hat der Schritt auch
+//    keine Nummer — eine Nummer waere ein Versprechen auf einen Grad, den es
+//    nicht gibt.
 //  - **L4.2 „Umsetzung fertig"** — „fertig gebaut" und „Nutzen nachgewiesen"
-//    sind zwei Aussagen, zwischen denen viel Zeit liegen darf.
+//    sind zwei Aussagen, zwischen denen viel Zeit liegen darf. Das Epic bleibt
+//    auf L4 und traegt `implementationCompletedAt`.
 //
-// Beide sind keine Haupt-Gates: `Initiative.stageGate` bleibt auf „L3" bzw.
-// „L4" stehen, die Bestätigung materialisiert sich in einem Stempel
-// (`approvedAt` bzw. `implementationCompletedAt`). Der Schritt-Typ existiert nur
-// im Antrags-/Abnahme-Apparat (Policies, Kriterien, Historie).
+// **Die Achse wurde im September 2026 neu geschnitten.** Vorher hiessen die
+// Schritte L2 (zur Analyse), L3.1 (BC freigegeben) und L3.2 (Budget alloziert);
+// L3 trug damit zwei Unterstufen. Jetzt ist „zur Analyse" gradlos, und was
+// darauf folgt, sind zwei eigene Reifegrade: **L2 Business Case freigegeben**
+// und **L3 Budget alloziert**. Die Bestandsdaten sind mitgewandert
+// (`prisma/scripts/2026-09-22-reifegrad-neuschnitt.ts`).
 // ---------------------------------------------------------------------------
 
-/** Alle beantragbaren Schritte in Reihenfolge — L0 … L3.1, L3.2, L4, L4.2, L5. */
-export const GATE_STEPS = ["L0", "L1", "L2", "L3.1", "L3.2", "L4", "L4.2", "L5"] as const;
+/** Alle beantragbaren Schritte in Reihenfolge — L0 … analysis, L2, L3, L4, L4.2, L5. */
+export const GATE_STEPS = ["L0", "L1", "analysis", "L2", "L3", "L4", "L4.2", "L5"] as const;
 export type GateStep = (typeof GATE_STEPS)[number];
 
 export function isGateStep(value: string): value is GateStep {
@@ -81,10 +85,13 @@ export function isGateStep(value: string): value is GateStep {
  */
 export const GATE_STEP_LABELS: Record<GateStep, string> = {
   L0: "L0 Idee",
-  L1: "L1 Hypothese definiert",
-  L2: "L2 Business Case",
-  "L3.1": "L3.1 BC freigegeben",
-  "L3.2": "L3.2 Budget alloziert",
+  L1: "L1 Hypothese freigegeben",
+  // Ohne Nummer, und das ist die Aussage: dieser Schritt bewegt den Reifegrad
+  // nicht. `gateStepNumber` gibt hier darum den Schluessel selbst zurueck —
+  // angezeigt wird der volle Name.
+  analysis: "Zur Analyse ausgewählt",
+  L2: "L2 Business Case freigegeben",
+  L3: "L3 Budget alloziert",
   L4: "L4.1 Umsetzung läuft",
   "L4.2": "L4.2 Umsetzung fertig",
   L5: "L5 Impact realisiert",
@@ -114,11 +121,11 @@ export function gateStepNumber(step: string): string {
 /** Erlaubte Schritt-Wechsel: ein Schritt vor oder zurück. */
 export const GATE_STEP_TRANSITIONS: Record<GateStep, readonly GateStep[]> = {
   L0: ["L1"],
-  L1: ["L0", "L2"],
-  L2: ["L1", "L3.1"],
-  "L3.1": ["L2", "L3.2"],
-  "L3.2": ["L3.1", "L4"],
-  L4: ["L3.2", "L4.2"],
+  L1: ["L0", "analysis"],
+  analysis: ["L1", "L2"],
+  L2: ["analysis", "L3"],
+  L3: ["L2", "L4"],
+  L4: ["L3", "L4.2"],
   "L4.2": ["L4", "L5"],
   L5: ["L4.2"],
 };
@@ -129,20 +136,27 @@ export function isValidStepTransition(from: GateStep, to: GateStep): boolean {
 }
 
 /**
- * Das Haupt-Gate, in dem ein Schritt lebt. L3 traegt beide L3.x-Schritte, L4
- * beide L4.x — die Spalte `Initiative.stageGate` kennt nur die sechs Haupt-Gates.
+ * Das Haupt-Gate, in dem ein Schritt lebt — die Spalte `Initiative.stageGate`
+ * kennt nur die sechs Haupt-Gates.
+ *
+ * **Zwei Schritte leben in einem fremden Gate**, weil sie den Reifegrad nicht
+ * bewegen: `analysis` in L1 und L4.2 in L4. Wer einen von beiden abnimmt, setzt
+ * einen Stempel, keine Nummer.
  */
 export function gateOfStep(step: GateStep): StageGate {
-  if (step === "L3.1" || step === "L3.2") return "L3";
+  if (step === "analysis") return "L1";
   if (step === "L4.2") return "L4";
   return step;
 }
 
 /**
- * Der Schritt, auf dem ein Epic **aktuell** steht: innerhalb von L3 entscheidet
- * die Investitionsfreigabe (`approvedAt`), innerhalb von L4 die Bestätigung der
- * fertigen Umsetzung, ob das Epic schon auf dem zweiten Schritt steht. Überall
- * dort zu verwenden, wo bisher `epic.stageGate` den nächsten Antrag bestimmt hat.
+ * Der Schritt, auf dem ein Epic **aktuell** steht.
+ *
+ * Zwei Reifegrade tragen einen zweiten Schritt, den ein Stempel aufschliesst:
+ * innerhalb von **L1** entscheidet `selectedForAnalyzingAt`, ob die Analyse
+ * schon beschlossen ist; innerhalb von **L4** die Bestätigung der fertigen
+ * Umsetzung. Überall dort zu verwenden, wo sonst `epic.stageGate` den nächsten
+ * Antrag bestimmen würde — der wäre in beiden Fällen um einen Schritt zu weit.
  */
 /**
  * **Ab L3.2 ist das Geld vergeben.** „Budget alloziert" ist die
@@ -154,13 +168,13 @@ export function gateOfStep(step: GateStep): StageGate {
  * was einen bewerteten KPI trug, und zeigte damit Kosten und Nutzen von
  * Vorhaben, über die niemand entschieden hatte.
  *
- * Nicht zu verwechseln mit `FIRST_FUNDABLE_STEP` (L3.1) aus Budgeting: dort
+ * Nicht zu verwechseln mit `FIRST_FUNDABLE_STEP` (L2) aus Budgeting: dort
  * geht es darum, ab wann ein Epic Geld **halten darf**, hier darum, ab wann es
  * welches **bekommen hat**.
  */
-export const BUDGET_DECIDED_STEP: GateStep = "L3.2";
+export const BUDGET_DECIDED_STEP: GateStep = "L3";
 
-/** Ist für dieses Epic die Investitionsentscheidung gefallen (L3.2 oder später)? */
+/** Ist für dieses Epic die Investitionsentscheidung gefallen (L3 oder später)? */
 export function hasBudgetDecision(step: GateStep): boolean {
   return GATE_STEPS.indexOf(step) >= GATE_STEPS.indexOf(BUDGET_DECIDED_STEP);
 }
@@ -168,11 +182,10 @@ export function hasBudgetDecision(step: GateStep): boolean {
 /**
  * Die Schwelle für Abfragen, die nur `stage_gate` kennen.
  *
- * Sie liegt **mitten in L3**: L3.1 und L3.2 teilen sich die Spalte, getrennt
- * werden sie erst durch den Stempel `approvedAt`. Eine reine Gate-Liste reicht
- * deshalb nicht — `gatesFullyAfterBudgetDecision` sind die Gates, die *ganz*
- * dahinterliegen, `BUDGET_DECISION_GATE` ist das geteilte, in dem zusätzlich
- * der Stempel zählt.
+ * **Seit dem Neuschnitt ist sie scharf.** Vorher lag sie *mitten* in L3: L3.1
+ * und L3.2 teilten sich die Spalte, getrennt erst durch `approvedAt`. Jetzt ist
+ * „Budget alloziert" ein eigener Reifegrad — wer auf L3 steht, hat Geld
+ * bekommen, und eine reine Gate-Abfrage genügt.
  */
 export const BUDGET_DECISION_GATE: StageGate = "L3";
 
@@ -181,7 +194,7 @@ export const GATES_AFTER_BUDGET_DECISION: readonly StageGate[] = STAGE_GATES.fil
 );
 
 /**
- * **Das Lieferfenster: L3.2 → L4.2.**
+ * **Das Lieferfenster: L3 → L4.2.**
  *
  * Vom Budget-Beschluss bis zur abgenommenen Umsetzung — die Spanne, in der an
  * einem Epic tatsächlich gearbeitet wird. Der Horizont-Trichter misst damit die
@@ -193,14 +206,14 @@ export const GATES_AFTER_BUDGET_DECISION: readonly StageGate[] = STAGE_GATES.fil
  * etwas geschieht.
  *
  * Drei Schwellen, drei Bedeutungen, leicht zu verwechseln:
- * `FIRST_FUNDABLE_STEP` (Budgeting, L3.1) = darf Geld halten ·
- * `BUDGET_DECIDED_STEP` (L3.2, nach oben offen) = hat Geld bekommen ·
- * **dieses Fenster** (L3.2–L4.2, geschlossen) = trägt gerade Arbeit.
+ * `FIRST_FUNDABLE_STEP` (Budgeting, L2) = darf Geld halten ·
+ * `BUDGET_DECIDED_STEP` (L3, nach oben offen) = hat Geld bekommen ·
+ * **dieses Fenster** (L3–L4.2, geschlossen) = trägt gerade Arbeit.
  */
-export const DELIVERY_LOAD_FIRST_STEP: GateStep = "L3.2";
+export const DELIVERY_LOAD_FIRST_STEP: GateStep = "L3";
 export const DELIVERY_LOAD_LAST_STEP: GateStep = "L4.2";
 
-/** Liegt der Schritt im Lieferfenster (L3.2 bis einschließlich L4.2)? */
+/** Liegt der Schritt im Lieferfenster (L3 bis einschließlich L4.2)? */
 export function carriesDeliveryLoad(step: GateStep): boolean {
   const i = GATE_STEPS.indexOf(step);
   return (
@@ -211,34 +224,31 @@ export function carriesDeliveryLoad(step: GateStep): boolean {
 
 export function currentGateStep(epic: {
   stageGate: StageGate;
-  approvedAt: Date | null;
+  /** Stempel der abgenommenen Analyse-Entscheidung — schliesst den Schritt `analysis` auf. */
+  selectedForAnalyzingAt: Date | null;
   implementationCompletedAt: Date | null;
 }): GateStep {
-  if (epic.stageGate === "L3") return epic.approvedAt != null ? "L3.2" : "L3.1";
+  if (epic.stageGate === "L1") return epic.selectedForAnalyzingAt != null ? "analysis" : "L1";
   if (epic.stageGate === "L4") return epic.implementationCompletedAt != null ? "L4.2" : "L4";
   return epic.stageGate;
 }
 
 /**
- * Der Schritt **L3.1 → L3.2 „Budget alloziert"** ist die Investitionsentscheidung.
+ * Der Schritt **L2 → L3 „Budget alloziert"** ist die Investitionsentscheidung.
  * Nur dort persistieren die Aufrufer Abnehmer, Zeitpunkt und Kommentar am Epic.
  *
- * Frueher hing das am Erreichen des Haupt-Gates L3. Mit dem Neuschnitt betritt
- * ein Epic L3 bereits mit der freigegebenen Business-Case-Freigabe (L3.1) — die
- * Geldentscheidung faellt erst einen Schritt spaeter.
+ * Er hiess bis September 2026 `L3.2` und war die zweite Unterstufe von L3. Seit
+ * dem Neuschnitt ist „Budget alloziert" ein eigener Reifegrad — dieselbe
+ * Entscheidung, nur nicht mehr in einem fremden Gate versteckt.
  */
 export function isApprovalTransition(to: GateStep): boolean {
-  return to === "L3.2";
+  return to === "L3";
 }
 
 // ---------------------------------------------------------------------------
 // Sub-stages — derived UI affordances within the major gates.
 //
-// Two of the six major gates carry an internally meaningful split:
-//
-// - **L3** splits into L3.1 "Business Case freigegeben" (der Eintritt) and
-//   L3.2 "Budget alloziert". L3.2 wird **beantragt und abgenommen** (s.
-//   `GATE_STEPS`) und materialisiert sich im Stempel `approvedAt`.
+// **Nur noch eines der sechs Haupt-Gates traegt einen Split:**
 //
 // - **L4** splits into L4.1 "Umsetzung läuft" and L4.2 "Umsetzung fertig".
 //   L4.2 wird **beantragt und abgenommen** (wie ein Gate, s. `GATE_STEPS`) und
@@ -247,11 +257,16 @@ export function isApprovalTransition(to: GateStep): boolean {
 //   Features abgeschlossen" ist heute weder Automatik noch Tor, sondern ein
 //   *beratender* Anhaltspunkt am Antrag; bestätigt wird per Abnahme.
 //
-// Die Ableitung liest damit nur noch persistierte Fakten (BC-Stempel,
-// Bestätigungs-Stempel); der Audit-Log der Haupt-Gates bleibt unberührt.
+// **L3 hatte bis September 2026 einen zweiten**: L3.1 „BC freigegeben" als
+// Eintritt, L3.2 „Budget alloziert" als Entscheidung. Beide sind mit dem
+// Neuschnitt zu eigenen Reifegraden geworden (L2 und L3) — der Split ist
+// ersatzlos entfallen, weil er nichts mehr verbirgt.
+//
+// Die Ableitung liest damit nur noch einen persistierten Stempel; der Audit-Log
+// der Haupt-Gates bleibt unberührt.
 // ---------------------------------------------------------------------------
 
-export const SUB_STAGES = ["L3.1", "L3.2", "L4.1", "L4.2"] as const;
+export const SUB_STAGES = ["L4.1", "L4.2"] as const;
 export type SubStage = (typeof SUB_STAGES)[number];
 
 /**
@@ -260,14 +275,11 @@ export type SubStage = (typeof SUB_STAGES)[number];
  * Major-Gate-Pill die Sub-Stage-Pills rendern.
  */
 export const SUB_STAGES_BY_GATE: Partial<Record<StageGate, readonly SubStage[]>> = {
-  L3: ["L3.1", "L3.2"],
   L4: ["L4.1", "L4.2"],
 };
 
 export interface SubStageInput {
   stageGate: StageGate;
-  /** Stempel der abgenommenen L3.2-Investitionsentscheidung („Budget alloziert"). */
-  approvedAt: Date | null;
   /** Stempel der abgenommenen L4.2-Bestätigung („Umsetzung fertig"). */
   implementationCompletedAt: Date | null;
 }
@@ -283,20 +295,14 @@ export function allChildrenCompleted(stats: { total: number; completed: number }
 }
 
 /**
- * Pure derivation: returns the sub-stage label inside L2 or L4, or `null`
- * for the other major gates (no split there).
+ * Pure derivation: returns the sub-stage label inside L4, or `null` for the
+ * other major gates (no split there).
  */
 export function subStageFor(input: SubStageInput): SubStage | null {
-  if (input.stageGate === "L3") {
-    // Investition abgenommen (L3→L3.2) ⇒ L3.2, sonst steht das Epic auf dem
-    // Eintritt L3.1 („Business Case freigegeben").
-    return input.approvedAt != null ? "L3.2" : "L3.1";
-  }
   if (input.stageGate === "L4") {
     // Bestätigt (abgenommener L4→L4.2-Antrag) ⇒ L4.2, sonst läuft die Umsetzung.
     return input.implementationCompletedAt != null ? "L4.2" : "L4.1";
   }
-  // L2 traegt keinen Split mehr: auf L2 zu stehen *ist* „Business Case in Arbeit".
   return null;
 }
 

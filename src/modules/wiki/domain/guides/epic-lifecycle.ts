@@ -36,7 +36,7 @@ export const EPIC_LIFECYCLE: Guide = {
       kind: "list",
       items: [
         "Die Abnahme von **L0 → L1** ist die Freigabe der **Benefit-Hypothese**.",
-        "Die Abnahme von **L2 → L3.1** ist die Freigabe des **Lean Business Case**.",
+        "Die Abnahme von **Analyse → L2** ist die Freigabe des **Lean Business Case**.",
       ],
     },
     {
@@ -53,7 +53,7 @@ export const EPIC_LIFECYCLE: Guide = {
     },
     {
       kind: "aside",
-      text: "Sieben der acht Stufen werden so beantragt. Eine wird rein **abgeleitet**: _L4.1 Umsetzung läuft_ heißt „in Umsetzung, aber noch nicht bestätigt fertig“. Dass L3.1 und L3.2 daneben als Unterstufen des Tors L3 erscheinen, ist die Anzeige: die Spalte trägt „L3“, und der Investitions-Stempel entscheidet, welche der beiden zu sehen ist.",
+      text: "Sieben der acht Stufen werden so beantragt. Eine wird rein **abgeleitet**: _L4.1 Umsetzung läuft_ heißt „in Umsetzung, aber noch nicht bestätigt fertig“. Und zwei Schritte tragen gar keine Nummer am Epic: _Zur Analyse ausgewählt_ bleibt auf L1 stehen, _L4.2 Umsetzung fertig_ auf L4 — sie werden beantragt und abgenommen wie jeder andere, hinterlassen aber einen Stempel statt eines Reifegrads.",
     },
     { kind: "quote", text: "Wer die drei sind." },
     {
@@ -131,7 +131,7 @@ export const EPIC_LIFECYCLE: Guide = {
             },
             {
               kind: "paragraph",
-              text: "Ich setze im Overview den Haken **Fürs nächste Budget-Meeting vormerken**. Die Runde entscheidet, ich bekomme das Geld, und ich beantrage **L1 → L2**.",
+              text: "Ich setze im Overview den Haken **Fürs nächste Budget-Meeting vormerken**. Die Runde entscheidet, ich bekomme das Geld, und ich beantrage **L1 → Analyse**.",
             },
             {
               kind: "aside",
@@ -162,7 +162,7 @@ export const EPIC_LIFECYCLE: Guide = {
           ],
         },
         {
-          title: "L2 → L3.1 · Fünf Parteien zeichnen",
+          title: "Analyse → L2 · Fünf Parteien zeichnen",
           body: [
             {
               kind: "paragraph",
@@ -224,7 +224,7 @@ export const EPIC_LIFECYCLE: Guide = {
           ],
         },
         {
-          title: "L3.1 → L3.2 · Die Investitionsentscheidung",
+          title: "L2 → L3 · Die Investitionsentscheidung",
           body: [
             {
               kind: "quote",
@@ -232,7 +232,7 @@ export const EPIC_LIFECYCLE: Guide = {
             },
             {
               kind: "paragraph",
-              text: "Die Reihenfolge ist die, die man leicht andersherum erwartet. **Die Freigabe von L3.2 genehmigt kein Geld, sie stellt fest, dass welches da ist.** Ein blockierendes Kriterium: die Summe der Zuteilung ist größer null.",
+              text: "Die Reihenfolge ist die, die man leicht andersherum erwartet. **Die Freigabe von L3 genehmigt kein Geld, sie stellt fest, dass welches da ist.** Ein blockierendes Kriterium: die Summe der Zuteilung ist größer null.",
             },
             {
               kind: "paragraph",
@@ -241,7 +241,7 @@ export const EPIC_LIFECYCLE: Guide = {
           ],
         },
         {
-          title: "L3.2 → L4.1 · Umsetzung starten",
+          title: "L3 → L4.1 · Umsetzung starten",
           body: [
             {
               kind: "paragraph",
@@ -353,11 +353,11 @@ export const EPIC_LIFECYCLE: Guide = {
             { kind: "figure", figure: "lifecycleSteps" },
             {
               kind: "paragraph",
-              text: "**Der Produkt-Manager steht an zwei Schritten, mit unterschiedlicher Reichweite.** An → L3.1 zeichnet er bei **jedem** Epic seiner Solution mit — dort existiert die Einordnung ja noch gar nicht, eine Einschränkung auf ART-Epics wäre nicht entscheidbar. An → L4.1 ist sie bekannt, und dort zeichnet er nur bei ART-Epics: sein Produkt wird aus dem Rahmen seines ARTs verändert.",
+              text: "**Der Produkt-Manager steht an zwei Schritten, mit unterschiedlicher Reichweite.** An → L2 zeichnet er bei **jedem** Epic seiner Solution mit — dort existiert die Einordnung ja noch gar nicht, eine Einschränkung auf ART-Epics wäre nicht entscheidbar. An → L4.1 ist sie bekannt, und dort zeichnet er nur bei ART-Epics: sein Produkt wird aus dem Rahmen seines ARTs verändert.",
             },
             {
               kind: "aside",
-              text: "Die fünf Parteien an → L3.1 sind zugleich der Ausdruck der Practice **Mehrparteien-Freigabe**. Ist sie im Zielbild aus, zeichnet dort der VMO allein. Wer für _dieses_ Epic zeichnet, entscheidet der Antragsteller beim Antrag — die Vorbelegung aus dem Wertstrom ist ein Vorschlag, keine Regel. Das bleibt eine Eigenschaft des Epics.",
+              text: "Die fünf Parteien an → L2 sind zugleich der Ausdruck der Practice **Mehrparteien-Freigabe**. Ist sie im Zielbild aus, zeichnet dort der VMO allein. Wer für _dieses_ Epic zeichnet, entscheidet der Antragsteller beim Antrag — die Vorbelegung aus dem Wertstrom ist ein Vorschlag, keine Regel. Das bleibt eine Eigenschaft des Epics.",
             },
           ],
         },
@@ -384,11 +384,11 @@ export const EPIC_LIFECYCLE: Guide = {
             },
             {
               kind: "paragraph",
-              text: "Für ein einzelnes Epic zählt nur das Ergebnis. **Das schiebt es nicht weiter** — es erfüllt das blockierende Kriterium für → L3.2, mehr nicht. Die Investitionsentscheidung ist der Antrag plus meine und Finance’ Abnahme.",
+              text: "Für ein einzelnes Epic zählt nur das Ergebnis. **Das schiebt es nicht weiter** — es erfüllt das blockierende Kriterium für → L3, mehr nicht. Die Investitionsentscheidung ist der Antrag plus meine und Finance’ Abnahme.",
             },
             {
               kind: "note",
-              text: "**Ohne das Budget-Modul entfällt dieses Kriterium.** Dann gibt es keine Zuteilung, die es erfüllen könnte, und der Schritt L3.1 → L3.2 ruht allein auf der Abnahme durch VMO und Finance. Das ist kein Schlupfloch, sondern die Regel in Reinform: die Investitionsentscheidung soll aus einer **Unterschrift** entstehen und nicht aus einer Zahl — das Budget ist ihre Vorbedingung, nicht sie selbst.",
+              text: "**Ohne das Budget-Modul entfällt dieses Kriterium.** Dann gibt es keine Zuteilung, die es erfüllen könnte, und der Schritt L2 → L3 ruht allein auf der Abnahme durch VMO und Finance. Das ist kein Schlupfloch, sondern die Regel in Reinform: die Investitionsentscheidung soll aus einer **Unterschrift** entstehen und nicht aus einer Zahl — das Budget ist ihre Vorbedingung, nicht sie selbst.",
             },
           ],
         },
@@ -402,7 +402,7 @@ export const EPIC_LIFECYCLE: Guide = {
             },
             {
               kind: "paragraph",
-              text: "Auf der **Guardrails**-Fläche lese ich, ob die Verteilung noch zum Zielbild passt: der Horizont-Mix, die Aufteilung zwischen Business und Enabler, und das **Business-Owner-Engagement** — ob die Business Owner ihre Zeichnung an L3.1 überhaupt leisten und wie lange sie dafür brauchen.",
+              text: "Auf der **Guardrails**-Fläche lese ich, ob die Verteilung noch zum Zielbild passt: der Horizont-Mix, die Aufteilung zwischen Business und Enabler, und das **Business-Owner-Engagement** — ob die Business Owner ihre Zeichnung an L2 überhaupt leisten und wie lange sie dafür brauchen.",
             },
           ],
         },
@@ -440,7 +440,7 @@ export const EPIC_LIFECYCLE: Guide = {
           ],
         },
         {
-          title: "→ L3.1 · Der Business Case",
+          title: "→ L2 · Der Business Case",
           body: [
             {
               kind: "paragraph",
@@ -453,7 +453,7 @@ export const EPIC_LIFECYCLE: Guide = {
           ],
         },
         {
-          title: "→ L3.2 · Die Investitionsentscheidung",
+          title: "→ L3 · Die Investitionsentscheidung",
           body: [
             {
               kind: "paragraph",
@@ -492,7 +492,7 @@ export const EPIC_LIFECYCLE: Guide = {
             },
             {
               kind: "paragraph",
-              text: "Darin steckt eine Asymmetrie, die den Schnitt erklärt: ich zeichne die **Geld**-Entscheidung mit und bestätige am Ende den **Nutzen** — den Eintritt in L3 mit dem freigegebenen Business Case aber nicht allein. Genau deshalb sind L3.1 und L3.2 zwei Schritte und nicht einer.",
+              text: "Darin steckt eine Asymmetrie, die den Schnitt erklärt: ich zeichne die **Geld**-Entscheidung mit und bestätige am Ende den **Nutzen** — den Eintritt in L3 mit dem freigegebenen Business Case aber nicht allein. Genau deshalb sind L2 und L3 zwei Schritte und nicht einer.",
             },
             {
               kind: "aside",
@@ -510,7 +510,7 @@ export const EPIC_LIFECYCLE: Guide = {
             },
             {
               kind: "paragraph",
-              text: "Was dort als **Forecast** steht, ist genau das, was ich an L3.1 mitgezeichnet habe — und was als **Ist** danebensteht, das, was an L5 daraus geworden ist.",
+              text: "Was dort als **Forecast** steht, ist genau das, was ich an L2 mitgezeichnet habe — und was als **Ist** danebensteht, das, was an L5 daraus geworden ist.",
             },
           ],
         },
@@ -525,10 +525,10 @@ export const EPIC_LIFECYCLE: Guide = {
     },
     {
       claim: "Die Business-Case-Freigabe und die Investitionsentscheidung sind ein Schritt.",
-      why: "Es sind zwei: L3.1 gibt den Text frei, L3.2 stellt fest, dass Geld da ist. Deshalb zeichnet Finance zweimal.",
+      why: "Es sind zwei: L2 gibt den Text frei, L3 stellt fest, dass Geld da ist. Deshalb zeichnet Finance zweimal.",
     },
     {
-      claim: "Die Budget-Zuteilung schiebt mein Epic auf L3.2.",
+      claim: "Die Budget-Zuteilung schiebt mein Epic auf L3.",
       why: "Sie erfüllt nur das blockierende Kriterium. Der Schritt bleibt ein Antrag mit zwei Abnahmen.",
     },
     {

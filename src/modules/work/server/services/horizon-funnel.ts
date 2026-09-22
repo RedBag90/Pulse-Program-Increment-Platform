@@ -69,14 +69,14 @@ export function funnelCode(name: string, valueStreamName: string | null): string
 export interface CountableEpic {
   primarySolutionId: string | null;
   stageGate: string;
-  approvedAt: Date | null;
+  selectedForAnalyzingAt: Date | null;
   implementationCompletedAt: Date | null;
 }
 
 /**
  * **Wie viele Epics tragen dieses Produkt gerade?**
  *
- * Gezählt wird das Lieferfenster L3.2–L4.2 (`carriesDeliveryLoad`): vom
+ * Gezählt wird das Lieferfenster L3–L4.2 (`carriesDeliveryLoad`): vom
  * Budget-Beschluss bis zur abgenommenen Umsetzung. Alles davor ist noch nicht
  * beschlossen, alles danach (L5) liefert nichts mehr — ein Produkt soll
  * zeigen, woran gearbeitet wird, nicht was es je geliefert hat.
@@ -92,10 +92,12 @@ export function countDeliveryLoad(epics: readonly CountableEpic[]): Map<string, 
 }
 
 /** Der Schritt eines Epics — `stage_gate` allein kennt keine Unterstufen. */
-function stepOf(e: Pick<CountableEpic, "stageGate" | "approvedAt" | "implementationCompletedAt">) {
+function stepOf(
+  e: Pick<CountableEpic, "stageGate" | "selectedForAnalyzingAt" | "implementationCompletedAt">,
+) {
   return currentGateStep({
     stageGate: e.stageGate as StageGate,
-    approvedAt: e.approvedAt,
+    selectedForAnalyzingAt: e.selectedForAnalyzingAt,
     implementationCompletedAt: e.implementationCompletedAt,
   });
 }
@@ -159,9 +161,10 @@ export async function loadHorizonFunnelItems(
         primarySolutionId: true,
         primarySolution: { select: { horizon: true } },
         valueStream: { select: { name: true } },
-        // Der Schritt: `stage_gate` allein trennt L3.1/L3.2 und L4.1/L4.2 nicht.
+        // Der Schritt: `stage_gate` allein trennt weder den Analyse-Schritt
+        // noch L4.1/L4.2 — beide haengen an einem Stempel.
         stageGate: true,
-        approvedAt: true,
+        selectedForAnalyzingAt: true,
         implementationCompletedAt: true,
       },
     }),

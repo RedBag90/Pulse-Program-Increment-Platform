@@ -12,7 +12,11 @@ import {
 } from "@/modules/work/domain/portfolio-guardrails";
 import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
 import { STAGE_GATES, subStageFor } from "@/modules/work/domain/stage-gate";
-import { processColumn } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
+import {
+  processColumn,
+  PORTFOLIO_COLUMNS,
+  type PortfolioColumn,
+} from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 import {
   computeStructureGap,
   computePracticeAdoption,
@@ -130,6 +134,13 @@ export interface OverviewEpicCard {
    * bewegt den Reifegrad nicht.
    */
   selectedForDetailingAt: Date | null;
+  /**
+   * Stempel der abgenommenen Analyse-Entscheidung. Trennt auf L1 die Spalte
+   * „Hypothese" von „Business Case" — der Reifegrad tut es nicht.
+   */
+  selectedForAnalyzingAt: Date | null;
+  /** Trennt auf L4 die Spalte „Umsetzung" von „Impact". */
+  implementationCompletedAt: Date | null;
   /** Stamp aus dem BC-Approval-Pfad — von der Steering-Tabelle gelesen. */
   businessCaseApprovedAt: Date | null;
   valueStream: { id: string; name: string } | null;
@@ -322,9 +333,9 @@ export interface PortfolioOverview {
    * WIP-Warnung. Unterschied zur Meilenstein-Achse: ein gesichtetes Epic in L0
    * steht hier schon unter „Hypothese", weil dort gearbeitet wird.
    */
-  epicsByColumn: Record<StageGate, OverviewEpicCard[]>;
+  epicsByColumn: Record<PortfolioColumn, OverviewEpicCard[]>;
   /** Horizont-Swimlanes × Stage-Gate für den Overview-Kanban. */
-  epicsByHorizonGate: Record<HorizonLane, Record<StageGate, OverviewEpicCard[]>>;
+  epicsByHorizonGate: Record<HorizonLane, Record<PortfolioColumn, OverviewEpicCard[]>>;
   epicsCount: number;
 
   oldestPerGate: Record<StageGate, OverviewEpicCard | null>;
@@ -581,6 +592,8 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     stageGate: e.stageGate,
     ownerId: e.ownerId,
     selectedForDetailingAt: e.selectedForDetailingAt,
+    selectedForAnalyzingAt: e.selectedForAnalyzingAt,
+    implementationCompletedAt: e.implementationCompletedAt,
     businessCaseApprovedAt: e.businessCaseApprovedAt,
     valueStream: e.valueStream,
     updatedAt: e.updatedAt,
@@ -610,45 +623,49 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     // Direkt nach `stageGate` — die frühere Bucket-Abweichung ist entfallen.
     epicsByGate[gate].push(c);
   }
-  // Zweite Zählung, zweite Achse: `epicsByGate` zählt **Reifegrade** (Funnel-
-  // Balken, Perioden-Banner, Hero), `epicsByColumn` den **Prozess** fürs Kanban.
-  // Sie unterscheiden sich an genau einer Stelle — einem gesichteten Epic in L0,
-  // an dem schon die Hypothese entsteht. Zwei Zahlen sind hier richtiger als
-  // eine: sonst zählte der Balken Meilensteine und das Kanban auch.
+  // **Zweite Zählung, zweite Achse.** `epicsByGate` zählt **Reifegrade**
+  // (Funnel-Balken, Perioden-Banner, Hero), `epicsByColumn` die **Spalten** des
+  // Kanbans. Seit dem Neuschnitt der Achse fallen sie an mehreren Stellen
+  // auseinander: zwei Grade teilen sich „Investition", zwei Spalten trennt nur
+  // ein Stempel, und L5 steht auf keiner. Zwei Zahlen sind hier richtiger als
+  // eine — sonst zählte der Balken Spalten und das Kanban Reifegrade.
   const epicsByColumn = Object.fromEntries(
-    STAGE_GATES.map((g) => [g, [] as OverviewEpicCard[]]),
-  ) as Record<StageGate, OverviewEpicCard[]>;
+    PORTFOLIO_COLUMNS.map((c) => [c, [] as OverviewEpicCard[]]),
+  ) as Record<PortfolioColumn, OverviewEpicCard[]>;
   for (const c of cards) {
-    const col = processColumn(c) as StageGate;
-    if ((STAGE_GATES as readonly string[]).includes(col)) epicsByColumn[col].push(c);
+    const col = processColumn(c);
+    if (col != null) epicsByColumn[col].push(c);
   }
 
-  for (const gate of STAGE_GATES) {
-    // Sortierung im Kanban: zuerst die fürs nächste Steering markierten
-    // Epics (gelbe Karten), danach unmarkierte. Innerhalb jeder Gruppe
-    // weiter oldest-first, damit der „liegt am längsten"-Hinweis bleibt.
-    const bySteeringThenAge = (a: OverviewEpicCard, b: OverviewEpicCard) => {
-      if (a.needsSteeringAttention !== b.needsSteeringAttention) {
-        return a.needsSteeringAttention ? -1 : 1;
-      }
-      return b.daysSinceUpdate - a.daysSinceUpdate;
-    };
-    epicsByGate[gate].sort(bySteeringThenAge);
-    epicsByColumn[gate].sort(bySteeringThenAge);
-  }
+  // Sortierung im Kanban: zuerst die fürs nächste Steering markierten Epics
+  // (gelbe Karten), danach unmarkierte. Innerhalb jeder Gruppe weiter
+  // oldest-first, damit der „liegt am längsten"-Hinweis bleibt.
+  const bySteeringThenAge = (a: OverviewEpicCard, b: OverviewEpicCard) => {
+    if (a.needsSteeringAttention !== b.needsSteeringAttention) {
+      return a.needsSteeringAttention ? -1 : 1;
+    }
+    return b.daysSinceUpdate - a.daysSinceUpdate;
+  };
+  for (const gate of STAGE_GATES) epicsByGate[gate].sort(bySteeringThenAge);
+  for (const col of PORTFOLIO_COLUMNS) epicsByColumn[col].sort(bySteeringThenAge);
 
-  // Horizont-Swimlanes: Matrix Horizont × Stage-Gate für den Overview-Kanban.
-  // Nutzt die bereits sortierten `epicsByGate`-Spalten (Reihenfolge bleibt).
+  // Horizont-Swimlanes: Matrix Horizont × **Spalte** für den Overview-Kanban.
+  //
+  // Sie las bis September 2026 aus `epicsByGate` — der Reifegrad-Achse —,
+  // während die Spaltenköpfe daneben aus `epicsByColumn` zählten. Ein
+  // gesichtetes L0-Epic wurde damit unter „Hypothese" **mitgezählt**, seine
+  // Karte lag aber unter „Funnel". Die Prozess-Regel wirkte auf zwei Zahlen und
+  // auf keine einzige Karte; kein Test deckte das ab.
   const epicsByHorizonGate = Object.fromEntries(
     HORIZON_LANES.map((h) => [
       h,
-      Object.fromEntries(STAGE_GATES.map((g) => [g, [] as OverviewEpicCard[]])),
+      Object.fromEntries(PORTFOLIO_COLUMNS.map((c) => [c, [] as OverviewEpicCard[]])),
     ]),
-  ) as Record<HorizonLane, Record<StageGate, OverviewEpicCard[]>>;
-  for (const gate of STAGE_GATES) {
-    for (const c of epicsByGate[gate]) {
+  ) as Record<HorizonLane, Record<PortfolioColumn, OverviewEpicCard[]>>;
+  for (const col of PORTFOLIO_COLUMNS) {
+    for (const c of epicsByColumn[col]) {
       const lane: HorizonLane = isHorizon(c.horizon) ? c.horizon : "none";
-      epicsByHorizonGate[lane][gate].push(c);
+      epicsByHorizonGate[lane][col].push(c);
     }
   }
 
@@ -782,7 +799,6 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
         x.iso != null &&
         subStageFor({
           stageGate: x.e.stageGate as StageGate,
-          approvedAt: x.e.approvedAt,
           implementationCompletedAt: x.e.implementationCompletedAt,
         }) === "L4.1" &&
         Date.parse(x.iso) <= l4Horizon,

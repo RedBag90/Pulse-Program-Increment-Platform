@@ -126,12 +126,12 @@ async function auditCount(): Promise<number> {
 
 describe("requestGateTransition", () => {
   it("legt Antrag + je eine Abnahme-Zeile an und bewegt das Gate NICHT", async () => {
-    await withApprovers("L3.1");
+    await withApprovers("L2");
     const epicId = await makeEpic("L2", READY_FOR_L3);
     await allocateBudget(epicId, 500_000);
     const before = await auditCount();
 
-    const result = await requestGateTransition(requesterCtx(), { epicId, toGate: "L3.1" });
+    const result = await requestGateTransition(requesterCtx(), { epicId, toGate: "L2" });
 
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
@@ -158,11 +158,11 @@ describe("requestGateTransition", () => {
   });
 
   it("blockiert bei unerfülltem Kriterium und nennt den Grund", async () => {
-    await withApprovers("L3.1");
+    await withApprovers("L2");
     const epicId = await makeEpic("L2"); // kein BC-Approval, kein Budget
     const before = await auditCount();
 
-    const result = await requestGateTransition(requesterCtx(), { epicId, toGate: "L3.1" });
+    const result = await requestGateTransition(requesterCtx(), { epicId, toGate: "L2" });
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result) || result.error.kind !== "forbidden") return;
@@ -251,7 +251,7 @@ describe("requestGateTransition", () => {
 describe("decideGateTransition", () => {
   // Ein Epic auf der Spalte „L3" steht ohne Investitions-Stempel auf Schritt
   // L3.1 — der naechste Antrag ist damit L3.2, nicht L4.
-  async function openRequest(toGate: GateStep = "L3.2") {
+  async function openRequest(toGate: GateStep = "L3") {
     await withApprovers(toGate);
     const epicId = await makeEpic("L3");
     const r = await requestGateTransition(requesterCtx(), { epicId, toGate });
@@ -428,7 +428,7 @@ describe("revertStageGate", () => {
 
     const result = await revertStageGate(requesterCtx(), {
       epicId,
-      toGate: "L3.1",
+      toGate: "L2",
       reason: "Umsetzung zurückgestellt",
     });
 

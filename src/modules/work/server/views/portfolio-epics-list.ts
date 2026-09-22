@@ -132,6 +132,8 @@ interface EpicRow {
   completedChildFeatureCount: number;
   /** Stempel der abgenommenen L4.2-Bestätigung („Umsetzung fertig"). */
   implementationCompletedAt: Date | null;
+  /** Stempel der abgenommenen Analyse-Entscheidung — trennt die zwei Stationen auf L1. */
+  selectedForAnalyzingAt: Date | null;
   /** SAFe-Guardrails (Roadmap-G3). */
   epicType: string | null;
   investmentHorizon: string | null;
@@ -190,7 +192,6 @@ export function buildEpicsListModel(input: {
     };
     const subStage = subStageFor({
       stageGate,
-      approvedAt: e.approvedAt,
       implementationCompletedAt: e.implementationCompletedAt,
     });
     // Nächster-Schritt-Guidance — dieselbe reine Logik wie die Detailseite.
@@ -208,6 +209,7 @@ export function buildEpicsListModel(input: {
       hasBusinessCase: businessCaseHasContent(parseBusinessCase(e.businessCase).current),
       budgetAllocated: false,
       budgetingEnabled,
+      selectedForAnalyzingAt: e.selectedForAnalyzingAt,
       impactRecognizedAt: null,
       childFeatureStats,
     });

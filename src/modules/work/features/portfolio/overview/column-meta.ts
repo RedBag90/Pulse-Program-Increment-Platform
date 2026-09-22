@@ -1,4 +1,4 @@
-import type { StageGate } from "@/modules/work/server/views/portfolio-overview";
+import type { PortfolioColumn } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 
 /**
  * Was je **Kanban-Spalte** gilt: ob dort gearbeitet oder gewartet wird, und wie
@@ -17,13 +17,15 @@ import type { StageGate } from "@/modules/work/server/views/portfolio-overview";
  * Top-Risiken, wo sie eine Aussage über den Engpass tragen statt eine Warnung an
  * jeder Spalte.
  */
-export const PORTFOLIO_WIP_LIMITS: Record<StageGate, number | null> = {
-  L0: null, // Funnel — unlimited intake
-  L1: 5,
-  L2: 3,
-  L3: 7,
-  L4: 8,
-  L5: null, // Done — unlimited
+export const PORTFOLIO_WIP_LIMITS: Record<PortfolioColumn, number | null> = {
+  funnel: null, // unlimited intake
+  hypothesis: 5,
+  business_case: 3,
+  investment: 7,
+  implementation: 8,
+  // „Fertig gebaut, Nutzen noch offen" — hier wartet das Epic auf eine Abnahme,
+  // es staut sich nichts. Eine Grenze waere eine Warnung ohne Adressaten.
+  impact: null,
 };
 
 /** Wird in dieser Spalte am Epic gearbeitet, oder wartet es dort? */
@@ -42,13 +44,13 @@ export type ColumnActivity = "work" | "waiting" | "done";
  *  - **Business Case** — „Lean Business Case erstellen"
  *  - **Investition** — „Die Investitionsentscheidung vorbereiten"
  *  - **Umsetzung** — „Features liefern"
- *  - **Impact** — erreicht
+ *  - **Impact** — fertig gemeldet, wartet auf die Nutzen-Abnahme
  */
-export const COLUMN_ACTIVITY: Record<StageGate, ColumnActivity> = {
-  L0: "waiting",
-  L1: "work",
-  L2: "work",
-  L3: "waiting",
-  L4: "work",
-  L5: "done",
+export const COLUMN_ACTIVITY: Record<PortfolioColumn, ColumnActivity> = {
+  funnel: "waiting",
+  hypothesis: "work",
+  business_case: "work",
+  investment: "waiting",
+  implementation: "work",
+  impact: "done",
 };

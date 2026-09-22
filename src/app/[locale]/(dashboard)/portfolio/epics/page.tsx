@@ -108,6 +108,7 @@ export default async function EpicsPage() {
       childFeatureCount: featureCounts.get(e.id) ?? 0,
       completedChildFeatureCount: completedFeatureCounts.get(e.id) ?? 0,
       implementationCompletedAt: e.implementationCompletedAt,
+      selectedForAnalyzingAt: e.selectedForAnalyzingAt,
       epicType: e.epicType,
       investmentHorizon: resolveEpicHorizon({
         investmentHorizon: e.investmentHorizon,

@@ -46,8 +46,8 @@ const plain = (target: Parameters<typeof stepsUpTo>[0]): GateMove[] =>
 describe("stepsUpTo", () => {
   it("zählt die Schritte von L0 bis zum Ziel auf", () => {
     expect(stepsUpTo("L0")).toEqual([]);
-    expect(stepsUpTo("L2")).toEqual(["L1", "L2"]);
-    expect(stepsUpTo("L5")).toEqual(["L1", "L2", "L3.1", "L3.2", "L4", "L4.2", "L5"]);
+    expect(stepsUpTo("L2")).toEqual(["L1", "analysis", "L2"]);
+    expect(stepsUpTo("L5")).toEqual(["L1", "analysis", "L2", "L3", "L4", "L4.2", "L5"]);
   });
 });
 
@@ -58,10 +58,10 @@ describe("buildGateHistory — der glatte Weg", () => {
     expect(r.transitions.every((t) => t.kind === "forward" && t.status === "approved")).toBe(true);
     expect(r.transitions.map((t) => `${t.fromGate}→${t.toGate}`)).toEqual([
       "L0→L1",
-      "L1→L2",
-      "L2→L3.1",
-      "L3.1→L3.2",
-      "L3.2→L4",
+      "L1→analysis",
+      "analysis→L2",
+      "L2→L3",
+      "L3→L4",
       "L4→L4.2",
       "L4.2→L5",
     ]);
@@ -85,13 +85,15 @@ describe("buildGateHistory — der glatte Weg", () => {
     }
   });
 
-  it("zieht die Baselines an L1 und L3.1", () => {
-    const bis2 = buildGateHistory(base({ moves: plain("L2") }));
-    expect(bis2.stamps.baselineBenefitHypothesis).toBeTruthy();
-    expect(bis2.stamps.baselineBusinessCase).toBeUndefined();
+  it("zieht die Baselines an L1 und L2", () => {
+    // Bis zur Analyse-Entscheidung gibt es nur die Hypothese-Baseline; die des
+    // Business Case entsteht mit seiner Freigabe (L2).
+    const bisAnalyse = buildGateHistory(base({ moves: plain("analysis") }));
+    expect(bisAnalyse.stamps.baselineBenefitHypothesis).toBeTruthy();
+    expect(bisAnalyse.stamps.baselineBusinessCase).toBeUndefined();
 
-    const bis31 = buildGateHistory(base({ moves: plain("L3.1") }));
-    expect(bis31.stamps.baselineBusinessCase).toBeTruthy();
+    const bisL2 = buildGateHistory(base({ moves: plain("L2") }));
+    expect(bisL2.stamps.baselineBusinessCase).toBeTruthy();
   });
 
   it("spiegelt das L4.2-Ist-Datum in die Timeline", () => {
@@ -100,16 +102,18 @@ describe("buildGateHistory — der glatte Weg", () => {
     expect(actuals.implementation).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
-  it("unterscheidet L3.1 von L3.2 allein am Investitions-Stempel", () => {
-    const l31 = buildGateHistory(base({ moves: plain("L3.1") }));
-    expect(l31.finalStep).toBe("L3.1");
-    expect(l31.stamps.stageGate).toBe("L3");
-    expect(l31.stamps.approvedAt).toBeUndefined();
+  it("trennt die Business-Case-Freigabe von der Investitionsentscheidung", () => {
+    // Sie sind seit dem Neuschnitt zwei Reifegrade, kein Stempel-Unterschied
+    // innerhalb eines Grades mehr.
+    const bc = buildGateHistory(base({ moves: plain("L2") }));
+    expect(bc.finalStep).toBe("L2");
+    expect(bc.stamps.stageGate).toBe("L2");
+    expect(bc.stamps.approvedAt).toBeUndefined();
 
-    const l32 = buildGateHistory(base({ moves: plain("L3.2") }));
-    expect(l32.finalStep).toBe("L3.2");
-    expect(l32.stamps.stageGate).toBe("L3");
-    expect(l32.stamps.approvedAt).toBeInstanceOf(Date);
+    const geld = buildGateHistory(base({ moves: plain("L3") }));
+    expect(geld.finalStep).toBe("L3");
+    expect(geld.stamps.stageGate).toBe("L3");
+    expect(geld.stamps.approvedAt).toBeInstanceOf(Date);
   });
 
   it("hängt an jeden Antrag den Kriterien-Schnappschuss", () => {
@@ -129,8 +133,8 @@ describe("buildGateHistory — das Epic ohne Weg", () => {
 });
 
 describe("buildGateHistory — die Abnehmer", () => {
-  it("besetzt L3.1 mit den fünf Parteien und L3.2 mit VMO und Finance", () => {
-    const r = buildGateHistory(base({ moves: plain("L3.2") }));
+  it("besetzt L2 mit den fünf Parteien und L3 mit VMO und Finance", () => {
+    const r = buildGateHistory(base({ moves: plain("L3") }));
     const rolesOf = (i: number) =>
       r.approvals.filter((a) => a.transitionId === r.transitions[i]!.id).map((a) => a.role);
     expect(rolesOf(2)).toEqual([
@@ -147,7 +151,7 @@ describe("buildGateHistory — die Abnehmer", () => {
     const r = buildGateHistory(
       base({
         parties: { architect: "pm", businessOwner: null, irtOwner: "rte" },
-        moves: plain("L3.1"),
+        moves: plain("L2"),
       }),
     );
     const roles = r.approvals
@@ -158,8 +162,8 @@ describe("buildGateHistory — die Abnehmer", () => {
   });
 
   it("dedupliziert dieselbe Person — der Unique-Index lässt sie nur einmal zu", () => {
-    // VMO und Finance-Approver sind derselbe Mensch: L3.2 braucht dann eine Zeile.
-    const r = buildGateHistory(base({ valueStreamFinanceApproverId: "vmo", moves: plain("L3.2") }));
+    // VMO und Finance-Approver sind derselbe Mensch: L3 braucht dann eine Zeile.
+    const r = buildGateHistory(base({ valueStreamFinanceApproverId: "vmo", moves: plain("L3") }));
     const rows = r.approvals.filter((a) => a.transitionId === r.transitions[3]!.id);
     expect(rows).toHaveLength(1);
   });
@@ -170,10 +174,10 @@ describe("buildGateHistory — die unbequemen Zustände", () => {
     const r = buildGateHistory(
       base({
         moves: [
-          ...plain("L2"),
+          ...plain("analysis"),
           {
             kind: "rejected",
-            to: "L3.1",
+            to: "L2",
             requestedAt: d(50),
             decidedAt: d(45),
             reason: "Kosten unvollständig.",
@@ -181,7 +185,7 @@ describe("buildGateHistory — die unbequemen Zustände", () => {
         ],
       }),
     );
-    expect(r.finalStep).toBe("L2");
+    expect(r.finalStep).toBe("analysis");
     expect(r.stamps.businessCaseApprovedAt).toBeUndefined();
     const rejected = r.transitions.at(-1)!;
     expect(rejected.status).toBe("rejected");
@@ -194,13 +198,13 @@ describe("buildGateHistory — die unbequemen Zustände", () => {
     const r = buildGateHistory(
       base({
         moves: [
-          ...plain("L3.1"),
-          { kind: "revert", to: "L2", at: d(60), reason: "Nutzenrechnung trägt nicht." },
-          { kind: "advance", to: "L3.1", requestedAt: d(30), decidedAt: d(25) },
+          ...plain("L2"),
+          { kind: "revert", to: "analysis", at: d(60), reason: "Nutzenrechnung trägt nicht." },
+          { kind: "advance", to: "L2", requestedAt: d(30), decidedAt: d(25) },
         ],
       }),
     );
-    expect(r.finalStep).toBe("L3.1");
+    expect(r.finalStep).toBe("L2");
     // Der Stempel steht wieder — und trägt das Datum des ZWEITEN Laufs.
     expect(r.stamps.businessCaseApprovedAt).toEqual(d(25));
     const revert = r.transitions.find((t) => t.kind === "revert")!;
@@ -214,10 +218,10 @@ describe("buildGateHistory — die unbequemen Zustände", () => {
     const r = buildGateHistory(
       base({
         moves: [
-          ...plain("L2"),
+          ...plain("analysis"),
           {
             kind: "open",
-            to: "L3.1",
+            to: "L2",
             requestedAt: d(20),
             decidedRoles: ["epic.party.architect", "epic.party.finance"],
             decidedAt: d(15),
@@ -263,7 +267,7 @@ describe("buildGateHistory — Ids", () => {
           seen.push(sfx);
           return `id-${sfx}`;
         },
-        moves: plain("L3.1"),
+        moves: plain("L2"),
       }),
     );
     expect(r.transitions.map((t) => t.id)).toEqual(["id-0", "id-1", "id-2"]);
@@ -284,8 +288,8 @@ describe("assertGateHistory", () => {
       base({
         moves: [
           ...plain("L2"),
-          { kind: "open", to: "L3.1", requestedAt: d(30) },
-          { kind: "open", to: "L3.1", requestedAt: d(20) },
+          { kind: "open", to: "L2", requestedAt: d(30) },
+          { kind: "open", to: "L2", requestedAt: d(20) },
         ],
       }),
     );
@@ -302,7 +306,7 @@ describe("assertGateHistory", () => {
   it("schlägt an, wenn ein Antrag in der Zukunft liegt", () => {
     const r = buildGateHistory(
       base({
-        moves: [...plain("L2"), { kind: "open", to: "L3.1", requestedAt: addDays(NOW, 5) }],
+        moves: [...plain("L2"), { kind: "open", to: "L2", requestedAt: addDays(NOW, 5) }],
       }),
     );
     expect(() => assertGateHistory(r, "Zukunft", NOW)).toThrow(/Zukunft/);

@@ -36,13 +36,13 @@ Zyklus:
 | L0                |         —          |         —         | Funnel/Hypothese |
 | L1                |         —          |         —         | Hypothese        |
 | L2                |         —          |         —         | Business Case    |
-| **L3.1**          |       **ja**       |         —         | Investition      |
-| **L3.2**          |       **ja**       |         —         | Investition      |
+| **L2**            |       **ja**       |         —         | Investition      |
+| **L3**            |       **ja**       |         —         | Investition      |
 | **L4.1**          |       **ja**       |      **ja**       | Umsetzung        |
 | **L4.2**          |       **ja**       |         —         | Umsetzung        |
 | **L5**            |       **ja**       |         —         | Impact           |
 
-- **Wer Geld trägt, steht mindestens auf L3.1.** Vorher gibt es nichts zu
+- **Wer Geld trägt, steht mindestens auf L2.** Vorher gibt es nichts zu
   finanzieren: im Funnel ist es eine Idee, in der Hypothese eine Vermutung, in
   der Analyse-Einplanung eine Absicht, im Business Case eine Rechnung, die noch
   niemand freigegeben hat. Erst die Freigabe des Lean Business Case macht aus dem
@@ -53,10 +53,10 @@ Zyklus:
 
 Daraus liest sich der Bestand einer Kachel:
 
-- Am **Anfang** des Zeitraums stehen manche Epics noch auf **L3.1**: die
-  Zuteilung ist da, der Schritt auf L3.2 ist ein eigener Akt und noch nicht
+- Am **Anfang** des Zeitraums stehen manche Epics noch auf **L2**: die
+  Zuteilung ist da, der Schritt auf L3 ist ein eigener Akt und noch nicht
   vollzogen.
-- **L3.2** heißt: Geld zugeteilt, aber noch nicht begonnen.
+- **L3** heißt: Geld zugeteilt, aber noch nicht begonnen.
 - **L4.1** ist die Umsetzung — der einzige Schritt, der Geld **verlangt**.
 - **L4.2** ist im Zeitraum fertig gemeldet worden.
 - **L5** kommt vor, ist aber selten: dass der Nutzen im selben Halbjahr schon
@@ -133,7 +133,7 @@ fertig; der Rest des Setups ist Korrektur, nicht Aufbau.
 Die Kachel ist in zwei Minuten angelegt. Was Wochen dauert, steht daneben:
 
 - **Epics müssen vorbereitet werden.** Nur wer einen freigegebenen Lean Business
-  Case hat, kann überhaupt zur Wahl stehen. Wer bis zur Frist nicht durch L3.1
+  Case hat, kann überhaupt zur Wahl stehen. Wer bis zur Frist nicht durch L2
   ist, ist in dieser Runde nicht dabei.
 - **Wertströme, ARTs und Solutions müssen ihren Bedarf definieren und
   einreichen.** Das ist Teil 2 dieses Dokuments.
@@ -321,7 +321,7 @@ wird er im Budget-Reiter des ARTs — [ART-Budget](art-epic-budget-walkthrough.m
 | Satz                                                           | Warum er nicht stimmt                                                                            |
 | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | „Die Deadline ist die Frist für die Bedarfsmeldungen."         | Die **Abgabe-Deadline** ist die Frist für die Gruppen-Verteilung. Für Bedarfe gibt es kein Feld. |
-| „Ein Epic im Business Case kann Budget bekommen."              | Budget gibt es erst ab **L3.1** — mit freigegebenem Lean Business Case.                          |
+| „Ein Epic im Business Case kann Budget bekommen."              | Budget gibt es erst ab **L2** — mit freigegebenem Lean Business Case.                            |
 | „Pulse warnt, wenn ein laufendes Epic kein Geld hat."          | Diese Richtung wird nur beim Erzeugen von Testdaten geprüft, nicht in der Anwendung.             |
 | „Der Gruppenleiter reicht ein."                                | Er heißt **Sprecher**. Speichern darf jedes Mitglied, einreichen nur er.                         |
 | „Den Zyklus-Schlüssel gebe ich ein."                           | Er wird aus dem Startdatum abgeleitet. Zwei Kacheln dürfen nicht im selben Halbjahr beginnen.    |

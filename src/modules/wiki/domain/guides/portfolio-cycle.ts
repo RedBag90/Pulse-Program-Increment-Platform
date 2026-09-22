@@ -27,7 +27,7 @@ export const PORTFOLIO_CYCLE: Guide = {
     {
       kind: "list",
       items: [
-        "**Wer Geld trägt, steht mindestens auf L3.1.** Vorher gibt es nichts zu finanzieren: im Funnel ist es eine Idee, in der Hypothese eine Vermutung, in der Analyse-Einplanung eine Absicht, im Business Case eine Rechnung, die noch niemand freigegeben hat.",
+        "**Wer Geld trägt, steht mindestens auf L2.** Vorher gibt es nichts zu finanzieren: im Funnel ist es eine Idee, in der Hypothese eine Vermutung, in der Analyse-Einplanung eine Absicht, im Business Case eine Rechnung, die noch niemand freigegeben hat.",
         "**Wer in Umsetzung ist, hat Geld.** Ein Epic auf L4.1, das im laufenden Zyklus nichts bekommen hat, ist eine Lücke — entweder in der Vergabe oder in den Daten.",
       ],
     },
@@ -110,7 +110,7 @@ export const PORTFOLIO_CYCLE: Guide = {
             {
               kind: "list",
               items: [
-                "**Epics müssen vorbereitet werden.** Wer bis zur Frist nicht durch L3.1 ist, ist in dieser Runde nicht dabei.",
+                "**Epics müssen vorbereitet werden.** Wer bis zur Frist nicht durch L2 ist, ist in dieser Runde nicht dabei.",
                 "**Wertströme, ARTs und Solutions müssen ihren Bedarf definieren und einreichen.**",
                 "**Bis zur Frist kommen Kollegen mit Rückfragen.** Das ist kein Störfall, sondern der Grund, warum die Frist vor dem Termin liegt.",
               ],
@@ -309,7 +309,7 @@ export const PORTFOLIO_CYCLE: Guide = {
     },
     {
       claim: "Ein Epic im Business Case kann Budget bekommen.",
-      why: "Budget gibt es erst ab **L3.1** — mit freigegebenem Business Case.",
+      why: "Budget gibt es erst ab **L2** — mit freigegebenem Business Case.",
     },
     {
       claim: "Pulse warnt, wenn ein laufendes Epic kein Geld hat.",

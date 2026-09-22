@@ -214,7 +214,7 @@ const OWNER_NOMINATED: CriterionRule = {
  */
 export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> = {
   L1: [HYPOTHESIS_DRAFTED, OWNER_NOMINATED],
-  L2: [
+  analysis: [
     HYPOTHESIS_APPROVED,
     OWNER_NOMINATED,
     {
@@ -227,10 +227,10 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
       blocking: false,
     },
   ],
-  // L3.1 — der Eintritt in „Investition". Dieser Schritt *ist* die
-  // Business-Case-Freigabe, deshalb kann er sie nicht voraussetzen; verlangt
-  // wird der ausgearbeitete Inhalt. Das Geld ist der Schritt danach.
-  "L3.1": [
+  // L2 — die Business-Case-Freigabe. Dieser Schritt *ist* sie, deshalb kann er
+  // sie nicht voraussetzen; verlangt wird der ausgearbeitete Inhalt. Das Geld
+  // ist der Schritt danach.
+  L2: [
     {
       key: "business_case_drafted",
       label: () => "Business Case ist ausgearbeitet",
@@ -243,10 +243,10 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
     },
     OWNER_NOMINATED,
   ],
-  // L3.2 „Budget alloziert" — die Investitionsentscheidung. Sie ist ein eigener
+  // L3 „Budget alloziert" — die Investitionsentscheidung. Sie ist ein eigener
   // beantragter Schritt, damit sie nicht als Nebenwirkung einer Budgetzuteilung
-  // entsteht (ADR-0018, Festlegung 1).
-  "L3.2": [
+  // entsteht (ADR-0018, Festlegung 1). Bis September 2026 hiess sie L3.2.
+  L3: [
     {
       key: "budget_allocated",
       label: () => "Budget ist alloziert (Σ > 0)",

@@ -38,7 +38,7 @@ konkurriert in denselben Verteilrunden.
 
 `BudgetAllocation[cycleKey]` wird **ausschließlich** von `finalizePeriodRound`
 geschrieben. Und genau diese Summe ist das blockierende Kriterium des
-Reifegrad-Schritts **L3.1 → L3.2**:
+Reifegrad-Schritts **L2 → L3**:
 
 ```ts
 satisfied: (f) => f.budgetAllocationSum > 0;
@@ -94,7 +94,7 @@ den Kosten stehen und auseinanderlaufen.
 | Kosten ändern sich über die Grenze      | Siehe §6 — die Klasse folgt den Kosten, die **Finanzierung** eines laufenden Zyklus nicht.                                                              |
 
 Damit entsteht die Klasse **genau dann**, wenn zum ersten Mal eine belastbare
-Zahl vorliegt — mit der Freigabe des Business Case an L3.1. Vorher ist ein Epic
+Zahl vorliegt — mit der Freigabe des Business Case an L2. Vorher ist ein Epic
 weder ART- noch Portfolio-Epic, sondern schlicht noch nicht eingeordnet.
 
 ---
@@ -117,7 +117,7 @@ Portfolio-Epic   PB-Liste → Gruppen verteilen → finalAmount ─┐
                                                             ├→ BudgetAllocation[cycleKey]
 ART-Epic         ART-Epic-Budget → der ART verteilt ──────────────┘        │
                                                                      ▼
-                                                        L3.1 → L3.2 „Budget alloziert"
+                                                        L2 → L3 „Budget alloziert"
 ```
 
 Beide Wege münden in **dieselbe** `BudgetAllocation`. Das ist die tragende
@@ -262,9 +262,9 @@ ART-Epics finanzieren · H1 2026                    Topf 240.000 €
 Verteilt 180.000 €  ·  Rest 60.000 €
 ────────────────────────────────────────────────────────────────────
 Epic                          Reifegrad   Richtwert     Zuteilung
-Kartenlimit-Widget            L3.1         80.000 €    [ 80.000 ]
-SEPA-Fehlercode-Mapping       L3.1         60.000 €    [ 60.000 ]
-Self-Service Adressänderung   L3.1         45.000 €    [ 40.000 ]
+Kartenlimit-Widget            L2         80.000 €    [ 80.000 ]
+SEPA-Fehlercode-Mapping       L2         60.000 €    [ 60.000 ]
+Self-Service Adressänderung   L2         45.000 €    [ 40.000 ]
 Token-Vault Ablösung          L1           50.000 €    [      0 ]
 ────────────────────────────────────────────────────────────────────
                                           235.000 €     180.000 €
@@ -300,7 +300,7 @@ Regeln der Fläche:
   `BudgetAllocation[cycleKey]` fortgeschrieben. Betrag 0 löscht die Zeile und den
   Kartenwert.
 - Der Reifegrad bewegt sich dadurch **nicht**. Die Zuteilung erfüllt nur das
-  blockierende Kriterium für L3.2; beantragt und abgenommen wird wie bisher.
+  blockierende Kriterium für L3; beantragt und abgenommen wird wie bisher.
 
 ---
 
@@ -391,9 +391,9 @@ Weitere Berührungen, alle additiv:
 ### E1 · Der Abnahmeweg bleibt unverändert — entschieden
 
 Die Vorgabe lautet: ART-Epics funktionieren wie bisher, nur die Geldquelle
-unterscheidet sich. Damit braucht ein 40.000-€-Vorhaben weiterhin **an L3.1 die
+unterscheidet sich. Damit braucht ein 40.000-€-Vorhaben weiterhin **an L2 die
 Zeichnung von fünf Parteien** (Architect Lead, Business Owner, Finance, IRT-Owner,
-LACE/VMO) und **an L3.2 die von VMO und Finance**.
+LACE/VMO) und **an L3 die von VMO und Finance**.
 
 Das ist genau der Aufwand, den Guardrail 3 eigentlich abschaffen soll — der Sinn
 einer Genehmigungsschwelle ist, dass unterhalb davon **niemand aus dem Portfolio
@@ -511,7 +511,7 @@ Abschlüsse vorliegen.
 ### Die Erfolgsmessung hat keinen Ausgangswert
 
 Kein Epic unter dem Limit trägt sowohl `businessCaseApprovedAt` als auch
-`approvedAt`. Die Wartezeit L3.1 → L3.2, die Guardrail 3 verkürzen soll, ist
+`approvedAt`. Die Wartezeit L2 → L3, die Guardrail 3 verkürzen soll, ist
 heute nicht messbar — direkte Folge des Befunds oben. Sie ist erneut zu messen,
 sobald echte Nutzung vorliegt und die korrigierte Regel greift.
 

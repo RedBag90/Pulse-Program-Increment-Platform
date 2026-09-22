@@ -968,7 +968,7 @@ export async function seedLarge(ctx: SeedContext): Promise<void> {
        * genau die Menge, die die Kandidatenliste der nächsten Runde anbietet.
        * Wer schon finanziert ist, hat den Haken nicht mehr nötig.
        */
-      stagedForBudgeting: target === "L3.1" && pe.tranches.length === 0,
+      stagedForBudgeting: target === "L2" && pe.tranches.length === 0,
       // „I need help" nur dort, wo es weh tut: definiert, aber noch nicht in
       // der Umsetzung.
       ...(owned && allow.helpRequested && !["L4", "L5"].includes(gate) && i % 15 === 0
@@ -1754,7 +1754,7 @@ export async function seedLarge(ctx: SeedContext): Promise<void> {
    * ihres ARTs.
    */
   const waitingIdx = roundPlan.epics
-    .filter((e) => e.finalStep === "L3.1" && e.tranches.length === 0)
+    .filter((e) => e.finalStep === "L2" && e.tranches.length === 0)
     .filter((e) => e.epicClass === "portfolio")
     .map((e) => e.idx);
   const candOf = (i: number, ask: number) => ({
@@ -2287,7 +2287,7 @@ async function assertWrittenContentMatchesGates(
       id: true,
       title: true,
       stageGate: true,
-      approvedAt: true,
+      selectedForAnalyzingAt: true,
       implementationCompletedAt: true,
       benefitHypothesis: true,
       businessCase: true,
@@ -2319,7 +2319,7 @@ async function assertWrittenContentMatchesGates(
       title: r.title,
       step: currentGateStep({
         stageGate: r.stageGate as StageGate,
-        approvedAt: r.approvedAt,
+        selectedForAnalyzingAt: r.selectedForAnalyzingAt,
         implementationCompletedAt: r.implementationCompletedAt,
       }),
       has: {

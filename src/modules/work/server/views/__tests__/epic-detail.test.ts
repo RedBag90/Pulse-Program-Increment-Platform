@@ -143,11 +143,11 @@ describe("buildEpicDetailModel — degradation matrix", () => {
   });
 
   it("budgeting OFF: slice is {disabled:true} and nextStep uses budgetAllocated=false", () => {
-    // L3 nextStep hint branches on budgetAllocated: allocated → prefixed with
-    // "Budget ist alloziert."; not allocated → the plain "Lege …" hint.
+    // Der Hinweis auf L2 verzweigt an `budgetAllocated`: alloziert → mit
+    // „Budget ist alloziert." davor; sonst der schlichte Hinweis.
     const off = buildEpicDetailModel(
       makeInputs({
-        epic: makeEpic({ stageGate: "L3" }),
+        epic: makeEpic({ stageGate: "L2" }),
         enabled: { drumbeat: true, budgeting: false, risks: false },
         budget: null,
       }),
@@ -157,7 +157,7 @@ describe("buildEpicDetailModel — degradation matrix", () => {
 
     const on = buildEpicDetailModel(
       makeInputs({
-        epic: makeEpic({ stageGate: "L3" }),
+        epic: makeEpic({ stageGate: "L2" }),
         enabled: { drumbeat: true, budgeting: true, risks: false },
         budget: {
           allocatedSum: 1000,
@@ -182,8 +182,8 @@ describe("buildEpicDetailModel — degradation matrix", () => {
     expect(m.lifecycleSteps.every((s) => s.description.length > 0)).toBe(true);
   });
 
-  it("lifecycleSteps stay coherent with the stage gate (L3 → Budget zuteilen)", () => {
-    const m = buildEpicDetailModel(makeInputs({ epic: makeEpic({ stageGate: "L3" }) }));
+  it("lifecycleSteps stay coherent with the stage gate (L2 → Budget zuteilen)", () => {
+    const m = buildEpicDetailModel(makeInputs({ epic: makeEpic({ stageGate: "L2" }) }));
     const currentStep = m.lifecycleSteps.find((s) => s.status === "current");
     expect(currentStep?.key).toBe("backlog");
     expect(currentStep?.label).toBe("Budget zuteilen");

@@ -107,8 +107,8 @@ export function stampsForAdvance(
 ): GateStamps {
   const isApproval = isApprovalTransition(to);
   return {
-    // L3.2 und L4.2 leben innerhalb ihres Haupt-Gates: die Spalte bleibt stehen,
-    // die Bestätigung materialisiert sich allein im jeweiligen Stempel.
+    // `analysis` und L4.2 leben innerhalb eines fremden Haupt-Gates: die Spalte
+    // bleibt stehen, die Bestätigung materialisiert sich allein im Stempel.
     stageGate: gateOfStep(to),
     // L0 → L1 trägt die Hypothesen-Freigabe: die Abnahme *ist* sie. Deshalb
     // stempelt sie hier mit und setzt das Steering-Flag (das hing an
@@ -118,14 +118,17 @@ export function stampsForAdvance(
       ...(facts.hypothesisApprovedAt == null && { hypothesisApprovedAt: now }),
       needsSteeringAttention: true,
     }),
-    ...(to === "L2" && facts.selectedForAnalyzingAt == null && { selectedForAnalyzingAt: now }),
-    // L2 → L3.1 trägt die Business-Case-Freigabe — dieselbe Bewegung wie bei
-    // L1, nur mit den fünf Parteien als Abnehmern.
-    // L2 → L3.1 friert zugleich den Horizont ein: ab hier trägt das Epic ihn
-    // selbst, statt ihn bei jedem Lesen aus der Solution abzuleiten. Set-once
-    // wie alles hier — ein von Hand gesetzter Wert wird **nicht** überschrieben,
-    // und ohne Solution gibt es nichts zu kopieren (das Epic bleibt „ohne").
-    ...(to === "L3.1" && {
+    // Die Analyse-Entscheidung bewegt den Reifegrad nicht — sie hinterlaesst
+    // genau diesen Stempel, und `currentGateStep` liest ihn zurueck.
+    ...(to === "analysis" &&
+      facts.selectedForAnalyzingAt == null && { selectedForAnalyzingAt: now }),
+    // → L2 trägt die Business-Case-Freigabe — dieselbe Bewegung wie bei L1, nur
+    // mit den fünf Parteien als Abnehmern.
+    // Sie friert zugleich den Horizont ein: ab hier trägt das Epic ihn selbst,
+    // statt ihn bei jedem Lesen aus der Solution abzuleiten. Set-once wie alles
+    // hier — ein von Hand gesetzter Wert wird **nicht** überschrieben, und ohne
+    // Solution gibt es nichts zu kopieren (das Epic bleibt „ohne").
+    ...(to === "L2" && {
       ...(facts.businessCaseApprovedAt == null && { businessCaseApprovedAt: now }),
       ...(facts.investmentHorizon == null &&
         facts.solutionHorizon != null && { investmentHorizon: facts.solutionHorizon }),
@@ -180,6 +183,10 @@ function unfreezesHorizon(facts: HorizonUnwindFacts): boolean {
  * danach nie wieder: ein einmal auf L3 gewesenes Epic behielt `approvedAt` für
  * immer, egal wie oft es korrigiert und neu freigegeben wurde. Wer die Historie
  * zurückdreht, muss auch die Spuren zurückdrehen.
+ *
+ * **Jede Zeile hier ist der Spiegel einer Zeile in `stampsForAdvance`** — und
+ * seit dem Neuschnitt der Achse zeigen beide auf dieselben Schritte: `analysis`
+ * traegt den Analyse-Stempel, L2 die Business-Case-Freigabe, L3 das Geld.
  */
 export function unwindStampsFor(
   from: GateStep,
@@ -192,19 +199,20 @@ export function unwindStampsFor(
     stamps.selectedForDetailingAt = null;
     stamps.hypothesisApprovedAt = null;
   }
-  if (from === "L2" && to === "L1") stamps.selectedForAnalyzingAt = null;
-  // Die Business-Case-Freigabe zurücknehmen — sie hängt an L2 → L3.1. Genau das
-  // ist der Ersatz für die frühere „neue Revision": rückstufen mit Begründung,
-  // überarbeiten, neu beantragen.
-  if (from === "L3.1" && to === "L2") {
+  // Die Analyse-Entscheidung zurücknehmen. Beide Schritte liegen im Reifegrad
+  // L1 — hier bewegt sich nur der Stempel, nicht die Spalte.
+  if (from === "analysis" && to === "L1") stamps.selectedForAnalyzingAt = null;
+  // Die Business-Case-Freigabe zurücknehmen — sie hängt am Schritt auf L2.
+  // Genau das ist der Ersatz für die frühere „neue Revision": rückstufen mit
+  // Begründung, überarbeiten, neu beantragen.
+  if (from === "L2" && to === "analysis") {
     stamps.businessCaseApprovedAt = null;
     // Und den Horizont wieder auftauen — aber nur den **Abdruck der Abnahme**,
     // nicht jede Eintragung. Siehe `HorizonUnwindFacts`.
     if (facts != null && unfreezesHorizon(facts)) stamps.investmentHorizon = null;
   }
-  // Die Investitionsentscheidung zurücknehmen. Sie hängt am Schritt L3.1 → L3.2,
-  // nicht am Eintritt in L3.1 — der trägt keinen eigenen Stempel.
-  if (from === "L3.2" && to === "L3.1") {
+  // Die Investitionsentscheidung zurücknehmen. Sie hängt am Schritt L2 → L3.
+  if (from === "L3" && to === "L2") {
     stamps.approvedBy = null;
     stamps.approvedAt = null;
     stamps.approvalComment = null;
@@ -212,7 +220,7 @@ export function unwindStampsFor(
   // Die L4.2-Bestätigung zurücknehmen — direkt (L4.2 → L4) oder indem das Epic
   // L4 ganz verlässt. Der Service räumt damit auch das Timeline-Ist-Datum ab.
   if (from === "L4.2" && to === "L4") stamps.implementationCompletedAt = null;
-  if (from === "L4" && to === "L3.2") {
+  if (from === "L4" && to === "L3") {
     stamps.implementationStartedAt = null;
     stamps.implementationCompletedAt = null;
   }

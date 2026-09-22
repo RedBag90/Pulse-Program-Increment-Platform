@@ -79,18 +79,9 @@ export const GATE_CRITERIA_DOC: readonly GateCriteriaDoc[] = GATE_STEPS.flatMap(
 });
 
 export const SUB_STAGE_RULES: readonly SubStageRule[] = [
-  {
-    gate: "L3",
-    key: "L3.1",
-    label: "BC freigegeben",
-    condition: "approvedAt == null",
-  },
-  {
-    gate: "L3",
-    key: "L3.2",
-    label: "Budget alloziert",
-    condition: "approvedAt != null",
-  },
+  // L3 trug bis September 2026 zwei Unterstufen (L3.1 BC freigegeben, L3.2
+  // Budget alloziert). Beide sind zu eigenen Reifegraden geworden; L4 ist das
+  // letzte Gate mit einem Split.
   {
     gate: "L4",
     key: "L4.1",

@@ -272,7 +272,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   // dieselbe Gelegenheit, auseinanderzulaufen.
   const gateNow = currentGateStep({
     stageGate: epic.stageGate as never,
-    approvedAt: epic.approvedAt,
+    selectedForAnalyzingAt: epic.selectedForAnalyzingAt,
     implementationCompletedAt: epic.implementationCompletedAt,
   });
 

@@ -334,6 +334,42 @@ bei jedem Antrag neu einzutippen erzeugt genau die Lücken, die Guardrail 4
 
 Der IRT-Owner bleibt unverändert ohne Spalte.
 
+### Nachtrag 2026-09-22 — die Achse wird neu geschnitten
+
+Die Reifegrad-Leiter trug acht Schritte auf sechs Graden, mit zwei Unterstufen
+an L3. Das ist nicht mehr so:
+
+```
+alt                                neu
+L2   Zur Analyse ausgewählt   →    analysis  (Gate, kein Reifegrad)
+L3.1 BC freigegeben           →    L2
+L3.2 Budget alloziert         →    L3
+L0, L1, L4.1, L4.2, L5             unverändert
+```
+
+**„Zur Analyse ausgewählt" verliert seine Nummer, nicht seine Abnahme.** Es
+bleibt ein beantragter, namentlich abgenommener Schritt — nur bewegt es den
+Reifegrad nicht mehr. Das Epic bleibt auf L1 und trägt danach
+`selectedForAnalyzingAt`; `currentGateStep` liest den Stempel zurück. Damit gibt
+es zwei gradlose Schritte: diesen und L4.2.
+
+**L3 verliert seine Unterstufen.** Was dort zwei Schritte in einem Grad waren,
+sind zwei Grade. `SUB_STAGES` schrumpft auf L4.1/L4.2 — L4 ist das letzte Gate
+mit einem Split.
+
+Mitgewandert sind die Schwellen (`BUDGET_DECIDED_STEP`, `DELIVERY_LOAD_FIRST_STEP`,
+`isApprovalTransition` auf **L3**; `FIRST_FUNDABLE_STEP` in Budgeting auf **L2**),
+die Kriterien, die Abnehmer-Vorgaben — die fünf Business-Case-Parteien zeichnen
+jetzt an **L2** — und die Bestandsdaten
+(`prisma/scripts/2026-09-22-reifegrad-neuschnitt.ts`).
+
+**Die v1-API ändert ihren Vertrag**: `z.enum(GATE_STEPS)` kennt `L3.1`/`L3.2`
+nicht mehr und dafür `analysis`.
+
+Und das Kanban hat seitdem eine **eigene Spaltenliste** statt einer Ableitung
+aus `STAGE_GATES`: zwei Grade teilen sich „Investition", zwei Spalten trennt nur
+ein Stempel, und L5 steht auf keiner.
+
 ### Nachtrag 2026-09-21 — MGMT weicht dem Architect Lead
 
 MGMT war die **einzige** der fünf Parteien ohne jede Quelle: `resolveRole` gab

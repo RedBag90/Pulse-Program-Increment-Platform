@@ -1,4 +1,9 @@
 /**
+ * **Gelaufen und archiviert.** Er spricht die Reifegrad-Achse von August 2026
+ * (mit `L3.1`/`L3.2`); die wurde im September 2026 neu geschnitten. Ihn
+ * mitzuziehen hiesse, die Vergangenheit zu faelschen — er beschreibt, was
+ * damals geschah. Das Archiv ist darum von `tsc` ausgenommen.
+ *
  * Backfill für den Umstieg auf beantragte, namentlich abgenommene
  * Reifegrad-Wechsel (ADR-0018).
  *

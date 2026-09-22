@@ -42,20 +42,20 @@ describe("contentForGate", () => {
     }
   });
 
-  it("öffnet auf L2 die Arbeitsfläche — Business Case, KPIs, Features", () => {
-    const l2 = contentForGate("L2");
-    expect(l2.businessCase).toBe(true);
-    expect(l2.kpis).toBe(true);
-    expect(l2.features).toBe(true);
-    expect(l2.costToMvp).toBe(true);
+  it("öffnet mit der Analyse-Entscheidung die Arbeitsfläche", () => {
+    const a = contentForGate("analysis");
+    expect(a.businessCase).toBe(true);
+    expect(a.kpis).toBe(true);
+    expect(a.features).toBe(true);
+    expect(a.costToMvp).toBe(true);
     // Geld kommt erst mit der Business-Case-Freigabe.
-    expect(l2.budget).toBe(false);
+    expect(a.budget).toBe(false);
   });
 
-  it("gibt Budget erst ab L3.1 frei", () => {
-    expect(contentForGate("L3.2").budget).toBe(true);
-    expect(contentForGate("L3.1").budget).toBe(true);
-    expect(contentForGate("L2").budget).toBe(false);
+  it("gibt Budget erst ab L2 frei", () => {
+    expect(contentForGate("analysis").budget).toBe(false);
+    expect(contentForGate("L2").budget).toBe(true);
+    expect(contentForGate("L3").budget).toBe(true);
   });
 
   /**
@@ -106,8 +106,11 @@ describe("gateContentViolations", () => {
     expect(v[0]!.reason).toContain("erst ab L1");
   });
 
-  it("findet KPIs auf L1 und Budget auf L2", () => {
-    const v = gateContentViolations([epic("L1", { kpis: true }), epic("L2", { budget: true })]);
+  it("findet KPIs auf L1 und Budget auf dem Analyse-Schritt", () => {
+    const v = gateContentViolations([
+      epic("L1", { kpis: true }),
+      epic("analysis", { budget: true }),
+    ]);
     expect(v.map((x) => x.field)).toEqual(["kpis", "budget"]);
   });
 
@@ -133,6 +136,7 @@ describe("assertGateContent", () => {
     }
     expect(message).toContain("Epic auf L0");
     expect(message).toContain("KPIs");
-    expect(message).toContain("erst ab L2");
+    // KPIs gehoeren seit dem Neuschnitt an die Analyse-Entscheidung.
+    expect(message).toContain("erst ab analysis");
   });
 });

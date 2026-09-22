@@ -2,8 +2,10 @@ import { Link } from "@/i18n/navigation";
 import { X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
-import { STAGE_SHORT } from "@/components/detail/initiative-labels";
-import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
+import {
+  PORTFOLIO_COLUMNS,
+  PORTFOLIO_COLUMN_LABELS,
+} from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 import { PORTFOLIO_WIP_LIMITS } from "@/modules/work/features/portfolio/overview/column-meta";
 
@@ -31,13 +33,13 @@ export function TopRisksBlock({ data }: { data: PortfolioOverview }) {
     });
   }
 
-  for (const gate of STAGE_GATES) {
-    const limit = PORTFOLIO_WIP_LIMITS[gate];
-    const count = data.epicsByColumn[gate].length;
+  for (const col of PORTFOLIO_COLUMNS) {
+    const limit = PORTFOLIO_WIP_LIMITS[col];
+    const count = data.epicsByColumn[col].length;
     if (limit !== null && count > limit) {
       risks.push({
-        key: `wip-${gate}`,
-        label: `${STAGE_SHORT[gate]} überfüllt (${count} / ${limit})`,
+        key: `wip-${col}`,
+        label: `${PORTFOLIO_COLUMN_LABELS[col]} überfüllt (${count} / ${limit})`,
       });
       break; // surface only the first overfull stage to keep the list to 3
     }

@@ -2,19 +2,18 @@
 
 /**
  * L0–L5 stage-gate labels (Reifegrad — der Investment-Funnel).
- * Modell v2 (siehe Plan vom 2026-06-07): Major-Gates bleiben L0..L5, die
- * Semantik orientiert sich jetzt am Reifegrad statt am Workflow.
+ *
+ * **Neu geschnitten im September 2026.** Vorher hiess L2 „Business Case" und L3
+ * „Investition" mit zwei Unterstufen (L3.1 BC freigegeben, L3.2 Budget
+ * alloziert). Jetzt sind das zwei eigene Grade, und „Zur Analyse ausgewählt"
+ * ist ein Gate ohne Nummer (`analysis`, siehe `GATE_STEP_LABELS`).
  */
 export const STAGE_GATE_LABELS: Record<string, string> = {
   L0: "L0 Idee",
-  L1: "L1 Hypothese definiert",
-  L2: "L2 Business Case",
-  // L3 traegt zwei Schritte: Eintritt (BC freigegeben) und die
-  // Investitionsentscheidung selbst.
-  L3: "L3 Investition",
-  // Beide L3-Schritte werden beantragt und abgenommen, ebenso L4.2.
-  "L3.1": "L3.1 BC freigegeben",
-  "L3.2": "L3.2 Budget alloziert",
+  L1: "L1 Hypothese freigegeben",
+  L2: "L2 Business Case freigegeben",
+  L3: "L3 Budget alloziert",
+  // L4 traegt als einziges Gate noch zwei Schritte.
   L4: "L4 Implementierung",
   "L4.2": "L4.2 Umsetzung fertig",
   L5: "L5 Impact realisiert",
@@ -26,8 +25,6 @@ export const STAGE_SHORT: Record<string, string> = {
   L1: "Hypothese",
   L2: "Business Case",
   L3: "Investition",
-  "L3.1": "BC freigegeben",
-  "L3.2": "Budget alloziert",
   L4: "Umsetzung",
   "L4.2": "Umsetzung fertig",
   L5: "Impact",
@@ -47,14 +44,15 @@ export const STAGE_DOT: Record<string, string> = {
   L5: "bg-emerald-500",
 };
 
+/** Der Analyse-Schritt traegt keine Nummer — er bewegt den Reifegrad nicht. */
+export const ANALYSIS_STEP_SHORT = "Zur Analyse ausgewählt";
+
 /**
- * Sub-Step-Labels innerhalb der Major-Gates L3 und L4. Die Eintritts-Stufen
- * (L3.1, L4.1) werden abgeleitet, die zweiten (L3.2, L4.2) kommen aus einer
- * abgenommenen Bestaetigung — beide werden nur in der UI gerendert.
+ * Sub-Step-Labels innerhalb des Major-Gates L4 — dem einzigen, das seit dem
+ * Neuschnitt noch zwei Schritte traegt. Die Eintritts-Stufe (L4.1) wird
+ * abgeleitet, die zweite (L4.2) kommt aus einer abgenommenen Bestaetigung.
  */
 export const SUB_STAGE_LABELS: Record<string, string> = {
-  "L3.1": "BC freigegeben",
-  "L3.2": "Budget alloziert",
   "L4.1": "Umsetzung läuft",
   "L4.2": "Umsetzung fertig",
 };

@@ -24,6 +24,7 @@ function input(over: Partial<EpicLifecycleInput> = {}): EpicLifecycleInput {
     subStage: null,
     impactRecognizedAt: null,
     selectedForDetailingAt: null,
+    selectedForAnalyzingAt: null,
     ...over,
   };
 }
@@ -91,16 +92,18 @@ describe("epicLifecycleSteps — welcher Abschnitt läuft", () => {
     expect(done({ stageGate: "L1" })).toEqual(["detailing", "hypothesis"]);
   });
 
-  it("L2: der Business Case wird ausgearbeitet", () => {
-    expect(running({ stageGate: "L2" })).toBe("business_case");
+  it("L1 mit Analyse-Entscheidung: der Business Case wird ausgearbeitet", () => {
+    expect(running({ stageGate: "L1", selectedForAnalyzingAt: D("2026-03-01") })).toBe(
+      "business_case",
+    );
   });
 
-  it("L3.1: das Budget wird zugeteilt", () => {
-    expect(running({ stageGate: "L3", subStage: "L3.1" })).toBe("backlog");
+  it("L2: das Budget wird zugeteilt", () => {
+    expect(running({ stageGate: "L2" })).toBe("backlog");
   });
 
-  it("L3.2: die Umsetzung wird gestartet", () => {
-    expect(running({ stageGate: "L3", subStage: "L3.2" })).toBe("implementation_started");
+  it("L3: die Umsetzung wird gestartet", () => {
+    expect(running({ stageGate: "L3" })).toBe("implementation_started");
   });
 
   it("L4.1: es wird umgesetzt", () => {
@@ -137,7 +140,9 @@ describe("epicLifecycleSteps — welcher Abschnitt läuft", () => {
 describe("runningStepIndex", () => {
   it("zeigt auf den laufenden Abschnitt", () => {
     expect(runningStepIndex(input())).toBe(0);
-    expect(runningStepIndex(input({ stageGate: "L2" }))).toBe(3);
+    // Auf L2 ist der Business Case freigegeben — gearbeitet wird am Abschnitt
+    // „Budget zuteilen" (Index 4), nicht mehr am Business Case selbst.
+    expect(runningStepIndex(input({ stageGate: "L2" }))).toBe(4);
   });
 
   it("ist null, wenn alles erreicht ist", () => {
@@ -219,22 +224,53 @@ describe("lifecycleSpans — Dauern ohne ein neues Feld", () => {
 });
 
 describe("processColumn — das Kanban zeigt den Prozess", () => {
-  const at = (d: string | null) => ({ selectedForDetailingAt: d ? D(d) : null });
-
-  it("laesst ein ungesichtetes Epic im Funnel", () => {
-    expect(processColumn({ stageGate: "L0", ...at(null) })).toBe("L0");
+  const epic = (
+    stageGate: string,
+    over: {
+      selectedForDetailingAt?: Date | null;
+      selectedForAnalyzingAt?: Date | null;
+      implementationCompletedAt?: Date | null;
+    } = {},
+  ) => ({
+    stageGate,
+    selectedForDetailingAt: null,
+    selectedForAnalyzingAt: null,
+    implementationCompletedAt: null,
+    ...over,
   });
 
-  it("rueckt ein gesichtetes Epic in die Hypothese-Spalte", () => {
-    // Der Reifegrad bleibt L0 — gearbeitet wird aber schon an der Hypothese,
-    // und genau das soll die Spalte zeigen.
-    expect(processColumn({ stageGate: "L0", ...at("2026-09-06") })).toBe("L1");
+  it("trennt den Funnel von der Hypothese am Owner-Stempel", () => {
+    // Beide stehen auf L0. Der Reifegrad sagt hier nichts; der Stempel alles.
+    expect(processColumn(epic("L0"))).toBe("funnel");
+    expect(processColumn(epic("L0", { selectedForDetailingAt: D("2026-09-06") }))).toBe(
+      "hypothesis",
+    );
   });
 
-  it("laesst alle uebrigen Reifegrade unveraendert", () => {
-    for (const g of ["L1", "L2", "L3", "L4", "L5"]) {
-      expect(processColumn({ stageGate: g, ...at(null) })).toBe(g);
-      expect(processColumn({ stageGate: g, ...at("2026-09-06") })).toBe(g);
-    }
+  it("trennt die Hypothese vom Business Case am Analyse-Stempel", () => {
+    // Beide stehen auf L1 — „zur Analyse ausgewählt" ist ein Tor ohne Reifegrad.
+    expect(processColumn(epic("L1"))).toBe("hypothesis");
+    expect(processColumn(epic("L1", { selectedForAnalyzingAt: D("2026-09-06") }))).toBe(
+      "business_case",
+    );
+  });
+
+  it("legt L2 und L3 in dieselbe Spalte", () => {
+    // Business Case freigegeben und Budget alloziert sind zwei Reifegrade, aber
+    // eine Station: die Investitionsentscheidung.
+    expect(processColumn(epic("L2"))).toBe("investment");
+    expect(processColumn(epic("L3"))).toBe("investment");
+  });
+
+  it("trennt Umsetzung von Impact an der Fertigmeldung", () => {
+    expect(processColumn(epic("L4"))).toBe("implementation");
+    expect(processColumn(epic("L4", { implementationCompletedAt: D("2026-09-06") }))).toBe(
+      "impact",
+    );
+  });
+
+  it("nimmt ein Epic mit bestaetigtem Impact vom Board", () => {
+    // Ein Board zeigt, woran gearbeitet wird. L5 ist fertig.
+    expect(processColumn(epic("L5"))).toBeNull();
   });
 });

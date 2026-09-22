@@ -30,10 +30,10 @@ const EPIC_TABS = [
   { key: "overview", label: "Overview" },
   { key: "timeline", label: "Reifegrad-Timeline" },
   { key: "benefit-hypothesis", label: "Hypothese", gate: "L0" },
-  { key: "business-case", label: "Business Case", gate: "L2" },
-  { key: "breakdown", label: "Deliverables", gate: "L2" },
-  { key: "dependencies", label: "Dependencies", gate: "L2" },
-  { key: "kpis", label: "KPI & Nutzen", gate: "L2" },
+  { key: "business-case", label: "Business Case", gate: "L1" },
+  { key: "breakdown", label: "Deliverables", gate: "L1" },
+  { key: "dependencies", label: "Dependencies", gate: "L1" },
+  { key: "kpis", label: "KPI & Nutzen", gate: "L1" },
   { key: "history", label: "History" },
 ];
 
@@ -61,10 +61,12 @@ function mitRing(container: HTMLElement): string[] {
 
 describe("Reifegrad in der Reiterschiene", () => {
   it("ringt genau die Reiter des aktuellen Reifegrads", () => {
-    // Die Hypothese entsteht auf L0; L1 ist das Tor, das sie freigibt.
+    // Ein Reiter traegt die Stufe, auf der man in ihm arbeitet. Die Hypothese
+    // entsteht auf L0, der Business Case auf L1 — L1 bzw. L2 sind die Tore, die
+    // sie freigeben.
     expect(mitRing(setup({ currentGate: "L0" }))).toEqual(["Hypothese"]);
 
-    expect(mitRing(setup({ currentGate: "L2" }))).toEqual([
+    expect(mitRing(setup({ currentGate: "L1" }))).toEqual([
       "Business Case",
       "Deliverables",
       "Dependencies",
@@ -80,18 +82,18 @@ describe("Reifegrad in der Reiterschiene", () => {
     const nav = screen.getByRole("navigation", { name: "Bereiche" });
     expect(nav.textContent).toContain("Hypothese");
     expect([...nav.querySelectorAll("a")].map((a) => a.textContent)).toEqual(
-      expect.arrayContaining(["Business CaseL2", "KPI & NutzenL2"]),
+      expect.arrayContaining(["Business CaseL1", "KPI & NutzenL1"]),
     );
   });
 
   it("ringt niemanden auf einer Stufe ohne Reiter", () => {
-    // Beschriftet sind zwei der acht Stufen. Auf L3.1 leuchtet darum nichts —
-    // eine Folge der Zuordnung, kein Fehler. Ohne diesen Test wird sie später
-    // als Defekt gemeldet.
-    expect(mitRing(setup({ currentGate: "L3.1" }))).toEqual([]);
-    // **L1 gehört seit der Korrektur dazu.** Dort wird nicht gearbeitet,
-    // sondern abgenommen: die Hypothese entsteht eine Stufe früher.
-    expect(mitRing(setup({ currentGate: "L1" }))).toEqual([]);
+    // Beschriftet sind die beiden Stufen, auf denen ein Epic Arbeit traegt.
+    // Auf L2 wird der Business Case abgenommen, auf L3 Geld zugeteilt — beides
+    // geschieht nicht in einem Reiter dieser Seite. Eine Folge der Zuordnung,
+    // kein Fehler; ohne diesen Test wird sie später als Defekt gemeldet.
+    for (const g of ["L2", "L3", "L4", "L5"]) {
+      expect(mitRing(setup({ currentGate: g })), g).toEqual([]);
+    }
   });
 
   it("lässt eine Fläche ohne Reifegrad unverändert", () => {
@@ -102,7 +104,7 @@ describe("Reifegrad in der Reiterschiene", () => {
         { key: "allgemein", label: "Allgemein" },
         { key: "verlauf", label: "Verlauf" },
       ],
-      currentGate: "L2",
+      currentGate: "L1",
     });
 
     expect(container.querySelectorAll("nav span[aria-hidden]")).toHaveLength(0);
@@ -110,7 +112,7 @@ describe("Reifegrad in der Reiterschiene", () => {
   });
 
   it("schreibt den Reifegrad in den title, weil das Etikett nur zwei Zeichen hat", () => {
-    setup({ currentGate: "L2" });
-    expect(screen.getByTitle("Business Case · Reifegrad L2")).toBeInTheDocument();
+    setup({ currentGate: "L1" });
+    expect(screen.getByTitle("Business Case · Reifegrad L1")).toBeInTheDocument();
   });
 });

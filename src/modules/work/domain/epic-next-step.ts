@@ -46,9 +46,15 @@ export interface EpicNextStepInput {
   /**
    * Ist das Budget-Modul freigeschaltet? Aus ⇒ es gibt nichts zu allozieren,
    * und der Rat „Budget allozieren" verwiese auf eine gesperrte Fläche. Der
-   * Schritt L3.2 ruht dann allein auf der Abnahme.
+   * Schritt L3 ruht dann allein auf der Abnahme.
    */
   budgetingEnabled: boolean;
+  /**
+   * Stempel der abgenommenen Analyse-Entscheidung. Auf L1 trennt er die beiden
+   * Stationen: davor ist der naechste Schritt „zur Analyse auswaehlen lassen",
+   * danach „Business Case ausarbeiten".
+   */
+  selectedForAnalyzingAt: Date | null;
   /** Wurde Impact bestätigt? Falls ja: L5-Endstand. */
   impactRecognizedAt: Date | null;
   childFeatureStats: { total: number; completed: number };
@@ -68,6 +74,7 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
     hasBusinessCase,
     budgetAllocated,
     budgetingEnabled,
+    selectedForAnalyzingAt,
     impactRecognizedAt,
     childFeatureStats,
   } = input;
@@ -104,24 +111,21 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
   }
 
   if (stageGate === "L1") {
-    // L1 ist die Vorstufe der Analyse: der Eintritt in L2 ist ein eigener
-    // Antrag, der Business Case wird dort ausgearbeitet.
-    return {
-      title: "Wechsel auf L2 beantragen",
-      hint: hasBusinessCase
-        ? "Die Hypothese ist freigegeben und der Business Case ist begonnen. Beantrage den Wechsel auf L2, um in die Analyse einzutreten."
-        : "Die Hypothese ist freigegeben. Beantrage den Wechsel auf L2 — dort wird der Business Case ausgearbeitet.",
-      cta: { kind: "gate-request", to: "L2" },
-    };
-  }
-
-  if (stageGate === "L2") {
-    // Auf L2 zu stehen *ist* „Business Case in Arbeit" — kein Sub-Stage-Split mehr.
+    // **Zwei Stationen auf einem Reifegrad.** „Zur Analyse ausgewählt" bewegt
+    // ihn nicht — davor wird die Entscheidung beantragt, danach der Business
+    // Case ausgearbeitet und freigegeben.
+    if (selectedForAnalyzingAt == null) {
+      return {
+        title: "Zur Analyse auswählen lassen",
+        hint: "Die Hypothese ist freigegeben. Beantrage die Auswahl zur Analyse — der Wertstrom entscheidet, was Aufwand bekommt. Der Reifegrad bleibt dabei L1.",
+        cta: { kind: "gate-request", to: "analysis" },
+      };
+    }
     if (hasBusinessCase) {
       return {
-        title: "Wechsel auf L3.1 beantragen",
-        hint: "Inhalte sind da. Beantrage den Wechsel auf L3.1 — die Abnahme durch die fünf Parteien ist die Freigabe des Business Case.",
-        cta: { kind: "gate-request", to: "L3.1" },
+        title: "Wechsel auf L2 beantragen",
+        hint: "Inhalte sind da. Beantrage den Wechsel auf L2 — die Abnahme durch die fünf Parteien ist die Freigabe des Business Case.",
+        cta: { kind: "gate-request", to: "L2" },
       };
     }
     return {
@@ -131,26 +135,25 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
     };
   }
 
+  if (stageGate === "L2") {
+    // Ohne Budget-Modul gibt es keine Vorbedingung mehr: der Schritt hängt
+    // allein an der Unterschrift von VMO und Finance.
+    return budgetAllocated || !budgetingEnabled
+      ? {
+          title: "Investition abnehmen lassen",
+          hint: budgetingEnabled
+            ? "Budget ist alloziert. Beantrage den Wechsel auf L3 — damit ist die Investitionsentscheidung namentlich abgenommen."
+            : "Beantrage den Wechsel auf L3 — damit ist die Investitionsentscheidung namentlich abgenommen, von VMO und Finance.",
+          cta: { kind: "gate-request", to: "L3" },
+        }
+      : {
+          title: "Budget allozieren",
+          hint: "Business Case ist freigegeben. Plane jetzt im Controlling Budget für dieses Epic ein, damit die Investition abgenommen werden kann.",
+          cta: { kind: "link", label: "Zum Controlling", href: "/budgeting/periods" },
+        };
+  }
+
   if (stageGate === "L3") {
-    // Zwei Stationen: erst Budget holen und die Investition abnehmen lassen
-    // (L3.2), dann die Umsetzung starten.
-    if (subStage === "L3.1") {
-      // Ohne Budget-Modul gibt es keine Vorbedingung mehr: der Schritt hängt
-      // allein an der Unterschrift von VMO und Finance.
-      return budgetAllocated || !budgetingEnabled
-        ? {
-            title: "Investition abnehmen lassen",
-            hint: budgetingEnabled
-              ? "Budget ist alloziert. Beantrage den Schritt auf L3.2 — damit ist die Investitionsentscheidung namentlich abgenommen."
-              : "Beantrage den Schritt auf L3.2 — damit ist die Investitionsentscheidung namentlich abgenommen, von VMO und Finance.",
-            cta: { kind: "gate-request", to: "L3.2" },
-          }
-        : {
-            title: "Budget allozieren",
-            hint: "Business Case ist freigegeben. Plane jetzt im Controlling Budget für dieses Epic ein, damit die Investition abgenommen werden kann.",
-            cta: { kind: "link", label: "Zum Controlling", href: "/budgeting/periods" },
-          };
-    }
     return {
       title: "Erstes Feature starten",
       hint: "Die Investition ist abgenommen. Lege in den Deliverables Features an und starte das erste in einem PI — das Epic rückt damit auf L4.",

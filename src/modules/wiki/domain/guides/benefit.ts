@@ -49,7 +49,7 @@ export const BENEFIT: Guide = {
     { kind: "quote", text: "Der Plan entsteht mit der Business-Case-Freigabe." },
     {
       kind: "paragraph",
-      text: "Vor **L3.1** gibt es keinen Plan-Bezug: jede Änderung am Faktor ist zugleich der Plan. Mit der Freigabe wird er festgehalten, und ab da ist „Plan gegen Ist“ eine Aussage statt einer Tautologie. Die Fläche sagt das an, solange es fehlt.",
+      text: "Vor **L2** gibt es keinen Plan-Bezug: jede Änderung am Faktor ist zugleich der Plan. Mit der Freigabe wird er festgehalten, und ab da ist „Plan gegen Ist“ eine Aussage statt einer Tautologie. Die Fläche sagt das an, solange es fehlt.",
     },
     { kind: "quote", text: "Die Richtung steckt im Vorzeichen." },
     {
@@ -318,7 +318,7 @@ Wert  (Umrechnungsfaktor)        0 € /Jahr`,
     },
     {
       claim: "Plan gegen Ist gilt von Anfang an.",
-      why: "Der Plan-Bezug entsteht mit L3.1. Davor ist jede Faktor-Änderung zugleich der Plan.",
+      why: "Der Plan-Bezug entsteht mit L2. Davor ist jede Faktor-Änderung zugleich der Plan.",
     },
     {
       claim: "Wiederkehrender Nutzen ist immer jährlich.",

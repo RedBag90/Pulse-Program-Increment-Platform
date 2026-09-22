@@ -35,7 +35,7 @@ describe("Benefit-Hypothese", () => {
   it("ein Antrag auf ein anderes Gate sperrt sie nicht", () => {
     // Auf L0 gibt es zwar nur den L1-Antrag; die Regel greift trotzdem den
     // Ziel-Schritt ab und nicht bloß „irgendein Antrag offen".
-    const v = computeEpicRevisionVisibility(base({ openGateRequestTo: "L3.1" }));
+    const v = computeEpicRevisionVisibility(base({ openGateRequestTo: "L2" }));
     expect(v.hypoEditable).toBe(true);
   });
 
@@ -65,13 +65,15 @@ describe("Business Case", () => {
   });
 
   it("mit gestelltem L3.1-Antrag gesperrt", () => {
-    const v = computeEpicRevisionVisibility(base({ stageGate: "L2", openGateRequestTo: "L3.1" }));
+    const v = computeEpicRevisionVisibility(base({ stageGate: "L2", openGateRequestTo: "L2" }));
     expect(v.bcEditable).toBe(false);
     expect(v.bcLockReason).toContain("beantragt");
   });
 
-  it("ein offener L2-Antrag sperrt den Business Case nicht", () => {
-    const v = computeEpicRevisionVisibility(base({ stageGate: "L1", openGateRequestTo: "L2" }));
+  it("ein offener Analyse-Antrag sperrt den Business Case nicht", () => {
+    const v = computeEpicRevisionVisibility(
+      base({ stageGate: "L1", openGateRequestTo: "analysis" }),
+    );
     expect(v.bcEditable).toBe(true);
   });
 
@@ -114,7 +116,7 @@ describe("Review-Diff und Gegenüberstellung", () => {
     const approver = computeEpicRevisionVisibility(
       base({
         stageGate: "L2",
-        openGateRequestTo: "L3.1",
+        openGateRequestTo: "L2",
         viewerIsGateApprover: true,
         hasBcBaseline: true,
       }),

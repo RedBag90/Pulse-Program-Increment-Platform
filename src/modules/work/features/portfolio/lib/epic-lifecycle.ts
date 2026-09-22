@@ -70,28 +70,32 @@ export const LIFECYCLE_STEPS: readonly LifecycleStepMeta[] = [
     gate: "L1",
     label: "Für die Analyse einplanen",
     description: "Der Wertstrom entscheidet, was Aufwand bekommt.",
-    milestone: { label: "L2 · Zur Analyse ausgewählt", approver: "VMO", step: "L2" },
+    // Der einzige Meilenstein neben der Erstsichtung, der den Reifegrad nicht
+    // bewegt — er wird aber beantragt und abgenommen, anders als jene.
+    milestone: { label: "Zur Analyse ausgewählt", approver: "VMO", step: "analysis" },
   },
   {
     key: "business_case",
-    gate: "L2",
+    // Das Epic steht waehrend der Ausarbeitung noch auf L1 — die Analyse ist
+    // beschlossen, der Business Case noch nicht freigegeben.
+    gate: "L1",
     label: "Business Case ausarbeiten",
     description: "Lean Business Case erstellen und zur Freigabe stellen.",
     milestone: {
-      label: "L3.1 · Business Case freigegeben",
+      label: "L2 · Business Case freigegeben",
       approver: "Architect Lead · Business Owner · Finance · IRT · VMO · Produkt-Manager",
-      step: "L3.1",
+      step: "L2",
     },
   },
   {
     key: "backlog",
-    gate: "L3",
+    gate: "L2",
     label: "Budget zuteilen",
     description: "Die Investitionsentscheidung vorbereiten.",
     milestone: {
-      label: "L3.2 · Budget alloziert",
+      label: "L3 · Budget alloziert",
       approver: "VMO und Finance",
-      step: "L3.2",
+      step: "L3",
     },
   },
   {
@@ -137,7 +141,7 @@ export interface LifecycleStep extends LifecycleStepMeta {
  */
 export interface EpicLifecycleInput {
   stageGate: StageGate;
-  /** subStageFor(): L3.2 = Investition abgenommen, L4.2 = Umsetzung abgenommen. */
+  /** subStageFor(): L4.2 = Umsetzung abgenommen. Nur L4 traegt noch einen Split. */
   subStage: SubStage | null;
   impactRecognizedAt: Date | null;
   /**
@@ -147,11 +151,24 @@ export interface EpicLifecycleInput {
    * Auskunft darüber, ob sie stattgefunden hat.
    */
   selectedForDetailingAt: Date | null;
+  /**
+   * Stempel der abgenommenen Analyse-Entscheidung. Aus demselben Grund nötig:
+   * „Zur Analyse ausgewählt" ist seit dem Neuschnitt ein Gate **ohne**
+   * Reifegrad — auf L1 ist dieses Feld die einzige Auskunft darüber, ob der
+   * Schritt schon gegangen ist.
+   */
+  selectedForAnalyzingAt: Date | null;
 }
 
 /** Welche der acht Tore sind erreicht? Reihenfolge wie `LIFECYCLE_STEPS`. */
 function gatesReached(input: EpicLifecycleInput): boolean[] {
-  const { stageGate, subStage, impactRecognizedAt, selectedForDetailingAt } = input;
+  const {
+    stageGate,
+    subStage,
+    impactRecognizedAt,
+    selectedForDetailingAt,
+    selectedForAnalyzingAt,
+  } = input;
   const gi = STAGE_GATES.indexOf(stageGate);
 
   // Endzustand — wie `epicNextStep` kurzschließt: ist der Impact bestätigt oder
@@ -162,9 +179,11 @@ function gatesReached(input: EpicLifecycleInput): boolean[] {
   return [
     gi >= 1 || selectedForDetailingAt != null, // Erstsichtung
     gi >= 1, // L1 · Hypothese freigegeben
-    gi >= 2, // L2 · Zur Analyse ausgewählt
-    gi >= 3, // L3.1 · Business Case freigegeben — der Eintritt in L3 *ist* die Freigabe
-    gi > 3 || (gi === 3 && subStage === "L3.2"), // L3.2 · Budget alloziert
+    // „Zur Analyse ausgewaehlt" bewegt den Reifegrad nicht — erreicht ist der
+    // Meilenstein, sobald der Stempel steht oder das Epic darueber hinaus ist.
+    gi >= 2 || selectedForAnalyzingAt != null,
+    gi >= 2, // L2 · Business Case freigegeben
+    gi >= 3, // L3 · Budget alloziert
     gi >= 4, // L4.1 · Umsetzung gestartet
     gi > 4 || (gi === 4 && subStage === "L4.2"), // L4.2 · Umsetzung fertig
     gi >= 5, // L5 · Impact realisiert (der Endzustand ist oben abgefangen)
@@ -236,28 +255,83 @@ export function lifecycleSpans(input: {
 }
 
 /**
+ * **Die Spalten des Portfolio-Kanbans.**
+ *
+ * Sie entstanden bis September 2026 aus `STAGE_GATES` × `STAGE_SHORT` — Spalte
+ * und Reifegrad waren dasselbe. Mit dem Neuschnitt der Achse traegt das nicht
+ * mehr: zwei Reifegrade teilen sich eine Spalte, zwei Spalten unterscheiden
+ * sich nur durch einen Stempel, und der letzte Grad steht gar nicht mehr auf
+ * dem Board. Eine Liste, die man lesen kann, ist darum ehrlicher als eine
+ * Ableitung, die man erklaeren muss.
+ */
+export const PORTFOLIO_COLUMNS = [
+  "funnel",
+  "hypothesis",
+  "business_case",
+  "investment",
+  "implementation",
+  "impact",
+] as const;
+export type PortfolioColumn = (typeof PORTFOLIO_COLUMNS)[number];
+
+export const PORTFOLIO_COLUMN_LABELS: Record<PortfolioColumn, string> = {
+  funnel: "Funnel",
+  hypothesis: "Hypothese",
+  business_case: "Business Case",
+  investment: "Investition",
+  implementation: "Umsetzung",
+  impact: "Impact",
+};
+
+/**
  * Die **Kanban-Spalte** eines Epics — das Kanban zeigt den Prozess, nicht den
  * Reifegrad.
  *
- * Für fünf der sechs Spalten fällt beides zusammen. Nur `L0` zerfällt: solange
- * das Epic ungesichtet im Funnel liegt, steht es in **Funnel**; sobald der VMO
- * es gesichtet und den Owner benannt hat, wird an der **Hypothese** gearbeitet —
- * und genau das soll die Spalte zeigen, obwohl der Reifegrad noch `L0` ist.
+ * **Drei Stempel entscheiden mit, nicht nur der Grad.** Zwei Meilensteine
+ * bewegen den Reifegrad per Definition nicht — die Erstsichtung auf L0 und die
+ * Analyse-Entscheidung auf L1 —, und ohne sie waere die halbe Bewegung des
+ * Boards unsichtbar:
+ *
+ * ```
+ * Funnel         L0, ungesichtet
+ * Hypothese      L0 mit Owner · L1 ohne Analyse-Entscheidung
+ * Business Case  L1 mit Analyse-Entscheidung
+ * Investition    L2 (BC freigegeben) · L3 (Budget alloziert)
+ * Umsetzung      L4, noch nicht fertig gemeldet
+ * Impact         L4, fertig gemeldet (L4.2)
+ * ```
+ *
+ * **L5 steht auf keiner Spalte.** Ein Board zeigt, woran gearbeitet wird; ein
+ * Epic mit bestaetigtem Impact ist fertig und wuerde die Spalte nur noch fuellen.
+ * Deshalb `null` — der Aufrufer laesst es weg.
  *
  * Das ist bewusst **nicht** die alte Bucket-Abweichung, die mit ADR-0018
  * entfallen ist: die glich aus, dass ein Gate der Wirklichkeit hinterherlief.
- * Hier läuft nichts hinterher — die Erstsichtung ist ein Meilenstein, der den
- * Reifegrad **per Definition** nicht bewegt, und ohne diese Regel wäre er im
- * Kanban unsichtbar.
+ * Hier laeuft nichts hinterher — die beiden Meilensteine sind gradlos gemeint.
  *
- * Der Reifegrad-Balken zählt weiterhin nach `stageGate`: eine Fläche für den
- * Prozess, eine für die Meilensteine.
+ * Der Reifegrad-Balken zaehlt weiterhin nach `stageGate`: eine Flaeche fuer den
+ * Prozess, eine fuer die Reifegrade.
  *
  * Rein, kein I/O.
  */
 export function processColumn(epic: {
   stageGate: string;
   selectedForDetailingAt: Date | null;
-}): string {
-  return epic.stageGate === "L0" && epic.selectedForDetailingAt != null ? "L1" : epic.stageGate;
+  selectedForAnalyzingAt: Date | null;
+  implementationCompletedAt: Date | null;
+}): PortfolioColumn | null {
+  switch (epic.stageGate) {
+    case "L0":
+      return epic.selectedForDetailingAt != null ? "hypothesis" : "funnel";
+    case "L1":
+      return epic.selectedForAnalyzingAt != null ? "business_case" : "hypothesis";
+    case "L2":
+    case "L3":
+      return "investment";
+    case "L4":
+      return epic.implementationCompletedAt != null ? "impact" : "implementation";
+    default:
+      // L5 — und alles, was die Spalte nicht kennt.
+      return null;
+  }
 }
