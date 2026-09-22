@@ -30,15 +30,24 @@ function facts(stageGate: StageGate, over: Partial<EpicGateFacts> = {}): EpicGat
     investmentHorizon: null,
     multiPartyApproval: true,
     budgetingEnabled: true,
+    kpiCount: 0,
+    dependencyCount: 0,
+    drumbeatEnabled: true,
     ...over,
   };
 }
 
 const AT = new Date("2026-03-01T00:00:00.000Z");
 
-function keys(f: EpicGateFacts, to: GateStep, which: "unsatisfied" | "blocking-unsatisfied") {
+function keys(
+  f: EpicGateFacts,
+  to: GateStep,
+  which: "all" | "blocking" | "unsatisfied" | "blocking-unsatisfied",
+) {
+  const offen = which === "unsatisfied" || which === "blocking-unsatisfied";
+  const blockierend = which === "blocking" || which === "blocking-unsatisfied";
   return gateReadiness(f, to)
-    .criteria.filter((c) => !c.satisfied && (which === "unsatisfied" || c.blocking))
+    .criteria.filter((c) => (!offen || !c.satisfied) && (!blockierend || c.blocking))
     .map((c) => c.key);
 }
 
@@ -104,9 +113,53 @@ describe("gateReadiness — L2 (Business-Case-Freigabe)", () => {
     // machen wäre zirkulär.
     expect(keys(facts("L2"), "L2", "blocking-unsatisfied")).toEqual(["business_case_drafted"]);
     expect(gateReadiness(facts("L2", { hasBusinessCaseContent: true }), "L2").ready).toBe(true);
-    // Das Geld ist hier ausdrücklich noch kein Thema; offen bleibt allenfalls
-    // die beratende Owner-Nennung.
+    // Das Geld ist hier ausdrücklich noch kein Thema. Offen bleiben allein die
+    // beratenden Punkte — sie halten den Schritt nicht auf, sagen aber, was auf
+    // dieser Stufe sonst noch erarbeitet wird.
     expect(keys(facts("L2", { hasBusinessCaseContent: true }), "L2", "unsatisfied")).toEqual([
+      "deliverables_drafted",
+      "dependencies_mapped",
+      "kpis_defined",
+      "owner_nominated",
+    ]);
+  });
+
+  it("führt die vier Reiter der Stufe in ihrer Reihenfolge — und blockiert nur mit einem", () => {
+    // Business Case, Deliverables, Dependencies, KPI: die vier Flächen, die auf
+    // dieser Stufe erarbeitet werden, stehen in der Reihenfolge der Reiter auf
+    // der Checkliste. Blockierend ist allein der Business Case, denn nur ihn
+    // gibt dieser Schritt frei.
+    expect(keys(facts("L2"), "L2", "all")).toEqual([
+      "business_case_drafted",
+      "deliverables_drafted",
+      "dependencies_mapped",
+      "kpis_defined",
+      "owner_nominated",
+    ]);
+    expect(keys(facts("L2"), "L2", "blocking")).toEqual(["business_case_drafted"]);
+  });
+
+  it("zeigt die Abhängigkeiten gar nicht, wo es das Drumbeat-Modul nicht gibt", () => {
+    // Ohne Drumbeat gibt es den Reiter nicht, in dem man das Kriterium erfüllen
+    // würde. Ein Kreuz, das nie grün wird, wäre eine Sackgasse; ein Häkchen
+    // wäre eine Falschaussage. Also: weg damit — dieselbe Entscheidung wie beim
+    // Budget-Kriterium.
+    expect(keys(facts("L2", { drumbeatEnabled: false }), "L2", "all")).not.toContain(
+      "dependencies_mapped",
+    );
+    expect(keys(facts("L2", { drumbeatEnabled: true }), "L2", "all")).toContain(
+      "dependencies_mapped",
+    );
+  });
+
+  it("hakt die Reiter ab, sobald dort Inhalt steht", () => {
+    const gepflegt = facts("L2", {
+      childFeatureStats: { total: 3, started: 0, completed: 0 },
+      dependencyCount: 2,
+      kpiCount: 1,
+    });
+    expect(keys(gepflegt, "L2", "unsatisfied")).toEqual([
+      "business_case_drafted",
       "owner_nominated",
     ]);
   });

@@ -811,7 +811,7 @@ export async function loadEpicDetailInputs(
     getOpenGateTransition(db, principal.tenantId, epic.id),
     listGateTransitions(db, principal.tenantId, epic.id),
     to
-      ? loadGateReadiness(db, principal.tenantId, epic.id, to, enabled.budgeting)
+      ? loadGateReadiness(db, principal.tenantId, epic.id, to, enabled.budgeting, enabled.drumbeat)
       : Promise.resolve(null),
   ]);
 

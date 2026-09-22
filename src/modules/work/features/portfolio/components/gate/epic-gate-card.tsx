@@ -1,7 +1,17 @@
 "use client";
 
 import { useActionState, useState, startTransition } from "react";
-import { ArrowUp, ArrowRight, Check, Circle, CircleDot, LifeBuoy, Undo2, X } from "lucide-react";
+import {
+  ArrowUp,
+  ArrowRight,
+  Check,
+  Circle,
+  CircleDot,
+  LifeBuoy,
+  ListChecks,
+  Undo2,
+  X,
+} from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import {
   requestGateTransitionAction,
@@ -11,7 +21,6 @@ import {
 import { setEpicHelpRequestedAction } from "@/modules/work/features/portfolio/actions/epic";
 import { gateStepLabel } from "@/modules/work/domain/stage-gate";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import type { EpicGateSlice } from "@/modules/work/server/views/epic-detail";
 import {
   GatePartyPicker,
@@ -62,7 +71,10 @@ const gateLabel = gateStepLabel;
  * Sprungziel je Freigabe-Kriterium: der Ort, an dem man es erfüllt. Nach
  * Kriterium-`key` (SSOT: `gate-readiness.ts`). Tab-Ziele landen auf der
  * Epic-Seite via `?tab=`, zwei Kriterien zeigen in andere Bereiche.
- * Fehlt ein Eintrag (künftiges Kriterium), wird nur der Hilfetext gezeigt.
+ *
+ * Der Link steht seit September 2026 **in der Checklistenzeile**, nicht mehr in
+ * einem Popover, das man erst aufklappen musste. Fehlt ein Eintrag, rendert die
+ * Zeile ohne Link — ein Test über die L2-Kriterien hält das im Blick.
  */
 const CRITERION_TARGET: Record<string, { href: (epicId: string) => string; label: string }> = {
   hypothesis_drafted: {
@@ -84,6 +96,18 @@ const CRITERION_TARGET: Record<string, { href: (epicId: string) => string; label
   business_case_drafted: {
     href: (id) => `/portfolio/epics/${id}?tab=business-case`,
     label: "Zum Business Case",
+  },
+  deliverables_drafted: {
+    href: (id) => `/portfolio/epics/${id}?tab=breakdown`,
+    label: "Zu den Deliverables",
+  },
+  dependencies_mapped: {
+    href: (id) => `/portfolio/epics/${id}?tab=dependencies`,
+    label: "Zu den Dependencies",
+  },
+  kpis_defined: {
+    href: (id) => `/portfolio/epics/${id}?tab=kpis`,
+    label: "Zu KPI & Nutzen",
   },
   budget_allocated: {
     href: () => "/budgeting/periods",
@@ -118,14 +142,32 @@ export function EpicGateCard({ epicId, gate, approvers, userLabels, classDrift }
   if (gate.disabled) return null;
 
   return (
-    <div className="space-y-3 rounded-lg bg-card p-3.5 shadow-card">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm">
-          <span className="font-medium">Reifegrad:</span> {gateLabel(gate.current)}
+    /* Die Akzentschiene hebt die Kachel aus der Reihe der uebrigen: sie ist die
+       einzige Flaeche der Seite, die sagt, was als Naechstes zu tun ist, trug
+       aber dieselbe neutrale Huelle wie jede andere.
+       **Schiene, kein Umriss** — dieselbe Geste, mit der `SectionCard.atGate`
+       die Kacheln des aktuellen Reifegrads markiert, und die einzige, die
+       ADR-0021 an einer Karte zulaesst (ein `border` ringsum waere die
+       handgerollte Karte, die `Card` ersetzen soll). */
+    <div className="space-y-3 rounded-lg border-l-2 border-l-primary bg-card p-3.5 shadow-card">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          {/* Die Ueberschrift nennt das Ziel und sagt, wofuer die Liste
+              darunter da ist. Vorher stand hier eine Zustandsmeldung
+              („Reifegrad: … → naechster: …") — richtig, aber keine Ansage.
+              Am Endgate gibt es nichts zu tun; dort entfaellt sie, statt
+              „To-dos fuer nichts" zu behaupten. */}
           {gate.next && (
-            <span className="text-muted-foreground"> → nächster: {gateLabel(gate.next)}</span>
+            <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+              <ListChecks className="size-4 shrink-0 text-primary" aria-hidden />
+              To-dos für {gateLabel(gate.next)}
+            </h2>
           )}
-        </p>
+          <p className={gate.next ? "mt-0.5 text-xs text-muted-foreground" : "text-sm"}>
+            <span className={gate.next ? "" : "font-medium"}>Reifegrad heute:</span>{" "}
+            {gateLabel(gate.current)}
+          </p>
+        </div>
         {gate.canRevert && <GateRevertDialog epicId={epicId} current={gate.current} />}
       </div>
 
@@ -260,64 +302,66 @@ function NoRequest({
   return (
     <div className="space-y-3">
       {gate.readiness && gate.readiness.criteria.length > 0 && (
-        <ul className="space-y-1">
-          {gate.readiness.criteria.map((c) => (
-            <li
-              key={c.key}
-              className={`flex items-start gap-2 text-xs ${
-                c.blocking ? "text-foreground" : "text-muted-foreground"
-              }`}
-            >
-              {c.satisfied ? (
-                <Check className="mt-0.5 size-3.5 shrink-0 text-success" />
-              ) : (
-                <Circle className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60" />
-              )}
-              <span className="flex flex-wrap items-baseline gap-x-1.5">
-                {c.help ? (
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <span className="cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2" />
-                      }
-                    >
-                      {c.label}
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">{c.help}</TooltipContent>
-                  </Tooltip>
-                ) : (
-                  c.label
-                )}
-                {!c.blocking && <span className="text-muted-foreground">(optional)</span>}
-                {c.help && (
-                  <Popover>
-                    <PopoverTrigger
-                      render={
-                        <button
-                          type="button"
-                          className="text-label font-medium uppercase tracking-[0.1em] text-muted-foreground/50 hover:text-muted-foreground"
-                        />
-                      }
-                    >
-                      How to
-                    </PopoverTrigger>
-                    <PopoverContent side="top" className="w-72 text-xs leading-relaxed">
-                      <p>{c.help}</p>
-                      {CRITERION_TARGET[c.key] && (
-                        <Link
-                          href={CRITERION_TARGET[c.key]!.href(epicId)}
-                          className="inline-flex items-center gap-1 self-start rounded-md border border-input px-2 py-1 text-xs font-medium text-primary hover:bg-muted/50"
+        <ul className="space-y-1.5">
+          {gate.readiness.criteria.map((c) => {
+            const target = CRITERION_TARGET[c.key];
+            return (
+              <li
+                key={c.key}
+                /* Die Betonung liegt auf **offen vs. erledigt**, nicht auf
+                   blockierend vs. beratend. Eine Aufgabenliste soll zeigen, was
+                   noch aussteht; mit vier beratenden von fuenf Punkten waere
+                   die alte Achse fast vollstaendig grau geworden. */
+                className={`flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5 text-sm ${
+                  c.satisfied ? "text-muted-foreground" : "text-foreground"
+                }`}
+              >
+                <span className="flex min-w-0 items-start gap-2">
+                  {c.satisfied ? (
+                    <Check className="mt-0.5 size-4 shrink-0 text-success" />
+                  ) : (
+                    <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <span className="flex flex-wrap items-baseline gap-x-1.5">
+                    {c.help ? (
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <span className="cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2" />
+                          }
                         >
-                          {CRITERION_TARGET[c.key]!.label}
-                          <ArrowRight className="size-3.5" />
-                        </Link>
-                      )}
-                    </PopoverContent>
-                  </Popover>
+                          {c.label}
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">{c.help}</TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      c.label
+                    )}
+                    {/* Markiert wird die **Ausnahme**. Solange nur ein Punkt
+                        blockiert, ist „Pflicht" an ihm eine Information —
+                        „(optional)" an allen anderen war Tapete. */}
+                    {c.blocking && (
+                      <span className="rounded-sm bg-muted px-1.5 py-0.5 text-label font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                        Pflicht
+                      </span>
+                    )}
+                  </span>
+                </span>
+                {/* Der Weg zum Reiter stand bis September 2026 in einem
+                    Popover hinter einem Text in halber Deckkraft. Jetzt steht
+                    er in der Zeile. */}
+                {target && (
+                  <Link
+                    href={target.href(epicId)}
+                    className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    {target.label}
+                    <ArrowRight className="size-3.5" aria-hidden />
+                  </Link>
                 )}
-              </span>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
 

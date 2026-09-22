@@ -43,6 +43,9 @@ function facts(step: GateStep, over: Partial<EpicGateFacts> = {}): EpicGateFacts
     investmentHorizon: null,
     multiPartyApproval: true,
     budgetingEnabled: true,
+    kpiCount: 0,
+    dependencyCount: 0,
+    drumbeatEnabled: true,
     // **Nach den Standardwerten, vor `over`.** Zwei Schritte bewegen den
     // Reifegrad nicht; wer auf ihnen steht, ist allein am Stempel erkennbar.
     // Ohne das lieferte `facts("analysis")` ein Epic, das `currentGateStep` als
@@ -187,9 +190,18 @@ describe("planGateRequest — Reife", () => {
     if (!isOk(r)) return;
     expect(r.value.readiness.criteria.map((c) => c.key)).toEqual([
       "business_case_drafted",
+      "deliverables_drafted",
+      "dependencies_mapped",
+      "kpis_defined",
       "owner_nominated",
     ]);
-    expect(r.value.readiness.criteria.every((c) => c.satisfied)).toBe(true);
+    // Beratende Punkte dürfen im Schnappschuss offen stehen — „reif" heißt,
+    // dass die **blockierenden** erfüllt sind. Seit die Liste auch Deliverables,
+    // Dependencies und KPI führt, ist das ein Unterschied.
+    expect(r.value.readiness.ready).toBe(true);
+    expect(r.value.readiness.criteria.filter((c) => c.blocking).every((c) => c.satisfied)).toBe(
+      true,
+    );
   });
 });
 

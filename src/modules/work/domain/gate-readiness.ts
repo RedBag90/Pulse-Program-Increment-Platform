@@ -55,6 +55,14 @@ export interface EpicGateFacts {
   budgetAllocationSum: number;
   childFeatureStats: ChildFeatureStats;
 
+  /**
+   * Wie viele KPI am Epic hängen, und wie viele Abhängigkeitskanten an seinen
+   * Child-Features. Beide sind reine Zählungen — die Checkliste zum Business
+   * Case fragt nach dem *Vorhandensein* von Inhalt, nicht nach seiner Güte.
+   */
+  kpiCount: number;
+  dependencyCount: number;
+
   // Bereits gesetzte Stempel — gelesen, damit `stampsForAdvance` nicht doppelt
   // stempelt.
   selectedForDetailingAt: Date | null;
@@ -95,6 +103,16 @@ export interface EpicGateFacts {
    * ADR-0018 verlangt.
    */
   budgetingEnabled: boolean;
+
+  /**
+   * Ist das **Drumbeat-Modul** freigeschaltet?
+   *
+   * Dieselbe Frage wie bei {@link budgetingEnabled}, aus demselben Grund:
+   * Abhängigkeiten leben hinter Drumbeat. Ohne das Modul ist der Reiter leer,
+   * und ein Kriterium darauf könnte nie grün werden — es gehört dann
+   * herausgefiltert, nicht als unerfüllt gezeigt.
+   */
+  drumbeatEnabled: boolean;
 }
 
 /** Ein ausgewertetes Kriterium: was verlangt wird, und ob es erfüllt ist. */
@@ -240,6 +258,44 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
         "durch die fünf Parteien — einen eigenen Freigabelauf davor gibt es nicht.",
       satisfied: (f) => f.hasBusinessCaseContent,
       blocking: true,
+    },
+    // Die drei Reiter, die auf derselben Stufe erarbeitet werden. Sie standen
+    // bis September 2026 nirgends auf dieser Liste — wer sie pflegen sollte,
+    // erfuhr es an der Tor-Karte nicht. Alle drei sind **beratend**: sie zeigen
+    // den Stand, halten aber niemanden auf. Blockierend bleibt allein der
+    // ausgearbeitete Business Case, denn nur ihn gibt dieser Schritt frei.
+    {
+      key: "deliverables_drafted",
+      label: () => "Deliverables sind geschnitten",
+      help:
+        "Das Epic ist in untergeordnete Features zerlegt. Schneide sie im Reiter " +
+        "Deliverables — sie tragen später die Umsetzung und die Aufwandsschätzung.",
+      satisfied: (f) => f.childFeatureStats.total > 0,
+      blocking: false,
+    },
+    {
+      key: "dependencies_mapped",
+      label: () => "Abhängigkeiten sind erfasst",
+      help:
+        "Abhängigkeiten zu anderen Vorhaben sind im Reiter Dependencies eingetragen. " +
+        "Sie bestimmen, was vor diesem Epic fertig sein muss.",
+      // **Bewusste Unschärfe, und sie gehört benannt:** ein Epic ohne
+      // Abhängigkeiten ist ein gültiger Zustand, den keine Zählung von „noch
+      // nicht angeschaut" unterscheidet. Dort bleibt der Kreis offen. Weil das
+      // Kriterium beratend ist, ist das ein Hinweis und keine Sackgasse.
+      satisfied: (f) => f.dependencyCount > 0,
+      blocking: false,
+      // Ohne Drumbeat gibt es den Reiter nicht — siehe `budget_allocated`.
+      applies: (f) => f.drumbeatEnabled,
+    },
+    {
+      key: "kpis_defined",
+      label: () => "KPI sind definiert",
+      help:
+        "Mindestens eine Kennzahl mit Ausgangswert und Ziel ist im Reiter KPI & Nutzen " +
+        "angelegt. An ihr wird später der realisierte Nutzen gemessen.",
+      satisfied: (f) => f.kpiCount > 0,
+      blocking: false,
     },
     OWNER_NOMINATED,
   ],

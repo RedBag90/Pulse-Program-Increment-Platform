@@ -257,6 +257,10 @@ function initialFacts(input: GateHistoryInput): EpicGateFacts {
     investmentHorizon: input.investmentHorizon ?? null,
     budgetAllocationSum: input.budgetAllocationSum ?? 0,
     childFeatureStats: input.childFeatureStats ?? { total: 0, started: 0, completed: 0 },
+    // Die beiden Zaehlungen sind fuer die Faltung ohne Belang: sie tragen nur
+    // beratende Kriterien, und die halten keinen Schritt auf.
+    kpiCount: 0,
+    dependencyCount: 0,
     selectedForDetailingAt: null,
     selectedForAnalyzingAt: null,
     implementationStartedAt: null,
@@ -264,6 +268,7 @@ function initialFacts(input: GateHistoryInput): EpicGateFacts {
     approvedAt: null,
     impactRecognizedAt: null,
     budgetingEnabled: true,
+    drumbeatEnabled: true,
     multiPartyApproval: input.multiPartyApproval ?? true,
   };
 }

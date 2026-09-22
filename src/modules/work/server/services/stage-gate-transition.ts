@@ -69,6 +69,16 @@ function budgetingEnabledFor(ctx: RequestContext): boolean {
   return ctx.principal.enabledModules.includes("budgeting");
 }
 
+/**
+ * Ist das Drumbeat-Modul für den Handelnden freigeschaltet?
+ *
+ * Dieselbe Naht wie eine Zeile höher, für das Dependency-Kriterium: ohne das
+ * Modul gibt es den Reiter nicht, in dem man es erfüllen würde.
+ */
+function drumbeatEnabledFor(ctx: RequestContext): boolean {
+  return ctx.principal.enabledModules.includes("drumbeat");
+}
+
 /** Summiert das persistierte Perioden-Budget-JSON (`{ "YYYY-H1": n, … }`). */
 function sumAllocations(allocations: Prisma.JsonValue | null | undefined): number {
   if (!allocations || typeof allocations !== "object" || Array.isArray(allocations)) return 0;
@@ -107,6 +117,13 @@ export async function loadEpicGateFacts(
    * nicht erst durch das Modell reisen.
    */
   budgetingEnabled: boolean,
+  /**
+   * Ist das Drumbeat-Modul freigeschaltet? Aus ⇒ es gibt keinen
+   * Dependencies-Reiter, und das Kriterium darauf wird herausgefiltert statt
+   * als unerfüllt gezeigt. Die Kanten werden dann gar nicht erst gezählt —
+   * dieselbe Zurückhaltung wie bei der Budget-Summe eine Zeile höher.
+   */
+  drumbeatEnabled: boolean,
 ): Promise<EpicGateFacts | null> {
   const row = await tx.initiative.findFirst({
     where: { id: epicId, tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
@@ -138,12 +155,28 @@ export async function loadEpicGateFacts(
     level: InitiativeLevel.FEATURE,
     deletedAt: null,
   };
-  const [total, started, completed, practices] = await Promise.all([
-    tx.initiative.count({ where: childWhere }),
+  // Die Child-IDs statt nur ihrer Zahl: die Abhängigkeitskanten hängen an den
+  // Features, nicht am Epic-Knoten. `total` fällt dabei als Länge ab, der
+  // frühere dritte `count` entfällt also.
+  const [children, started, completed, practices, kpiCount] = await Promise.all([
+    tx.initiative.findMany({ where: childWhere, select: { id: true } }),
     tx.initiative.count({ where: { ...childWhere, status: { in: ["in_progress", "completed"] } } }),
     tx.initiative.count({ where: { ...childWhere, status: "completed" } }),
     loadPractices(tx, tenantId),
+    tx.kpi.count({ where: { tenantId, initiativeId: epicId } }),
   ]);
+  const childIds = children.map((c) => c.id);
+
+  // Eine Kante zählt, sobald **ein** Ende an einem Child-Feature hängt —
+  // dieselbe Lesart wie im Reiter selbst (`listBreakdownDependencies`). Work
+  // ist Eigentümer dieser Kanten (siehe `services/dependency-edge.ts`), der
+  // Direktzugriff verletzt ADR-0013 also nicht.
+  const dependencyCount =
+    drumbeatEnabled && childIds.length > 0
+      ? await tx.dependency.count({
+          where: { tenantId, OR: [{ fromId: { in: childIds } }, { toId: { in: childIds } }] },
+        })
+      : 0;
 
   return {
     stageGate: row.stageGate as StageGate,
@@ -156,7 +189,10 @@ export async function loadEpicGateFacts(
     businessCaseApprovedAt: row.businessCaseApprovedAt,
     budgetAllocationSum: budgetingEnabled ? sumAllocations(row.budgetAllocation?.allocations) : 0,
     budgetingEnabled,
-    childFeatureStats: { total, started, completed },
+    childFeatureStats: { total: childIds.length, started, completed },
+    kpiCount,
+    dependencyCount,
+    drumbeatEnabled,
     selectedForDetailingAt: row.selectedForDetailingAt,
     selectedForAnalyzingAt: row.selectedForAnalyzingAt,
     implementationStartedAt: row.implementationStartedAt,
@@ -453,6 +489,7 @@ export async function requestGateTransition(
         mctx.tenantId,
         input.epicId,
         budgetingEnabledFor(ctx),
+        drumbeatEnabledFor(ctx),
       );
       if (!facts) {
         return err({ kind: "not_found" as const, resourceType: "Epic", id: input.epicId });
@@ -643,6 +680,7 @@ export async function decideGateTransition(
       mctx.tenantId,
       transition.initiativeId,
       budgetingEnabledFor(ctx),
+      drumbeatEnabledFor(ctx),
     );
     if (!facts) {
       return err({
@@ -848,6 +886,7 @@ export async function revertStageGate(
       mctx.tenantId,
       input.epicId,
       budgetingEnabledFor(ctx),
+      drumbeatEnabledFor(ctx),
     );
     if (!facts) {
       return err({ kind: "not_found" as const, resourceType: "Epic", id: input.epicId });
@@ -1174,12 +1213,14 @@ export async function loadGateReadiness(
   epicId: string,
   to: GateStep,
   budgetingEnabled: boolean,
+  drumbeatEnabled: boolean,
 ) {
   const facts = await loadEpicGateFacts(
     db as Prisma.TransactionClient,
     tenantId,
     epicId,
     budgetingEnabled,
+    drumbeatEnabled,
   );
   return facts ? gateReadiness(facts, to) : null;
 }
