@@ -12,11 +12,13 @@ import {
   type RoleOnboardingState,
   type TourContext,
 } from "@/modules/onboarding/domain/role-tour";
-import {
-  ROLE_PLAYBOOKS,
-  type DataRequirement,
-} from "@/modules/onboarding/domain/role-playbook";
+import { ROLE_PLAYBOOKS, type DataRequirement } from "@/modules/onboarding/domain/role-playbook";
 import { listRoleOnboarding } from "@/modules/onboarding/server/services/role-onboarding";
+import { loadViewPreferences } from "@/modules/core/kernel/server/view-preference";
+import {
+  ONBOARDING_DISMISSED_KEY,
+  parseDismissedSteps,
+} from "@/modules/onboarding/domain/onboarding-dismissal";
 
 /**
  * Page-Model des Rollen-Onboardings: unreiner Loader + reiner Builder. Der
@@ -142,7 +144,13 @@ export async function buildRoleOnboardingModel(
   const roles = assignedRoles(principal);
   if (roles.length === 0) return { notices: [] };
 
-  const states = await listRoleOnboarding(db, principal.tenantId, principal.id);
+  // Der Stand und die Ablehnungen in einer Welle — der Merker liegt am Konto,
+  // nicht in `RoleOnboarding` (siehe `onboarding-dismissal.ts`).
+  const [states, prefs] = await Promise.all([
+    listRoleOnboarding(db, principal.tenantId, principal.id),
+    loadViewPreferences(db, principal, [ONBOARDING_DISMISSED_KEY]),
+  ]);
+  const dismissed = parseDismissedSteps(prefs.get(ONBOARDING_DISMISSED_KEY));
   const needed = neededRequirements(roles, states);
   const availableData =
     needed.size > 0 ? await loadAvailableData(db, principal.tenantId, needed) : EMPTY_DATA;
@@ -152,7 +160,7 @@ export async function buildRoleOnboardingModel(
     allowedCapabilities: capabilitiesOf(principal),
     availableData,
   };
-  return { notices: onboardingNotices(roles, states, ctx) };
+  return { notices: onboardingNotices(roles, states, ctx, dismissed) };
 }
 
 /**

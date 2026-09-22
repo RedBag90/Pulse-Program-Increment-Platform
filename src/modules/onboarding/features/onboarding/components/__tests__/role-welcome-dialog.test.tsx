@@ -11,9 +11,13 @@ import { POLICIES, type Action } from "@/server/auth/policies";
 import type { ActionState } from "@/server/http/server-action";
 
 const acknowledge = vi.fn(async (): Promise<ActionState> => ({ success: true }));
+const dismiss = vi.fn(
+  async (_state: unknown, _fd: FormData): Promise<ActionState> => ({ success: true }),
+);
 
 vi.mock("@/modules/onboarding/features/onboarding/actions/role-onboarding", () => ({
   acknowledgeRoleAction: (...args: unknown[]) => acknowledge(...(args as [])),
+  dismissTourStepsAction: (...args: Parameters<typeof dismiss>) => dismiss(...args),
 }));
 
 /**
@@ -39,6 +43,8 @@ let consoleError: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   acknowledge.mockClear();
   acknowledge.mockResolvedValue({ success: true });
+  dismiss.mockClear();
+  dismiss.mockResolvedValue({ success: true });
   consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -123,5 +129,51 @@ describe("RoleWelcomeDialog", () => {
     await user.click(screen.getByRole("button", { name: "Ansehen" }));
     expect(onStartTour).toHaveBeenCalledOnce();
     expect(acknowledge).not.toHaveBeenCalled();
+  });
+});
+
+describe("„Nicht mehr anzeigen“", () => {
+  const scope: Notice = {
+    kind: "new_scope",
+    role: ROLES.RTE,
+    tour,
+    open: tour.steps.slice(0, 2),
+    modules: ["drumbeat"],
+  };
+
+  it("merkt sich genau die offenen Schritte und schliesst", async () => {
+    const user = userEvent.setup();
+    const onDismiss = vi.fn();
+    render(<RoleWelcomeDialog notice={scope} onStartTour={vi.fn()} onDismiss={onDismiss} />);
+
+    await user.click(screen.getByRole("button", { name: "Nicht mehr anzeigen" }));
+
+    expect(dismiss).toHaveBeenCalledOnce();
+    const fd = dismiss.mock.calls[0]?.[1];
+    expect(fd?.get("role")).toBe(ROLES.RTE);
+    expect(fd?.getAll("stepKeys")).toEqual(scope.open.map((s) => s.key));
+    expect(onDismiss).toHaveBeenCalledOnce();
+    // Die Rolle ist längst angenommen — hier wird nichts quittiert.
+    expect(acknowledge).not.toHaveBeenCalled();
+  });
+
+  it("lässt „Nicht jetzt“ flüchtig — dort wird weiterhin nichts gespeichert", async () => {
+    // Zwei Knöpfe, zwei Bedeutungen. Wer heute wegklickt, hat nichts
+    // entschieden; nur der zweite Knopf ist eine Entscheidung.
+    const user = userEvent.setup();
+    const onDismiss = vi.fn();
+    render(<RoleWelcomeDialog notice={scope} onStartTour={vi.fn()} onDismiss={onDismiss} />);
+
+    await user.click(screen.getByRole("button", { name: "Nicht jetzt" }));
+
+    expect(dismiss).not.toHaveBeenCalled();
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
+
+  it("steht an einer frisch zugewiesenen Rolle nicht", async () => {
+    // `new_role` will einmal aktiv angenommen werden — ein „nie wieder" vor der
+    // ersten Kenntnisnahme wäre ein Knopf, der die Vorstellung überspringt.
+    render(<RoleWelcomeDialog notice={newRole} onStartTour={vi.fn()} onDismiss={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Nicht mehr anzeigen" })).not.toBeInTheDocument();
   });
 });

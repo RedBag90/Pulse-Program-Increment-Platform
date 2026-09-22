@@ -4,6 +4,16 @@ import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel
 import { ok, type Result } from "@/modules/core/kernel/domain/errors";
 import type { Role } from "@/modules/core/kernel/domain/roles";
 import type { RoleOnboardingState } from "@/modules/onboarding/domain/role-tour";
+import {
+  loadViewPreferences,
+  saveViewPreference,
+} from "@/modules/core/kernel/server/view-preference";
+import {
+  ONBOARDING_DISMISSED_KEY,
+  parseDismissedSteps,
+  withDismissed,
+  withoutRole,
+} from "@/modules/onboarding/domain/onboarding-dismissal";
 
 /**
  * Persistenz des Rollen-Onboardings. Rein persönlich: jede Funktion schreibt
@@ -144,8 +154,40 @@ export async function markStepsSeen(
 }
 
 /**
+ * Schritte einer Rolle als **abgelehnt** vermerken — „Nicht mehr anzeigen",
+ * und ebenso ein Abbruch mitten in der Tour.
+ *
+ * Nicht `markStepsSeen`: „gesehen" und „abgelehnt" sind verschiedene Aussagen,
+ * und nur weil sie getrennt bleiben, kann `restartTour` beide abräumen. Siehe
+ * `domain/onboarding-dismissal.ts`.
+ *
+ * **Lesen-Ändern-Schreiben auf dem Server**, nicht im Client: der Merker trägt
+ * alle Rollen in einem JSON, und ein Client, der seinen Stand von vorhin
+ * zurückschriebe, löschte die Ablehnung eines anderen Tabs mit.
+ */
+export async function dismissTourSteps(
+  ctx: RequestContext,
+  input: { role: Role; stepKeys: readonly string[] },
+): Promise<Result<void>> {
+  if (input.stepKeys.length === 0) return ok(undefined);
+  const { principal, db } = ctx;
+  const prefs = await loadViewPreferences(db, principal, [ONBOARDING_DISMISSED_KEY]);
+  const next = withDismissed(
+    parseDismissedSteps(prefs.get(ONBOARDING_DISMISSED_KEY)),
+    input.role,
+    input.stepKeys,
+  );
+  return saveViewPreference(ctx, { key: ONBOARDING_DISMISSED_KEY, value: next });
+}
+
+/**
  * Tour zurücksetzen — leert die gesehenen Schritte, lässt die Quittung stehen.
  * Dadurch startet die Tour neu, ohne dass das Willkommensfenster erneut kommt.
+ *
+ * **Und es räumt die Ablehnungen mit ab.** Ohne das wäre der Knopf auf
+ * `/meine-rolle` eine leere Zusage: er leerte die gesehenen Schritte, während
+ * der Merker dieselben Schritte weiter verschluckte — die Tour startete neu
+ * und wäre im selben Augenblick wieder zu Ende.
  */
 export async function restartTour(
   ctx: RequestContext,
@@ -156,5 +198,11 @@ export async function restartTour(
     where: { tenantId: principal.tenantId, userId: principal.id, role: input.role },
     data: { seenStepKeys: [] },
   });
+  const prefs = await loadViewPreferences(db, principal, [ONBOARDING_DISMISSED_KEY]);
+  const vorher = parseDismissedSteps(prefs.get(ONBOARDING_DISMISSED_KEY));
+  const nachher = withoutRole(vorher, input.role);
+  if (nachher !== vorher) {
+    return saveViewPreference(ctx, { key: ONBOARDING_DISMISSED_KEY, value: nachher });
+  }
   return ok(undefined);
 }

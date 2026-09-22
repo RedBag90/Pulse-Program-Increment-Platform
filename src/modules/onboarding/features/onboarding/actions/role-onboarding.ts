@@ -6,6 +6,7 @@ import { fields } from "@/server/http/form-data";
 import { ALL_ROLES, type Role } from "@/modules/core/kernel/domain/roles";
 import {
   acknowledgeRole,
+  dismissTourSteps,
   markStepsSeen,
   restartTour,
 } from "@/modules/onboarding/server/services/role-onboarding";
@@ -55,6 +56,29 @@ export const markStepsSeenAction = createServerAction({
   }),
   service: (ctx, input) => markStepsSeen(ctx, input),
   mapError: () => "Der Tour-Fortschritt konnte nicht gespeichert werden",
+});
+
+/**
+ * Schritte ablehnen — „Nicht mehr anzeigen" am Hinweis, und der Abbruch mitten
+ * in der Tour.
+ *
+ * **Ohne `revalidate`**, aus demselben Grund wie `markStepsSeen`: der Client
+ * schliesst den Hinweis selbst, und ein Server-Re-Render brächte nichts, was
+ * der nächste Seitenaufbau nicht ohnehin brächte.
+ */
+export const dismissTourStepsAction = createServerAction({
+  schema: z.object({
+    role: roleSchema,
+    stepKeys: z.array(z.string().min(1).max(120)).min(1).max(50),
+  }),
+  action: "role.onboarding.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({
+    role: fields(fd).string("role"),
+    stepKeys: fd.getAll("stepKeys").map(String),
+  }),
+  service: (ctx, input) => dismissTourSteps(ctx, input),
+  mapError: () => "Der Hinweis konnte nicht ausgeblendet werden",
 });
 
 /** Tour zurücksetzen (Wiedereinstieg über `/meine-rolle`). */

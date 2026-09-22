@@ -14,7 +14,10 @@ import { Button } from "@/components/ui/button";
 import { ROLE_LABELS } from "@/modules/core/kernel/domain/roles";
 import { MODULES } from "@/modules/core/kernel/domain/modules";
 import type { Notice } from "@/modules/onboarding/domain/role-tour";
-import { acknowledgeRoleAction } from "@/modules/onboarding/features/onboarding/actions/role-onboarding";
+import {
+  acknowledgeRoleAction,
+  dismissTourStepsAction,
+} from "@/modules/onboarding/features/onboarding/actions/role-onboarding";
 
 /**
  * Das Fenster, das eine Rollenzuweisung überhaupt erst sichtbar macht.
@@ -28,8 +31,13 @@ import { acknowledgeRoleAction } from "@/modules/onboarding/features/onboarding/
  *   dazugekommen (Modul freigeschaltet, Practice aktiviert, Recht nachgezogen).
  *   Hier wäre ein blockierender Dialog übergriffig: schaltet ein Admin ein
  *   Modul ein, würde er alle aktiven Nutzer gleichzeitig unterbrechen. Also
- *   schließbar, und „Nicht jetzt" speichert nichts — der Hinweis kommt wieder,
- *   bis die Schritte gesehen sind.
+ *   schließbar — und „Nicht jetzt" speichert weiterhin nichts: wer heute
+ *   wegklickt, hat nichts entschieden, und der Hinweis kommt wieder.
+ *
+ *   Wer ihn **gar nicht** braucht, sagt das seit September 2026 ausdrücklich:
+ *   „Nicht mehr anzeigen" vermerkt die gerade offenen Schritte als abgelehnt
+ *   (siehe `domain/onboarding-dismissal.ts`). Vorher gab es dafür keinen Ort,
+ *   und der Hinweis kam nach jedem Seitenaufbau zurück.
  */
 
 interface Props {
@@ -52,6 +60,27 @@ export function RoleWelcomeDialog({ notice, onStartTour, onDismiss }: Props) {
   const isNewRole = notice.kind === "new_role";
   const label = ROLE_LABELS[notice.role];
   const hasSteps = notice.open.length > 0;
+
+  /**
+   * **Diesen Hinweis nicht mehr zeigen.**
+   *
+   * Vermerkt genau die Schritte, die jetzt offen sind — nicht „diese Rolle ist
+   * erledigt". Kommt später ein Modul dazu, sind dessen Schritte neu und
+   * werden wieder angeboten; eine pauschale Sperre verschlänge sie.
+   *
+   * Geschlossen wird auch, wenn das Speichern scheitert: der Hinweis hat seinen
+   * Zweck erfüllt, und ein Fenster, das sich wegen eines Netzfehlers nicht
+   * schliessen lässt, wäre schlimmer als ein Hinweis, der einmal wiederkommt.
+   */
+  const dismissForever = () => {
+    const fd = new FormData();
+    fd.set("role", notice.role);
+    for (const step of notice.open) fd.append("stepKeys", step.key);
+    startTransition(async () => {
+      await dismissTourStepsAction({}, fd);
+      onDismiss();
+    });
+  };
 
   /** Quittiert die Rolle und geht erst weiter, wenn das geklappt hat. */
   const acknowledgeThen = (next: () => void) => {
@@ -88,11 +117,7 @@ export function RoleWelcomeDialog({ notice, onStartTour, onDismiss }: Props) {
         if (!open && !isNewRole) onDismiss();
       }}
     >
-      <DialogContent
-        showCloseButton={!isNewRole}
-        className="sm:max-w-lg"
-        aria-live="polite"
-      >
+      <DialogContent showCloseButton={!isNewRole} className="sm:max-w-lg" aria-live="polite">
         <DialogHeader>
           <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
             {isNewRole ? <Sparkles className="size-4" /> : <Compass className="size-4" />}
@@ -170,20 +195,42 @@ export function RoleWelcomeDialog({ notice, onStartTour, onDismiss }: Props) {
           {isNewRole ? (
             <>
               {hasSteps && (
-                <Button variant="ghost" disabled={pending} onClick={() => acknowledgeThen(onDismiss)}>
+                <Button
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() => acknowledgeThen(onDismiss)}
+                >
                   Annehmen, Tour später
                 </Button>
               )}
-              <Button disabled={pending} onClick={() => acknowledgeThen(hasSteps ? onStartTour : onDismiss)}>
+              <Button
+                disabled={pending}
+                onClick={() => acknowledgeThen(hasSteps ? onStartTour : onDismiss)}
+              >
                 {hasSteps ? "Rolle annehmen & Tour starten" : "Verstanden"}
               </Button>
             </>
           ) : (
             <>
-              <Button variant="ghost" onClick={onDismiss}>
+              {/* Links aussen und leiser als die zwei Handlungen rechts:
+                  „Nicht mehr anzeigen" ist die seltene Entscheidung, nicht die
+                  naheliegende. */}
+              {hasSteps && (
+                <Button
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={dismissForever}
+                  className="mr-auto text-xs text-muted-foreground"
+                >
+                  Nicht mehr anzeigen
+                </Button>
+              )}
+              <Button variant="ghost" disabled={pending} onClick={onDismiss}>
                 Nicht jetzt
               </Button>
-              <Button onClick={onStartTour}>Ansehen</Button>
+              <Button disabled={pending} onClick={onStartTour}>
+                Ansehen
+              </Button>
             </>
           )}
         </DialogFooter>

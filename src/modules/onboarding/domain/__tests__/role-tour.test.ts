@@ -355,3 +355,52 @@ describe("onboardingNotices — nachträglich freigeschaltete Module", () => {
     expect(n.open.map((s) => s.key)).toEqual(["rte.dependencies"]);
   });
 });
+
+describe("Abgelehnte Schritte", () => {
+  const tour = resolveTour(ROLE_PLAYBOOKS[RTE], tenantWith([...MODULE_KEYS], RTE));
+
+  it("fallen aus der Liste der offenen Schritte", () => {
+    const abgelehnt = tour.steps.map((s) => s.key);
+    expect(openSteps(tour, [], abgelehnt)).toEqual([]);
+  });
+
+  it("zählen neben den gesehenen, nicht statt ihnen", () => {
+    // Zwei Wege, einen Schritt loszuwerden — beide gelten, und nur weil sie
+    // getrennt bleiben, kann „Tour erneut starten" beide abräumen.
+    const [erster, zweiter, ...rest] = tour.steps;
+    const offen = openSteps(tour, [erster!.key], [zweiter!.key]);
+    expect(offen.map((s) => s.key)).toEqual(rest.map((s) => s.key));
+  });
+
+  it("bieten einen später hinzugekommenen Schritt wieder an", () => {
+    // Der eigentliche Punkt: gemerkt werden **Schritte**, nicht Rollen. Wird
+    // später ein Modul freigeschaltet, sind dessen Schritte neu — eine
+    // pauschale Sperre je Rolle verschlänge genau die Neuerungen, für die
+    // dieser Hinweis da ist.
+    const [erster, ...spaeter] = tour.steps;
+    const offen = openSteps(tour, [], [erster!.key]);
+    expect(offen.map((s) => s.key)).toEqual(spaeter.map((s) => s.key));
+  });
+
+  it("lassen eine quittierte Rolle ohne Hinweis zurück", () => {
+    const state: RoleOnboardingState = {
+      role: RTE,
+      acknowledgedAt: new Date("2026-01-01"),
+      seenStepKeys: [],
+    };
+    const ctx = tenantWith([...MODULE_KEYS], RTE);
+    const alle = { [RTE]: resolveTour(ROLE_PLAYBOOKS[RTE], ctx).steps.map((s) => s.key) };
+
+    expect(onboardingNotices([RTE], [state], ctx)).toHaveLength(1);
+    expect(onboardingNotices([RTE], [state], ctx, alle)).toEqual([]);
+  });
+
+  it("verdecken die Quittung nicht — eine neue Rolle meldet sich trotzdem", () => {
+    // `new_role` hängt an der fehlenden Quittung, nicht an offenen Schritten.
+    // Eine Ablehnung darf die erste Vorstellung einer Rolle nicht verschlucken.
+    const ctx = tenantWith([...MODULE_KEYS], RTE);
+    const alle = { [RTE]: resolveTour(ROLE_PLAYBOOKS[RTE], ctx).steps.map((s) => s.key) };
+    const notices = onboardingNotices([RTE], [], ctx, alle);
+    expect(notices.map((n) => n.kind)).toEqual(["new_role"]);
+  });
+});

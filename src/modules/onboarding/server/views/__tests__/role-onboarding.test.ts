@@ -45,8 +45,15 @@ let dataProbes = 0;
  * Prisma-Doppel mit steuerbarem `roleOnboarding.findMany` plus den sieben
  * Bestands-Delegates, die `loadAvailableData` abfragt. `hasData` steuert, ob der
  * Workspace als gefüllt gilt.
+ *
+ * `viewPreference` traegt seit September 2026 die abgelehnten Tour-Schritte
+ * (`onboarding-dismissal.ts`); `dismissed` setzt sie fuer einen Lauf.
  */
-function db(rows: unknown[] | Error | undefined, hasData = true): PrismaClient {
+function db(
+  rows: unknown[] | Error | undefined,
+  hasData = true,
+  dismissed: Record<string, string[]> = {},
+): PrismaClient {
   if (rows === undefined) {
     // Delegate fehlt komplett — exakt der Zustand nach einem Schema-Drift.
     return {} as unknown as PrismaClient;
@@ -63,6 +70,12 @@ function db(rows: unknown[] | Error | undefined, hasData = true): PrismaClient {
         if (rows instanceof Error) throw rows;
         return rows;
       },
+    },
+    viewPreference: {
+      findMany: async () =>
+        Object.keys(dismissed).length === 0
+          ? []
+          : [{ key: "onboarding.dismissedSteps", value: dismissed }],
     },
     valueStream: probe(),
     art: probe(),
@@ -85,7 +98,11 @@ describe("buildRoleOnboardingModel", () => {
     dataProbes = 0;
     await buildRoleOnboardingModel(
       db([
-        { role: ROLES.RTE, acknowledgedAt: new Date("2026-08-14T00:00:00Z"), seenStepKeys: allKeys },
+        {
+          role: ROLES.RTE,
+          acknowledgedAt: new Date("2026-08-14T00:00:00Z"),
+          seenStepKeys: allKeys,
+        },
       ]),
       p,
       DEFAULT_PRACTICES,

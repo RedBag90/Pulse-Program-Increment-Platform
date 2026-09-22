@@ -12,7 +12,10 @@ import {
   type CardPlacement,
   type Rect,
 } from "@/modules/onboarding/domain/spotlight";
-import { markStepsSeenAction } from "@/modules/onboarding/features/onboarding/actions/role-onboarding";
+import {
+  dismissTourStepsAction,
+  markStepsSeenAction,
+} from "@/modules/onboarding/features/onboarding/actions/role-onboarding";
 
 /**
  * Die geführte Tour: hebt echte Bedienelemente hervor und navigiert zwischen
@@ -145,13 +148,38 @@ export function RoleTourOverlay({ role, steps, onFinish }: Props) {
     onFinish();
   }, [onFinish]);
 
+  /**
+   * **Abbruch mitten in der Tour** — „Tour beenden" oder Escape.
+   *
+   * Die noch nicht begangenen Schritte gelten damit als **abgelehnt**, nicht
+   * als gesehen. Ohne das hinterliess ein Abbruch sie offen, und beim nächsten
+   * Seitenaufbau stand derselbe Hinweis wieder da: wer eine Tour abbrach,
+   * bekam sie unbegrenzt oft erneut angeboten. Das war die zweite Hälfte
+   * desselben Fehlers wie beim „Nicht jetzt".
+   *
+   * Der **aktuelle** Schritt zählt mit: gesehen ist er erst, wenn man ihn
+   * verlässt (`goNext`) — hier bricht man auf ihm ab.
+   */
+  const abort = useCallback(() => {
+    const rest = steps.slice(index).map((s) => s.key);
+    if (rest.length > 0) {
+      const fd = new FormData();
+      fd.set("role", role);
+      for (const k of rest) fd.append("stepKeys", k);
+      startTransition(async () => {
+        await dismissTourStepsAction({}, fd);
+      });
+    }
+    onFinish();
+  }, [steps, index, role, onFinish]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") finish();
+      if (e.key === "Escape") abort();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [finish]);
+  }, [abort]);
 
   useEffect(() => {
     cardRef.current?.focus();
@@ -201,7 +229,7 @@ export function RoleTourOverlay({ role, steps, onFinish }: Props) {
         <p className="mt-1.5 text-sm text-muted-foreground">{step.body}</p>
 
         <div className="mt-4 flex items-center justify-between gap-2">
-          <Button variant="ghost" size="sm" onClick={finish}>
+          <Button variant="ghost" size="sm" onClick={abort}>
             Tour beenden
           </Button>
           <div className="flex gap-2">

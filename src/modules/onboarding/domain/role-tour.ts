@@ -88,6 +88,13 @@ export interface RoleOnboardingState {
   seenStepKeys: readonly string[];
 }
 
+/**
+ * Abgelehnte Schritte je Rolle — der Merker am Konto, nicht in
+ * `RoleOnboarding`. Siehe {@link openSteps} zum Unterschied „gesehen" gegen
+ * „abgelehnt", und `onboarding-dismissal.ts` zu Form und Ablage.
+ */
+export type DismissedSteps = Readonly<Record<string, readonly string[]>>;
+
 // ---------------------------------------------------------------------------
 // Gates
 // ---------------------------------------------------------------------------
@@ -151,20 +158,38 @@ export function resolveTour(playbook: RolePlaybook, ctx: TourContext): ResolvedT
   return {
     role: playbook.role,
     mission: playbook.mission,
-    responsibilities: playbook.responsibilities.filter((c) => claimAllowed(c, ctx)).map((c) => c.text),
+    responsibilities: playbook.responsibilities
+      .filter((c) => claimAllowed(c, ctx))
+      .map((c) => c.text),
     handoffs: playbook.handoffs.filter((c) => claimAllowed(c, ctx)).map((c) => c.text),
     steps,
     total: steps.length,
   };
 }
 
-/** Noch nicht gesehene Schritte, in Playbook-Reihenfolge. */
+/**
+ * Noch offene Schritte, in Playbook-Reihenfolge.
+ *
+ * **Zwei Arten, einen Schritt loszuwerden, und sie bedeuten Verschiedenes.**
+ * `seenStepKeys` sind begangene Schritte — sie stehen in `RoleOnboarding`.
+ * `dismissedStepKeys` sind ausdrücklich abgelehnte („Nicht mehr anzeigen",
+ * oder ein Abbruch mitten in der Tour) — sie stehen als Merker am Konto.
+ * Beides getrennt zu halten kostet nichts und erhält eine Tatsache, die man
+ * sonst nie wieder auseinanderdividieren könnte: „Tour erneut starten" räumt
+ * beides ab, aber nur, weil es beides kennt.
+ *
+ * Gefiltert werden **Schritte**, nicht Rollen. Wird später ein Modul
+ * freigeschaltet, sind dessen Schritte neu und werden wieder angeboten — eine
+ * pauschale Sperre verschlänge genau die Neuerungen, für die dieser Hinweis
+ * da ist.
+ */
 export function openSteps(
   tour: ResolvedTour,
   seenStepKeys: readonly string[],
+  dismissedStepKeys: readonly string[] = [],
 ): readonly TourStep[] {
-  const seen = new Set(seenStepKeys);
-  return tour.steps.filter((s) => !seen.has(s.key));
+  const erledigt = new Set([...seenStepKeys, ...dismissedStepKeys]);
+  return tour.steps.filter((s) => !erledigt.has(s.key));
 }
 
 /** 0-basierter Index eines Schritts, `-1` wenn er (mehr) nicht Teil der Tour ist. */
@@ -173,10 +198,7 @@ export function stepIndex(tour: ResolvedTour, key: string): number {
 }
 
 /** Wiedereinstiegspunkt: der erste offene Schritt, sonst `null`. */
-export function nextOpenStep(
-  tour: ResolvedTour,
-  seenStepKeys: readonly string[],
-): TourStep | null {
+export function nextOpenStep(tour: ResolvedTour, seenStepKeys: readonly string[]): TourStep | null {
   return openSteps(tour, seenStepKeys)[0] ?? null;
 }
 
@@ -212,6 +234,7 @@ export function onboardingNotices(
   assignedRoles: readonly Role[],
   states: readonly RoleOnboardingState[],
   ctx: TourContext,
+  dismissed: DismissedSteps = {},
 ): Notice[] {
   const byRole = new Map(states.map((s) => [s.role, s]));
   const assigned = new Set(assignedRoles);
@@ -219,7 +242,7 @@ export function onboardingNotices(
   return ALL_ROLES.filter((r) => assigned.has(r)).flatMap<Notice>((role) => {
     const state = byRole.get(role);
     const tour = resolveTour(ROLE_PLAYBOOKS[role], ctx);
-    const open = openSteps(tour, state?.seenStepKeys ?? []);
+    const open = openSteps(tour, state?.seenStepKeys ?? [], dismissed[role] ?? []);
 
     if (!state?.acknowledgedAt) return [{ kind: "new_role", role, tour, open }];
     if (open.length === 0) return [];
