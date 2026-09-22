@@ -539,9 +539,17 @@ export async function saveTimeline(
 // Assign Epic Owner (Portfolio Manager)
 // ---------------------------------------------------------------------------
 
+/**
+ * **Benennen und entbenennen.** `ownerId: null` raeumt die Benennung ab — dieselbe
+ * Freiheit, die die Rollenverteilung (`/structure/rollen`) an jedem Platz hat.
+ *
+ * Die Erstsichtung nimmt das **nicht** zurueck: `selectedForDetailingAt` ist
+ * set-once und bleibt. Sie hat stattgefunden, auch wenn der Benannte wieder
+ * geht — und die Kanban-Spalte haengt an ihr, nicht am Owner.
+ */
 export async function assignEpicOwner(
   ctx: RequestContext,
-  input: { epicId: EpicId; ownerId: string },
+  input: { epicId: EpicId; ownerId: string | null },
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
   const { epicId, ownerId } = input;
@@ -564,7 +572,7 @@ export async function assignEpicOwner(
     // Epic später regulär auf L1, sieht `stampsForAdvance` ihn und stempelt
     // nicht doppelt.
     const stampSelectedForDetailing =
-      existing.ownerId == null && existing.selectedForDetailingAt == null;
+      ownerId != null && existing.ownerId == null && existing.selectedForDetailingAt == null;
     const detailingAtNow = stampSelectedForDetailing ? new Date() : null;
 
     const { changes, data } = recordedUpdate({

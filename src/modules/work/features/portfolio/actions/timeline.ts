@@ -68,11 +68,20 @@ export const saveTimelineAction = createServerAction({
 });
 
 export const assignEpicOwnerAction = createServerAction({
-  schema: z.object({ epicId: z.string().uuid(), ownerId: z.string().uuid() }),
+  // Der leere String ist „niemand" — `FeatureOwnerAssign` macht es genauso, und
+  // die Rollenverteilung an Wertstrom und ART ebenfalls. Ein Picker, der nur
+  // setzen und nie entfernen kann, ist eine Sackgasse.
+  schema: z.object({
+    epicId: z.string().uuid(),
+    ownerId: z.union([z.string().uuid(), z.literal("")]),
+  }),
   action: "epic.owner.assign",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
-    assignEpicOwner(ctx, { epicId: input.epicId as EpicId, ownerId: input.ownerId }),
+    assignEpicOwner(ctx, {
+      epicId: input.epicId as EpicId,
+      ownerId: input.ownerId === "" ? null : input.ownerId,
+    }),
   revalidate: "epic",
   mapError: (e) =>
     e.kind === "not_found" ? "Epic nicht gefunden" : "Owner-Zuweisung fehlgeschlagen",

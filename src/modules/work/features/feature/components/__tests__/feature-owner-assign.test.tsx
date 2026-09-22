@@ -7,9 +7,8 @@ import { FeatureOwnerAssign } from "@/modules/work/features/feature/components/f
  * Drei Zusicherungen: ohne Capability bleibt die Kachel reine Anzeige, die
  * Auswahl ist durchsuchbar (die Kandidatenliste wird in echten Mandanten lang),
  * und der Leerwert lässt sich tatsächlich abschicken. Letzteres ist der bewusste
- * Unterschied zu `EpicOwnerAssign`, wo ein einmal gesetzter Owner nicht mehr zu
- * entfernen ist — ohne Test würde die Abweichung beim nächsten Angleichen an das
- * Vorbild still verschwinden.
+ * Dieselbe Freiheit hat seit September 2026 auch `EpicOwnerAssign` — dort war
+ * ein einmal gesetzter Owner vorher nicht mehr zu entfernen.
  */
 
 const assign = vi.hoisted(() =>
