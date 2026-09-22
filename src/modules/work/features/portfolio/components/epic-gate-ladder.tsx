@@ -1,30 +1,39 @@
 import {
-  GATE_STEPS,
+  LADDER_STEPS,
+  gateOfStep,
   gateStepLabel,
   gateStepNumber,
   type GateStep,
 } from "@/modules/work/domain/stage-gate";
 
 /**
- * **Die Leiter als Band** — acht Tore, der erreichte Stand, sonst nichts.
+ * **Die Leiter als Band** — die sieben Reifegrade, der erreichte Stand, sonst
+ * nichts.
  *
  * Sie ersetzt das fünfkachelige Raster des Lebenszyklus-Steppers. Das zeigte je
  * Schritt Icon, Titel und einen Erklärsatz und belegte damit über *jedem* der
  * neun Reiter drei Zeilen — obwohl die Auskunft, um die es geht, eine einzige
  * ist: wie weit ist dieses Vorhaben.
  *
- * Die Stufen kommen aus `GATE_STEPS`, die Beschriftung aus `gateStepLabel` —
- * dieselben Quellen, aus denen die Gate-Karte und der Antrag sie nehmen. Eine
- * zweite, abgeschriebene Liste gäbe es sonst schon wieder.
+ * **Sieben Punkte, nicht acht.** Die Stufen kommen aus `LADDER_STEPS`, nicht
+ * aus `GATE_STEPS`: „Zur Analyse ausgewählt" ist ein beantragter Schritt, aber
+ * kein Reifegrad — auf einer Leiter mit der Überschrift „Reifegrad" misst er
+ * nichts. Die Beschriftung kommt aus `gateStepLabel`, also aus derselben
+ * Quelle, aus der die Gate-Karte und der Antrag sie nehmen; eine zweite,
+ * abgeschriebene Liste gäbe es sonst schon wieder.
  */
 export function EpicGateLadder({ current }: { current: GateStep }) {
-  const at = GATE_STEPS.indexOf(current);
+  // Steht das Epic auf einem Schritt, der auf dieser Leiter nicht vorkommt,
+  // zeigt sie den Reifegrad, auf dem es dadurch bleibt — ein Epic „zur Analyse
+  // ausgewählt" steht auf L1. Ohne das zeigte die Leiter für genau die Epics
+  // zwischen Hypothese und Business Case auf nichts.
+  const at = LADDER_STEPS.indexOf(LADDER_STEPS.includes(current) ? current : gateOfStep(current));
 
   return (
     /* Der Tour-Anker zog vom abgeloesten Stepper hierher: er meint „die Stelle,
        an der der Reifegrad steht", und das ist jetzt die Leiter. */
     <ol className="flex items-start" aria-label="Reifegrad" data-tour="epic-lifecycle-stepper">
-      {GATE_STEPS.map((step, i) => {
+      {LADDER_STEPS.map((step, i) => {
         const done = i < at;
         const now = i === at;
         return (

@@ -1,4 +1,4 @@
-import { GATE_STEPS, gateStepNumber } from "@/modules/work/domain/stage-gate";
+import { GATE_STEPS, gateOfStep, gateStepNumber } from "@/modules/work/domain/stage-gate";
 import {
   mayHoldAllocation,
   requiresCurrentAllocation,
@@ -20,7 +20,7 @@ export function AllocationRule() {
       <table className="w-full min-w-[440px] border-collapse text-sm">
         <thead>
           <tr>
-            {["Schritt", "Kanban-Spalte", "Darf Budget tragen", "Muss Budget haben"].map((h) => (
+            {["Schritt", "Reifegrad", "Darf Budget tragen", "Muss Budget haben"].map((h) => (
               <th
                 key={h}
                 className="whitespace-nowrap border-b px-4 py-2.5 text-left font-mono text-meta uppercase tracking-[0.1em] text-muted-foreground"
@@ -40,7 +40,10 @@ export function AllocationRule() {
                   {gateStepNumber(g)}
                 </td>
                 <td className="border-b border-border/60 px-4 py-2 text-muted-foreground">
-                  {STAGE_SHORT[g] ?? "—"}
+                  {/* Nummernlose Schritte haben kein eigenes Kurzlabel — sie
+                      erben das des Reifegrads, in dem sie leben. Ohne das
+                      blieb die Zelle fuer „zur Analyse ausgewaehlt" leer. */}
+                  {STAGE_SHORT[g] ?? STAGE_SHORT[gateOfStep(g)] ?? "—"}
                 </td>
                 <td className="border-b border-border/60 px-4 py-2">
                   {may ? (

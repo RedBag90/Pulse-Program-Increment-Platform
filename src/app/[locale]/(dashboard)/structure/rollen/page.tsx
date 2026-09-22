@@ -22,7 +22,7 @@ import {
 } from "@/modules/core/org/features/structure/components/role-directory-view";
 import { listGateApproverRules } from "@/modules/work/server/services/stage-gate-transition";
 import { resolveGatePolicy, type GateApproverRole } from "@/modules/work/domain/gate-policy";
-import { GATE_STEPS } from "@/modules/work/domain/stage-gate";
+import { GATE_STEPS, gateStepNumber } from "@/modules/work/domain/stage-gate";
 
 /**
  * **Die Rollenverteilung** — wer ist in diesem Mandanten wofür benannt, und wer
@@ -75,9 +75,13 @@ function gateDutiesOf(
         const duty = ROLE_TO_DUTY[role];
         if (!duty) continue;
         const list = (perDuty[duty] ??= []);
+        // `GateDuties` traegt reine Anzeigetexte — der rohe Schluessel stand
+        // hier bis September 2026 buchstaeblich in der Zeile („L1 analysis L2
+        // L3"), ein englisches Wort in einer deutschen Oberflaeche.
+        const mark = gateStepNumber(gate);
         // Der Wertstrom-Platzhalter und die gleichnamige Epic-Partei treffen
         // dieselbe Person — das Tor soll trotzdem nur einmal dastehen.
-        if (!list.includes(gate)) list.push(gate);
+        if (!list.includes(mark)) list.push(mark);
       }
     }
     out[vsId] = perDuty;
