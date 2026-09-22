@@ -6,6 +6,10 @@ import {
   clampPrecision,
   formatMetricValue,
   metricUnitSuffix,
+  SELECTABLE_METRIC_TYPES,
+  isSelectableMetricType,
+  DEFAULT_METRIC_TYPE,
+  initialMetricScale,
 } from "@/modules/core/goals/domain/goal-metric";
 
 /**
@@ -97,6 +101,73 @@ describe("goal-metric", () => {
       expect(
         metricUnitSuffix({ metricType: "currency", currencyCode: "EUR", metricUnit: "Kunden" }),
       ).toBe(" EUR");
+    });
+  });
+});
+
+describe("Abgelegte Metriktypen", () => {
+  it("bietet „Zahl“ nicht mehr an — kennt ihn aber weiter", () => {
+    // Der Unterschied ist der ganze Zug: aus der **Auswahl** genommen, nicht
+    // aus dem **Vokabular**. Der grösste Teil des Bestands steht auf „number",
+    // weil es bis September 2026 der Spalten-Default war.
+    expect(SELECTABLE_METRIC_TYPES).not.toContain("number");
+    expect(METRIC_TYPES).toContain("number");
+    expect(isMetricType("number")).toBe(true);
+    expect(isSelectableMetricType("number")).toBe(false);
+  });
+
+  it("beschriftet jeden anbietbaren Typ", () => {
+    for (const t of SELECTABLE_METRIC_TYPES) {
+      expect(METRIC_TYPE_LABELS[t], t).toBeTruthy();
+    }
+    // Und den abgelegten auch — sonst hätte ein Bestandsziel kein Wort für das,
+    // worauf es steht.
+    expect(METRIC_TYPE_LABELS.number).toBe("Zahl");
+  });
+
+  it("zeigt ein Bestandsziel auf „Zahl“ unverändert an", () => {
+    // Die Zusicherung gegen einen Umschreiblauf, den wir nicht machen: „Zahl"
+    // ist der Else-Fall der Formatierung, und der bleibt, wie er war.
+    expect(formatMetricValue(1234.5, { metricType: "number", precision: 1 })).toBe("1.234,5");
+    expect(metricUnitSuffix({ metricType: "number" })).toBe("");
+  });
+
+  it("startet neue Ziele auf Prozent", () => {
+    expect(DEFAULT_METRIC_TYPE).toBe("percent");
+    expect(isSelectableMetricType(DEFAULT_METRIC_TYPE)).toBe(true);
+  });
+});
+
+describe("initialMetricScale", () => {
+  it("gibt einer neuen Prozentskala ihre Enden", () => {
+    expect(initialMetricScale({})).toEqual({ baseline: 0, target: 100 });
+  });
+
+  it("lässt mitgegebene Werte stehen", () => {
+    expect(initialMetricScale({ baseline: 20, target: 60 })).toEqual({
+      baseline: 20,
+      target: 60,
+    });
+  });
+
+  it("hängt anderen Typen keine Skala an", () => {
+    expect(initialMetricScale({ metricType: "currency" })).toEqual({
+      baseline: null,
+      target: null,
+    });
+  });
+
+  it("lässt Ziele, die nicht selbst messen, ohne Skala", () => {
+    // Ein Rollup-Ziel rechnet aus den Kindern, ein Confidence-Ziel bringt seine
+    // feste 1–5-Skala mit. Eine 0–100 daneben wäre eine Zahl ohne Bedeutung —
+    // beim Confidence-Ziel zudem eine, die der Service sofort überschreibt.
+    expect(initialMetricScale({ progressMode: "rollup" })).toEqual({
+      baseline: null,
+      target: null,
+    });
+    expect(initialMetricScale({ progressMode: "confidence" })).toEqual({
+      baseline: null,
+      target: null,
     });
   });
 });

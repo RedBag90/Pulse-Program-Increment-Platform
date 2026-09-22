@@ -9,7 +9,12 @@ import {
   KEY_RESULT_FIELD_KEYS,
 } from "@/modules/core/goals/server/services/goal-node-fields";
 import { isClosed, isOpen, type GoalStatus } from "@/modules/core/goals/domain/goal-status";
-import { clampPrecision, type MetricType } from "@/modules/core/goals/domain/goal-metric";
+import {
+  clampPrecision,
+  DEFAULT_METRIC_TYPE,
+  initialMetricScale,
+  type MetricType,
+} from "@/modules/core/goals/domain/goal-metric";
 import {
   canReparent,
   planReparent,
@@ -150,13 +155,24 @@ export async function createObjective(
         ownerId: input.ownerId ?? null,
         metricName: input.metricName ?? null,
         metricUnit: input.metricUnit ?? null,
-        ...(input.metricType ? { metricType: input.metricType } : {}),
+        /**
+         * **Ein neues Ziel startet auf einer Prozentskala 0–100.**
+         *
+         * Vorher entschied das der Prisma-Default der Spalte („number") — an
+         * einer Stelle, die kein Formular kennt. Das Ergebnis war ein stiller
+         * Unterschied: wer den Ziel-Drawer benutzte, wählte den Typ selbst;
+         * wer den Schnell-Dialog „Neues Ziel" benutzte, bekam „Zahl", ohne
+         * dass jemand das gewählt hätte. Jetzt entscheidet **eine** Stelle.
+         */
+        metricType: input.metricType ?? DEFAULT_METRIC_TYPE,
         ...(input.precision != null ? { precision: clampPrecision(input.precision) } : {}),
         currencyCode: input.currencyCode ?? null,
         rollupWeight: input.rollupWeight ?? null,
         parentUnitPerChildUnit: input.parentUnitPerChildUnit ?? null,
-        baseline: input.baseline ?? null,
-        target: input.target ?? null,
+        // Zur Prozentskala gehören ihre Enden. Sie stehen hier und nicht als
+        // Spalten-Default, weil die Zeile sie sonst überschriebe: `?? null`
+        // schreibt eine Null, und gegen eine Null kommt kein Default an.
+        ...initialMetricScale(input),
         current: input.current ?? null,
         progressMode: input.progressMode ?? null,
         // `confidence` bringt seine Skala mit: 1..5, fest. Danach ist die Zeile

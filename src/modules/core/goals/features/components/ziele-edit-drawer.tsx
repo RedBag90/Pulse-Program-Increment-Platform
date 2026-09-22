@@ -55,7 +55,9 @@ import {
 } from "@/modules/core/goals/features/components/related-work-search";
 import {
   formatMetricValue,
-  METRIC_TYPES,
+  SELECTABLE_METRIC_TYPES,
+  DEFAULT_METRIC_TYPE,
+  isSelectableMetricType,
   METRIC_TYPE_LABELS,
 } from "@/modules/core/goals/domain/goal-metric";
 import {
@@ -216,10 +218,17 @@ function GoalPane({
     (node?.progressMode as GoalProgressMode | undefined) ?? "manual",
   );
   // Der Metrik-Block ist eine Kaskade: erst der Typ, dann nur die Felder, die zu
-  // ihm gehören. Beim Anlegen bewusst leer ⇒ die Auswahl ist Pflicht (`required`
-  // am gerenderten Select; serverseitig bleibt das Feld optional, weil der ganze
-  // Block bei Fortschrittsquelle „Aus Unterzielen" gar nicht erst rendert).
-  const [metricType, setMetricType] = useState<string>(node?.metricType ?? "");
+  // ihm gehören.
+  //
+  // Beim Anlegen steht er auf **Prozent** — eine Skala 0–100, die für die
+  // meisten Ziele passt und deren Baseline/Target sich von selbst vorbelegen.
+  // Vorher stand er leer und die Wahl war Pflicht; entschieden hat sie in
+  // Wahrheit trotzdem jemand, nur unsichtbar: der Prisma-Default der Spalte
+  // („number") für alles, was nicht durch dieses Formular kam.
+  const [metricType, setMetricType] = useState<string>(node?.metricType ?? DEFAULT_METRIC_TYPE);
+  // „Zahl" steht hier weiter: die Auswahl bietet ihn nicht mehr an, aber ein
+  // Bestandsziel darauf trägt ein Einheiten-Label („Punkte") und soll es
+  // weiter pflegen können.
   const showUnitLabel = metricType === "number" || metricType === "individuell";
   const showCurrency = metricType === "currency";
   // Den Ist-Wert pflegt man nur bei manueller Fortschrittsquelle; sonst leiten
@@ -299,7 +308,17 @@ function GoalPane({
               <option value="" disabled>
                 — Metriktyp wählen —
               </option>
-              {METRIC_TYPES.map((t) => (
+              {/* Abgelegte Typen stehen nur an dem Ziel, das noch auf ihnen
+                  steht. Ohne das bliebe das Feld beim Öffnen eines
+                  Bestandsziels leer, und `required` verlangte eine Änderung,
+                  die niemand vornehmen wollte. */}
+              {!isSelectableMetricType(metricType) && metricType !== "" && (
+                <option value={metricType}>
+                  {METRIC_TYPE_LABELS[metricType as keyof typeof METRIC_TYPE_LABELS] ?? metricType}{" "}
+                  (nicht mehr wählbar)
+                </option>
+              )}
+              {SELECTABLE_METRIC_TYPES.map((t) => (
                 <option key={t} value={t}>
                   {METRIC_TYPE_LABELS[t]}
                 </option>
