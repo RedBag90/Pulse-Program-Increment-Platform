@@ -96,10 +96,23 @@ describe("gateReadiness — die Analyse-Entscheidung", () => {
   it("spiegelt L1: die Hypothese ist die Vorleistung, nicht der Business Case", () => {
     const f = facts("L1", { hypothesisApprovedAt: AT });
     expect(gateReadiness(f, "analysis").ready).toBe(true);
-    expect(keys(f, "analysis", "unsatisfied")).toEqual([
+    expect(keys(f, "analysis", "unsatisfied")).toEqual(["owner_nominated"]);
+  });
+
+  it("verlangt den Business Case in keiner Form — auch nicht beratend", () => {
+    // Dieser Schritt ist die Entscheidung, mit der Analyse anzufangen. Der
+    // Business Case entsteht danach; ihn vorher zu nennen, drehte die
+    // Reihenfolge um. Geprüft über die **volle** Liste, nicht nur über die
+    // unerfüllten: sonst verschwände der Punkt aus dem Test, sobald ein
+    // Fixture-Epic zufällig Business-Case-Inhalt trägt.
+    expect(keys(facts("L1"), "analysis", "all")).toEqual([
+      "hypothesis_approved",
       "owner_nominated",
-      "business_case_started",
     ]);
+  });
+
+  it("verschiebt die Frage nur — L2 verlangt ihn weiterhin, und zwar blockierend", () => {
+    expect(keys(facts("L1"), "L2", "blocking")).toEqual(["business_case_drafted"]);
   });
 
   it("ohne freigegebene Hypothese blockiert der Schritt", () => {

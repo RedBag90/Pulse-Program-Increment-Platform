@@ -232,19 +232,13 @@ const OWNER_NOMINATED: CriterionRule = {
  */
 export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> = {
   L1: [HYPOTHESIS_DRAFTED, OWNER_NOMINATED],
-  analysis: [
-    HYPOTHESIS_APPROVED,
-    OWNER_NOMINATED,
-    {
-      key: "business_case_started",
-      label: () => "Business Case ist begonnen",
-      help:
-        "Der Business Case hält Kosten, Nutzen und Optionen fest. Begonnen heißt: " +
-        "es gibt bereits Inhalt. Pflege ihn im Reiter Business Case.",
-      satisfied: (f) => f.hasBusinessCaseContent,
-      blocking: false,
-    },
-  ],
+  // Die Analyse-Entscheidung ist das Spiegelbild von L1, eine Stufe weiter:
+  // dieselbe Form, der nächste Nachweis. Der Business Case steht hier
+  // ausdrücklich **nicht** — dieser Schritt ist die Entscheidung, mit der
+  // Analyse anzufangen, und was er auslöst, kann er nicht voraussetzen. Bis
+  // September 2026 stand er als beratender Punkt dabei; er blockierte
+  // niemanden, sah aber wie eine Aufgabe aus und drehte die Reihenfolge um.
+  analysis: [HYPOTHESIS_APPROVED, OWNER_NOMINATED],
   // L2 — die Business-Case-Freigabe. Dieser Schritt *ist* sie, deshalb kann er
   // sie nicht voraussetzen; verlangt wird der ausgearbeitete Inhalt. Das Geld
   // ist der Schritt danach.

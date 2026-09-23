@@ -89,10 +89,6 @@ const CRITERION_TARGET: Record<string, { href: (epicId: string) => string; label
     href: (id) => `/portfolio/epics/${id}?tab=overview`,
     label: "Zum Overview",
   },
-  business_case_started: {
-    href: (id) => `/portfolio/epics/${id}?tab=business-case`,
-    label: "Zum Business Case",
-  },
   business_case_drafted: {
     href: (id) => `/portfolio/epics/${id}?tab=business-case`,
     label: "Zum Business Case",
