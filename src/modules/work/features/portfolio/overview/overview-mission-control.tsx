@@ -92,8 +92,13 @@ export function OverviewMissionControl({
       </div>
 
       {/* Bringt sein eigenes Drei-Spalten-Raster mit — eine Kachel je
-          ROAM-Zustand. */}
-      <RisksBlock data={data} />
+          ROAM-Zustand.
+
+          Ohne das Risiken-Modul gar nicht: fünf Kacheln mit lauter Nullen
+          behaupten, der Mandant habe **keine** Risiken — in Wahrheit führt er
+          sie nicht. Dieselbe Regel wie am Epic-Detail, wo der Issues-Reiter
+          ohne Modul fehlt statt leer dazustehen. */}
+      {data.risksEnabled && <RisksBlock data={data} />}
 
       <SteeringTableBlock data={data} />
 

@@ -360,6 +360,16 @@ export interface PortfolioOverview {
    */
   budgetingEnabled: boolean;
   /**
+   * Ist das **Risiken-Modul** an? Aus ⇒ die Übersicht zeigt keinen
+   * Risiko-Abschnitt, und `risks` ist leer, weil gar nicht erst gelesen wurde.
+   *
+   * Eine leere Kachelreihe wäre schlimmer als keine: sie behauptet, der Mandant
+   * habe **keine** Risiken, statt dass er sie nicht führt — dieselbe Regel wie
+   * `RisksSlice` am Epic-Detail, die eine Fläche ohne Modul nie „disabled=false,
+   * aber leer" liefern lässt.
+   */
+  risksEnabled: boolean;
+  /**
    * Die Soll-Verteilung des Budgets über die Horizonte (Guardrail „Investment
    * by Horizon"), in Prozent — der Trichter zeichnet sie als gestrichelte
    * Vergleichslinie. Sie gilt für das **gesamte** Portfolio-Budget,
@@ -498,6 +508,16 @@ export interface PortfolioOverviewInputs {
    * wissen, sonst behauptet ihre Beschriftung weiter Geld.
    */
   budgetingEnabled: boolean;
+  /**
+   * Ist das **Risiken-Modul** an? Aus ⇒ die Übersicht zeigt keinen
+   * Risiko-Abschnitt, und `risks` ist leer, weil gar nicht erst gelesen wurde.
+   *
+   * Eine leere Kachelreihe wäre schlimmer als keine: sie behauptet, der Mandant
+   * habe **keine** Risiken, statt dass er sie nicht führt — dieselbe Regel wie
+   * `RisksSlice` am Epic-Detail, die eine Fläche ohne Modul nie „disabled=false,
+   * aber leer" liefern lässt.
+   */
+  risksEnabled: boolean;
   /** Gewählte Klassen aus dem Filter (leer = keine Einschränkung). */
   selectedClasses: string[];
   /** Pinned "today" — server passes `new Date()`, tests pass a fixed instant. */
@@ -561,6 +581,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     selectedClasses,
     funnelItems,
     budgetingEnabled,
+    risksEnabled,
     horizonTargets,
     horizonOnOverview,
     now,
@@ -936,6 +957,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     steeringEpics,
     funnelItems,
     budgetingEnabled,
+    risksEnabled,
     horizonTargets,
     horizonOnOverview,
     goals,
@@ -1031,6 +1053,7 @@ export async function loadPortfolioOverviewInputs(
   filter: PortfolioFilter = EMPTY_PORTFOLIO_FILTER,
   /** Nachgestellt mit Vorgabe, damit vorhandene Aufrufer unberührt bleiben. */
   budgetingEnabled = true,
+  risksEnabled = true,
 ): Promise<PortfolioOverviewInputs> {
   const [
     epics,
@@ -1164,6 +1187,7 @@ export async function loadPortfolioOverviewInputs(
     selectedClasses: filter.epicClasses,
     funnelItems,
     budgetingEnabled,
+    risksEnabled,
     horizonTargets: guardrails.horizon,
     horizonOnOverview,
     now: new Date(),
@@ -1184,6 +1208,7 @@ export async function loadPortfolioOverview(
   filter: PortfolioFilter = EMPTY_PORTFOLIO_FILTER,
   /** Nachgestellt mit Vorgabe, damit vorhandene Aufrufer unberührt bleiben. */
   budgetingEnabled = true,
+  risksEnabled = true,
 ): Promise<PortfolioOverview> {
   return buildPortfolioOverviewModel(
     await loadPortfolioOverviewInputs(
@@ -1195,6 +1220,7 @@ export async function loadPortfolioOverview(
       getArtAllocations,
       filter,
       budgetingEnabled,
+      risksEnabled,
     ),
   );
 }

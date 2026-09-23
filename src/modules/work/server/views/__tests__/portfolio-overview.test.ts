@@ -92,6 +92,7 @@ function baseInputs(): PortfolioOverviewInputs {
     epicClasses: null,
     funnelItems: [],
     budgetingEnabled: true,
+    risksEnabled: true,
     horizonTargets: null,
     horizonOnOverview: true,
     selectedClasses: [],

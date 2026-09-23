@@ -128,6 +128,11 @@ export default async function PortfolioPage({ searchParams }: Props) {
   // der Port leere Daten, statt den oberen Layer zu laden — genau die
   // Degradation, die ADR-0013 fuer Cross-Modul-Komposite verlangt.
   const budgetingEnabled = principal.enabledModules.includes("budgeting");
+  // Dieselbe Degradation für Risks — der Kommentar oben nennt beide, gebaut war
+  // bis September 2026 nur die eine Hälfte. Ohne das Modul blieben fünf leere
+  // ROAM-Kacheln stehen und behaupteten, der Mandant habe **keine** Risiken;
+  // in Wahrheit führt er sie gar nicht.
+  const risksEnabled = principal.enabledModules.includes("risks");
 
   const data = await loadPortfolioOverview(
     db,
@@ -166,6 +171,11 @@ export default async function PortfolioPage({ searchParams }: Props) {
       };
     },
     async () => {
+      // Ohne das Modul wird gar nicht erst gelesen. Das ist nicht nur Kosmetik:
+      // die Abfrage holt jede Spalte jedes dokumentierten Issues, zwei
+      // Text-Felder eingeschlossen, und sitzt in derselben Welle wie die
+      // Epic-Liste — sie bestimmt die Latenz der Seite mit.
+      if (!risksEnabled) return [];
       const issues = await db.issue.findMany({
         where: { tenantId: principal.tenantId, deletedAt: null, reviewStatus: "documented" },
         include: {
@@ -242,6 +252,7 @@ export default async function PortfolioPage({ searchParams }: Props) {
     // Ohne das Modul gibt es kein Geld zu messen: der Horizont-Trichter misst
     // dann die laufenden Epics statt lauter leerer Umrisse zu zeigen.
     budgetingEnabled,
+    risksEnabled,
   );
 
   return (
