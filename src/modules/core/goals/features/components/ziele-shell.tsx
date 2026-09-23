@@ -61,9 +61,7 @@ export function ZieleShell({
         actions={<ZieleSubTabs active={effectiveTab} showMoney={modules.portfolio} />}
       />
 
-      {showSetupGuide && (
-        <GoalSetupStepper steps={setup.steps} clearScope={setup.actionGoalHidden} />
-      )}
+      {showSetupGuide && <GoalSetupStepper steps={setup.steps} />}
 
       <div className="space-y-2">
         <GoalHealthStrip themes={themes} tenantTrio={tenantTrio} showMoney={modules.portfolio} />

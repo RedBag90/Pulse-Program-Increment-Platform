@@ -87,23 +87,38 @@ export const GOAL_SETUP_STEPS: readonly GoalSetupStepMeta[] = [
   },
 ];
 
-export type GoalSetupStepStatus = "done" | "current" | "upcoming";
-
 export interface GoalSetupStep extends GoalSetupStepMeta {
-  status: GoalSetupStepStatus;
-  /** For the current `open-goal` step: the goal to open to satisfy it. */
+  /**
+   * **Erfüllt dieser Schritt sich selbst?** Unabhängig von den anderen.
+   *
+   * Bis September 2026 stand hier ein Dreiklang „erledigt · aktuell · kommt
+   * noch", abgeleitet aus der **Reihenfolge**: alles nach dem ersten offenen
+   * Schritt galt als „kommt noch" — auch ein Schritt, der längst erfüllt war.
+   * Die Leiste behauptete damit eine Abfolge, wo es eine Liste ist.
+   */
+  done: boolean;
+  /** Der erste offene Schritt — die Auskunft, wo man anfängt. */
+  isNext: boolean;
+  /**
+   * Das Ziel, an dem man diesen Schritt erledigt — das erste, das ihn noch
+   * nicht erfüllt. `null` beim Anlegen-Schritt, der noch kein Ziel kennt.
+   */
   actionGoalId: string | null;
+  /**
+   * Dieses Ziel existiert, ist unter den aktiven Filtern aber nicht geladen ⇒
+   * der Deep-Link muss die Filter abräumen, sonst öffnet der Drawer ein leeres
+   * Formular.
+   *
+   * Steht **je Schritt**, nicht am Ergebnis: mit einem Sprungziel je Zeile kann
+   * jedes einzelne davon hinter dem Filter liegen, und ein gemeinsames Flag
+   * beantwortete die Frage nur für eines von fünf.
+   */
+  actionGoalHidden: boolean;
 }
 
 export interface GoalSetupResult {
   steps: GoalSetupStep[];
   complete: boolean;
-  /**
-   * Das CTA-Ziel des aktuellen Schritts existiert, ist unter den aktiven Filtern
-   * aber nicht geladen ⇒ der Deep-Link muss die Filter abräumen, sonst öffnet
-   * der Drawer ein leeres Formular.
-   */
-  actionGoalHidden: boolean;
 }
 
 function flatten(nodes: readonly GoalSetupNode[]): GoalSetupNode[] {
@@ -128,13 +143,14 @@ const NODE_SATISFIES: readonly ((n: GoalSetupNode) => boolean)[] = [
 ];
 
 /**
- * Derive the setup steps from the loaded goal tree. `current` is the first
- * not-done step; earlier = done, later = upcoming; `complete` = all five done.
+ * Leitet die Einrichtungs-Schritte aus dem geladenen Ziel-Baum ab. Jeder Schritt
+ * trägt seine **eigene** Antwort; `isNext` markiert den ersten offenen, und
+ * `complete` heisst: keiner mehr offen.
  *
  * `allThemes` ist der **ungefilterte** Baum (die Wahrheit über den Tenant);
- * `visibleThemes` der unter den aktiven Filtern geladene Ausschnitt — nur für
- * `actionGoalHidden`. Ohne zweiten Parameter (= kein Filter) verhält sich die
- * Funktion exakt wie zuvor.
+ * `visibleThemes` der unter den aktiven Filtern geladene Ausschnitt — nur dafür,
+ * ob ein Sprungziel gerade sichtbar ist. Ohne zweiten Parameter (= kein Filter)
+ * ist jedes Ziel sichtbar.
  */
 export function goalSetupSteps(
   allThemes: readonly GoalSetupNode[],
@@ -149,22 +165,28 @@ export function goalSetupSteps(
     firstFailId: nodes.find((n) => !pred(n))?.id ?? null,
   }));
 
-  const reached = [hasGoal, ...perStep.map((p) => p.done)];
-  const firstOpen = reached.indexOf(false);
+  // Schritt 0 („erstes Ziel anlegen") hat kein Praedikat — er haengt daran, ob
+  // es ueberhaupt ein Ziel gibt. Die uebrigen vier sind index-versetzt.
+  const erledigt = [hasGoal, ...perStep.map((p) => p.done)];
+  const firstOpen = erledigt.indexOf(false);
 
-  const steps: GoalSetupStep[] = GOAL_SETUP_STEPS.map((meta, i) => ({
-    ...meta,
-    status: firstOpen === -1 || i < firstOpen ? "done" : i === firstOpen ? "current" : "upcoming",
-    // actionGoalId only matters for the current open-goal step.
-    actionGoalId: i === firstOpen && i > 0 ? perStep[i - 1]!.firstFailId : null,
-  }));
+  const sichtbar = new Set(flatten(visibleThemes).map((n) => n.id));
 
-  // Zeigt der CTA auf ein Ziel, das der aktive Filter ausblendet? Dann muss der
-  // Deep-Link die Filter abräumen. Ohne Filter stammt die Id aus demselben Baum
-  // und der Treffer ist garantiert ⇒ false.
-  const actionGoalId = steps.find((s) => s.status === "current")?.actionGoalId ?? null;
-  const actionGoalHidden =
-    actionGoalId != null && !flatten(visibleThemes).some((n) => n.id === actionGoalId);
+  const steps: GoalSetupStep[] = GOAL_SETUP_STEPS.map((meta, i) => {
+    // Das erste Ziel, dem dieser Schritt noch fehlt — der Ort, an dem man ihn
+    // erledigt. Frueher nur fuer den einen aktuellen Schritt berechnet und
+    // sonst weggeworfen, obwohl `perStep` ihn fuer jeden kennt.
+    const actionGoalId = i > 0 ? (perStep[i - 1]!.firstFailId ?? null) : null;
+    return {
+      ...meta,
+      done: erledigt[i]!,
+      isNext: i === firstOpen,
+      actionGoalId,
+      // Ohne Filter stammt die Id aus demselben Baum, der Treffer ist also
+      // garantiert ⇒ nie versteckt.
+      actionGoalHidden: actionGoalId != null && !sichtbar.has(actionGoalId),
+    };
+  });
 
-  return { steps, complete: firstOpen === -1, actionGoalHidden };
+  return { steps, complete: firstOpen === -1 };
 }

@@ -3,8 +3,7 @@
 import { useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Check, CircleDot, Circle, X, Plus, ArrowRight } from "lucide-react";
-import { SectionLabel } from "@/components/ui/section-label";
+import { Check, Circle, X, Plus, ArrowRight, ListChecks } from "lucide-react";
 import {
   goalCreateHref,
   goalDetailHref,
@@ -13,38 +12,32 @@ import {
 import type { GoalSetupStep } from "@/modules/core/goals/domain/goal-setup";
 import { dismissZieleSetupAction } from "@/modules/core/goals/features/actions/ziele-setup";
 
-const TILE: Record<GoalSetupStep["status"], string> = {
-  done: "border-input bg-muted/40 text-muted-foreground/70",
-  current: "border-primary bg-primary/10 text-foreground shadow-xs",
-  upcoming: "border-input bg-card text-muted-foreground",
-};
-
-function StatusIcon({ status }: { status: GoalSetupStep["status"] }) {
-  if (status === "done") return <Check className="size-3.5 shrink-0" />;
-  if (status === "current") return <CircleDot className="size-3.5 shrink-0 text-primary" />;
-  return <Circle className="size-3.5 shrink-0 opacity-50" />;
-}
-
 /**
- * First-run setup guide for the Ziele page — every step a tile with a static
- * Erklärung, coloured by status (done greyed / next highlighted / upcoming
- * neutral); the current tile carries a CTA (create the first goal, or open the
- * goal that still needs the attribute). Mirrors the Epic `EpicLifecycleStepper`
- * look. Client component: builds the deep-links from live search-params and hosts
- * the dismiss (×) control. The shell only renders it while incomplete + not
- * dismissed + for editors.
+ * Die Einrichtungs-Liste der Ziele-Seite — was noch zu tun ist, bis die Ziele
+ * tragen.
  *
- * `clearScope` (= `GoalSetupResult.actionGoalHidden`): das CTA-Ziel liegt außerhalb
- * der aktiven Filter — der Link räumt sie dann ab, sonst öffnet der Drawer ein
- * leeres Formular. Ohne aktiven Filter bleibt die Query unverändert.
+ * **Dasselbe Schema wie die Tor-Kachel eines Epics**
+ * (`work/.../gate/epic-gate-card.tsx`): eine Karte mit Akzentschiene, Titel mit
+ * Listen-Symbol, darunter eine senkrechte Liste — je Zeile links die Marke,
+ * rechts der Weg dorthin. Erledigtes tritt zurück, Offenes steht in voller
+ * Farbe.
+ *
+ * Vorher waren es fünf Kacheln nebeneinander, von denen nur die aktive einen
+ * Weg trug: das hob **einen** Schritt hervor und machte aus den anderen
+ * Kulisse. Zwei Flächen im Produkt beantworten dieselbe Frage — „was ist als
+ * Nächstes zu tun?" —, und sie sollten dabei gleich aussehen.
+ *
+ * **Erledigte Zeilen tragen keinen Link**, und das ist der eine bewusste
+ * Unterschied zum Epic: dort gehören alle Kriterien zu *einem* Epic, hier
+ * heisst „erledigt", dass *irgendein* Ziel den Schritt erfüllt. Das
+ * Sprungziel zeigt aber auf das erste Ziel, das ihn weiterhin **nicht**
+ * erfüllt — ein Weg, der der Zeile daneben widerspräche.
+ *
+ * Client-Komponente: sie baut die Deep-Links aus den laufenden Search-Params
+ * (damit Filter und Layout erhalten bleiben) und trägt das ×. Ob sie überhaupt
+ * erscheint, entscheidet die Shell.
  */
-export function GoalSetupStepper({
-  steps,
-  clearScope = false,
-}: {
-  steps: GoalSetupStep[];
-  clearScope?: boolean;
-}) {
+export function GoalSetupStepper({ steps }: { steps: GoalSetupStep[] }) {
   const sp = useSearchParams();
   const [pending, startTransition] = useTransition();
 
@@ -54,9 +47,14 @@ export function GoalSetupStepper({
     });
 
   return (
-    <div className="space-y-3 rounded-lg bg-card shadow-card p-3.5 shadow-xs">
-      <div className="flex items-center justify-between">
-        <SectionLabel>Fortschritt</SectionLabel>
+    /* Akzentschiene statt Umriss — dieselbe Geste wie an der Tor-Kachel des
+       Epics, und die einzige, die ADR-0021 an einer Karte zulaesst. */
+    <div className="space-y-3 rounded-lg border-l-2 border-l-primary bg-card p-3.5 shadow-card">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+          <ListChecks className="size-4 shrink-0 text-primary" aria-hidden />
+          To-dos für den Einstieg
+        </h2>
         <button
           type="button"
           onClick={dismiss}
@@ -68,40 +66,65 @@ export function GoalSetupStepper({
         </button>
       </div>
 
-      <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      <ol className="space-y-1.5">
         {steps.map((step) => {
-          const isCurrent = step.status === "current";
+          // Jede Zeile kennt ihr eigenes Ziel — und ob der aktive Filter es
+          // gerade ausblendet. Tut er das, raeumt der Link ihn ab, sonst
+          // oeffnete der Drawer ein leeres Formular.
           const href =
             step.ctaKind === "create"
               ? goalCreateHref(sp)
               : step.actionGoalId
-                ? clearScope
+                ? step.actionGoalHidden
                   ? goalDetailHrefClearingScope(sp, step.actionGoalId)
                   : goalDetailHref(sp, step.actionGoalId)
                 : null;
           return (
             <li
               key={step.key}
-              className={`flex flex-col gap-1 rounded-md border p-2.5 ${TILE[step.status]}`}
+              className={`flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5 text-sm ${
+                step.done ? "text-muted-foreground" : "text-foreground"
+              }`}
             >
-              <div className="flex items-center gap-1.5">
-                <StatusIcon status={step.status} />
-                <span className="text-xs font-medium">{step.label}</span>
-              </div>
-              <p className="text-meta leading-snug">{step.description}</p>
-
-              {isCurrent && href && (
-                <div className="mt-1 border-t border-primary/20 pt-1.5">
-                  <Link
-                    href={href}
-                    scroll={false}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium shadow-xs transition-colors hover:bg-muted/50"
-                  >
-                    {step.ctaKind === "create" && <Plus className="size-3.5" />}
-                    {step.ctaLabel}
-                    <ArrowRight className="size-3.5" />
-                  </Link>
-                </div>
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="flex items-start gap-2">
+                  {step.done ? (
+                    <Check className="mt-0.5 size-4 shrink-0 text-success" />
+                  ) : (
+                    <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <span className="flex flex-wrap items-baseline gap-x-1.5">
+                    {step.label}
+                    {/* Markiert wird die Ausnahme — dieselbe Pille, die am Epic
+                        „Pflicht" traegt. Sie sagt, wo man anfaengt, ohne die
+                        uebrigen Zeilen zu Kulisse zu machen. */}
+                    {step.isNext && (
+                      <span className="rounded-sm bg-muted px-1.5 py-0.5 text-label font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                        Nächster Schritt
+                      </span>
+                    )}
+                  </span>
+                </span>
+                {/* Erklaert wird, was noch aussteht. Eine erledigte Zeile
+                    schrumpft auf ihren Titel — sonst waere die Kachel bei fuenf
+                    Schritten eine Textwand, die ueberwiegend Vergangenes
+                    beschreibt. */}
+                {!step.done && (
+                  <span className="pl-6 text-meta leading-snug text-muted-foreground">
+                    {step.description}
+                  </span>
+                )}
+              </span>
+              {!step.done && href && (
+                <Link
+                  href={href}
+                  scroll={false}
+                  className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
+                  {step.ctaKind === "create" && <Plus className="size-3.5" aria-hidden />}
+                  {step.ctaLabel}
+                  <ArrowRight className="size-3.5" aria-hidden />
+                </Link>
               )}
             </li>
           );
