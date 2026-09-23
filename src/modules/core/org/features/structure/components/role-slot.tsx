@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, startTransition, useEffect, useState, type ReactNode } from "react";
+import { useActionState, startTransition, useState, type ReactNode } from "react";
 import { Check, Plus } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { UserPicker } from "@/components/detail/user-picker";
 import { initials } from "@/components/detail/initiative-labels";
 import { cn } from "@/lib/utils";
+import { useTransientFlag } from "@/lib/hooks/use-transient-flag";
 import type { DirectoryEntry } from "@/modules/core/org/domain/role-directory";
 import { targetKey } from "@/modules/core/org/domain/role-directory";
 import { updateValueStreamAction } from "@/modules/core/org/features/value-stream/actions/value-stream";
@@ -313,11 +314,16 @@ export function RoleCell({
 
   if (slot.open && slot.mayEdit) {
     return (
-      <div className="py-1">
-        <span className="mb-1 block truncate text-xs font-medium text-foreground">
-          {entry.role}
-        </span>
+      // **Die Zelle behält ihre Anatomie.** Vorher blieb beim Öffnen nur der
+      // Rollenname stehen — Anliegen und Tore verschwanden, und die Zelle sah
+      // neben ihren geschlossenen Nachbarn aus wie ein anderes Bedienelement.
+      // Die Zeilenansicht (`RoleRow`) hat das nie getan. Getauscht wird nur
+      // die Person gegen den Picker.
+      <div className="flex flex-col gap-0.5 py-1">
+        <span className="block truncate text-xs font-medium text-foreground">{entry.role}</span>
+        <span className="block truncate text-meta text-muted-foreground">{entry.duty}</span>
         <Picker entry={entry} users={users} slot={slot} />
+        {entry.gates.length > 0 && <Gates entry={entry} mono={false} className="block truncate" />}
       </div>
     );
   }
@@ -330,20 +336,4 @@ export function RoleCell({
       {entry.gates.length > 0 && <Gates entry={entry} mono={false} className="block truncate" />}
     </Shell>
   );
-}
-
-/**
- * Ein Erfolg ist ein **Ereignis**, kein Zustand. `state.success` bleibt bis zum
- * nächsten Laden gesetzt; ohne diesen Haken stünden nach drei Änderungen drei
- * Häkchen da und behaupteten, gerade eben sei etwas passiert.
- */
-function useTransientFlag(on: boolean, ms = 2500): boolean {
-  const [shown, setShown] = useState(false);
-  useEffect(() => {
-    if (!on) return;
-    setShown(true);
-    const t = window.setTimeout(() => setShown(false), ms);
-    return () => window.clearTimeout(t);
-  }, [on, ms]);
-  return shown;
 }

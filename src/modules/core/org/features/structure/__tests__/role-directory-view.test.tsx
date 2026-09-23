@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
 import React from "react";
 import { render, screen } from "@testing-library/react";
 
@@ -222,5 +223,60 @@ describe("die beiden Sichten", () => {
     alsTabelle();
     expect(screen.queryByLabelText(/Finance Approver/)).toBeNull();
     expect(screen.queryByText("Benennen")).toBeNull();
+  });
+});
+
+describe("der geöffnete Platz", () => {
+  // Ein Platz, den dieser Nutzer bearbeiten darf.
+  const editable = new Set([targetKey("valueStream", "vs-1")]);
+
+  /**
+   * Die Zelle, in der der Picker steht — nicht das ganze Dokument.
+   *
+   * Gesucht wird über die Baumstruktur, nicht über Klassennamen: die überleben
+   * keinen Feinschliff, und dieser Test soll den Inhalt sichern, nicht das
+   * Styling.
+   */
+  function offeneZelle(): HTMLElement {
+    let el: HTMLElement | null = screen.getByRole("combobox", { name: "Finance Approver" });
+    while (el && !el.textContent?.includes("Finance Approver")) {
+      el = el.parentElement;
+    }
+    if (!el) throw new Error("Keine Zelle um den Picker");
+    return el;
+  }
+
+  /** Der geteilte URL-Zustand wirkt aus früheren Tests nach — Kartenansicht erzwingen. */
+  function karte() {
+    urlParams.current = new URLSearchParams();
+    render(<RoleDirectoryView streams={streams} users={users} editable={editable} />);
+  }
+
+  it("behält in der Kachel Anliegen und Tore", async () => {
+    // Vorher blieb beim Öffnen nur der Rollenname stehen. Die Zelle wechselte
+    // damit ihre Gestalt und sah neben lauter geschlossenen Nachbarn aus wie
+    // ein anderes Bedienelement — genau der gemeldete Eindruck.
+    //
+    // Geprüft wird **in der Zelle**: die Nachbarzelle desselben Rollennamens
+    // trägt denselben Text, eine dokumentweite Suche ginge also auch durch,
+    // wenn die geöffnete Zelle ihn verlöre.
+    const user = userEvent.setup();
+    karte();
+
+    await user.click(screen.getByRole("button", { name: /^Finance Approver:/ }));
+
+    const zelle = offeneZelle();
+    expect(zelle.textContent).toContain("Finance Approver");
+    expect(zelle.textContent).toContain("Geld, Budget, Zuteilung");
+  });
+
+  it("lässt die Nachbarn zu", async () => {
+    // Nur der angeklickte Platz öffnet; sonst stünden am Ende fünf Picker da.
+    const user = userEvent.setup();
+    karte();
+
+    await user.click(screen.getByRole("button", { name: /^Finance Approver:/ }));
+
+    expect(screen.getAllByRole("combobox")).toHaveLength(1);
   });
 });

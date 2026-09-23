@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useState, startTransition } from "react";
+import { useActionState, useState, startTransition } from "react";
 import { Check, Plus } from "lucide-react";
 import { assignEpicOwnerAction } from "@/modules/work/features/portfolio/actions/timeline";
 import { userLabel, initials } from "@/components/detail/initiative-labels";
 import { UserPicker } from "@/components/detail/user-picker";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useTransientFlag } from "@/lib/hooks/use-transient-flag";
 
 interface Approver {
   userId: string;
@@ -139,19 +140,4 @@ export function EpicOwnerAssign({ epicId, ownerId, canAssignOwner, approvers, us
       )}
     </div>
   );
-}
-
-/**
- * Ein Erfolg ist ein **Ereignis**, kein Zustand. `state.success` bleibt bis zum
- * naechsten Laden gesetzt; ohne diesen Haken staende der Haken fuer immer da.
- */
-function useTransientFlag(on: boolean, ms = 2500): boolean {
-  const [shown, setShown] = useState(false);
-  useEffect(() => {
-    if (!on) return;
-    setShown(true);
-    const t = window.setTimeout(() => setShown(false), ms);
-    return () => window.clearTimeout(t);
-  }, [on, ms]);
-  return shown;
 }
