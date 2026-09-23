@@ -1,12 +1,12 @@
 import { getRequestConfig } from "next-intl/server";
-import { routing } from "./routing";
+import { routing, isLocale } from "./routing";
 
 export default getRequestConfig(async ({ requestLocale }) => {
-  let locale = await requestLocale;
-
-  if (!locale || !routing.locales.includes(locale as (typeof routing.locales)[number])) {
-    locale = routing.defaultLocale;
-  }
+  const requested = await requestLocale;
+  // Die Middleware erkennt das Segment mit `/^\/([a-z]{2})(\/|$)/` und lässt
+  // damit **jedes** Zweibuchstaben-Präfix durch. Hier wird geprüft, nicht
+  // gehofft: was wir nicht führen, wird die Vorgabe.
+  const locale = isLocale(requested) ? requested : routing.defaultLocale;
 
   return {
     locale,

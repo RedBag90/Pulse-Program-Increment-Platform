@@ -26,7 +26,7 @@ export default function DashboardErrorPage({ error, reset }: ErrorPageProps) {
         onClick={reset}
         className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
       >
-        Try again
+        {t("tryAgain")}
       </button>
     </div>
   );

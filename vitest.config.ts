@@ -39,6 +39,10 @@ export default defineConfig({
           include: [
             "src/domain/**/*.test.ts",
             "src/lib/**/*.test.ts",
+            // Sprachkataloge und Routing — reine Datenpruefung, kein DOM noetig,
+            // laeuft aber hier mit, weil das Server-Projekt nur `src/server`
+            // und Modul-Server kennt.
+            "src/i18n/**/*.test.ts",
             "src/features/**/*.test.tsx",
             "src/app/**/*.test.tsx",
             "src/components/**/*.test.tsx",

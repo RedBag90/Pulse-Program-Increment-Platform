@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages } from "next-intl/server";
+import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Inter_Tight } from "next/font/google";
-import { routing } from "@/i18n/routing";
+import { isLocale } from "@/i18n/routing";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -42,9 +42,16 @@ interface LocaleLayoutProps {
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
   const { locale } = await params;
 
-  if (!routing.locales.includes(locale as (typeof routing.locales)[number])) {
+  if (!isLocale(locale)) {
     notFound();
   }
+
+  // **Ohne das kennt der Server-Render die Sprache nicht.** `getTranslations`
+  // und die Formatierer lesen den Locale aus dem Request-Kontext; wer ihn nicht
+  // setzt, bekommt in Server-Komponenten stillschweigend die Vorgabe — also
+  // deutsche Texte auf `/en/`, ohne dass irgendwo ein Fehler entstünde. Es
+  // fehlte bis September 2026 vollständig.
+  setRequestLocale(locale);
 
   const messages = await getMessages();
 

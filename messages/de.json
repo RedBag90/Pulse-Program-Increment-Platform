@@ -13,7 +13,8 @@
     "search": "Suchen",
     "filter": "Filtern",
     "back": "Zurück",
-    "language": "Sprache"
+    "language": "Sprache",
+    "toggleTheme": "Design umschalten"
   },
   "nav": {
     "portfolio": "Portfolio",
@@ -132,6 +133,7 @@
     "forbidden": "Zugriff verweigert",
     "notFound": "Die angeforderte Ressource wurde nicht gefunden",
     "validationFailed": "Validierung fehlgeschlagen",
-    "serverError": "Ein unerwarteter Fehler ist aufgetreten"
+    "serverError": "Ein unerwarteter Fehler ist aufgetreten",
+    "tryAgain": "Erneut versuchen"
   }
 }

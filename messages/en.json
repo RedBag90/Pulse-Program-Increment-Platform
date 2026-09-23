@@ -13,7 +13,8 @@
     "search": "Search",
     "filter": "Filter",
     "back": "Back",
-    "language": "Language"
+    "language": "Language",
+    "toggleTheme": "Toggle theme"
   },
   "nav": {
     "portfolio": "Portfolio",
@@ -132,6 +133,7 @@
     "forbidden": "Access denied",
     "notFound": "The requested resource was not found",
     "validationFailed": "Validation failed",
-    "serverError": "An unexpected error occurred"
+    "serverError": "An unexpected error occurred",
+    "tryAgain": "Try again"
   }
 }

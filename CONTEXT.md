@@ -511,3 +511,52 @@ zugehörigen Aufgaben liegen. **Code-Modul ohne Entitlement-Key** — siehe
   rhythm come from CSS tokens defined in `src/app/globals.css` — see
   `docs/design-tokens.md`. Do not inline `p-6`/`p-8`/`space-y-6` on page
   wrappers; the primitives own that rhythm.
+
+## Sprache (i18n)
+
+Siehe **ADR-0024**. Kurz:
+
+- **Zwei Sprachen**, Deutsch und Englisch. Vorgabe ist `de`, solange die
+  Umstellung läuft. Das Segment `[locale]` steht in jeder Route; die
+  Route-**Namen** bleiben deutsch (`/en/ziele`).
+- **Kein sichtbarer Text im Code** — er steht in `messages/de.json` und
+  `messages/en.json`. Das gilt auch für Fachbegriffe, die in beiden Sprachen
+  gleich lauten.
+- **Die Domäne liefert Schlüssel, keine Wörter.** Reine Funktionen können
+  `useTranslations` nicht aufrufen; sie geben Katalog-Schlüssel zurück.
+- **Formatierung** läuft über `src/lib/formatting.ts` und nimmt einen Locale.
+  Im Client bindet `useFormat()` ihn, auf dem Server löst `requestLocale()`
+  ihn auf. Kein `toLocaleDateString("de-DE")` an dieser Schicht vorbei.
+
+### Schlüssel-Konvention
+
+Die flache Ebene aus der Anfangszeit (`nav`, `auth`, `errors`, …) trägt 126
+Schlüssel; mit dem vollständigen Katalog werden es einige tausend. Neue
+Schlüssel folgen deshalb **`bereich.fläche.ding`**:
+
+```
+work.gate.criteria.businessCaseDrafted.label
+work.gate.criteria.businessCaseDrafted.help
+goals.status.onTrack
+budgeting.period.emptyState.title
+```
+
+- **`bereich`** ist das Modul (`work`, `goals`, `budgeting`, `drumbeat`,
+  `risks`, `org`, `onboarding`, `wiki`) oder eine der bestehenden
+  Rahmen-Ebenen (`common`, `nav`, `auth`, `errors`).
+- **`fläche`** ist die Seite, Kachel oder Datenstruktur, nicht die Datei.
+- **`ding`** ist das, was dort steht. Gehören mehrere Texte zusammen (Etikett
+  und Hilfetext), stehen sie als `label`/`help` unter demselben Knoten.
+
+Die bestehenden neun Namensräume bleiben, wo sie sind — sie umzubenennen
+brächte nichts und bräche jede Fundstelle.
+
+### Der Wächter
+
+`src/i18n/__tests__/translated-surfaces.test.ts` prüft die Flächen, die bereits
+übersetzt sind, auf rohe Texte. **Wer eine Fläche übersetzt, trägt sie dort
+ein.** Die Liste wächst mit der Umstellung — dasselbe Vorgehen wie beim
+ADR-0021-Wächter, und aus demselben Grund: ein Test über alles wäre heute rot.
+
+`src/i18n/__tests__/catalog-parity.test.ts` hält fest, dass beide Kataloge
+dieselben Schlüssel tragen und keiner leer ist.

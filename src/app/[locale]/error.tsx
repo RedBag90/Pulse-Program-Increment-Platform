@@ -26,7 +26,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
         onClick={reset}
         className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
       >
-        Try again
+        {t("tryAgain")}
       </button>
     </main>
   );
