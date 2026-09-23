@@ -33,6 +33,7 @@
     "@base-ui/react": "^1.4.1",
     "@dagrejs/dagre": "^3.0.0",
     "@prisma/client": "^6.9.0",
+    "@react-pdf/renderer": "^4.9.0",
     "@sentry/nextjs": "^9.20.0",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.8",

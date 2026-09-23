@@ -12,7 +12,14 @@ export default defineConfig({
     exclude: ["node_modules", ".next", "src/generated", "tests/e2e"],
     projects: [
       {
-        // Server-side tests — must run in Node so jose/nodemailer get real Uint8Array
+        // Server-side tests — must run in Node so jose/nodemailer get real Uint8Array.
+        //
+        // Das React-Plugin steht hier, seit es **serverseitiges JSX** gibt: das
+        // PDF-Dokument des Ziele-Berichts (`goals/server/report/*.tsx`) baut auf
+        // `@react-pdf`-Primitiven, nicht auf DOM. Ohne den Plugin scheitert ein
+        // Test, der es importiert, mit „React is not defined" — die Umgebung
+        // bleibt Node, nur die Transformation kommt dazu.
+        plugins: [react()],
         test: {
           name: "server",
           environment: "node",

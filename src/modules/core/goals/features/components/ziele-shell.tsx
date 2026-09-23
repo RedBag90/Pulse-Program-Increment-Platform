@@ -14,6 +14,7 @@ import type { SavedFilterDTO } from "@/server/services/saved-filter";
 import { ZieleEditDrawer } from "./ziele-edit-drawer";
 import { MoneySheetView } from "./money-sheet-view";
 import { GoalSetupStepper } from "./goal-setup-stepper";
+import { ZieleReportButton } from "./ziele-report-button";
 
 /**
  * Ziele-Shell — die **eine** Surface für Übersicht **und** Pflege (die frühere
@@ -75,7 +76,13 @@ export function ZieleShell({
           <div className="flex flex-wrap items-center justify-between gap-2">
             {/* Kein Modul-Gate: Wertströme und ARTs sind Core. */}
             <GoalScopeFilterBar savedFilters={savedFilters} />
-            <StrategyLayoutToggle active={layout} />
+            <div className="flex items-center gap-2">
+              {/* Der Bericht steht neben dem Filter, weil er dessen Ausschnitt
+                  abbildet — die Layout-Wahl daneben hat auf Papier keine
+                  Bedeutung. */}
+              <ZieleReportButton />
+              <StrategyLayoutToggle active={layout} />
+            </div>
           </div>
           {layout === "tabelle" && (
             <StrategyTableView
