@@ -118,6 +118,26 @@ Umstellung; am Ende steht dort ein Verzeichnis-Durchgang statt einer Liste.
 deutsche Wörter (`expect(…).toBe("Gefährdet")`). Jede umgestellte
 Domänen-Tabelle bricht sie; sie prüfen künftig Schlüssel.
 
+**Die Wiki-Anleitungen tragen ihre Sprache im Verzeichnis, nicht im Katalog.**
+`guides/de/*.ts` und `guides/en/*.ts`, aufgelöst von `guidesFor(locale)`. Für
+Etiketten und Sätze ist der Katalog richtig; für 199.317 Zeichen Fachprosa in
+elf Dateien wäre er es nicht — zweitausend Schlüssel mit Absätzen darin liest
+niemand, und wer später eine Formulierung schärfen will, müsste sie aus
+`de.json` heraussuchen, statt den Text im Zusammenhang zu lesen.
+
+Der Preis ist, dass zwei Dateien auseinanderlaufen können, und der
+Katalog-Paritätstest greift hier nicht. `guides-parity.test.ts` ist der
+Ersatz: er prüft **nur**, was Logik ist und in beiden Sprachen gleich sein
+muss — Slug, Rhythmus, Modul, Practice, die Zahl der Stationen je Perspektive
+und die Capabilities in „Wer welchen Schritt macht". Die Wörter prüft er
+bewusst nicht; sonst wäre er ein Test gegen das Übersetzen.
+
+**Eine fehlende Fassung ist kein Fehler.** `guidesFor("en")` zeigt dann die
+deutsche mit `translated: false`, und der Leser sieht einen Hinweis. Alle elf
+liegen seit September 2026 in beiden Sprachen vor (193.772 Zeichen Englisch);
+der Rückfall bleibt trotzdem stehen — er ist die Bedingung dafür, dass eine
+zwölfte Anleitung auf Deutsch entstehen darf, ohne den Lauf rot zu machen.
+
 **Der Katalog wächst von 126 auf einige tausend Schlüssel.** Die flache
 Namensraum-Ebene trägt das nicht mehr; die Konvention steht in `CONTEXT.md`.
 
@@ -170,7 +190,8 @@ Entscheidung — `next-intl` wird in `src/test/setup.ts` durch den echten Katalo
 ersetzt, statt jede Testdatei in einen Provider zu wickeln. Hochgerechnet auf
 die 193 gefährdeten Dateien sind das rund 70, nicht 193.
 
-**Das Englisch braucht fachliches Gegenlesen.** „Reifegrad", „Wertstrom",
+**Das Englisch braucht fachliches Gegenlesen** — 2.491 Katalogschlüssel und
+elf Anleitungen. „Reifegrad", „Wertstrom",
 „Verteilbogen", „Anliegen" sind Begriffe, bei denen eine wörtliche Übersetzung
 in die Irre führt.
 

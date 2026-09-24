@@ -527,6 +527,12 @@ Siehe **ADR-0024**. Kurz:
 - **Formatierung** läuft über `src/lib/formatting.ts` und nimmt einen Locale.
   Im Client bindet `useFormat()` ihn, auf dem Server löst `requestLocale()`
   ihn auf. Kein `toLocaleDateString("de-DE")` an dieser Schicht vorbei.
+- **Lange Fachprosa liegt je Sprache als eigene Datei**, nicht im Katalog:
+  `src/modules/wiki/domain/guides/de/*.ts` und `…/en/*.ts`, aufgelöst von
+  `guidesFor(locale)`. Fehlt eine Fassung, zeigt die Fläche die deutsche mit
+  sichtbarem Hinweis statt einer Lücke. `guides-parity.test.ts` hält die
+  **Struktur** beider Fassungen zusammen — Slug, Rhythmus, Modul, Stationen,
+  Capabilities —, die Wörter ausdrücklich nicht.
 - **Wer kein Bildschirm ist, bekommt den Übersetzer gereicht.** `useTranslations`
   ist ein Hook, `getTranslations` braucht einen Request — der PDF-Bericht, die
   E-Mail-Vorlagen und die Domäne haben beides nicht. Sie nehmen `Translate`

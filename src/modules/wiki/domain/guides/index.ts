@@ -13,7 +13,17 @@ import { PORTFOLIO_CYCLE } from "@/modules/wiki/domain/guides/de/portfolio-cycle
 import { BUDGETING } from "@/modules/wiki/domain/guides/de/budgeting";
 import { ART_EPIC_BUDGET } from "@/modules/wiki/domain/guides/de/art-epic-budget";
 
+import { ART_EPIC_BUDGET_EN } from "@/modules/wiki/domain/guides/en/art-epic-budget";
+import { BENEFIT_EN } from "@/modules/wiki/domain/guides/en/benefit";
+import { BUDGETING_EN } from "@/modules/wiki/domain/guides/en/budgeting";
+import { DELIVERY_EN } from "@/modules/wiki/domain/guides/en/delivery";
+import { EPIC_INTAKE_EN } from "@/modules/wiki/domain/guides/en/epic-intake";
+import { EPIC_LIFECYCLE_EN } from "@/modules/wiki/domain/guides/en/epic-lifecycle";
+import { PI_EN } from "@/modules/wiki/domain/guides/en/pi";
+import { PORTFOLIO_CYCLE_EN } from "@/modules/wiki/domain/guides/en/portfolio-cycle";
+import { PORTFOLIO_SETUP_EN } from "@/modules/wiki/domain/guides/en/portfolio-setup";
 import { RISK_EN } from "@/modules/wiki/domain/guides/en/risk";
+import { TENANT_ONBOARDING_EN } from "@/modules/wiki/domain/guides/en/tenant-onboarding";
 
 /**
  * **Die Anleitungen liegen je Sprache als eigene Datei, nicht im Katalog.**
@@ -51,7 +61,17 @@ const DE: readonly Guide[] = [
 
 /** Was bereits übersetzt ist, nach Slug. Wächst mit der Redaktionsarbeit. */
 const EN_BY_SLUG: Record<string, Guide> = {
+  [ART_EPIC_BUDGET_EN.slug]: ART_EPIC_BUDGET_EN,
+  [BENEFIT_EN.slug]: BENEFIT_EN,
+  [BUDGETING_EN.slug]: BUDGETING_EN,
+  [DELIVERY_EN.slug]: DELIVERY_EN,
+  [EPIC_INTAKE_EN.slug]: EPIC_INTAKE_EN,
+  [EPIC_LIFECYCLE_EN.slug]: EPIC_LIFECYCLE_EN,
+  [PI_EN.slug]: PI_EN,
+  [PORTFOLIO_CYCLE_EN.slug]: PORTFOLIO_CYCLE_EN,
+  [PORTFOLIO_SETUP_EN.slug]: PORTFOLIO_SETUP_EN,
   [RISK_EN.slug]: RISK_EN,
+  [TENANT_ONBOARDING_EN.slug]: TENANT_ONBOARDING_EN,
 };
 
 /** Eine Anleitung mit dem Vermerk, ob sie in der gewünschten Sprache vorliegt. */
