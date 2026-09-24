@@ -1,9 +1,10 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, startTransition, useActionState } from "react";
 import {
   CONFIDENCE_VALUES,
-  CONFIDENCE_LABEL,
+  CONFIDENCE_KEYS,
   needsReplan,
 } from "@/modules/core/goals/domain/goal-confidence";
 import {
@@ -78,6 +79,7 @@ export function GoalDetailPanel({
   currencyCode,
   metricUnit,
 }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const [detail, setDetail] = useState<GoalDetailPayload | null>(null);
   const [checkinState, checkInRun, checkInPending] = useActionState(checkInGoalAction, {});
@@ -209,20 +211,20 @@ export function GoalDetailPanel({
         <div className="space-y-3 rounded-lg border bg-muted/10 p-3">
           <div className="flex items-center justify-between">
             <p className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
-              Status-Update · <GoalStatusPill status={composerStatus} />
+              {t("goals.detail.statusUpdate")} <GoalStatusPill status={composerStatus} />
             </p>
             <button
               type="button"
               onClick={() => setSections((s) => [...s, { title: "", body: "" }])}
               className="text-xs text-primary hover:underline"
             >
-              + Sektion
+              {t("goals.detail.addSection")}
             </button>
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <label className="block">
               <span className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
-                Datum des Punkts
+                {t("goals.detail.pointDate")}
               </span>
               <input
                 type="date"
@@ -266,7 +268,7 @@ export function GoalDetailPanel({
                         arr.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)),
                       )
                     }
-                    placeholder="Titel (z. B. Zusammenfassung)"
+                    placeholder={t("goals.detail.sectionTitle")}
                     className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                   />
                   {sections.length > 1 && (
@@ -274,7 +276,7 @@ export function GoalDetailPanel({
                       type="button"
                       onClick={() => setSections((arr) => arr.filter((_, j) => j !== i))}
                       className="text-xs text-muted-foreground hover:text-destructive"
-                      aria-label="Sektion entfernen"
+                      aria-label={t("goals.detail.removeSection")}
                     >
                       ✕
                     </button>
@@ -288,7 +290,7 @@ export function GoalDetailPanel({
                     )
                   }
                   rows={2}
-                  placeholder="Text…"
+                  placeholder={t("goals.detail.text")}
                   className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 />
               </div>
@@ -303,7 +305,7 @@ export function GoalDetailPanel({
               onClick={() => setComposerStatus(null)}
               className="text-xs text-muted-foreground hover:text-foreground"
             >
-              Abbrechen
+              {t("goals.shared.cancel")}
             </button>
             <button
               type="button"
@@ -319,15 +321,15 @@ export function GoalDetailPanel({
 
       {/* Cards */}
       <div className="grid grid-cols-3 gap-3">
-        <Card label="Zielerreichung" value={`${pct} %`} accent />
+        <Card label={t("goals.detail.attainment")} value={`${pct} %`} accent />
         <Card
-          label="Aktueller Wert"
+          label={t("goals.detail.currentValue")}
           value={currentValueLabel || "—"}
           {...(currentValueHint ? { hint: currentValueHint } : {})}
         />
         <div className="rounded-lg bg-card shadow-card p-3.5 shadow-sm">
           <p className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
-            Letzter Status
+            {t("goals.detail.lastStatus")}
           </p>
           <div className="mt-1.5">
             <GoalStatusPill status={status} />
@@ -343,7 +345,7 @@ export function GoalDetailPanel({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-              Fortschritt
+              {t("goals.shared.progress")}
             </p>
             {isManualValue && canEdit && !progressOpen && (
               <button
@@ -351,7 +353,8 @@ export function GoalDetailPanel({
                 onClick={openProgress}
                 className="inline-flex items-center gap-1 rounded-md border bg-background px-2.5 py-1 text-xs font-medium shadow-xs hover:bg-muted/50"
               >
-                <Plus className="size-3.5" /> Fortschritt aktualisieren
+                <Plus className="size-3.5" />
+                {t("goals.detail.updateProgress")}
               </button>
             )}
           </div>
@@ -379,7 +382,7 @@ export function GoalDetailPanel({
               </label>
               <label className="block">
                 <span className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
-                  Datum
+                  {t("goals.shared.date")}
                 </span>
                 <input
                   type="date"
@@ -402,7 +405,7 @@ export function GoalDetailPanel({
                   onClick={() => setProgressOpen(false)}
                   className="text-xs text-muted-foreground hover:text-foreground"
                 >
-                  Abbrechen
+                  {t("goals.shared.cancel")}
                 </button>
               </div>
               {progressState.error && (
@@ -493,6 +496,7 @@ function relTime(iso: string): string {
  * deshalb eine warnende Färbung, sobald sie gewählt sind.
  */
 function FistOfFive({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const t = useTranslations();
   const current = Number(value);
   return (
     <div className="mt-1 flex gap-1">
@@ -504,7 +508,7 @@ function FistOfFive({ value, onChange }: { value: string; onChange: (v: string) 
             type="button"
             onClick={() => onChange(String(v))}
             aria-pressed={active}
-            title={CONFIDENCE_LABEL[v]}
+            title={t(CONFIDENCE_KEYS[v])}
             className={`size-9 rounded-md border text-sm font-medium tabular-nums transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
               active
                 ? needsReplan(v)

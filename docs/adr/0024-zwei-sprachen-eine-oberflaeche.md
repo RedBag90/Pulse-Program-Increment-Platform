@@ -101,6 +101,18 @@ Domänen-Tabelle bricht sie; sie prüfen künftig Schlüssel.
 **Der Katalog wächst von 126 auf einige tausend Schlüssel.** Die flache
 Namensraum-Ebene trägt das nicht mehr; die Konvention steht in `CONTEXT.md`.
 
+**Die Naht für alles ohne Bildschirm ist ein Parameter.** `Translate`
+(`src/i18n/translate.ts`) ist das kleinste Stück von `next-intl`s `t`, das
+trägt: ein Schlüssel, ein Wort. Der PDF-Bericht war der erste Fall, die
+E-Mail-Vorlagen und die Fehlermeldungen der Services sind die nächsten.
+
+**Die Tests kosteten ein Fünftel dessen, was diese ADR befürchtet hat.** Am
+Ziele-Modul gemessen: von 27 Testdateien trugen 14 deutsche Zusicherungen, und
+**5** mussten tatsächlich geändert werden. Der Grund ist eine einzige
+Entscheidung — `next-intl` wird in `src/test/setup.ts` durch den echten Katalog
+ersetzt, statt jede Testdatei in einen Provider zu wickeln. Hochgerechnet auf
+die 193 gefährdeten Dateien sind das rund 70, nicht 193.
+
 **Das Englisch braucht fachliches Gegenlesen.** „Reifegrad", „Wertstrom",
 „Verteilbogen", „Anliegen" sind Begriffe, bei denen eine wörtliche Übersetzung
 in die Irre führt.

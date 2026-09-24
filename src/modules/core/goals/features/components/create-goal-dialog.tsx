@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import { Plus } from "lucide-react";
 import { createGoalNodeAction } from "@/modules/core/goals/features/actions/ziele";
@@ -33,6 +34,7 @@ const initialState: ActionState = {};
  * `createGoalNodeAction` direkt (Muster wie die übrigen +-Dialoge).
  */
 export function CreateGoalDialog({ open, onOpenChange }: CreateGoalDialogProps) {
+  const t = useTranslations();
   const isControlled = open !== undefined;
   const [selfOpen, setSelfOpen] = useState(false);
   const dialogOpen = open ?? selfOpen;
@@ -46,30 +48,30 @@ export function CreateGoalDialog({ open, onOpenChange }: CreateGoalDialogProps) 
       {!isControlled && (
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="mr-1.5 size-4" />
-          Neues Ziel
+          {t("goals.create.heading")}
         </Button>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Ziel anlegen</DialogTitle>
+            <DialogTitle>{t("goals.create.title")}</DialogTitle>
           </DialogHeader>
           <form action={action} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="goal-title">
-                Titel <span className="text-destructive">*</span>
+                {t("goals.shared.title")} <span className="text-destructive">*</span>
               </Label>
               <Input id="goal-title" name="title" required autoFocus />
             </div>
 
             <div className="space-y-1.5">
-              <Label>Zeitraum</Label>
+              <Label>{t("goals.create.timeframe")}</Label>
               <GoalPeriodField />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="goal-narrative">Beschreibung</Label>
+              <Label htmlFor="goal-narrative">{t("goals.create.description")}</Label>
               <Textarea id="goal-narrative" name="narrative" rows={3} />
             </div>
 
@@ -81,7 +83,7 @@ export function CreateGoalDialog({ open, onOpenChange }: CreateGoalDialogProps) 
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Abbrechen
+                {t("goals.shared.cancel")}
               </Button>
               <Button type="submit" disabled={isPending}>
                 {isPending ? "Legt an…" : "Anlegen"}

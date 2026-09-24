@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { ZieleModel } from "@/modules/core/goals/server/views/ziele-view";
 import { Page } from "@/components/layout/page";
 import { PageHeader } from "@/components/layout/page-header";
@@ -44,6 +45,7 @@ export function ZieleShell({
   setupDismissed = false,
   savedFilters = [],
 }: Props) {
+  const t = useTranslations();
   const { tab, themes, tenantTrio, permissions, modules, setup } = model;
   // Money existiert nur mit Portfolio-Modul — Deep-Link `?tab=money` ohne
   // Portfolio fällt still auf „Strategie" zurück (keine leere Fläche).
@@ -57,8 +59,8 @@ export function ZieleShell({
   return (
     <Page>
       <PageHeader
-        title="Ziele"
-        subtitle="Ziele und Unterziele — Übersicht und Pflege in einer Ansicht."
+        title={t("goals.shell.title")}
+        subtitle={t("goals.shell.subtitle")}
         actions={<ZieleSubTabs active={effectiveTab} showMoney={modules.portfolio} />}
       />
 
@@ -67,7 +69,8 @@ export function ZieleShell({
       <div className="space-y-2">
         <GoalHealthStrip themes={themes} tenantTrio={tenantTrio} showMoney={modules.portfolio} />
         <p className="px-1 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{themes.length}</span> Ziele im Scope
+          <span className="font-medium text-foreground">{themes.length}</span>
+          {t("goals.shell.goalsInScope")}
         </p>
       </div>
 

@@ -1,9 +1,12 @@
-import { formatCompactEUR } from "@/lib/formatting";
+import { formatCompactEUR, formatDate, formatPercent } from "@/lib/formatting";
+import type { Locale } from "@/i18n/routing";
+import type { Translate } from "@/i18n/translate";
 import {
-  GOAL_STATUS_LABELS,
-  goalStatusLabel,
+  GOAL_STATUS_KEYS,
+  goalStatusKey,
   goalStatusTier,
   isGoalStatus,
+  GOAL_STATUS_TIER_KEYS,
   type GoalStatusTier,
 } from "@/modules/core/goals/domain/goal-status";
 import { goalPeriodLabel, isGoalPeriodKey } from "@/modules/core/goals/domain/goal-period";
@@ -61,7 +64,7 @@ export interface ZieleReportSummary {
 
 export interface ZieleReport {
   tenantName: string;
-  /** Erzeugungsdatum, de-DE. */
+  /** Erzeugungsdatum in der Sprache des Berichts. */
   generatedAt: string;
   filters: ZieleReportFilters;
   summary: ZieleReportSummary;
@@ -77,32 +80,11 @@ export interface ZieleReport {
  */
 const LEER = "—";
 
-/**
- * Die Stufen-Beschriftung des Health-Strips.
- *
- * Abgeschrieben und nicht importiert, weil sie dort in einer
- * Client-Komponente steht (`features/components/goal-health-strip.tsx`) — die
- * Domäne zieht keine Abhängigkeit in Richtung `features`. Der Text ist
- * derselbe; weicht er je ab, fällt es im Bericht neben dem Bildschirm auf.
- */
-const TIER_LABEL: Record<GoalStatusTier, string> = {
-  green: "On track",
-  amber: "At risk",
-  rose: "Off track",
-  neutral: "Ohne Status",
-};
-
 /** Reihenfolge wie im Strip: on-track → at-risk → off-track → ohne. */
 const TIER_ORDER: readonly GoalStatusTier[] = ["green", "amber", "rose", "neutral"];
 
 /** Der Sentinel des Status-Filters: „ohne Status" ist eine Auswahl, kein Fehlen. */
 const STATUS_NONE = "none";
-
-const DATUM = new Intl.DateTimeFormat("de-DE", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-});
 
 /** Der Knoten, so weit der Bericht ihn kennen muss — ein Ausschnitt aus `GoalNode`. */
 export interface ZieleReportNode {
@@ -129,6 +111,16 @@ export interface ZieleReportTree {
 
 export interface ZieleReportContext {
   tenantName: string;
+  /**
+   * **Der Übersetzer, hereingereicht.**
+   *
+   * `useTranslations` ist ein Hook, `getTranslations` braucht einen Request —
+   * beides hat eine reine Funktion nicht. Der Aufrufer sitzt immer in einem
+   * von beiden und gibt ihn mit; siehe `src/i18n/translate.ts`.
+   */
+  t: Translate;
+  /** Zahlen, Geld und Daten folgen derselben Sprache wie die Wörter. */
+  locale: Locale;
   /** userId → Anzeigename, wie die Seite ihn hat (`listTenantUserLabels`). */
   userLabels: Record<string, string>;
   /** id → Name, nur für das Filter-Echo im Kopf. */
@@ -137,7 +129,7 @@ export interface ZieleReportContext {
   now: Date;
 }
 
-/** „alle", wenn nichts gewählt ist — sonst die Namen, Komma-getrennt. */
+/** Der Sammelbegriff, wenn nichts gewählt ist — sonst die Namen, Komma-getrennt. */
 function echo(ids: readonly string[], names: Record<string, string>, alle: string): string {
   if (ids.length === 0) return alle;
   // Eine Id, zu der es keinen Namen gibt, bleibt als Id stehen: lieber ein
@@ -157,12 +149,14 @@ function timeframeLabel(node: ZieleReportNode): string {
 }
 
 /** Ist/Soll wie die Spalte „Wert" am Bildschirm; „—", wo es nichts zu zeigen gibt. */
-function valueLabel(trio: { planned: number; realized: number }): string {
+function valueLabel(trio: { planned: number; realized: number }, locale: Locale): string {
   if (trio.planned === 0 && trio.realized === 0) return LEER;
-  return `${formatCompactEUR(trio.realized)} / ${formatCompactEUR(trio.planned)}`;
+  return `${formatCompactEUR(trio.realized, locale)} / ${formatCompactEUR(trio.planned, locale)}`;
 }
 
 export function buildZieleReport(tree: ZieleReportTree, ctx: ZieleReportContext): ZieleReport {
+  const { t, locale } = ctx;
+  const alleLabel = t("goals.report.all");
   const alle = flattenGoalTree(tree.themes);
 
   // `flattenGoalTree` legt vorbestellt flach und liefert die Tiefe dazu — der
@@ -173,10 +167,10 @@ export function buildZieleReport(tree: ZieleReportTree, ctx: ZieleReportContext)
     depth,
     title: node.title,
     owner: (node.ownerId ? ctx.userLabels[node.ownerId] : null) ?? LEER,
-    status: node.status ? goalStatusLabel(node.status) : TIER_LABEL.neutral,
+    status: t(node.status ? goalStatusKey(node.status) : GOAL_STATUS_TIER_KEYS.neutral),
     statusTier: goalStatusTier(node.status),
-    progress: node.progress != null ? `${Math.round(node.progress * 100)} %` : LEER,
-    value: valueLabel(node.trio),
+    progress: node.progress != null ? formatPercent(node.progress, locale) : LEER,
+    value: valueLabel(node.trio, locale),
     timeframe: timeframeLabel(node),
   }));
 
@@ -187,42 +181,47 @@ export function buildZieleReport(tree: ZieleReportTree, ctx: ZieleReportContext)
   const messbar = tree.themes.filter((t) => t.progress != null);
   const averageProgress =
     messbar.length > 0
-      ? `${Math.round(
-          (messbar.reduce((s, t) => s + (t.progress ?? 0), 0) / messbar.length) * 100,
-        )} %`
+      ? formatPercent(
+          messbar.reduce((sum, g) => sum + (g.progress ?? 0), 0) / messbar.length,
+          locale,
+        )
       : LEER;
 
   const counts: Record<GoalStatusTier, number> = { green: 0, amber: 0, rose: 0, neutral: 0 };
-  for (const t of tree.themes) counts[goalStatusTier(t.status)] += 1;
+  for (const thema of tree.themes) counts[goalStatusTier(thema.status)] += 1;
 
   return {
     tenantName: ctx.tenantName,
-    generatedAt: DATUM.format(ctx.now),
+    generatedAt: formatDate(ctx.now, "date", locale),
     filters: {
       // Zeiträume tragen ihre eigene Beschriftung („2026-Q3" → „Q3 2026").
       periods:
         tree.periods.length === 0
-          ? "alle"
+          ? alleLabel
           : tree.periods.map((p) => (isGoalPeriodKey(p) ? goalPeriodLabel(p) : p)).join(", "),
-      valueStreams: echo(tree.valueStreamIds, ctx.valueStreamNames, "alle"),
-      arts: echo(tree.artIds, ctx.artNames, "alle"),
+      valueStreams: echo(tree.valueStreamIds, ctx.valueStreamNames, alleLabel),
+      arts: echo(tree.artIds, ctx.artNames, alleLabel),
       statuses:
         tree.statuses.length === 0
-          ? "alle"
+          ? alleLabel
           : tree.statuses
-              .map((s) =>
-                s === STATUS_NONE
-                  ? TIER_LABEL.neutral
-                  : isGoalStatus(s)
-                    ? GOAL_STATUS_LABELS[s]
-                    : s,
+              .map((status) =>
+                status === STATUS_NONE
+                  ? t(GOAL_STATUS_TIER_KEYS.neutral)
+                  : isGoalStatus(status)
+                    ? t(GOAL_STATUS_KEYS[status])
+                    : status,
               )
               .join(", "),
     },
     summary: {
       goalCount: alle.length,
       averageProgress,
-      tiers: TIER_ORDER.map((tier) => ({ tier, label: TIER_LABEL[tier], count: counts[tier] })),
+      tiers: TIER_ORDER.map((tier) => ({
+        tier,
+        label: t(GOAL_STATUS_TIER_KEYS[tier]),
+        count: counts[tier],
+      })),
     },
     rows,
   };

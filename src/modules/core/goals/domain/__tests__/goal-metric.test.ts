@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   METRIC_TYPES,
-  METRIC_TYPE_LABELS,
+  METRIC_TYPE_KEYS,
   isMetricType,
   clampPrecision,
   formatMetricValue,
@@ -18,11 +18,11 @@ import {
  * Diese Tests sind deshalb die eigentliche Absicherung, nicht der Compiler.
  */
 describe("goal-metric", () => {
-  it("labels every metric type", () => {
-    for (const t of METRIC_TYPES) {
-      expect(METRIC_TYPE_LABELS[t]).toBeTruthy();
+  it("führt zu jedem Metriktyp einen Katalog-Schlüssel", () => {
+    for (const typ of METRIC_TYPES) {
+      expect(METRIC_TYPE_KEYS[typ]).toMatch(/^goals\.metricType\./);
     }
-    expect(Object.keys(METRIC_TYPE_LABELS)).toHaveLength(METRIC_TYPES.length);
+    expect(Object.keys(METRIC_TYPE_KEYS)).toHaveLength(METRIC_TYPES.length);
   });
 
   it("isMetricType guards the known values only", () => {
@@ -116,13 +116,14 @@ describe("Abgelegte Metriktypen", () => {
     expect(isSelectableMetricType("number")).toBe(false);
   });
 
-  it("beschriftet jeden anbietbaren Typ", () => {
-    for (const t of SELECTABLE_METRIC_TYPES) {
-      expect(METRIC_TYPE_LABELS[t], t).toBeTruthy();
+  it("benennt jeden anbietbaren Typ", () => {
+    for (const typ of SELECTABLE_METRIC_TYPES) {
+      expect(METRIC_TYPE_KEYS[typ], typ).toBeTruthy();
     }
     // Und den abgelegten auch — sonst hätte ein Bestandsziel kein Wort für das,
-    // worauf es steht.
-    expect(METRIC_TYPE_LABELS.number).toBe("Zahl");
+    // worauf es steht. Geprüft wird der Schlüssel; dass es dazu in beiden
+    // Sprachen einen Text gibt, sichert der Paritätstest in `src/i18n`.
+    expect(METRIC_TYPE_KEYS.number).toBe("goals.metricType.number");
   });
 
   it("zeigt ein Bestandsziel auf „Zahl“ unverändert an", () => {

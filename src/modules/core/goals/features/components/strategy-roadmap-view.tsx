@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -16,7 +17,7 @@ import type { GoalTimeframe } from "@/modules/core/goals/domain/goal-period";
 import {
   goalStatusTier,
   goalStatusColor,
-  goalStatusLabel,
+  goalStatusKey,
 } from "@/modules/core/goals/domain/goal-status";
 import type { GoalStatusTier } from "@/modules/core/goals/domain/goal-status";
 
@@ -64,6 +65,7 @@ function shortTag(tf: GoalTimeframe): string {
 const LABEL_W = 220;
 
 export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
+  const t = useTranslations();
   const sp = useSearchParams();
   const { minYear, totalQ, todayFrac } = useMemo(() => {
     const years: number[] = [];
@@ -91,7 +93,7 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
   if (themes.length === 0) {
     return (
       <div className="grid h-56 place-items-center rounded-lg border border-dashed bg-card text-sm text-muted-foreground">
-        Noch keine Ziele im Scope.
+        {t("goals.shared.emptyScope")}
       </div>
     );
   }
@@ -132,7 +134,7 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
             style={{ left: `calc(${LABEL_W}px + (100% - ${LABEL_W}px) * ${todayFrac})` }}
           >
             <span className="absolute -top-0.5 left-1 text-label font-bold uppercase tracking-wide text-primary">
-              heute
+              {t("goals.roadmap.today")}
             </span>
           </div>
         )}
@@ -167,7 +169,7 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
                     <div className="relative h-[34px] flex-1" style={{ backgroundImage: gridBg }}>
                       {pl && tf ? (
                         <div
-                          title={`${node.title} · ${goalStatusLabel(node.status)} · ${goalTimeframeLabel(tf)}`}
+                          title={`${node.title} · ${t(goalStatusKey(node.status))} · ${goalTimeframeLabel(tf)}`}
                           className={cn(
                             "absolute top-[5px] flex h-6 items-center gap-1.5 overflow-hidden rounded-lg border px-2 text-meta font-medium shadow-xs",
                             TIER_BAR[tier],
@@ -185,7 +187,7 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
                         </div>
                       ) : (
                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-label text-muted-foreground/60">
-                          ohne Zeitraum
+                          {t("goals.roadmap.noTimeframe")}
                         </span>
                       )}
                     </div>

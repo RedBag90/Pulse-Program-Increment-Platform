@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   useCallback,
   useEffect,
@@ -123,6 +124,7 @@ interface Props {
 }
 
 export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
+  const t = useTranslations();
   const dragNode = useRef<GoalNode | null>(null);
   const [over, setOver] = useState<{ id: string; placement: Placement } | null>(null);
   const [overTop, setOverTop] = useState(false);
@@ -274,13 +276,11 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
   if (themes.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-8 text-center">
-        <p className="font-medium">Noch keine Strategie definiert.</p>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Leg ein Ziel an und häng Unterziele dran.
-        </p>
+        <p className="font-medium">{t("goals.table.empty")}</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">{t("goals.table.emptyHint")}</p>
         {canEdit && (
           <div className="mt-4 flex justify-center">
-            <NewLink entity="theme">+ Ziel anlegen</NewLink>
+            <NewLink entity="theme">{t("goals.table.newGoalLong")}</NewLink>
           </div>
         )}
       </div>
@@ -297,34 +297,36 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
             <ToolbarButton
               onClick={() => setCollapsedIds(allParentIds)}
               disabled={allParentIds.length === 0 || allCollapsed}
-              title="Alle einklappen"
+              title={t("goals.table.collapseAll")}
             >
               <ChevronsDownUp className="h-3.5 w-3.5" aria-hidden />
-              Einklappen
+              {t("goals.table.collapse")}
             </ToolbarButton>
             <ToolbarButton
               onClick={() => setCollapsedIds([])}
               disabled={collapsed.size === 0}
-              title="Alle ausklappen"
+              title={t("goals.table.expandAll")}
               className="border-l"
             >
               <ChevronsUpDown className="h-3.5 w-3.5" aria-hidden />
-              Ausklappen
+              {t("goals.table.expand")}
             </ToolbarButton>
           </div>
           <label className="inline-flex items-center gap-1.5 rounded-md border bg-background px-2 py-1">
-            <span className="text-meta font-medium text-muted-foreground">Sortieren</span>
+            <span className="text-meta font-medium text-muted-foreground">
+              {t("goals.table.sort")}
+            </span>
             <select
               value={sortKey}
               onChange={(e) => setSortKey(e.target.value as SortKey)}
               className="bg-transparent text-xs font-medium focus-visible:outline-none"
-              aria-label="Sortierkriterium"
+              aria-label={t("goals.table.sortBy")}
             >
-              <option value="manual">Manuell</option>
-              <option value="progress">Fortschritt</option>
-              <option value="value">Wert</option>
-              <option value="period">Zeitraum</option>
-              <option value="title">Titel</option>
+              <option value="manual">{t("goals.table.manual")}</option>
+              <option value="progress">{t("goals.table.progress")}</option>
+              <option value="value">{t("goals.table.value")}</option>
+              <option value="period">{t("goals.table.timeframe")}</option>
+              <option value="title">{t("goals.table.title")}</option>
             </select>
             <button
               type="button"
@@ -352,7 +354,7 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
                 : "bg-card text-muted-foreground hover:bg-muted",
             )}
           >
-            ⚠ Nur off-track
+            {t("goals.shared.onlyOffTrack")}
           </button>
           {filtersActive && (
             <button
@@ -364,14 +366,14 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
               }}
               className="inline-flex items-center rounded-md px-2 py-1 text-meta font-medium text-muted-foreground hover:text-foreground hover:underline"
             >
-              Zurücksetzen
+              {t("goals.shared.reset")}
             </button>
           )}
           {offTrackOnly && visibleThemes.length === 0 && (
-            <span className="text-meta text-muted-foreground">Keine off-track-Ziele.</span>
+            <span className="text-meta text-muted-foreground">{t("goals.shared.noOffTrack")}</span>
           )}
         </div>
-        {canEdit && <NewLink entity="theme">+ Ziel</NewLink>}
+        {canEdit && <NewLink entity="theme">{t("goals.table.newGoal")}</NewLink>}
       </div>
       {canEdit && (
         <p className="text-meta text-muted-foreground">
@@ -410,14 +412,16 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
         <table className="w-full text-sm">
           <thead className={STICKY_THEAD}>
             <tr>
-              <Th>Name</Th>
-              <Th className="w-14">Owner</Th>
-              <Th className="w-32">Status</Th>
-              <Th className="w-36">Progress</Th>
-              <Th className="w-28">Wert</Th>
-              <Th className="w-20">Zeitraum</Th>
+              <Th>{t("goals.table.name")}</Th>
+              <Th className="w-14">{t("goals.table.owner")}</Th>
+              <Th className="w-32">{t("goals.table.status")}</Th>
+              <Th className="w-36">{t("goals.table.progress")}</Th>
+              <Th className="w-28">{t("goals.table.value")}</Th>
+              <Th className="w-20">{t("goals.table.timeframe")}</Th>
               {canEdit && (
-                <Th className="sticky right-0 z-30 w-24 border-l bg-muted/95">Aktionen</Th>
+                <Th className="sticky right-0 z-30 w-24 border-l bg-muted/95">
+                  {t("goals.table.actions")}
+                </Th>
               )}
             </tr>
           </thead>
@@ -572,6 +576,7 @@ const Row = memo(function Row({
   editHref,
   addChildHref,
 }: RowProps) {
+  const t = useTranslations();
   // Aus `node` abgeleitet statt als Prop durchgereicht: `Row` ist memoisiert und
   // hat den Knoten ohnehin.
   const confidenceLabel = goalNodeConfidenceLabel(node);
@@ -650,7 +655,7 @@ const Row = memo(function Row({
             {drift && (
               <span
                 className="shrink-0 rounded-full bg-warning-surface px-1 py-0.5 text-label font-semibold text-warning dark:bg-amber-500/20 dark:text-amber-300"
-                title="Run-Rate < 70 % vom Planned"
+                title={t("goals.shared.runRateBelowPlan")}
               >
                 ⚠
               </span>
@@ -741,6 +746,7 @@ function RowActions({
   editHref: string;
   addChildHref?: string | null;
 }) {
+  const t = useTranslations();
   return (
     // Sichtbar bei Hover ODER Tastatur-Fokus (fokussierbar trotz opacity-0);
     // Trefferflächen ≥32px für Maus/Touch/Tastatur.
@@ -750,8 +756,8 @@ function RowActions({
           href={addChildHref as never}
           scroll={false}
           className="grid size-8 place-items-center rounded-md border bg-background text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          title="Unterziel hinzufügen"
-          aria-label="Unterziel hinzufügen"
+          title={t("goals.table.addSubGoal")}
+          aria-label={t("goals.table.addSubGoal")}
         >
           <Plus className="h-4 w-4" aria-hidden />
         </Link>
@@ -760,8 +766,8 @@ function RowActions({
         href={editHref as never}
         scroll={false}
         className="grid size-8 place-items-center rounded-md border bg-background hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-        title="Bearbeiten"
-        aria-label="Bearbeiten"
+        title={t("goals.table.edit")}
+        aria-label={t("goals.table.edit")}
       >
         <Pencil className="h-4 w-4" aria-hidden />
       </Link>

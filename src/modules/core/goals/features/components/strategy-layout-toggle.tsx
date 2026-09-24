@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export function StrategyLayoutToggle({ active }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -43,7 +45,7 @@ export function StrategyLayoutToggle({ active }: Props) {
       value={active}
       options={OPTIONS}
       onChange={setLayout}
-      ariaLabel="Layout"
+      ariaLabel={t("goals.layout.label")}
       className="bg-card text-meta"
     />
   );

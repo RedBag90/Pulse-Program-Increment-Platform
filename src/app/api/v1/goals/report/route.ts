@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { getTranslations } from "next-intl/server";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { unauthorized } from "@/server/http/problem";
@@ -7,6 +8,7 @@ import { loadStrategyTree } from "@/modules/core/goals/server/views/ziele-view";
 import { buildZieleReport } from "@/modules/core/goals/domain/ziele-report";
 import { renderZieleReport } from "@/modules/core/goals/server/report/ziele-report-document";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
+import { isLocale, routing, type Locale } from "@/i18n/routing";
 
 /**
  * **Die Ziele-Übersicht als PDF.**
@@ -28,11 +30,23 @@ import type { TenantId } from "@/modules/core/kernel/domain/types";
  *
  * Dieselben vier CSV-Parameter wie die Seite; wer den Link mit der aktuellen
  * Query aufruft, bekommt denselben Ausschnitt aufs Papier.
+ *
+ * **Die Sprache steht in der URL, nicht im Cookie.** `/api/` liegt ausserhalb
+ * des `[locale]`-Segments; ein Request hierher trägt von sich aus keine
+ * Sprache. Der Knopf hängt deshalb `lang` an — und damit ist der Link auch
+ * ohne Sitzung das, was er verspricht: derselbe Bericht, jedes Mal, in der
+ * Sprache, in der er erzeugt wurde. Fehlt der Parameter oder steht Unsinn
+ * darin, gilt die Vorgabesprache.
  */
 
 /** Wie auf der Ziele-Seite: Mehrfachauswahl liegt als CSV in der URL. */
 function splitCsv(v: string | null): string[] {
   return v ? v.split(",").filter(Boolean) : [];
+}
+
+/** Die Sprache des Berichts aus `?lang=`; Unbekanntes fällt auf die Vorgabe. */
+function reportLocale(raw: string | null): Locale {
+  return isLocale(raw) ? raw : routing.defaultLocale;
 }
 
 /** `id → Name` für das Filter-Echo im Briefkopf. */
@@ -49,6 +63,8 @@ export async function GET(request: NextRequest): Promise<Response> {
   const valueStreamIds = splitCsv(sp.get("vs"));
   const artIds = splitCsv(sp.get("art"));
   const statuses = splitCsv(sp.get("status"));
+  const locale = reportLocale(sp.get("lang"));
+  const t = await getTranslations({ locale });
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
@@ -84,9 +100,11 @@ export async function GET(request: NextRequest): Promise<Response> {
     valueStreamNames: namesById(valueStreams),
     artNames: namesById(arts),
     now: new Date(),
+    t,
+    locale,
   });
 
-  const pdf = await renderZieleReport(report);
+  const pdf = await renderZieleReport(report, t, locale);
 
   // Dateinamen-Schema wie beim CSV-Export der Ziele: `pulse-<ding>-<stamp>.<ext>`.
   const stamp = new Date().toISOString().slice(0, 10);

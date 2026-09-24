@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEntityOptions } from "@/features/create/use-entity-options";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import { MultiSelectFilter, type MultiSelectSection } from "@/components/ui/multi-select-filter";
@@ -13,7 +14,7 @@ import { PeriodMultiSelect } from "@/modules/core/goals/features/components/peri
 import {
   OPEN_STATUSES,
   CLOSED_STATUSES,
-  goalStatusLabel,
+  goalStatusKey,
   goalStatusColor,
 } from "@/modules/core/goals/domain/goal-status";
 
@@ -37,6 +38,7 @@ export function GoalScopeFilterBar({
   /** Persönlich gespeicherte Filter dieser Fläche. */
   savedFilters?: SavedFilterDTO[];
 } = {}) {
+  const t = useTranslations();
   const { params, push } = useUrlState();
   const readSet = (key: string): Set<string> =>
     new Set((params.get(key) ?? "").split(",").filter(Boolean));
@@ -93,22 +95,22 @@ export function GoalScopeFilterBar({
   ];
   const statusSections: MultiSelectSection[] = [
     {
-      heading: "Offen",
+      heading: t("goals.group.open"),
       options: OPEN_STATUSES.map((s) => ({
         value: s,
-        label: goalStatusLabel(s),
+        label: t(goalStatusKey(s)),
         color: goalStatusColor(s),
       })),
     },
     {
-      heading: "Geschlossen",
+      heading: t("goals.group.closed"),
       options: CLOSED_STATUSES.map((s) => ({
         value: s,
-        label: goalStatusLabel(s),
+        label: t(goalStatusKey(s)),
         color: goalStatusColor(s),
       })),
     },
-    { options: [{ value: "none", label: "Ohne Status" }] },
+    { options: [{ value: "none", label: t("goals.tier.neutral") }] },
   ];
 
   return (
@@ -119,21 +121,21 @@ export function GoalScopeFilterBar({
         onClear={() => push({ period: null })}
       />
       <MultiSelectFilter
-        label="Wertstrom"
+        label={t("goals.filter.wertstrom")}
         sections={vsSections}
         selected={vsSel}
         disabled={valueStreams.loading}
         {...handlers("vs", vsSel)}
       />
       <MultiSelectFilter
-        label="ART"
+        label={t("goals.filter.art")}
         sections={artSections}
         selected={artSel}
         disabled={arts.loading}
         {...handlers("art", artSel)}
       />
       <MultiSelectFilter
-        label="Status"
+        label={t("goals.filter.status")}
         sections={statusSections}
         selected={statusSel}
         {...handlers("status", statusSel)}
@@ -147,7 +149,7 @@ export function GoalScopeFilterBar({
           onClick={() => push({ period: null, vs: null, art: null, status: null, f: "0" })}
           className="rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
         >
-          Alle Filter zurücksetzen
+          {t("goals.filter.resetAll")}
         </button>
       )}
 

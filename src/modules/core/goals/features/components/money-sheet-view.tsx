@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import { goalTimeframeLabel } from "@/modules/core/goals/domain/goal-period";
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export function MoneySheetView({ themes, hasPortfolio = true }: Props) {
+  const t = useTranslations();
   // Ohne Portfolio-Modul wird der Money-Tab gar nicht erst angeboten
   // (ZieleSubTabs/Shell); defensiv rendern wir hier nichts.
   if (!hasPortfolio) return null;
@@ -42,7 +44,7 @@ export function MoneySheetView({ themes, hasPortfolio = true }: Props) {
         <p className="text-meta text-muted-foreground">
           Top-down pro Ziel aggregiert. Bottom-up je Epic siehst du im{" "}
           <Link href={"/portfolio/dashboard" as never} className="text-primary hover:underline">
-            Portfolio-Dashboard
+            {t("goals.money.dashboard")}
           </Link>
           .
         </p>
@@ -63,19 +65,19 @@ export function MoneySheetView({ themes, hasPortfolio = true }: Props) {
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-label uppercase tracking-[0.1em] text-muted-foreground">
             <tr>
-              <Th>Ziel</Th>
-              <Th>Periode</Th>
-              <Th align="right">Planned €</Th>
-              <Th align="right">Realized €</Th>
-              <Th align="right">Run-Rate €</Th>
-              <Th align="right">Drift</Th>
+              <Th>{t("goals.money.goal")}</Th>
+              <Th>{t("goals.money.period")}</Th>
+              <Th align="right">{t("goals.money.planned")}</Th>
+              <Th align="right">{t("goals.money.realized")}</Th>
+              <Th align="right">{t("goals.money.runRate")}</Th>
+              <Th align="right">{t("goals.money.drift")}</Th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {sorted.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-3 py-6 text-center text-xs text-muted-foreground">
-                  Keine Ziele — leg eines im Tab „Strategie" an.
+                  {t("goals.money.empty")}
                 </td>
               </tr>
             )}
@@ -85,7 +87,7 @@ export function MoneySheetView({ themes, hasPortfolio = true }: Props) {
           </tbody>
           <tfoot className="border-t bg-muted/20 text-xs font-medium">
             <tr>
-              <Td>TOTAL</Td>
+              <Td>{t("goals.money.total")}</Td>
               <Td />
               <Td align="right">{eur(totals.planned)}</Td>
               <Td align="right">{eur(totals.realized)}</Td>
@@ -100,6 +102,7 @@ export function MoneySheetView({ themes, hasPortfolio = true }: Props) {
 }
 
 function Row({ theme }: { theme: GoalNode }) {
+  const t = useTranslations();
   const drift = theme.trio.planned > 0 ? theme.trio.runRate / theme.trio.planned : 1;
   const atRisk = drift < 0.7;
   return (
@@ -125,7 +128,7 @@ function Row({ theme }: { theme: GoalNode }) {
         {atRisk ? (
           <span
             className="rounded-full bg-warning-surface px-1.5 py-0.5 text-label font-semibold text-warning"
-            title="Run-Rate < 70 % vom Planned"
+            title={t("goals.shared.runRateBelowPlan")}
           >
             ⚠
           </span>

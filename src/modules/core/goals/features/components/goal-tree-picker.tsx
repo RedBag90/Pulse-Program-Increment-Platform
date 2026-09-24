@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ export function GoalTreePicker({
   value: string;
   onChange: (id: string) => void;
 }) {
+  const t = useTranslations();
   const goals = useEntityOptions<GoalPickerRow>(optionsEndpoint("goal"), true);
   const tree = useMemo(() => buildGoalPickerTree(goals.data), [goals.data]);
   const [query, setQuery] = useState("");
@@ -53,7 +55,7 @@ export function GoalTreePicker({
   return (
     <div className="space-y-1.5">
       <Input
-        placeholder="Ziel suchen…"
+        placeholder={t("goals.treePicker.search")}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         className="h-8"
@@ -67,12 +69,14 @@ export function GoalTreePicker({
             value === "" && "bg-primary/10 font-medium",
           )}
         >
-          Kein Ziel
+          {t("goals.treePicker.none")}
         </button>
-        {goals.loading && <p className="px-2 py-1 text-xs text-muted-foreground">Lade…</p>}
+        {goals.loading && (
+          <p className="px-2 py-1 text-xs text-muted-foreground">{t("goals.treePicker.loading")}</p>
+        )}
         {goals.error && <p className="px-2 py-1 text-xs text-destructive">{goals.error}</p>}
         {!goals.loading && q && shown.length === 0 && (
-          <p className="px-2 py-1 text-xs text-muted-foreground">Kein Treffer.</p>
+          <p className="px-2 py-1 text-xs text-muted-foreground">{t("goals.treePicker.noMatch")}</p>
         )}
         {shown.map((node) => (
           <PickerRows
@@ -88,7 +92,8 @@ export function GoalTreePicker({
       </div>
       {selectedName && (
         <p className="text-meta text-muted-foreground">
-          Gewählt: <span className="font-medium text-foreground">{selectedName}</span>
+          {t("goals.treePicker.selected")}{" "}
+          <span className="font-medium text-foreground">{selectedName}</span>
         </p>
       )}
     </div>

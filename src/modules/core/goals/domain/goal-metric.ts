@@ -15,6 +15,9 @@
  * Vorgabewert der Spalte. Diese Liste bleibt darum vollständig, damit ein
  * solches Ziel lesbar, formatierbar und speicherbar bleibt.
  */
+import type { Locale } from "@/i18n/routing";
+import { formatCurrency, formatDecimal } from "@/lib/formatting";
+
 export const METRIC_TYPES = ["number", "percent", "currency", "individuell"] as const;
 export type MetricType = (typeof METRIC_TYPES)[number];
 
@@ -42,17 +45,17 @@ export function isSelectableMetricType(v: string | null | undefined): v is Selec
 }
 
 /**
- * Die Beschriftungen — und der einzige exhaustive Guard der Kette: ein neuer
+ * Die Katalog-Schlüssel — und der einzige exhaustive Guard der Kette: ein neuer
  * Metriktyp erzwingt hier einen Compile-Fehler (Record über MetricType).
  *
- * „Zahl" bleibt stehen, obwohl die Auswahl ihn nicht mehr führt: ein
+ * `number` bleibt stehen, obwohl die Auswahl ihn nicht mehr führt: ein
  * Bestandsziel braucht ein Wort für das, worauf es steht.
  */
-export const METRIC_TYPE_LABELS: Record<MetricType, string> = {
-  number: "Zahl",
-  percent: "Prozent",
-  currency: "Währung",
-  individuell: "Individuell",
+export const METRIC_TYPE_KEYS: Record<MetricType, string> = {
+  number: "goals.metricType.number",
+  percent: "goals.metricType.percent",
+  currency: "goals.metricType.currency",
+  individuell: "goals.metricType.individuell",
 };
 
 /**
@@ -103,7 +106,11 @@ interface MetricSpec {
  * - currency    → Intl currency (falls back to number if currencyCode missing)
  * - individuell → number + das freie Einheiten-Label (falls gesetzt)
  */
-export function formatMetricValue(value: number | null | undefined, spec: MetricSpec): string {
+export function formatMetricValue(
+  value: number | null | undefined,
+  spec: MetricSpec,
+  locale?: Locale,
+): string {
   if (value == null || !Number.isFinite(value)) return "—";
   // Der Fallback auf „number" ist **kein Restbestand**: er faengt jeden Wert
   // ab, den das Vokabular nicht kennt, und landet damit im Else-Zweig unten —
@@ -113,32 +120,28 @@ export function formatMetricValue(value: number | null | undefined, spec: Metric
   const precision = clampPrecision(spec.precision);
 
   if (type === "currency" && spec.currencyCode) {
-    try {
-      return new Intl.NumberFormat("de-DE", {
-        style: "currency",
-        currency: spec.currencyCode,
-        minimumFractionDigits: precision,
-        maximumFractionDigits: precision,
-      }).format(value);
-    } catch {
-      // Ungültiger Währungscode → auf Zahl zurückfallen.
-    }
+    // `null` heisst: `Intl` kennt den Code nicht — dann die nackte Zahl.
+    const geld = formatCurrency(value, spec.currencyCode, precision, locale);
+    if (geld != null) return geld;
   }
 
-  const num = new Intl.NumberFormat("de-DE", {
-    minimumFractionDigits: precision,
-    maximumFractionDigits: precision,
-  }).format(value);
+  const num = formatDecimal(value, precision, locale);
 
-  if (type === "percent") return `${num} %`;
+  if (type === "percent") return `${num}${percentSuffix(locale)}`;
   if (type === "individuell" && spec.metricUnit) return `${num} ${spec.metricUnit}`;
   return num;
 }
 
+/**
+ * Das Leerzeichen vor dem Prozentzeichen ist eine Sprachkonvention: `42 %` im
+ * Deutschen, `42%` im Englischen — dieselbe Regel wie in `formatPercent`.
+ */
+const percentSuffix = (locale?: Locale): string => (locale === "en" ? "%" : " %");
+
 /** Short unit suffix for chart axes/tooltips (" %", " €"/code, Label, or ""). */
-export function metricUnitSuffix(spec: MetricSpec): string {
+export function metricUnitSuffix(spec: MetricSpec, locale?: Locale): string {
   const type: MetricType = isMetricType(spec.metricType) ? spec.metricType : "number";
-  if (type === "percent") return " %";
+  if (type === "percent") return percentSuffix(locale);
   if (type === "currency" && spec.currencyCode) return ` ${spec.currencyCode}`;
   if (type === "individuell" && spec.metricUnit) return ` ${spec.metricUnit}`;
   return "";

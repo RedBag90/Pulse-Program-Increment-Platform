@@ -36,12 +36,12 @@ export function isConfidenceValue(v: number): v is ConfidenceValue {
  * Was die Finger bedeuten. Die Formulierungen sind bewusst Ich-Aussagen: eine
  * Faust-zu-Fünf ist eine persönliche Einschätzung, keine Bewertung des Ziels.
  */
-export const CONFIDENCE_LABEL: Record<ConfidenceValue, string> = {
-  1: "Das wird nichts",
-  2: "Große Zweifel",
-  3: "Könnte klappen",
-  4: "Zuversichtlich",
-  5: "Ganz sicher",
+export const CONFIDENCE_KEYS: Record<ConfidenceValue, string> = {
+  1: "goals.confidence.1",
+  2: "goals.confidence.2",
+  3: "goals.confidence.3",
+  4: "goals.confidence.4",
+  5: "goals.confidence.5",
 };
 
 /**

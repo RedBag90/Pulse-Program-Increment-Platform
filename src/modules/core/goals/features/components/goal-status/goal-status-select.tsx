@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useTranslations } from "next-intl";
 import {
   OPEN_STATUSES,
   CLOSED_STATUSES,
-  GOAL_STATUS_LABELS,
+  GOAL_STATUS_KEYS,
   GOAL_STATUS_TIER,
-  goalStatusLabel,
+  goalStatusKey,
   type GoalStatus,
   type GoalStatusTier,
 } from "@/modules/core/goals/domain/goal-status";
@@ -33,6 +34,7 @@ interface Props {
  * Two sections, coloured dots, optional auto-suggest hint on the open status.
  */
 export function GoalStatusSelect({ value, onChange, suggested, disabled }: Props) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
 
   function pick(s: GoalStatus) {
@@ -46,11 +48,11 @@ export function GoalStatusSelect({ value, onChange, suggested, disabled }: Props
         disabled={disabled}
         className="inline-flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1 text-sm font-medium shadow-xs hover:bg-muted/50 disabled:opacity-50"
       >
-        {goalStatusLabel(value)}
+        {t(goalStatusKey(value))}
         <ChevronDown className="size-3.5 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-56 p-1">
-        <Group label="Open">
+        <Group label={t("goals.group.open")}>
           {OPEN_STATUSES.map((s) => (
             <Option
               key={s}
@@ -62,7 +64,7 @@ export function GoalStatusSelect({ value, onChange, suggested, disabled }: Props
           ))}
         </Group>
         <div className="my-1 border-t" />
-        <Group label="Closed">
+        <Group label={t("goals.group.closed")}>
           {CLOSED_STATUSES.map((s) => (
             <Option key={s} status={s} active={value === s} onPick={pick} />
           ))}
@@ -92,6 +94,7 @@ function Option({
   suggested?: boolean;
   onPick: (s: GoalStatus) => void;
 }) {
+  const t = useTranslations();
   return (
     <button
       type="button"
@@ -102,10 +105,10 @@ function Option({
       }`}
     >
       <span aria-hidden className={`size-1.5 rounded-full ${DOT_CLS[GOAL_STATUS_TIER[status]]}`} />
-      {GOAL_STATUS_LABELS[status]}
+      {t(GOAL_STATUS_KEYS[status])}
       {suggested && (
         <span className="ml-auto text-label uppercase tracking-[0.1em] text-muted-foreground">
-          Vorschlag
+          {t("goals.status.suggested")}
         </span>
       )}
     </button>

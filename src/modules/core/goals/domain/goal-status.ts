@@ -36,18 +36,29 @@ export function isClosed(s: string | null | undefined): s is ClosedStatus {
   return s != null && CLOSED_SET.has(s);
 }
 
-export const GOAL_STATUS_LABELS: Record<GoalStatus, string> = {
-  on_track: "On track",
-  at_risk: "At risk",
-  off_track: "Off track",
-  achieved: "Achieved",
-  partial: "Partial",
-  missed: "Missed",
-  dropped: "Dropped",
+/**
+ * **Schlüssel, keine Wörter** — die Domäne beschriftet nicht, sie benennt
+ * (ADR-0024, Regel 2).
+ *
+ * Hier stand bis September 2026 eine englische Wortliste („On track", „At
+ * risk", „Off track") mitten in einer deutschen Oberfläche: der Status war
+ * einer der englischen Reste, die die ADR als Folge 2 aufführt. Zwei Fliegen
+ * mit einem Schlag — die Oberfläche spricht jetzt in beiden Sprachen die
+ * richtige, und `on_track` heisst auf Deutsch „Im Plan", wie die Spec es von
+ * Anfang an vorsah.
+ */
+export const GOAL_STATUS_KEYS: Record<GoalStatus, string> = {
+  on_track: "goals.status.onTrack",
+  at_risk: "goals.status.atRisk",
+  off_track: "goals.status.offTrack",
+  achieved: "goals.status.achieved",
+  partial: "goals.status.partial",
+  missed: "goals.status.missed",
+  dropped: "goals.status.dropped",
 };
 
-/** Label shown when a goal has no check-in yet. */
-export const NO_STATUS_LABEL = "No recent updates";
+/** Schlüssel für ein Ziel, das noch keinen Check-in hat. */
+export const NO_STATUS_KEY = "goals.status.noRecent";
 
 /** Coarse colour tier driving the status pill / dot. */
 export type GoalStatusTier = "green" | "amber" | "rose" | "neutral";
@@ -67,6 +78,22 @@ export function goalStatusTier(s: string | null | undefined): GoalStatusTier {
   return isGoalStatus(s) ? GOAL_STATUS_TIER[s] : "neutral";
 }
 
+/**
+ * Text-Legende je Tier — WCAG: Status nicht allein über Farbe vermitteln.
+ *
+ * Stand hier bis September 2026 nicht, sondern zweimal wörtlich gleich: im
+ * Verteilungs-Streifen (`goal-health-strip.tsx`) und im PDF-Bericht, dessen
+ * Kommentar die Abschrift sogar zugab — die Domäne durfte nicht in Richtung
+ * `features` zeigen. Jetzt zeigen beide hierher, und der Bericht kann neben
+ * dem Bildschirm nicht mehr auseinanderlaufen.
+ */
+export const GOAL_STATUS_TIER_KEYS: Record<GoalStatusTier, string> = {
+  green: "goals.tier.green",
+  amber: "goals.tier.amber",
+  rose: "goals.tier.rose",
+  neutral: "goals.tier.neutral",
+};
+
 /** Concrete hex per tier (SVG fill for chart points; mirrors the `DOT_CLS` classes). */
 export const GOAL_STATUS_TIER_HEX: Record<GoalStatusTier, string> = {
   green: "#10b981",
@@ -80,9 +107,9 @@ export function goalStatusColor(s: string | null | undefined): string {
   return GOAL_STATUS_TIER_HEX[goalStatusTier(s)];
 }
 
-/** Human label for any status value or the no-status (null) case. */
-export function goalStatusLabel(s: string | null | undefined): string {
-  return isGoalStatus(s) ? GOAL_STATUS_LABELS[s] : NO_STATUS_LABEL;
+/** Katalog-Schlüssel für einen Statuswert oder den Fall „noch kein Check-in". */
+export function goalStatusKey(s: string | null | undefined): string {
+  return isGoalStatus(s) ? GOAL_STATUS_KEYS[s] : NO_STATUS_KEY;
 }
 
 /**

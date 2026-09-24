@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import {
   parseGoalPeriod,
@@ -41,6 +42,7 @@ export function PeriodPicker({
   onChange,
   placeholder = "Kein Zeitraum",
 }: Props) {
+  const t = useTranslations();
   const controlled = onChange !== undefined;
   const [internalValue, setInternalValue] = useState<string>(defaultValue ?? "");
   const value = controlled ? (valueProp ?? "") : internalValue;
@@ -117,14 +119,14 @@ export function PeriodPicker({
       {open && (
         <div
           role="dialog"
-          aria-label="Zeitraum wählen"
+          aria-label={t("goals.periodPicker.choose")}
           className="absolute z-50 mt-1 w-64 space-y-2 rounded-lg border bg-popover p-2 shadow-md"
         >
           <div className="flex items-center justify-between">
             <button
               type="button"
               onClick={() => setViewYear((y) => y - 1)}
-              aria-label="Jahr zurück"
+              aria-label={t("goals.shared.prevYear")}
               className="grid size-7 place-items-center rounded-md border hover:bg-muted"
             >
               ‹
@@ -133,7 +135,7 @@ export function PeriodPicker({
             <button
               type="button"
               onClick={() => setViewYear((y) => y + 1)}
-              aria-label="Jahr vor"
+              aria-label={t("goals.shared.nextYear")}
               className="grid size-7 place-items-center rounded-md border hover:bg-muted"
             >
               ›
@@ -146,7 +148,9 @@ export function PeriodPicker({
             className={`${cell} w-full text-left ${isActive("year", null) ? cellActive : ""}`}
           >
             <span className="font-medium">Ganzjahr FY{String(viewYear).slice(2)}</span>
-            <span className="ml-2 text-meta text-muted-foreground">Jan – Dez</span>
+            <span className="ml-2 text-meta text-muted-foreground">
+              {t("goals.periodPicker.janDec")}
+            </span>
           </button>
 
           <div className="grid grid-cols-2 gap-1.5">

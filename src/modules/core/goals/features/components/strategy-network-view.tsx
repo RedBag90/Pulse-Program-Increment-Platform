@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dagre from "@dagrejs/dagre";
@@ -76,6 +77,7 @@ const NODE_WIDTH = 240;
 const NODE_HEIGHT = 140;
 
 export function StrategyNetworkView({ themes, userLabels = {} }: Props) {
+  const t = useTranslations();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [offTrackOnly, setOffTrackOnly] = useState(false);
 
@@ -106,7 +108,7 @@ export function StrategyNetworkView({ themes, userLabels = {} }: Props) {
   if (themes.length === 0) {
     return (
       <div className="grid h-[420px] place-items-center rounded-lg border bg-muted/10 text-sm text-muted-foreground">
-        Noch keine Strategie definiert.
+        {t("goals.table.empty")}
       </div>
     );
   }
@@ -125,7 +127,7 @@ export function StrategyNetworkView({ themes, userLabels = {} }: Props) {
               : "bg-card text-muted-foreground hover:bg-muted",
           )}
         >
-          ⚠ Nur off-track
+          {t("goals.shared.onlyOffTrack")}
         </button>
         <div className="flex items-center gap-2">
           <button
@@ -133,19 +135,19 @@ export function StrategyNetworkView({ themes, userLabels = {} }: Props) {
             onClick={collapseAll}
             className="rounded-md border bg-background px-2.5 py-1 text-meta font-medium text-muted-foreground hover:bg-muted"
           >
-            Alle einklappen
+            {t("goals.table.collapseAll")}
           </button>
           <button
             type="button"
             onClick={expandAll}
             className="rounded-md border bg-background px-2.5 py-1 text-meta font-medium text-muted-foreground hover:bg-muted"
           >
-            Alle ausklappen
+            {t("goals.table.expandAll")}
           </button>
         </div>
       </div>
       {offTrackOnly && nodes.length === 0 && (
-        <p className="text-meta text-muted-foreground">Keine off-track-Ziele.</p>
+        <p className="text-meta text-muted-foreground">{t("goals.shared.noOffTrack")}</p>
       )}
       <div className="h-[680px] overflow-hidden rounded-lg bg-card shadow-card">
         <ReactFlow
@@ -172,6 +174,7 @@ export function StrategyNetworkView({ themes, userLabels = {} }: Props) {
 const NODE_TYPES = { strategyNode: StrategyNode };
 
 function StrategyNode({ data }: NodeProps) {
+  const t = useTranslations();
   const d = data as NodeData;
   const router = useRouter();
   const sp = useSearchParams();
@@ -235,7 +238,7 @@ function StrategyNode({ data }: NodeProps) {
             {d.atRisk && (
               <span
                 className="rounded-full bg-warning-surface px-1 py-0.5 text-label font-semibold text-warning"
-                title="Run-Rate < 70 % vom Planned"
+                title={t("goals.shared.runRateBelowPlan")}
               >
                 ⚠
               </span>

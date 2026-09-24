@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 interface MoneyRow {
   title: string;
   period: string;
@@ -18,6 +20,7 @@ interface Props {
  * Theme-Tabelle.
  */
 export function MoneyExportButton({ rows }: Props) {
+  const t = useTranslations();
   function download() {
     const header = ["Ziel", "Periode", "Planned EUR", "Realized EUR", "Run-Rate EUR"];
     const body = rows.map((r) => [
@@ -46,7 +49,7 @@ export function MoneyExportButton({ rows }: Props) {
       disabled={rows.length === 0}
       className="rounded-md border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
     >
-      CSV exportieren
+      {t("goals.export.csv")}
     </button>
   );
 }

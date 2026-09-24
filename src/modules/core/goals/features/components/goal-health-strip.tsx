@@ -1,7 +1,12 @@
+import { useTranslations } from "next-intl";
 import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import type { RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
 import { Stat, StatStrip } from "@/components/ui/stat";
-import { goalStatusTier, type GoalStatusTier } from "@/modules/core/goals/domain/goal-status";
+import {
+  goalStatusTier,
+  GOAL_STATUS_TIER_KEYS,
+  type GoalStatusTier,
+} from "@/modules/core/goals/domain/goal-status";
 import { formatEURPrefix } from "@/lib/formatting";
 
 const TIER_BAR: Record<GoalStatusTier, string> = {
@@ -15,13 +20,6 @@ const TIER_TEXT: Record<GoalStatusTier, string> = {
   amber: "text-amber-600 dark:text-amber-400",
   rose: "text-rose-600 dark:text-rose-400",
   neutral: "text-muted-foreground",
-};
-/** Text-Legende je Tier (WCAG: Status nicht allein über Farbe vermitteln). */
-const TIER_LABEL: Record<GoalStatusTier, string> = {
-  green: "On track",
-  amber: "At risk",
-  rose: "Off track",
-  neutral: "Ohne Status",
 };
 /** Reihenfolge im Verteilungs-Balken (on-track → at-risk → off-track → neutral). */
 const TIER_ORDER: GoalStatusTier[] = ["green", "amber", "rose", "neutral"];
@@ -41,10 +39,11 @@ export function GoalHealthStrip({
   /** €-Rollup stammt aus Epic-KPIs (Portfolio) — im Free-Tenant ausgeblendet. */
   showMoney?: boolean;
 }) {
-  const withProgress = themes.filter((t) => t.progress != null);
+  const t = useTranslations();
+  const withProgress = themes.filter((g) => g.progress != null);
   const avg =
     withProgress.length > 0
-      ? withProgress.reduce((s, t) => s + (t.progress ?? 0), 0) / withProgress.length
+      ? withProgress.reduce((sum, g) => sum + (g.progress ?? 0), 0) / withProgress.length
       : null;
   const pct = avg != null ? Math.round(avg * 100) : null;
 
@@ -57,7 +56,7 @@ export function GoalHealthStrip({
       {/* Ø Fortschritt */}
       <div className="min-w-0 flex-1 px-4 py-3.5">
         <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Ø Fortschritt
+          {t("goals.strip.avgProgress")}
         </p>
         <p className="mt-1.5 font-mono text-2xl font-light leading-none tabular-nums">
           {pct != null ? `${pct} %` : "—"}
@@ -74,14 +73,14 @@ export function GoalHealthStrip({
       {/* Status-Verteilung */}
       <div className="min-w-0 flex-1 px-4 py-3.5">
         <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Status
+          {t("goals.strip.status")}
         </p>
         <div className="mt-1.5 flex h-5 flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs font-medium tabular-nums">
           {TIER_ORDER.map((tier) =>
             counts[tier] > 0 ? (
               <span key={tier} className={`inline-flex items-baseline gap-1 ${TIER_TEXT[tier]}`}>
                 <span className="font-mono">{counts[tier]}</span>
-                <span className="text-meta font-normal">{TIER_LABEL[tier]}</span>
+                <span className="text-meta font-normal">{t(GOAL_STATUS_TIER_KEYS[tier])}</span>
               </span>
             ) : null,
           )}
@@ -103,9 +102,9 @@ export function GoalHealthStrip({
 
       {showMoney && (
         <>
-          <Stat label="Planned" value={formatEURPrefix(tenantTrio.planned)} />
-          <Stat label="Realized" value={formatEURPrefix(tenantTrio.realized)} />
-          <Stat label="Run-Rate" value={formatEURPrefix(tenantTrio.runRate)} />
+          <Stat label={t("goals.strip.planned")} value={formatEURPrefix(tenantTrio.planned)} />
+          <Stat label={t("goals.strip.realized")} value={formatEURPrefix(tenantTrio.realized)} />
+          <Stat label={t("goals.strip.runRate")} value={formatEURPrefix(tenantTrio.runRate)} />
         </>
       )}
     </StatStrip>

@@ -169,3 +169,44 @@ export function formatDate(
         day: "2-digit",
       }).format(d);
 }
+
+/**
+ * Gruppierte Zahl mit fester Nachkommastelle — `1.234,5` · `1,234.5`.
+ *
+ * Bis September 2026 baute `formatMetricValue` im Ziele-Modul dafür ein eigenes
+ * `Intl.NumberFormat("de-DE", …)`, eine von 46 Stellen, die an dieser Datei
+ * vorbeigingen. Die Trennzeichen sind das Offensichtlichste an einer Sprache;
+ * sie durften am wenigsten fest verdrahtet sein.
+ */
+export function formatDecimal(n: number, precision = 0, locale?: Locale): string {
+  return numberFormat(locale, `dec${precision}`, {
+    minimumFractionDigits: precision,
+    maximumFractionDigits: precision,
+  }).format(n);
+}
+
+/**
+ * Betrag in **beliebiger** Währung — anders als {@link formatEUR}, das den Euro
+ * fest kennt. Für Ziele, deren Metrik einen eigenen Währungscode trägt.
+ *
+ * Gibt `null` zurück, wenn `Intl` den Code nicht kennt: ein ungültiger Code ist
+ * ein Datenfehler, kein Grund zu werfen — der Aufrufer zeigt dann die nackte
+ * Zahl.
+ */
+export function formatCurrency(
+  n: number,
+  currency: string,
+  precision = 0,
+  locale?: Locale,
+): string | null {
+  try {
+    return numberFormat(locale, `cur:${currency}:${precision}`, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: precision,
+      maximumFractionDigits: precision,
+    }).format(n);
+  } catch {
+    return null;
+  }
+}

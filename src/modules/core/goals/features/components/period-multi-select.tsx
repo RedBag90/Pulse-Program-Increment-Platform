@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ export function PeriodMultiSelect({
   onToggle: (key: string) => void;
   onClear: () => void;
 }) {
+  const t = useTranslations();
   const [year, setYear] = useState<number>(currentGoalPeriod().year);
   const count = selected.size;
 
@@ -65,13 +67,13 @@ export function PeriodMultiSelect({
           count > 0 ? "border-primary/40 text-foreground" : "text-muted-foreground",
         )}
       >
-        <span className="text-meta uppercase tracking-wide">Zeitraum</span>
+        <span className="text-meta uppercase tracking-wide">{t("goals.periodMulti.label")}</span>
         {count > 0 ? (
           <span className="grid min-w-4 place-items-center rounded-full bg-primary px-1 text-label font-semibold tabular-nums text-primary-foreground">
             {count}
           </span>
         ) : (
-          <span className="text-muted-foreground/70">Alle</span>
+          <span className="text-muted-foreground/70">{t("goals.periodMulti.all")}</span>
         )}
         <ChevronDown className="size-3.5 opacity-60" aria-hidden />
       </PopoverTrigger>
@@ -80,7 +82,7 @@ export function PeriodMultiSelect({
           <button
             type="button"
             onClick={() => setYear((y) => y - 1)}
-            aria-label="Jahr zurück"
+            aria-label={t("goals.shared.prevYear")}
             className="grid size-7 place-items-center rounded-md border hover:bg-muted"
           >
             ‹
@@ -89,7 +91,7 @@ export function PeriodMultiSelect({
           <button
             type="button"
             onClick={() => setYear((y) => y + 1)}
-            aria-label="Jahr vor"
+            aria-label={t("goals.shared.nextYear")}
             className="grid size-7 place-items-center rounded-md border hover:bg-muted"
           >
             ›
@@ -104,15 +106,15 @@ export function PeriodMultiSelect({
         />
 
         <div className="grid grid-cols-2 gap-1.5">
-          <Cell granularity="half" index={1} label="H1" />
-          <Cell granularity="half" index={2} label="H2" />
+          <Cell granularity="half" index={1} label={t("goals.periodMulti.h1")} />
+          <Cell granularity="half" index={2} label={t("goals.periodMulti.h2")} />
         </div>
 
         <div className="grid grid-cols-4 gap-1.5">
-          <Cell granularity="quarter" index={1} label="Q1" />
-          <Cell granularity="quarter" index={2} label="Q2" />
-          <Cell granularity="quarter" index={3} label="Q3" />
-          <Cell granularity="quarter" index={4} label="Q4" />
+          <Cell granularity="quarter" index={1} label={t("goals.periodMulti.q1")} />
+          <Cell granularity="quarter" index={2} label={t("goals.periodMulti.q2")} />
+          <Cell granularity="quarter" index={3} label={t("goals.periodMulti.q3")} />
+          <Cell granularity="quarter" index={4} label={t("goals.periodMulti.q4")} />
         </div>
 
         {count > 0 && (
@@ -121,7 +123,7 @@ export function PeriodMultiSelect({
             onClick={onClear}
             className="w-full rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground"
           >
-            Zurücksetzen
+            {t("goals.shared.reset")}
           </button>
         )}
       </PopoverContent>

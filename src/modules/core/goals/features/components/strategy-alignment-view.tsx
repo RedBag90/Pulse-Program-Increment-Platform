@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -160,6 +161,7 @@ export function StrategyAlignmentView({
   themes: GoalNode[];
   userLabels?: Record<string, string>;
 }) {
+  const t = useTranslations();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const onToggle = (id: string) =>
     setCollapsed((prev) => {
@@ -172,7 +174,7 @@ export function StrategyAlignmentView({
   if (themes.length === 0) {
     return (
       <div className="grid h-56 place-items-center rounded-lg border border-dashed bg-card text-sm text-muted-foreground">
-        Noch keine Ziele im Scope.
+        {t("goals.shared.emptyScope")}
       </div>
     );
   }

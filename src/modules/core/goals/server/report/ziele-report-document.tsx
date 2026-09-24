@@ -9,6 +9,8 @@ import {
 } from "@react-pdf/renderer";
 import { GOAL_STATUS_TIER_HEX } from "@/modules/core/goals/domain/goal-status";
 import type { ZieleReport } from "@/modules/core/goals/domain/ziele-report";
+import type { Locale } from "@/i18n/routing";
+import type { Translate } from "@/i18n/translate";
 
 /**
  * **Der Ziele-Bericht auf dem Blatt.**
@@ -109,14 +111,31 @@ const styles = StyleSheet.create({
 /** Eine Spaltenbreite als Style — `flex` bleibt der Namensspalte vorbehalten. */
 const w = (breite: number) => ({ width: breite });
 
-export function ZieleReportDocument({ report }: { report: ZieleReport }) {
+/**
+ * **Das Dokument bekommt den Übersetzer gereicht, nicht gehookt.**
+ *
+ * `renderToBuffer` rendert ausserhalb jeder React-Server-Umgebung: es gibt
+ * keinen Request, aus dem `useTranslations` seine Sprache zöge. Deshalb nimmt
+ * das Dokument `t` als gewöhnliche Eigenschaft — dieselbe Naht wie in der
+ * Domäne (`src/i18n/translate.ts`), und die Blaupause für jede weitere Ausgabe
+ * ohne Bildschirm.
+ */
+export function ZieleReportDocument({
+  report,
+  t,
+  locale,
+}: {
+  report: ZieleReport;
+  t: Translate;
+  locale: Locale;
+}) {
   const { filters, summary, rows } = report;
 
   return (
     <Document
-      title={`Ziele-Bericht ${report.tenantName}`}
+      title={t("goals.report.documentTitle", { tenant: report.tenantName })}
       author="Pulse"
-      language="de"
+      language={locale}
       // Ohne das erbt das PDF den Standardtitel des Erzeugers — in der
       // Dateiverwaltung des Lesers steht dann „Untitled".
     >
@@ -126,29 +145,29 @@ export function ZieleReportDocument({ report }: { report: ZieleReport }) {
         <View style={styles.kopf} fixed>
           <View style={styles.kopfZeile}>
             <Text style={styles.mandant}>{report.tenantName}</Text>
-            <Text style={styles.datum}>Stand {report.generatedAt}</Text>
+            <Text style={styles.datum}>{t("goals.report.asOf", { date: report.generatedAt })}</Text>
           </View>
-          <Text style={styles.titel}>Ziele — Übersicht</Text>
+          <Text style={styles.titel}>{t("goals.report.title")}</Text>
           <View style={styles.trennlinie} />
         </View>
 
         {/* Das Filter-Echo. Ein Bericht zeigt einen Ausschnitt; verschweigt er
             das, behauptet er etwas Falsches. */}
         <View style={styles.filter}>
-          <Filterzeile name="Zeitraum" wert={filters.periods} />
-          <Filterzeile name="Wertstrom" wert={filters.valueStreams} />
-          <Filterzeile name="ART" wert={filters.arts} />
-          <Filterzeile name="Status" wert={filters.statuses} />
+          <Filterzeile name={t("goals.report.filterPeriod")} wert={filters.periods} />
+          <Filterzeile name={t("goals.report.filterValueStream")} wert={filters.valueStreams} />
+          <Filterzeile name={t("goals.report.filterArt")} wert={filters.arts} />
+          <Filterzeile name={t("goals.report.filterStatus")} wert={filters.statuses} />
         </View>
 
         <View style={styles.kennzahlen}>
           <View style={styles.kennzahl}>
             <Text style={styles.kennzahlWert}>{summary.averageProgress}</Text>
-            <Text style={styles.kennzahlName}>Ø Fortschritt</Text>
+            <Text style={styles.kennzahlName}>{t("goals.report.avgProgress")}</Text>
           </View>
           <View style={styles.kennzahl}>
             <Text style={styles.kennzahlWert}>{summary.goalCount}</Text>
-            <Text style={styles.kennzahlName}>Ziele im Ausschnitt</Text>
+            <Text style={styles.kennzahlName}>{t("goals.report.goalCount")}</Text>
           </View>
           <View>
             <View style={styles.stufen}>
@@ -161,23 +180,27 @@ export function ZieleReportDocument({ report }: { report: ZieleReport }) {
                 </View>
               ))}
             </View>
-            <Text style={styles.kennzahlName}>Top-Ziele nach Status</Text>
+            <Text style={styles.kennzahlName}>{t("goals.report.topByStatus")}</Text>
           </View>
         </View>
 
         {rows.length === 0 ? (
-          <Text style={styles.leer}>Keine Ziele in diesem Ausschnitt.</Text>
+          <Text style={styles.leer}>{t("goals.report.empty")}</Text>
         ) : (
           <>
             {/* `fixed` wiederholt den Kopf nach jedem Umbruch. Ohne ihn stehen
                 ab Seite zwei nur noch Zahlen ohne Spaltennamen. */}
             <View style={styles.tabellenKopf} fixed>
-              <Text style={styles.name}>Ziel</Text>
-              <Text style={w(SPALTE.owner)}>Owner</Text>
-              <Text style={w(SPALTE.status)}>Status</Text>
-              <Text style={[w(SPALTE.progress), styles.rechts]}>Fortschritt</Text>
-              <Text style={[w(SPALTE.value), styles.rechts]}>Wert</Text>
-              <Text style={[w(SPALTE.timeframe), styles.rechts]}>Zeitraum</Text>
+              <Text style={styles.name}>{t("goals.report.colGoal")}</Text>
+              <Text style={w(SPALTE.owner)}>{t("goals.report.colOwner")}</Text>
+              <Text style={w(SPALTE.status)}>{t("goals.report.colStatus")}</Text>
+              <Text style={[w(SPALTE.progress), styles.rechts]}>
+                {t("goals.report.colProgress")}
+              </Text>
+              <Text style={[w(SPALTE.value), styles.rechts]}>{t("goals.report.colValue")}</Text>
+              <Text style={[w(SPALTE.timeframe), styles.rechts]}>
+                {t("goals.report.colTimeframe")}
+              </Text>
             </View>
 
             {rows.map((row) => (
@@ -198,8 +221,12 @@ export function ZieleReportDocument({ report }: { report: ZieleReport }) {
         )}
 
         <View style={styles.fuss} fixed>
-          <Text>Pulse · Ziele-Bericht</Text>
-          <Text render={({ pageNumber, totalPages }) => `Seite ${pageNumber} von ${totalPages}`} />
+          <Text>{t("goals.report.footer")}</Text>
+          <Text
+            render={({ pageNumber, totalPages }) =>
+              t("goals.report.page", { page: pageNumber, total: totalPages })
+            }
+          />
         </View>
       </Page>
     </Document>
@@ -226,7 +253,13 @@ function Filterzeile({ name, wert }: { name: string; wert: string }) {
  * Nebenbei hält sie React aus der Route heraus: die weiss nur noch, dass sie
  * einen Puffer bekommt.
  */
-export function renderZieleReport(report: ZieleReport): Promise<Buffer> {
-  const element = (<ZieleReportDocument report={report} />) as React.ReactElement<DocumentProps>;
+export function renderZieleReport(
+  report: ZieleReport,
+  t: Translate,
+  locale: Locale,
+): Promise<Buffer> {
+  const element = (
+    <ZieleReportDocument report={report} t={t} locale={locale} />
+  ) as React.ReactElement<DocumentProps>;
   return renderToBuffer(element);
 }

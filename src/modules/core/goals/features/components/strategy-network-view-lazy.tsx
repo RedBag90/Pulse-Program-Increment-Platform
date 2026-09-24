@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 
 /**
@@ -12,10 +13,20 @@ export const StrategyNetworkViewLazy = dynamic(
   () => import("./strategy-network-view").then((m) => m.StrategyNetworkView),
   {
     ssr: false,
-    loading: () => (
-      <div className="grid h-96 place-items-center text-sm text-muted-foreground">
-        Netzplan wird geladen…
-      </div>
-    ),
+    loading: Ladehinweis,
   },
 );
+
+/**
+ * Eigene Komponente statt einer Pfeilfunktion in `loading`: sie ruft
+ * `useTranslations` auf, und ein Hook braucht eine Komponente, keine
+ * beliebige Funktion.
+ */
+function Ladehinweis() {
+  const t = useTranslations();
+  return (
+    <div className="grid h-96 place-items-center text-sm text-muted-foreground">
+      {t("goals.network.loading")}
+    </div>
+  );
+}

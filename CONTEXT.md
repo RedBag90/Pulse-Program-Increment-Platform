@@ -527,6 +527,15 @@ Siehe **ADR-0024**. Kurz:
 - **Formatierung** läuft über `src/lib/formatting.ts` und nimmt einen Locale.
   Im Client bindet `useFormat()` ihn, auf dem Server löst `requestLocale()`
   ihn auf. Kein `toLocaleDateString("de-DE")` an dieser Schicht vorbei.
+- **Wer kein Bildschirm ist, bekommt den Übersetzer gereicht.** `useTranslations`
+  ist ein Hook, `getTranslations` braucht einen Request — der PDF-Bericht, die
+  E-Mail-Vorlagen und die Domäne haben beides nicht. Sie nehmen `Translate`
+  (`src/i18n/translate.ts`) als gewöhnlichen Parameter; der Aufrufer sitzt
+  immer in einer Komponente oder einem Request und reicht ihn herein.
+- **Im Test gibt es keinen Provider.** `src/test/setup.ts` ersetzt `next-intl`
+  durch den echten Katalog — strenger als das Original, denn ein unbekannter
+  Schlüssel wirft dort, statt sich als Text zu rendern. Kein Test braucht
+  deshalb einen `NextIntlClientProvider`.
 
 ### Schlüssel-Konvention
 

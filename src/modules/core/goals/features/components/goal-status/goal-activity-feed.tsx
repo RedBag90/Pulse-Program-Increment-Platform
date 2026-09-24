@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, startTransition, useEffect, useRef, useState } from "react";
 import { Pencil, Trash2, X } from "lucide-react";
 import {
@@ -9,7 +10,7 @@ import {
   updateGoalCommentAction,
   deleteGoalCommentAction,
 } from "@/modules/core/goals/features/actions/ziele";
-import { goalStatusLabel, type GoalStatus } from "@/modules/core/goals/domain/goal-status";
+import { goalStatusKey, type GoalStatus } from "@/modules/core/goals/domain/goal-status";
 import { goalEntryPermissions } from "@/modules/core/goals/domain/goal-entry-access";
 import type { GoalUpdateSection } from "@/modules/core/goals/domain/goal-activity";
 import { GoalStatusSelect } from "@/modules/core/goals/features/components/goal-status/goal-status-select";
@@ -74,6 +75,7 @@ export function GoalActivityFeed({
   canManage,
   onChanged,
 }: Props) {
+  const t = useTranslations();
   const [body, setBody] = useState("");
   const [state, run, pending] = useActionState(addGoalCommentAction, {});
   const [editing, setEditing] = useState<string | null>(null);
@@ -92,7 +94,7 @@ export function GoalActivityFeed({
   return (
     <section className="space-y-3">
       <h3 className="text-sm font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        Aktivität
+        {t("goals.feed.title")}
       </h3>
 
       {canComment && (
@@ -101,7 +103,7 @@ export function GoalActivityFeed({
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={2}
-            placeholder="Frage stellen oder Kommentar hinterlassen…"
+            placeholder={t("goals.feed.placeholder")}
             className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
           <div className="flex items-center justify-between">
@@ -112,14 +114,14 @@ export function GoalActivityFeed({
               disabled={pending || body.trim() === ""}
               className="ml-auto rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
             >
-              Kommentieren
+              {t("goals.feed.comment")}
             </button>
           </div>
         </div>
       )}
 
       {activity.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Noch keine Aktivität.</p>
+        <p className="text-sm text-muted-foreground">{t("goals.feed.empty")}</p>
       ) : (
         <ul className="space-y-3">
           {activity.map((e) => (
@@ -163,10 +165,11 @@ function ActivityRow({
   onDone: () => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations();
   const who = entry.by ? (userLabels[entry.by] ?? entry.by) : null;
   const detail =
     entry.action === "goal.checkin" && entry.detail
-      ? goalStatusLabel(entry.detail)
+      ? t(goalStatusKey(entry.detail))
       : entry.action === "goal.progress"
         ? (entry.detail ?? null)
         : null;
@@ -245,6 +248,7 @@ function EntryActions({
   onEdit: () => void;
   onDeleted: () => void;
 }) {
+  const t = useTranslations();
   const isCheckin = entry.kind === "checkin";
   const deleteAction = isCheckin ? deleteGoalCheckinAction : deleteGoalCommentAction;
   const [state, run, pending] = useActionState(deleteAction, {});
@@ -268,7 +272,7 @@ function EntryActions({
         <button
           type="button"
           onClick={onEdit}
-          aria-label="Eintrag bearbeiten"
+          aria-label={t("goals.feed.editEntry")}
           className="rounded-sm p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <Pencil className="size-3.5" />
@@ -279,7 +283,7 @@ function EntryActions({
           type="button"
           onClick={remove}
           disabled={pending}
-          aria-label="Eintrag entfernen"
+          aria-label={t("goals.feed.removeEntry")}
           className="rounded-sm p-1 text-muted-foreground hover:bg-muted hover:text-destructive disabled:opacity-50 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <Trash2 className="size-3.5" />
@@ -304,6 +308,7 @@ function EntryEditor({
   onDone: () => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations();
   const isCheckin = entry.kind === "checkin";
   const [status, setStatus] = useState<string | null>(
     entry.action === "goal.checkin" ? (entry.detail ?? null) : null,
@@ -356,14 +361,14 @@ function EntryEditor({
                 <input
                   value={s.title}
                   onChange={(e) => patch(i, { title: e.target.value })}
-                  placeholder="Überschrift"
+                  placeholder={t("goals.feed.heading")}
                   className="w-full rounded-md border bg-background px-2 py-1 text-sm font-medium focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                 />
                 {sections.length > 1 && (
                   <button
                     type="button"
                     onClick={() => setSections((prev) => prev.filter((_, j) => j !== i))}
-                    aria-label="Block entfernen"
+                    aria-label={t("goals.feed.removeBlock")}
                     className="rounded-sm p-1 text-muted-foreground hover:text-destructive"
                   >
                     <X className="size-3.5" />
@@ -374,7 +379,7 @@ function EntryEditor({
                 value={s.body}
                 onChange={(e) => patch(i, { body: e.target.value })}
                 rows={3}
-                placeholder="Text"
+                placeholder={t("goals.feed.text")}
                 className="w-full rounded-md border bg-background px-2 py-1 text-sm focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               />
             </div>
@@ -384,7 +389,7 @@ function EntryEditor({
             onClick={() => setSections((prev) => [...prev, { title: "", body: "" }])}
             className="text-xs text-muted-foreground underline-offset-2 hover:underline"
           >
-            + Block
+            {t("goals.feed.addBlock")}
           </button>
         </>
       ) : (
@@ -403,7 +408,7 @@ function EntryEditor({
           onClick={onCancel}
           className="ml-auto rounded-md border px-2.5 py-1 text-xs hover:bg-muted"
         >
-          Abbrechen
+          {t("goals.shared.cancel")}
         </button>
         <button
           type="button"
@@ -411,7 +416,7 @@ function EntryEditor({
           disabled={pending}
           className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
         >
-          Speichern
+          {t("goals.shared.save")}
         </button>
       </div>
     </div>

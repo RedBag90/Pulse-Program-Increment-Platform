@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { renderZieleReport } from "@/modules/core/goals/server/report/ziele-report-document";
 import { buildZieleReport, type ZieleReportNode } from "@/modules/core/goals/domain/ziele-report";
+import { catalogTranslate } from "@/test/helpers/catalog";
+import type { Locale } from "@/i18n/routing";
 
 /**
  * **Ein Rauch-Test, und er ist mehr wert als er aussieht.**
@@ -12,6 +14,13 @@ import { buildZieleReport, type ZieleReportNode } from "@/modules/core/goals/dom
  *
  * Geprüft wird darum nicht das Aussehen — das entscheidet das Auge —, sondern
  * dass am Ende wirklich ein PDF herauskommt.
+ *
+ * **Und zwar in beiden Sprachen.** Der Übersetzer kommt aus dem echten
+ * Katalog und wirft bei einem fehlenden Schlüssel. Damit prüft jeder Durchlauf
+ * nebenbei etwas, das sonst niemand prüfen würde: dass der Bericht keinen
+ * Schlüssel anfasst, den es nicht gibt. Das ist die Ausfallart, vor der
+ * ADR-0024 warnt — sie wirft zur Laufzeit nicht, sie druckt den Schlüssel
+ * aufs Papier.
  */
 
 const JETZT = new Date("2026-09-23T10:00:00.000Z");
@@ -50,7 +59,8 @@ function baum(n: number): ZieleReportNode[] {
   );
 }
 
-function pdf(themes: ZieleReportNode[]): Promise<Buffer> {
+function pdf(themes: ZieleReportNode[], locale: Locale = "de"): Promise<Buffer> {
+  const t = catalogTranslate(locale);
   const report = buildZieleReport(
     { themes, periods: ["2026-Q3"], valueStreamIds: [], artIds: [], statuses: [] },
     {
@@ -59,9 +69,11 @@ function pdf(themes: ZieleReportNode[]): Promise<Buffer> {
       valueStreamNames: {},
       artNames: {},
       now: JETZT,
+      t,
+      locale,
     },
   );
-  return renderZieleReport(report);
+  return renderZieleReport(report, t, locale);
 }
 
 describe("ZieleReportDocument", () => {
@@ -77,6 +89,14 @@ describe("ZieleReportDocument", () => {
     // Antwort, ein Fehlerdialog ist keine.
     const buffer = await pdf([]);
     expect(buffer.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+  });
+
+  it("rendert denselben Bericht auf Englisch", async () => {
+    // Der Beweis, dass die Naht trägt: dieselbe Ableitung, dasselbe Dokument,
+    // ein anderer Übersetzer — und kein Schlüssel, den `en.json` nicht kennt.
+    const buffer = await pdf(baum(3), "en");
+    expect(buffer.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+    expect(buffer.length).toBeGreaterThan(1000);
   });
 
   it("trägt über mehrere Seiten", async () => {

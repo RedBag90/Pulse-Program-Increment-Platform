@@ -1,5 +1,6 @@
+import { useTranslations } from "next-intl";
 import {
-  goalStatusLabel,
+  goalStatusKey,
   goalStatusTier,
   type GoalStatusTier,
 } from "@/modules/core/goals/domain/goal-status";
@@ -23,13 +24,14 @@ const DOT_CLS: Record<GoalStatusTier, string> = {
  * value, or the "No recent updates" state when `status` is null.
  */
 export function GoalStatusPill({ status }: { status: string | null | undefined }) {
+  const t = useTranslations();
   const tier = goalStatusTier(status);
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${PILL_CLS[tier]}`}
     >
       <span aria-hidden className={`size-1.5 rounded-full ${DOT_CLS[tier]}`} />
-      {goalStatusLabel(status)}
+      {t(goalStatusKey(status))}
     </span>
   );
 }

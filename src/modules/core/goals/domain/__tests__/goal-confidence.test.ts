@@ -3,7 +3,7 @@ import {
   CONFIDENCE_MIN,
   CONFIDENCE_MAX,
   CONFIDENCE_VALUES,
-  CONFIDENCE_LABEL,
+  CONFIDENCE_KEYS,
   CONFIDENCE_SCALE,
   isConfidenceValue,
   needsReplan,
@@ -29,9 +29,9 @@ describe("die Skala", () => {
     expect(isConfidenceValue(2.5)).toBe(false);
   });
 
-  it("beschriftet jede Stufe", () => {
+  it("benennt jede Stufe im Katalog", () => {
     for (const v of CONFIDENCE_VALUES) {
-      expect(CONFIDENCE_LABEL[v].length).toBeGreaterThan(0);
+      expect(CONFIDENCE_KEYS[v]).toBe(`goals.confidence.${v}`);
     }
   });
 });

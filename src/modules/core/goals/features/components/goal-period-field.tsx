@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { PeriodPicker } from "@/modules/core/goals/features/components/period-picker";
 import { ToggleGroup } from "@/components/ui/toggle-group";
@@ -33,6 +34,7 @@ export function GoalPeriodField({
   /** Erlaubt im Modus „Individuell" ein leeres Ende (Budgeting füllt es auf). */
   allowOpenEnd?: boolean;
 }) {
+  const t = useTranslations();
   const [mode, setMode] = useState<"bucket" | "range">(
     defaultStart && defaultEnd ? "range" : "bucket",
   );
@@ -43,7 +45,7 @@ export function GoalPeriodField({
       <ToggleGroup
         value={mode}
         onChange={setMode}
-        ariaLabel="Zeitraum-Modus"
+        ariaLabel={t("goals.periodField.mode")}
         className="bg-card text-meta"
         options={[
           { id: "bucket", label: "Raster" },
@@ -66,7 +68,7 @@ export function GoalPeriodField({
           <div className="grid grid-cols-2 gap-2">
             <label className="block space-y-1">
               <span className="text-label font-medium uppercase tracking-[0.1em] text-muted-foreground">
-                Start
+                {t("goals.periodField.start")}
               </span>
               <input
                 type="date"
@@ -79,7 +81,7 @@ export function GoalPeriodField({
             </label>
             <label className="block space-y-1">
               <span className="text-label font-medium uppercase tracking-[0.1em] text-muted-foreground">
-                Ende
+                {t("goals.periodField.end")}
               </span>
               <input
                 type="date"

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, startTransition, useCallback, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { ReadonlyURLSearchParams } from "next/navigation";
@@ -8,7 +9,7 @@ import { ChevronDown } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { InfoHint } from "@/components/ui/info-hint";
-import { CONFIDENCE_LABEL } from "@/modules/core/goals/domain/goal-confidence";
+import { CONFIDENCE_KEYS } from "@/modules/core/goals/domain/goal-confidence";
 import {
   Dialog,
   DialogContent,
@@ -58,7 +59,7 @@ import {
   SELECTABLE_METRIC_TYPES,
   DEFAULT_METRIC_TYPE,
   isSelectableMetricType,
-  METRIC_TYPE_LABELS,
+  METRIC_TYPE_KEYS,
 } from "@/modules/core/goals/domain/goal-metric";
 import {
   kpiTreeSelectable,
@@ -187,6 +188,7 @@ function GoalPane({
   userLabels: Record<string, string>;
   onClose: () => void;
 }) {
+  const t = useTranslations();
   const found = useMemo(() => (id ? findNode(model.themes, id) : null), [model, id]);
   const node = found?.node ?? null;
   const isNew = !id;
@@ -270,7 +272,7 @@ function GoalPane({
   // Bearbeiten offen im Einstellungen-Tab. Felder bleiben im DOM ⇒ submitten mit.
   const advancedFields = (
     <div className="space-y-3">
-      <Field label="Narrativ">
+      <Field label={t("goals.drawer.narrativ")}>
         <textarea
           name="narrative"
           defaultValue={node?.narrative ?? ""}
@@ -285,7 +287,7 @@ function GoalPane({
         // — ein Leer-Reset würde sonst still Daten löschen, die man nicht mehr
         // sieht (metricUnit trägt bei Nicht-Währung die KPI-Einheiten-Zuordnung).
         <div className="space-y-3 rounded-md border border-dashed p-3">
-          <Field label="Metriktyp">
+          <Field label={t("goals.drawer.metriktyp")}>
             <select
               name="metricType"
               value={metricType}
@@ -300,13 +302,13 @@ function GoalPane({
                 const form = e.currentTarget.form;
                 if (!form) return;
                 const b = form.elements.namedItem("baseline") as HTMLInputElement | null;
-                const t = form.elements.namedItem("target") as HTMLInputElement | null;
+                const ziel = form.elements.namedItem("target") as HTMLInputElement | null;
                 if (b && b.value === "") b.value = "0";
-                if (t && t.value === "") t.value = "100";
+                if (ziel && ziel.value === "") ziel.value = "100";
               }}
             >
               <option value="" disabled>
-                — Metriktyp wählen —
+                {t("goals.drawer.chooseMetricType")}
               </option>
               {/* Abgelegte Typen stehen nur an dem Ziel, das noch auf ihnen
                   steht. Ohne das bliebe das Feld beim Öffnen eines
@@ -314,13 +316,15 @@ function GoalPane({
                   die niemand vornehmen wollte. */}
               {!isSelectableMetricType(metricType) && metricType !== "" && (
                 <option value={metricType}>
-                  {METRIC_TYPE_LABELS[metricType as keyof typeof METRIC_TYPE_LABELS] ?? metricType}{" "}
-                  (nicht mehr wählbar)
+                  {metricType in METRIC_TYPE_KEYS
+                    ? t(METRIC_TYPE_KEYS[metricType as keyof typeof METRIC_TYPE_KEYS])
+                    : metricType}{" "}
+                  {t("goals.drawer.notSelectable")}
                 </option>
               )}
-              {SELECTABLE_METRIC_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {METRIC_TYPE_LABELS[t]}
+              {SELECTABLE_METRIC_TYPES.map((typ) => (
+                <option key={typ} value={typ}>
+                  {t(METRIC_TYPE_KEYS[typ])}
                 </option>
               ))}
             </select>
@@ -329,8 +333,8 @@ function GoalPane({
             <>
               {showUnitLabel && (
                 <Field
-                  label="Einheit (Label)"
-                  hint="Freies Label der Messgröße, etwa Kunden oder Stück. Bei Metriktyp Individuell hängt es als Suffix an jedem angezeigten Wert."
+                  label={t("goals.drawer.einheitLabel")}
+                  hint={t("goals.drawer.freiesLabelDerMessgroesse")}
                 >
                   <input
                     name="metricUnit"
@@ -342,7 +346,7 @@ function GoalPane({
                 </Field>
               )}
               <div className={showCurrency ? "grid grid-cols-2 gap-3" : ""}>
-                <Field label="Nachkomma (0–6)">
+                <Field label={t("goals.drawer.nachkomma")}>
                   <input
                     name="precision"
                     type="number"
@@ -354,11 +358,11 @@ function GoalPane({
                   />
                 </Field>
                 {showCurrency && (
-                  <Field label="Währung (ISO)">
+                  <Field label={t("goals.drawer.waehrungIso")}>
                     <input
                       name="currencyCode"
                       defaultValue={node?.currencyCode ?? ""}
-                      placeholder="EUR"
+                      placeholder={t("goals.drawer.eur")}
                       className={INPUT}
                       disabled={!canEdit}
                     />
@@ -366,7 +370,7 @@ function GoalPane({
                 )}
               </div>
               <div className={showCurrent ? "grid grid-cols-3 gap-3" : "grid grid-cols-2 gap-3"}>
-                <Field label="Baseline">
+                <Field label={t("goals.drawer.baseline")}>
                   <input
                     name="baseline"
                     type="number"
@@ -379,7 +383,7 @@ function GoalPane({
                     disabled={!canEdit}
                   />
                 </Field>
-                <Field label="Target (Zielwert)">
+                <Field label={t("goals.drawer.targetZielwert")}>
                   <input
                     name="target"
                     type="number"
@@ -390,7 +394,7 @@ function GoalPane({
                   />
                 </Field>
                 {showCurrent && (
-                  <Field label="Aktuell">
+                  <Field label={t("goals.drawer.aktuell")}>
                     <input
                       name="current"
                       type="number"
@@ -407,8 +411,8 @@ function GoalPane({
         </div>
       )}
       <Field
-        label="Gewicht im Rollup des Elternziels (leer = 1)"
-        hint="Wie stark dieses Unterziel im Durchschnitt des Elternziels zählt. Leer = 1 (alle Unterziele gleich gewichtet)."
+        label={t("goals.drawer.gewichtImRollupDes")}
+        hint={t("goals.drawer.wieStarkDiesesUnterziel")}
       >
         <input
           name="rollupWeight"
@@ -432,7 +436,7 @@ function GoalPane({
             type="number"
             step="any"
             defaultValue={node?.parentUnitPerChildUnit ?? ""}
-            placeholder="z. B. 10000"
+            placeholder={t("goals.drawer.example10000")}
             className={INPUT}
             disabled={!canEdit}
           />
@@ -467,14 +471,16 @@ function GoalPane({
         <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Ziel löschen?</DialogTitle>
+              <DialogTitle>{t("goals.drawer.zielLoeschen")}</DialogTitle>
               <DialogDescription>
                 „{node?.title ?? "Dieses Ziel"}" und alle Unterziele werden entfernt. Das lässt sich
                 nicht rückgängig machen.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <DialogClose render={<Button variant="outline" />}>Abbrechen</DialogClose>
+              <DialogClose render={<Button variant="outline" />}>
+                {t("goals.drawer.abbrechen")}
+              </DialogClose>
               <Button variant="destructive" onClick={performDelete} disabled={pending}>
                 {pending ? "Löscht…" : "Löschen"}
               </Button>
@@ -483,17 +489,17 @@ function GoalPane({
         </Dialog>
       }
     >
-      <Field label="Titel">
+      <Field label={t("goals.drawer.titel")}>
         <input
           name="title"
           defaultValue={node?.title ?? ""}
           required
           className={INPUT}
           disabled={!canEdit}
-          placeholder="z.B. Konversion verdoppeln"
+          placeholder={t("goals.drawer.zBKonversionVerdoppeln")}
         />
       </Field>
-      <Field label="Zeitraum">
+      <Field label={t("goals.drawer.zeitraum")}>
         <GoalPeriodField
           defaultPeriod={node?.period ?? null}
           defaultStart={node?.periodStart ?? null}
@@ -501,21 +507,21 @@ function GoalPane({
           disabled={!canEdit}
         />
       </Field>
-      <Field label="Owner" hint="Verantwortlich für dieses Ziel. Aus den Tenant-Nutzern.">
+      <Field label={t("goals.drawer.owner")} hint={t("goals.drawer.verantwortlichFuerDiesesZiel")}>
         <UserPicker
           name="ownerId"
           defaultValue={node?.ownerId ?? ""}
           options={Object.entries(userLabels).map(([uid, label]) => ({ value: uid, label }))}
-          ariaLabel="Owner"
-          placeholder="— Kein Owner"
-          emptyLabel="— Kein Owner"
+          ariaLabel={t("goals.drawer.owner")}
+          placeholder={t("goals.drawer.keinOwner")}
+          emptyLabel={t("goals.drawer.keinOwner")}
           disabled={!canEdit}
         />
       </Field>
 
       <Field
-        label="Fortschrittsquelle"
-        hint="Woraus sich der Fortschritt berechnet: Manuell (du pflegst den Wert selbst), Aus Unterzielen (Ø der Kinder), KPI-Baum (Blatt: Ist aus verknüpften Epic-KPIs; Ast: Werte der Unterziele kaskadiert, wert-basiert gemessen) oder Confidence Vote (Faust-zu-Fünf statt Metrik)."
+        label={t("goals.drawer.fortschrittsquelle")}
+        hint={t("goals.drawer.worausSichDerFortschritt")}
       >
         <select
           name="progressMode"
@@ -524,12 +530,12 @@ function GoalPane({
           className={INPUT}
           disabled={!canEdit}
         >
-          <option value="manual">Manuell</option>
-          <option value="rollup">Aus Unterzielen</option>
+          <option value="manual">{t("goals.drawer.manuell")}</option>
+          <option value="rollup">{t("goals.drawer.ausUnterzielen")}</option>
           {/* Nicht modul-gegatet: eine Zuversicht braucht kein Epic und keine
               KPI — sie ist Core und steht jedem Mandanten offen. */}
-          <option value="confidence">Confidence Vote</option>
-          {kpiBaumWaehlbar && <option value="kpi_tree">KPI-Baum</option>}
+          <option value="confidence">{t("goals.drawer.confidenceVote")}</option>
+          {kpiBaumWaehlbar && <option value="kpi_tree">{t("goals.drawer.kpiBaum")}</option>}
         </select>
       </Field>
       {/* **Ein Satz je Rolle, nicht einer für beide.** Was hier gilt, hängt davon
@@ -538,39 +544,36 @@ function GoalPane({
           eigenen Fall die Hälfte, die nicht zutrifft. */}
       {mode === "kpi_tree" && hatUnterziele && (
         <p className="text-xs text-muted-foreground">
-          KPI-Baum als <strong>Ast</strong>: die Werte der Unterziele kaskadieren hoch, und die
-          Erfüllung misst sich wert-basiert (erreichter Wert ÷ Zielwert) statt als Durchschnitt der
-          Unterziele. Jedes Unterziel braucht dafür seinen{" "}
-          <strong>Umrechnungsfaktor in diese Einheit</strong> — ohne ihn trägt es nichts bei.
+          {t.rich("goals.drawer.kpiTreeBranch", { b: (c) => <strong>{c}</strong> })}
         </p>
       )}
       {mode === "kpi_tree" && !hatUnterziele && model.modules.portfolio && (
         <p className="text-xs text-muted-foreground">
-          KPI-Baum als <strong>Blatt</strong>: der Ist kommt aus den verknüpften Epic-KPIs (Δ ×
-          Faktor). Ohne Verknüpfung bleibt das Ziel bei 0 %.
+          {t.rich("goals.drawer.kpiTreeLeaf", { b: (c) => <strong>{c}</strong> })}
         </p>
       )}
       {mode === "kpi_tree" && !hatUnterziele && !model.modules.portfolio && (
         <p className="text-xs text-muted-foreground">
-          KPI-Baum als <strong>Blatt</strong> zieht seinen Ist aus verknüpften Epic-KPIs — dafür
-          fehlt hier das Portfolio-Modul. <strong>Mit Unterzielen</strong> rechnet der Modus auch
-          ohne: er kaskadiert deren Werte hoch und misst wert-basiert.
+          {t.rich("goals.drawer.kpiTreeLeafNoPortfolio", { b: (c) => <strong>{c}</strong> })}
         </p>
       )}
       {mode === "rollup" && (
-        <p className="text-xs text-muted-foreground">
-          Fortschritt = gewichteter Durchschnitt der Unterziele. Eine eigene Metrik wird ignoriert.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("goals.drawer.rollupHelp")}</p>
       )}
       {mode === "confidence" && (
         <p className="text-xs text-muted-foreground">
-          Faust-zu-Fünf: statt einer Metrik trägst du eine Stufe von 1 bis 5 ein — „{" "}
-          {CONFIDENCE_LABEL[1]}" bis „{CONFIDENCE_LABEL[5]}". Skala und Zielwert stehen fest, unter
-          3 wird nachgeplant. Für Ziele, die sich nicht in einer Zahl messen lassen.
+          {t("goals.drawer.confidenceHelp", {
+            low: t(CONFIDENCE_KEYS[1]),
+            high: t(CONFIDENCE_KEYS[5]),
+          })}
         </p>
       )}
 
-      {isNew ? <DrawerSection title="Erweitert">{advancedFields}</DrawerSection> : advancedFields}
+      {isNew ? (
+        <DrawerSection title={t("goals.drawer.erweitert")}>{advancedFields}</DrawerSection>
+      ) : (
+        advancedFields
+      )}
     </FormShell>
   );
 
@@ -619,7 +622,7 @@ function GoalPane({
       <ToggleGroup
         value={tab}
         onChange={setTab}
-        ariaLabel="Ansicht"
+        ariaLabel={t("goals.drawer.ansicht")}
         className="text-xs font-medium"
         options={[
           { id: "overview", label: "Überblick" },
@@ -657,7 +660,7 @@ function GoalPane({
           <SubGoals parentId={id} subgoals={node.children} canEdit={canEdit} />
           <ParentGoalSection nodeId={id} parent={found?.parent ?? null} canEdit={canEdit} />
 
-          <DrawerSection title="Related work & Scope" hint={linkSummary}>
+          <DrawerSection title={t("goals.drawer.relatedWorkScope")} hint={linkSummary}>
             <div className="space-y-3">
               <RelatedWorkUnified
                 goalId={id}
@@ -668,8 +671,7 @@ function GoalPane({
               />
               {node.progressMode === "kpi_tree" && !nodeHasChildren && (
                 <p className="text-label leading-snug text-muted-foreground">
-                  Die KPIs verknüpfter Epics bilden über Δ × Umrechnungsfaktor den Ist-Wert dieses
-                  Ziels (Fortschrittsquelle „KPI-Baum").
+                  {t("goals.drawer.kpiLinkHelp")}
                 </p>
               )}
               <div className="space-y-3 border-t pt-3">
@@ -750,6 +752,7 @@ function SubGoals({
   subgoals: GoalNode[];
   canEdit: boolean;
 }) {
+  const t = useTranslations();
   const searchParams = useSearchParams();
   const [connectId, setConnectId] = useState("");
   const [state, run, pending] = useActionState(reparentGoalNodeAction, {});
@@ -788,10 +791,10 @@ function SubGoals({
   return (
     <section className="space-y-2">
       <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        Unterziele
+        {t("goals.drawer.subGoals")}
       </h3>
       {subgoals.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Noch keine Unterziele.</p>
+        <p className="text-xs text-muted-foreground">{t("goals.drawer.nochKeineUnterziele")}</p>
       ) : (
         <ul className="space-y-1">
           {subgoals.map((sg) => (
@@ -815,9 +818,9 @@ function SubGoals({
                   {!sg.includeInParentRollup && (
                     <span
                       className="ml-1 rounded-sm bg-warning-surface px-1 py-0.5 text-label font-medium text-warning"
-                      title="Zählt nicht im automatischen Fortschritt dieses Ziels"
+                      title={t("goals.drawer.zaehltNichtImAutomatischen")}
                     >
-                      nicht im Rollup
+                      {t("goals.drawer.notInRollup")}
                     </span>
                   )}
                 </span>
@@ -855,7 +858,7 @@ function SubGoals({
                   onClick={() => disconnect(sg.id)}
                   disabled={pending}
                   aria-label={`${sg.title} trennen`}
-                  title="Trennen (auf oberste Ebene)"
+                  title={t("goals.drawer.trennenAufObersteEbene")}
                   className="grid size-5 shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
                 >
                   ✕
@@ -870,7 +873,7 @@ function SubGoals({
           <EntitySelect
             kind="goal"
             name="connectSubgoal"
-            label="Bestehendes Ziel verbinden"
+            label={t("goals.drawer.bestehendesZielVerbinden")}
             value={connectId}
             onChange={setConnectId}
             labelField="name"
@@ -883,7 +886,7 @@ function SubGoals({
               scroll={false}
               className="text-xs font-medium text-primary hover:underline"
             >
-              + Neues Unterziel
+              {t("goals.drawer.newSubGoal")}
             </Link>
             <button
               type="button"
@@ -891,7 +894,7 @@ function SubGoals({
               disabled={pending || connectId === ""}
               className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
             >
-              Verbinden
+              {t("goals.drawer.connect")}
             </button>
           </div>
         </div>
@@ -915,6 +918,7 @@ function ParentGoalSection({
   parent: GoalNode | null;
   canEdit: boolean;
 }) {
+  const t = useTranslations();
   const searchParams = useSearchParams();
   const [pickId, setPickId] = useState("");
   const [state, run, pending] = useActionState(reparentGoalNodeAction, {});
@@ -933,7 +937,7 @@ function ParentGoalSection({
   return (
     <section className="space-y-2">
       <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        Elternziel
+        {t("goals.drawer.parentGoal")}
       </h3>
       {parent ? (
         <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">
@@ -954,12 +958,14 @@ function ParentGoalSection({
               disabled={pending}
               className="shrink-0 text-xs text-muted-foreground hover:text-destructive disabled:opacity-50"
             >
-              Entfernen
+              {t("goals.drawer.remove")}
             </button>
           )}
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">Kein Elternziel (oberste Ebene).</p>
+        <p className="text-xs text-muted-foreground">
+          {t("goals.drawer.keinElternzielObersteEbene")}
+        </p>
       )}
       {canEdit && (
         <div className="space-y-1.5 rounded-md border border-dashed p-2">
@@ -979,7 +985,7 @@ function ParentGoalSection({
             disabled={pending || pickId === ""}
             className="ml-auto block rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
           >
-            Übernehmen
+            {t("goals.drawer.apply")}
           </button>
         </div>
       )}
@@ -1053,6 +1059,7 @@ function RelatedWorkUnified({
   /** Epics/Features/PIs sind Premium-Inhalt — false ⇒ 🔒 statt Suchfeld. */
   searchEnabled: boolean;
 }) {
+  const t = useTranslations();
   const [linkEpicState, linkEpicRun, linkEpicPending] = useActionState(linkEpicToGoalAction, {});
   const [unlinkEpicState, unlinkEpicRun, unlinkEpicPending] = useActionState(
     unlinkEpicFromGoalAction,
@@ -1127,7 +1134,7 @@ function RelatedWorkUnified({
   return (
     <section className="space-y-2">
       <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        Related work
+        {t("goals.drawer.relatedWork")}
       </h3>
       <LinkList
         variant="row"
@@ -1187,6 +1194,7 @@ export function GoalScopeLinks({
   arts: ScopeRef[];
   canEdit: boolean;
 }) {
+  const t = useTranslations();
   const [vsId, setVsId] = useState("");
   const [artId, setArtId] = useState("");
   const [linkVsState, linkVsRun, linkVsPending] = useActionState(linkGoalValueStreamAction, {});
@@ -1237,7 +1245,9 @@ export function GoalScopeLinks({
         Verantwortung · Value Streams &amp; ARTs
       </h3>
       <div className="space-y-1.5">
-        <p className="text-label uppercase tracking-[0.1em] text-muted-foreground">Value Streams</p>
+        <p className="text-label uppercase tracking-[0.1em] text-muted-foreground">
+          {t("goals.drawer.valueStreams")}
+        </p>
         <LinkList
           variant="pill"
           emptyText="Keine Zuordnung."
@@ -1272,7 +1282,9 @@ export function GoalScopeLinks({
         </LinkList>
       </div>
       <div className="space-y-1.5">
-        <p className="text-label uppercase tracking-[0.1em] text-muted-foreground">ARTs</p>
+        <p className="text-label uppercase tracking-[0.1em] text-muted-foreground">
+          {t("goals.drawer.arts")}
+        </p>
         <LinkList
           variant="pill"
           emptyText="Keine Zuordnung."
@@ -1327,11 +1339,12 @@ function CustomFields({
   fields: GoalCustomFieldEntry[];
   canEdit: boolean;
 }) {
+  const t = useTranslations();
   if (fields.length === 0) return null;
   return (
     <section className="space-y-2">
       <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        Custom Fields
+        {t("goals.drawer.customFields")}
       </h3>
       <div className="space-y-2">
         {fields.map((f) => (
@@ -1458,6 +1471,7 @@ function FormShell({
   canEdit: boolean;
   confirmDelete?: React.ReactNode;
 }) {
+  const t = useTranslations();
   return (
     <form
       action={onSubmit}
@@ -1482,7 +1496,7 @@ function FormShell({
             disabled={pending || !canEdit}
             className="text-xs text-destructive hover:underline disabled:opacity-50"
           >
-            Löschen
+            {t("goals.drawer.delete")}
           </button>
         ) : (
           <span />

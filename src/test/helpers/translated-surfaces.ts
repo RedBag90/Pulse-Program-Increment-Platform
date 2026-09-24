@@ -58,8 +58,16 @@ const JSX_TEXT_RE = />\s*([^<>{}\n][^<>{}]*?[A-Za-zÄÖÜäöüß]{2,}[^<>{}]*?)
  * `useActionState<State, FormData>(signIn, null);` meldete „(signIn, null);"
  * als unübersetzten Text. Diese Merkmale kommen in Oberflächentext nicht vor
  * und in Code ständig.
+ *
+ * Beim Umbau des Ziele-Moduls kamen drei weitere Formen dazu, die der Wächter
+ * sonst bis zum Schluss als offene Stellen gemeldet hätte: eine Typzeile in
+ * einem mehrzeiligen Generic (`void,` gefolgt von `userLabels: Record`), ein
+ * Kurzschluss-Ausdruck (`0 && todayFrac`) und ein blosser Eigenschaftszugriff
+ * (`a.at`). Keine davon ist ein Satz — alle drei tragen Merkmale, die in
+ * Oberflächentext nicht vorkommen.
  */
-const CODE = /[;=]|^[(,)]|=>/;
+const CODE =
+  /[;=<]|^[(,)]|=>|&&|\|\||,\s*$|^(?:void|string|number|boolean|Record|Partial|readonly|null|undefined)\b|^\w+\.\w+$/;
 
 /**
  * Was literal stehenbleiben darf.

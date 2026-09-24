@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { identityTranslate } from "@/i18n/translate";
 import {
   buildZieleReport,
   type ZieleReportContext,
@@ -14,6 +15,13 @@ import {
  * kann — vor allem die zwei Arten, mit denen ein Bericht lügen könnte: eine
  * verschwiegene Filterung, und Kennzahlen, die anders gerechnet sind als am
  * Bildschirm.
+ *
+ * **Geprüft werden Schlüssel, keine Wörter.** Der Bericht bekommt
+ * {@link identityTranslate} gereicht, also einen Übersetzer, der den Schlüssel
+ * zurückgibt. Eine Zusicherung auf `"goals.status.atRisk"` überlebt damit jede
+ * Umformulierung des Textes und wird rot, wenn jemand den Schlüssel ändert —
+ * genau die Empfindlichkeit, die dieser Test haben soll. Was hier steht, sagt
+ * nichts mehr darüber aus, wie der Bericht klingt, sondern was er meint.
  */
 
 const JETZT = new Date("2026-09-23T10:00:00.000Z");
@@ -52,6 +60,8 @@ function ctx(over: Partial<ZieleReportContext> = {}): ZieleReportContext {
     valueStreamNames: {},
     artNames: {},
     now: JETZT,
+    t: identityTranslate,
+    locale: "de",
     ...over,
   };
 }
@@ -103,7 +113,7 @@ describe("buildZieleReport — eine Zeile", () => {
     const [row] = buildZieleReport(tree({ themes: [node()] }), ctx()).rows;
     expect(row).toMatchObject({
       owner: "—",
-      status: "Ohne Status",
+      status: "goals.tier.neutral",
       statusTier: "neutral",
       progress: "—",
       value: "—",
@@ -127,7 +137,7 @@ describe("buildZieleReport — eine Zeile", () => {
 
     expect(row).toMatchObject({
       owner: "Anna Weber",
-      status: "At risk",
+      status: "goals.status.atRisk",
       statusTier: "amber",
       progress: "72 %",
       timeframe: "Q3 2026",
@@ -148,10 +158,10 @@ describe("buildZieleReport — eine Zeile", () => {
 describe("buildZieleReport — das Filter-Echo", () => {
   it("sagt „alle“, wo nichts gefiltert ist", () => {
     expect(buildZieleReport(tree(), ctx()).filters).toEqual({
-      periods: "alle",
-      valueStreams: "alle",
-      arts: "alle",
-      statuses: "alle",
+      periods: "goals.report.all",
+      valueStreams: "goals.report.all",
+      arts: "goals.report.all",
+      statuses: "goals.report.all",
     });
   });
 
@@ -181,7 +191,7 @@ describe("buildZieleReport — das Filter-Echo", () => {
     // Ein Jahres-Eimer heisst „FY 2027" — dieselbe Beschriftung wie im Filter.
     expect(f.periods).toBe("Q3 2026, FY 2027");
     // `none` ist eine Auswahl („ohne Status"), kein Fehlen.
-    expect(f.statuses).toBe("On track, Ohne Status");
+    expect(f.statuses).toBe("goals.status.onTrack, goals.tier.neutral");
   });
 });
 
@@ -215,10 +225,10 @@ describe("buildZieleReport — die Kopfzahlen", () => {
       ],
     });
     expect(buildZieleReport(t, ctx()).summary.tiers).toEqual([
-      { tier: "green", label: "On track", count: 1 },
-      { tier: "amber", label: "At risk", count: 0 },
-      { tier: "rose", label: "Off track", count: 2 },
-      { tier: "neutral", label: "Ohne Status", count: 1 },
+      { tier: "green", label: "goals.tier.green", count: 1 },
+      { tier: "amber", label: "goals.tier.amber", count: 0 },
+      { tier: "rose", label: "goals.tier.rose", count: 2 },
+      { tier: "neutral", label: "goals.tier.neutral", count: 1 },
     ]);
   });
 });

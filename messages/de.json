@@ -135,5 +135,268 @@
     "validationFailed": "Validierung fehlgeschlagen",
     "serverError": "Ein unerwarteter Fehler ist aufgetreten",
     "tryAgain": "Erneut versuchen"
+  },
+  "goals": {
+    "status": {
+      "onTrack": "Im Plan",
+      "atRisk": "Gefährdet",
+      "offTrack": "Kritisch",
+      "achieved": "Erreicht",
+      "partial": "Teilweise erreicht",
+      "missed": "Verfehlt",
+      "dropped": "Verworfen",
+      "noRecent": "Noch kein Check-in",
+      "suggested": "Vorschlag"
+    },
+    "tier": {
+      "green": "Im Plan",
+      "amber": "Gefährdet",
+      "rose": "Kritisch",
+      "neutral": "Ohne Status"
+    },
+    "group": {
+      "open": "Offen",
+      "closed": "Abgeschlossen"
+    },
+    "strip": {
+      "status": "Status",
+      "planned": "Plan",
+      "realized": "Ist",
+      "runRate": "Run-Rate",
+      "avgProgress": "Ø Fortschritt"
+    },
+    "report": {
+      "all": "alle",
+      "documentTitle": "Ziele-Bericht {tenant}",
+      "title": "Ziele — Übersicht",
+      "asOf": "Stand {date}",
+      "filterPeriod": "Zeitraum",
+      "filterValueStream": "Wertstrom",
+      "filterArt": "ART",
+      "filterStatus": "Status",
+      "avgProgress": "Ø Fortschritt",
+      "goalCount": "Ziele im Ausschnitt",
+      "topByStatus": "Top-Ziele nach Status",
+      "empty": "Keine Ziele in diesem Ausschnitt.",
+      "colGoal": "Ziel",
+      "colOwner": "Owner",
+      "colStatus": "Status",
+      "colProgress": "Fortschritt",
+      "colValue": "Wert",
+      "colTimeframe": "Zeitraum",
+      "footer": "Pulse · Ziele-Bericht",
+      "page": "Seite {page} von {total}",
+      "button": "Als PDF"
+    },
+    "metricType": {
+      "number": "Zahl",
+      "percent": "Prozent",
+      "currency": "Währung",
+      "individuell": "Individuell"
+    },
+    "confidence": {
+      "1": "Das wird nichts",
+      "2": "Große Zweifel",
+      "3": "Könnte klappen",
+      "4": "Zuversichtlich",
+      "5": "Ganz sicher"
+    },
+    "shared": {
+      "noOffTrack": "Keine off-track-Ziele.",
+      "runRateBelowPlan": "Run-Rate < 70 % vom Plan",
+      "prevYear": "Jahr zurück",
+      "nextYear": "Jahr vor",
+      "cancel": "Abbrechen",
+      "progress": "Fortschritt",
+      "date": "Datum",
+      "reset": "Zurücksetzen",
+      "save": "Speichern",
+      "onlyOffTrack": "⚠ Nur off-track",
+      "emptyScope": "Noch keine Ziele im Scope.",
+      "title": "Titel"
+    },
+    "detail": {
+      "sectionTitle": "Titel (z. B. Zusammenfassung)",
+      "removeSection": "Sektion entfernen",
+      "text": "Text…",
+      "attainment": "Zielerreichung",
+      "currentValue": "Aktueller Wert",
+      "updateProgress": "Fortschritt aktualisieren",
+      "statusUpdate": "Status-Update ·",
+      "addSection": "+ Sektion",
+      "pointDate": "Datum des Punkts",
+      "lastStatus": "Letzter Status"
+    },
+    "table": {
+      "empty": "Noch keine Strategie definiert.",
+      "newGoalLong": "+ Ziel anlegen",
+      "collapseAll": "Alle einklappen",
+      "expandAll": "Alle ausklappen",
+      "sort": "Sortieren",
+      "sortBy": "Sortierkriterium",
+      "manual": "Manuell",
+      "progress": "Fortschritt",
+      "value": "Wert",
+      "timeframe": "Zeitraum",
+      "title": "Titel",
+      "newGoal": "+ Ziel",
+      "name": "Name",
+      "owner": "Owner",
+      "status": "Status",
+      "actions": "Aktionen",
+      "addSubGoal": "Unterziel hinzufügen",
+      "edit": "Bearbeiten",
+      "emptyHint": "Leg ein Ziel an und häng Unterziele dran.",
+      "collapse": "Einklappen",
+      "expand": "Ausklappen"
+    },
+    "periodField": {
+      "mode": "Zeitraum-Modus",
+      "start": "Start",
+      "end": "Ende"
+    },
+    "periodPicker": {
+      "choose": "Zeitraum wählen",
+      "janDec": "Jan – Dez"
+    },
+    "feed": {
+      "placeholder": "Frage stellen oder Kommentar hinterlassen…",
+      "empty": "Noch keine Aktivität.",
+      "editEntry": "Eintrag bearbeiten",
+      "removeEntry": "Eintrag entfernen",
+      "heading": "Überschrift",
+      "removeBlock": "Block entfernen",
+      "text": "Text",
+      "title": "Aktivität",
+      "comment": "Kommentieren",
+      "addBlock": "+ Block"
+    },
+    "create": {
+      "title": "Ziel anlegen",
+      "timeframe": "Zeitraum",
+      "description": "Beschreibung",
+      "heading": "Neues Ziel"
+    },
+    "shell": {
+      "title": "Ziele",
+      "subtitle": "Ziele und Unterziele — Übersicht und Pflege in einer Ansicht.",
+      "goalsInScope": "Ziele im Scope"
+    },
+    "tabs": {
+      "aria": "Ziele-Sub-Tabs"
+    },
+    "relatedWork": {
+      "placeholder": "Epic, Feature oder PI suchen…",
+      "search": "Suche…"
+    },
+    "treePicker": {
+      "search": "Ziel suchen…",
+      "loading": "Lade…",
+      "noMatch": "Kein Treffer.",
+      "none": "Kein Ziel",
+      "selected": "Gewählt:"
+    },
+    "periodMulti": {
+      "label": "Zeitraum",
+      "all": "Alle",
+      "h1": "H1",
+      "h2": "H2",
+      "q1": "Q1",
+      "q2": "Q2",
+      "q3": "Q3",
+      "q4": "Q4"
+    },
+    "layout": {
+      "label": "Layout"
+    },
+    "money": {
+      "goal": "Ziel",
+      "period": "Periode",
+      "planned": "Plan €",
+      "realized": "Ist €",
+      "runRate": "Run-Rate €",
+      "drift": "Drift",
+      "total": "GESAMT",
+      "dashboard": "Portfolio-Dashboard",
+      "empty": "Keine Ziele — leg eines im Tab „Strategie“ an."
+    },
+    "setup": {
+      "hideGuide": "Anleitung ausblenden",
+      "heading": "To-dos für den Einstieg",
+      "nextStep": "Nächster Schritt"
+    },
+    "drawer": {
+      "notSelectable": "(nicht mehr wählbar)",
+      "confidenceHelp": "Faust-zu-Fünf: statt einer Metrik trägst du eine Stufe von 1 bis 5 ein — „{low}“ bis „{high}“. Skala und Zielwert stehen fest, unter 3 wird nachgeplant. Für Ziele, die sich nicht in einer Zahl messen lassen.",
+      "narrativ": "Narrativ",
+      "metriktyp": "Metriktyp",
+      "einheitLabel": "Einheit (Label)",
+      "freiesLabelDerMessgroesse": "Freies Label der Messgröße, etwa Kunden oder Stück. Bei Metriktyp Individuell hängt es als Suffix an jedem angezeigten Wert.",
+      "nachkomma": "Nachkomma (0–6)",
+      "waehrungIso": "Währung (ISO)",
+      "eur": "EUR",
+      "baseline": "Baseline",
+      "targetZielwert": "Target (Zielwert)",
+      "aktuell": "Aktuell",
+      "gewichtImRollupDes": "Gewicht im Rollup des Elternziels (leer = 1)",
+      "wieStarkDiesesUnterziel": "Wie stark dieses Unterziel im Durchschnitt des Elternziels zählt. Leer = 1 (alle Unterziele gleich gewichtet).",
+      "zielLoeschen": "Ziel löschen?",
+      "abbrechen": "Abbrechen",
+      "titel": "Titel",
+      "zBKonversionVerdoppeln": "z. B. Konversion verdoppeln",
+      "zeitraum": "Zeitraum",
+      "owner": "Owner",
+      "verantwortlichFuerDiesesZiel": "Verantwortlich für dieses Ziel. Aus den Tenant-Nutzern.",
+      "keinOwner": "— Kein Owner",
+      "fortschrittsquelle": "Fortschrittsquelle",
+      "worausSichDerFortschritt": "Woraus sich der Fortschritt berechnet: Manuell (du pflegst den Wert selbst), Aus Unterzielen (Ø der Kinder), KPI-Baum (Blatt: Ist aus verknüpften Epic-KPIs; Ast: Werte der Unterziele kaskadiert, wert-basiert gemessen) oder Confidence Vote (Faust-zu-Fünf statt Metrik).",
+      "manuell": "Manuell",
+      "ausUnterzielen": "Aus Unterzielen",
+      "confidenceVote": "Confidence Vote",
+      "kpiBaum": "KPI-Baum",
+      "erweitert": "Erweitert",
+      "ansicht": "Ansicht",
+      "relatedWorkScope": "Related work & Scope",
+      "nochKeineUnterziele": "Noch keine Unterziele.",
+      "zaehltNichtImAutomatischen": "Zählt nicht im automatischen Fortschritt dieses Ziels",
+      "trennenAufObersteEbene": "Trennen (auf oberste Ebene)",
+      "bestehendesZielVerbinden": "Bestehendes Ziel verbinden",
+      "keinElternzielObersteEbene": "Kein Elternziel (oberste Ebene).",
+      "valueStreams": "Value Streams",
+      "chooseMetricType": "— Metriktyp wählen —",
+      "subGoals": "Unterziele",
+      "notInRollup": "nicht im Rollup",
+      "newSubGoal": "+ Neues Unterziel",
+      "connect": "Verbinden",
+      "parentGoal": "Elternziel",
+      "remove": "Entfernen",
+      "apply": "Übernehmen",
+      "relatedWork": "Related work",
+      "arts": "ARTs",
+      "customFields": "Custom Fields",
+      "delete": "Löschen",
+      "kpiTreeBranch": "KPI-Baum als <b>Ast</b>: die Werte der Unterziele kaskadieren hoch, und die Erfüllung misst sich wert-basiert (erreichter Wert ÷ Zielwert) statt als Durchschnitt der Unterziele. Jedes Unterziel braucht dafür seinen <b>Umrechnungsfaktor in diese Einheit</b> — ohne ihn trägt es nichts bei.",
+      "kpiTreeLeaf": "KPI-Baum als <b>Blatt</b>: der Ist kommt aus den verknüpften Epic-KPIs (Δ × Faktor). Ohne Verknüpfung bleibt das Ziel bei 0 %.",
+      "kpiTreeLeafNoPortfolio": "KPI-Baum als <b>Blatt</b> zieht seinen Ist aus verknüpften Epic-KPIs — dafür fehlt hier das Portfolio-Modul. <b>Mit Unterzielen</b> rechnet der Modus auch ohne: er kaskadiert deren Werte hoch und misst wert-basiert.",
+      "rollupHelp": "Fortschritt = gewichteter Durchschnitt der Unterziele. Eine eigene Metrik wird ignoriert.",
+      "kpiLinkHelp": "Die KPIs verknüpfter Epics bilden über Δ × Umrechnungsfaktor den Ist-Wert dieses Ziels (Fortschrittsquelle „KPI-Baum“).",
+      "example10000": "z. B. 10000"
+    },
+    "filter": {
+      "wertstrom": "Wertstrom",
+      "status": "Status",
+      "art": "ART",
+      "resetAll": "Alle Filter zurücksetzen"
+    },
+    "roadmap": {
+      "today": "heute",
+      "noTimeframe": "ohne Zeitraum"
+    },
+    "export": {
+      "csv": "CSV exportieren"
+    },
+    "network": {
+      "loading": "Netzplan wird geladen…"
+    }
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { FileText } from "lucide-react";
 import { GOAL_FILTER_KEYS } from "@/modules/core/goals/domain/goal-filter";
 
@@ -17,15 +18,22 @@ import { GOAL_FILTER_KEYS } from "@/modules/core/goals/domain/goal-filter";
  * genau die vier Facetten aus `GOAL_FILTER_KEYS` — Darstellungs-Parameter wie
  * `layout` oder `tab` haben auf Papier keine Bedeutung und blieben sonst als
  * Rauschen in der URL stehen.
+ *
+ * **Und die Sprache**, als fünfter Parameter: die Route liegt ausserhalb des
+ * `[locale]`-Segments und erführe sonst nie, in welcher Sprache die Seite
+ * stand, von der aus gedruckt wurde.
  */
 export function ZieleReportButton() {
   const sp = useSearchParams();
+  const locale = useLocale();
+  const t = useTranslations();
 
   const query = new URLSearchParams();
   for (const key of GOAL_FILTER_KEYS) {
     const value = sp.get(key);
     if (value) query.set(key, value);
   }
+  query.set("lang", locale);
   const qs = query.toString();
 
   return (
@@ -38,7 +46,7 @@ export function ZieleReportButton() {
       className="inline-flex items-center gap-1.5 rounded-md border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted"
     >
       <FileText className="size-3.5" aria-hidden />
-      Als PDF
+      {t("goals.report.button")}
     </a>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { ZieleSubTab } from "@/modules/core/goals/server/views/ziele-view";
 import { ToggleGroup } from "@/components/ui/toggle-group";
@@ -22,10 +23,11 @@ interface Props {
 }
 
 export function ZieleSubTabs({ active, showMoney = true }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const tabs = showMoney ? TABS : TABS.filter((t) => t.id !== "money");
+  const tabs = showMoney ? TABS : TABS.filter((tab) => tab.id !== "money");
 
   function setTab(next: ZieleSubTab) {
     const params = new URLSearchParams(searchParams.toString());
@@ -40,7 +42,7 @@ export function ZieleSubTabs({ active, showMoney = true }: Props) {
       value={active}
       options={tabs}
       onChange={setTab}
-      ariaLabel="Ziele-Sub-Tabs"
+      ariaLabel={t("goals.tabs.aria")}
       className="bg-card text-sm"
     />
   );

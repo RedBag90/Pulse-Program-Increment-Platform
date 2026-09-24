@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -38,6 +39,7 @@ import { dismissZieleSetupAction } from "@/modules/core/goals/features/actions/z
  * erscheint, entscheidet die Shell.
  */
 export function GoalSetupStepper({ steps }: { steps: GoalSetupStep[] }) {
+  const t = useTranslations();
   const sp = useSearchParams();
   const [pending, startTransition] = useTransition();
 
@@ -53,13 +55,13 @@ export function GoalSetupStepper({ steps }: { steps: GoalSetupStep[] }) {
       <div className="flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold">
           <ListChecks className="size-4 shrink-0 text-primary" aria-hidden />
-          To-dos für den Einstieg
+          {t("goals.setup.heading")}
         </h2>
         <button
           type="button"
           onClick={dismiss}
           disabled={pending}
-          aria-label="Anleitung ausblenden"
+          aria-label={t("goals.setup.hideGuide")}
           className="rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground disabled:opacity-50"
         >
           <X className="size-3.5" />
@@ -100,7 +102,7 @@ export function GoalSetupStepper({ steps }: { steps: GoalSetupStep[] }) {
                         uebrigen Zeilen zu Kulisse zu machen. */}
                     {step.isNext && (
                       <span className="rounded-sm bg-muted px-1.5 py-0.5 text-label font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                        Nächster Schritt
+                        {t("goals.setup.nextStep")}
                       </span>
                     )}
                   </span>

@@ -135,5 +135,268 @@
     "validationFailed": "Validation failed",
     "serverError": "An unexpected error occurred",
     "tryAgain": "Try again"
+  },
+  "goals": {
+    "status": {
+      "onTrack": "On track",
+      "atRisk": "At risk",
+      "offTrack": "Off track",
+      "achieved": "Achieved",
+      "partial": "Partially achieved",
+      "missed": "Missed",
+      "dropped": "Dropped",
+      "noRecent": "No recent updates",
+      "suggested": "Suggested"
+    },
+    "tier": {
+      "green": "On track",
+      "amber": "At risk",
+      "rose": "Off track",
+      "neutral": "No status"
+    },
+    "group": {
+      "open": "Open",
+      "closed": "Closed"
+    },
+    "strip": {
+      "status": "Status",
+      "planned": "Planned",
+      "realized": "Realized",
+      "runRate": "Run rate",
+      "avgProgress": "Avg. progress"
+    },
+    "report": {
+      "all": "all",
+      "documentTitle": "Goals report {tenant}",
+      "title": "Goals — Overview",
+      "asOf": "As of {date}",
+      "filterPeriod": "Period",
+      "filterValueStream": "Value stream",
+      "filterArt": "ART",
+      "filterStatus": "Status",
+      "avgProgress": "Avg. progress",
+      "goalCount": "Goals in scope",
+      "topByStatus": "Top goals by status",
+      "empty": "No goals in this selection.",
+      "colGoal": "Goal",
+      "colOwner": "Owner",
+      "colStatus": "Status",
+      "colProgress": "Progress",
+      "colValue": "Value",
+      "colTimeframe": "Timeframe",
+      "footer": "Pulse · Goals report",
+      "page": "Page {page} of {total}",
+      "button": "Download PDF"
+    },
+    "metricType": {
+      "number": "Number",
+      "percent": "Percent",
+      "currency": "Currency",
+      "individuell": "Custom"
+    },
+    "confidence": {
+      "1": "Not a chance",
+      "2": "Serious doubts",
+      "3": "Could work",
+      "4": "Confident",
+      "5": "Certain"
+    },
+    "shared": {
+      "noOffTrack": "No off-track goals.",
+      "runRateBelowPlan": "Run rate < 70 % of plan",
+      "prevYear": "Previous year",
+      "nextYear": "Next year",
+      "cancel": "Cancel",
+      "progress": "Progress",
+      "date": "Date",
+      "reset": "Reset",
+      "save": "Save",
+      "onlyOffTrack": "⚠ Off-track only",
+      "emptyScope": "No goals in scope yet.",
+      "title": "Title"
+    },
+    "detail": {
+      "sectionTitle": "Title (e.g. Summary)",
+      "removeSection": "Remove section",
+      "text": "Text…",
+      "attainment": "Goal attainment",
+      "currentValue": "Current value",
+      "updateProgress": "Update progress",
+      "statusUpdate": "Status update ·",
+      "addSection": "+ Section",
+      "pointDate": "Date of the data point",
+      "lastStatus": "Latest status"
+    },
+    "table": {
+      "empty": "No strategy defined yet.",
+      "newGoalLong": "+ New goal",
+      "collapseAll": "Collapse all",
+      "expandAll": "Expand all",
+      "sort": "Sort",
+      "sortBy": "Sort by",
+      "manual": "Manual",
+      "progress": "Progress",
+      "value": "Value",
+      "timeframe": "Timeframe",
+      "title": "Title",
+      "newGoal": "+ Goal",
+      "name": "Name",
+      "owner": "Owner",
+      "status": "Status",
+      "actions": "Actions",
+      "addSubGoal": "Add sub-goal",
+      "edit": "Edit",
+      "emptyHint": "Create a goal and hang sub-goals off it.",
+      "collapse": "Collapse",
+      "expand": "Expand"
+    },
+    "periodField": {
+      "mode": "Timeframe mode",
+      "start": "Start",
+      "end": "End"
+    },
+    "periodPicker": {
+      "choose": "Choose timeframe",
+      "janDec": "Jan – Dec"
+    },
+    "feed": {
+      "placeholder": "Ask a question or leave a comment…",
+      "empty": "No activity yet.",
+      "editEntry": "Edit entry",
+      "removeEntry": "Remove entry",
+      "heading": "Heading",
+      "removeBlock": "Remove block",
+      "text": "Text",
+      "title": "Activity",
+      "comment": "Comment",
+      "addBlock": "+ Block"
+    },
+    "create": {
+      "title": "New goal",
+      "timeframe": "Timeframe",
+      "description": "Description",
+      "heading": "New goal"
+    },
+    "shell": {
+      "title": "Goals",
+      "subtitle": "Goals and sub-goals — overview and editing in one view.",
+      "goalsInScope": "Goals in scope"
+    },
+    "tabs": {
+      "aria": "Goals sub-tabs"
+    },
+    "relatedWork": {
+      "placeholder": "Search epics, features or PIs…",
+      "search": "Search…"
+    },
+    "treePicker": {
+      "search": "Search goals…",
+      "loading": "Loading…",
+      "noMatch": "No matches.",
+      "none": "No goal",
+      "selected": "Selected:"
+    },
+    "periodMulti": {
+      "label": "Timeframe",
+      "all": "All",
+      "h1": "H1",
+      "h2": "H2",
+      "q1": "Q1",
+      "q2": "Q2",
+      "q3": "Q3",
+      "q4": "Q4"
+    },
+    "layout": {
+      "label": "Layout"
+    },
+    "money": {
+      "goal": "Goal",
+      "period": "Period",
+      "planned": "Planned €",
+      "realized": "Realized €",
+      "runRate": "Run rate €",
+      "drift": "Drift",
+      "total": "TOTAL",
+      "dashboard": "Portfolio dashboard",
+      "empty": "No goals — create one on the Strategy tab."
+    },
+    "setup": {
+      "hideGuide": "Hide guide",
+      "heading": "Getting-started to-dos",
+      "nextStep": "Next step"
+    },
+    "drawer": {
+      "notSelectable": "(no longer selectable)",
+      "confidenceHelp": "Fist to five: instead of a metric you enter a level from 1 to 5 — “{low}” to “{high}”. Scale and target are fixed; below 3 the goal is replanned. For goals that no single number can measure.",
+      "narrativ": "Narrative",
+      "metriktyp": "Metric type",
+      "einheitLabel": "Unit (label)",
+      "freiesLabelDerMessgroesse": "Free-text label for the measure, e.g. customers or units. With metric type Custom it is appended as a suffix to every displayed value.",
+      "nachkomma": "Decimals (0–6)",
+      "waehrungIso": "Currency (ISO)",
+      "eur": "EUR",
+      "baseline": "Baseline",
+      "targetZielwert": "Target",
+      "aktuell": "Current",
+      "gewichtImRollupDes": "Weight in the parent goal's rollup (empty = 1)",
+      "wieStarkDiesesUnterziel": "How much this sub-goal counts in the parent goal's average. Empty = 1 (all sub-goals weighted equally).",
+      "zielLoeschen": "Delete goal?",
+      "abbrechen": "Cancel",
+      "titel": "Title",
+      "zBKonversionVerdoppeln": "e.g. Double conversion",
+      "zeitraum": "Timeframe",
+      "owner": "Owner",
+      "verantwortlichFuerDiesesZiel": "Accountable for this goal. From the tenant's users.",
+      "keinOwner": "— No owner",
+      "fortschrittsquelle": "Progress source",
+      "worausSichDerFortschritt": "How progress is calculated: Manual (you maintain the value yourself), From sub-goals (average of the children), KPI tree (leaf: actuals from linked epic KPIs; branch: sub-goal values cascade up, measured by value) or Confidence vote (fist to five instead of a metric).",
+      "manuell": "Manual",
+      "ausUnterzielen": "From sub-goals",
+      "confidenceVote": "Confidence vote",
+      "kpiBaum": "KPI tree",
+      "erweitert": "Advanced",
+      "ansicht": "View",
+      "relatedWorkScope": "Related work & scope",
+      "nochKeineUnterziele": "No sub-goals yet.",
+      "zaehltNichtImAutomatischen": "Excluded from this goal's automatic progress",
+      "trennenAufObersteEbene": "Detach (to top level)",
+      "bestehendesZielVerbinden": "Link an existing goal",
+      "keinElternzielObersteEbene": "No parent goal (top level).",
+      "valueStreams": "Value streams",
+      "chooseMetricType": "— Choose metric type —",
+      "subGoals": "Sub-goals",
+      "notInRollup": "not in rollup",
+      "newSubGoal": "+ New sub-goal",
+      "connect": "Link",
+      "parentGoal": "Parent goal",
+      "remove": "Remove",
+      "apply": "Apply",
+      "relatedWork": "Related work",
+      "arts": "ARTs",
+      "customFields": "Custom fields",
+      "delete": "Delete",
+      "kpiTreeBranch": "KPI tree as a <b>branch</b>: the sub-goals' values cascade upward, and attainment is measured by value (value reached ÷ target) rather than as an average of the sub-goals. Each sub-goal needs its <b>conversion factor into this unit</b> — without it, it contributes nothing.",
+      "kpiTreeLeaf": "KPI tree as a <b>leaf</b>: the actual comes from the linked epic KPIs (Δ × factor). Without a link the goal stays at 0%.",
+      "kpiTreeLeafNoPortfolio": "KPI tree as a <b>leaf</b> draws its actual from linked epic KPIs — and the portfolio module is not enabled here. <b>With sub-goals</b> the mode works without it: their values cascade up and attainment is measured by value.",
+      "rollupHelp": "Progress = weighted average of the sub-goals. A metric of its own is ignored.",
+      "kpiLinkHelp": "The KPIs of linked epics form this goal's actual value via Δ × conversion factor (progress source “KPI tree”).",
+      "example10000": "e.g. 10000"
+    },
+    "filter": {
+      "wertstrom": "Value stream",
+      "status": "Status",
+      "art": "ART",
+      "resetAll": "Reset all filters"
+    },
+    "roadmap": {
+      "today": "today",
+      "noTimeframe": "no timeframe"
+    },
+    "export": {
+      "csv": "Export CSV"
+    },
+    "network": {
+      "loading": "Loading network view…"
+    }
   }
 }

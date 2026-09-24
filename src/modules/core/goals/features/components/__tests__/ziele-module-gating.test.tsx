@@ -57,15 +57,21 @@ describe("Freemium-Gating im Ziele-Modul (Personal-Tenant, modules all-off)", ()
     expect(screen.getByText("Money")).toBeInTheDocument();
   });
 
-  it("HealthStrip ohne portfolio ⇒ keine €-Kacheln (Planned/Realized/Run-Rate)", () => {
+  /*
+   * Die drei €-Kacheln heissen seit der Übersetzung „Plan", „Ist" und
+   * „Run-Rate" — vorher standen dort englische Wörter mitten in der deutschen
+   * Oberfläche. Geprüft wird weiterhin, **ob** sie da sind, nicht wie sie
+   * klingen; die Wörter selbst kommen jetzt aus dem Katalog.
+   */
+  it("HealthStrip ohne portfolio ⇒ keine €-Kacheln (Plan/Ist/Run-Rate)", () => {
     render(<GoalHealthStrip themes={[]} tenantTrio={ZERO} showMoney={false} />);
-    expect(screen.queryByText("Planned")).toBeNull();
+    expect(screen.queryByText("Plan")).toBeNull();
     expect(screen.queryByText("Run-Rate")).toBeNull();
   });
 
   it("HealthStrip mit portfolio ⇒ €-Kacheln sichtbar (Org-Verhalten unverändert)", () => {
     render(<GoalHealthStrip themes={[]} tenantTrio={ZERO} />);
-    expect(screen.getByText("Planned")).toBeInTheDocument();
+    expect(screen.getByText("Plan")).toBeInTheDocument();
     expect(screen.getByText("Run-Rate")).toBeInTheDocument();
   });
 

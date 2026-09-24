@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
 export interface RelatedWorkResult {
@@ -27,6 +28,7 @@ export function RelatedWorkSearch({
   onPick: (result: RelatedWorkResult) => void;
   disabled?: boolean;
 }) {
+  const t = useTranslations();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState<RelatedWorkResult[]>([]);
@@ -83,13 +85,13 @@ export function RelatedWorkSearch({
         }}
         onFocus={() => setOpen(true)}
         disabled={disabled}
-        placeholder="Epic, Feature oder PI suchen…"
+        placeholder={t("goals.relatedWork.placeholder")}
         className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
       />
       {open && (loading || results.length > 0) && (
         <ul className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover text-sm shadow-md">
           {loading && results.length === 0 && (
-            <li className="px-3 py-2 text-muted-foreground">Suche…</li>
+            <li className="px-3 py-2 text-muted-foreground">{t("goals.relatedWork.search")}</li>
           )}
           {results.map((r) => (
             <li key={`${r.type}:${r.id}`}>
