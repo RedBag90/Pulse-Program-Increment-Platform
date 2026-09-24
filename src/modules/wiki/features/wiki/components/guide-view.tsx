@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 import type { FigureKind } from "@/modules/wiki/domain/blocks";
@@ -30,6 +31,7 @@ export function GuideView({
   roles: readonly Role[];
   figures: Partial<Record<FigureKind, ReactNode>>;
 }) {
+  const t = useTranslations();
   return (
     <div className="grid gap-8 lg:grid-cols-[200px_minmax(0,1fr)] lg:items-start">
       <GuideToc guide={guide} roles={roles} />
@@ -38,7 +40,7 @@ export function GuideView({
         <header className="space-y-3">
           <p className="font-mono text-meta uppercase tracking-[0.14em] text-muted-foreground">
             <Link href="/wiki" className="hover:text-foreground">
-              Wiki
+              {t("wiki.ui.wiki")}
             </Link>
             <span className="px-1.5" aria-hidden>
               /
@@ -53,7 +55,7 @@ export function GuideView({
 
         <section id="mechanik" className="scroll-mt-24 space-y-4">
           <h2 className="font-heading text-xl font-semibold tracking-tight">
-            Die gemeinsame Mechanik
+            {t("wiki.ui.dieGemeinsameMechanik")}
           </h2>
           <Blocks blocks={guide.mechanics} figures={figures} />
         </section>
@@ -71,17 +73,17 @@ export function GuideView({
         {guide.misconceptions.length > 0 && (
           <section id="irrtuemer" className="scroll-mt-24 space-y-4">
             <h2 className="font-heading text-xl font-semibold tracking-tight">
-              Sätze, die naheliegen und nicht stimmen
+              {t("wiki.ui.saetzeDieNaheliegenUnd")}
             </h2>
             <div className="overflow-x-auto rounded-lg bg-card shadow-card">
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr>
                     <th className="border-b px-4 py-2.5 text-left font-mono text-meta uppercase tracking-[0.1em] text-muted-foreground">
-                      Satz
+                      {t("wiki.ui.satz")}
                     </th>
                     <th className="border-b px-4 py-2.5 text-left font-mono text-meta uppercase tracking-[0.1em] text-muted-foreground">
-                      Warum er nicht stimmt
+                      {t("wiki.ui.warumErNichtStimmt")}
                     </th>
                   </tr>
                 </thead>
@@ -105,7 +107,7 @@ export function GuideView({
         {guide.who.length > 0 && (
           <section id="wer-was" className="scroll-mt-24 space-y-4">
             <h2 className="font-heading text-xl font-semibold tracking-tight">
-              Wer welchen Schritt macht
+              {t("wiki.ui.werWelchenSchrittMacht")}
             </h2>
             <div className="overflow-x-auto rounded-lg bg-card shadow-card">
               <table className="w-full border-collapse text-sm">
@@ -161,12 +163,15 @@ export function GuideView({
  * der ins Leere zeigt, faellt weg; dass es keinen gibt, sichert der Test.
  */
 function SeeAlso({ guide }: { guide: Guide }) {
+  const t = useTranslations();
   const targets = guide.seeAlso.map(guideBySlug).filter((g): g is Guide => g != null);
   if (targets.length === 0) return null;
 
   return (
     <section id="weiter" className="scroll-mt-24 space-y-3 border-t pt-6">
-      <h2 className="font-heading text-xl font-semibold tracking-tight">Weiter lesen</h2>
+      <h2 className="font-heading text-xl font-semibold tracking-tight">
+        {t("wiki.ui.weiterLesen")}
+      </h2>
       <ul className="grid gap-2 border-l-2 pl-4 md:grid-cols-2">
         {targets.map((g) => (
           <li key={g.slug}>
@@ -194,6 +199,7 @@ function PerspectiveSection({
   own: boolean;
   figures: Partial<Record<FigureKind, ReactNode>>;
 }) {
+  const t = useTranslations();
   return (
     <section id={anchorId("p", perspective.label)} className="scroll-mt-24 space-y-5">
       <div className="space-y-1 border-t pt-6">
@@ -203,12 +209,13 @@ function PerspectiveSection({
           </h2>
           {own && (
             <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-label uppercase tracking-[0.1em] text-primary">
-              deine Rolle
+              {t("wiki.ui.deineRolle")}
             </span>
           )}
         </div>
         <p className="text-prose text-muted-foreground">
-          Meine Frage lautet: <strong className="text-foreground">{perspective.question}</strong>
+          {t("wiki.ui.meineFrageLautet")}{" "}
+          <strong className="text-foreground">{perspective.question}</strong>
         </p>
       </div>
 
@@ -238,6 +245,7 @@ function StationView({
   id: string;
   figures: Partial<Record<FigureKind, ReactNode>>;
 }) {
+  const t = useTranslations();
   return (
     <li id={id} className="relative scroll-mt-24 list-none pb-8 pl-11 last:pb-0">
       {/* Die Linie verbindet die Stationen; die letzte traegt keine. */}
@@ -257,7 +265,7 @@ function StationView({
             href={station.route}
             className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
           >
-            Hier entlang
+            {t("wiki.ui.hierEntlang")}
             <code className="font-mono text-xs text-muted-foreground">{station.route}</code>
             <span aria-hidden>→</span>
           </Link>
@@ -273,15 +281,19 @@ function StationView({
  * Browser-Suche findet jeden Abschnitt, weil nichts eingeklappt ist.
  */
 function GuideToc({ guide, roles }: { guide: Guide; roles: readonly Role[] }) {
+  const t = useTranslations();
   return (
-    <nav aria-label="Auf dieser Seite" className="top-24 space-y-2 border-l pl-4 text-xs lg:sticky">
+    <nav
+      aria-label={t("wiki.ui.aufDieserSeite")}
+      className="top-24 space-y-2 border-l pl-4 text-xs lg:sticky"
+    >
       <p className="font-mono text-label uppercase tracking-[0.14em] text-muted-foreground">
-        Auf dieser Seite
+        {t("wiki.ui.aufDieserSeite")}
       </p>
       <ul className="space-y-1.5">
         <li>
           <a href="#mechanik" className="text-muted-foreground hover:text-foreground">
-            Die gemeinsame Mechanik
+            {t("wiki.ui.dieGemeinsameMechanik")}
           </a>
         </li>
         {guide.perspectives.map((p, i) => (
@@ -313,21 +325,21 @@ function GuideToc({ guide, roles }: { guide: Guide; roles: readonly Role[] }) {
         {guide.misconceptions.length > 0 && (
           <li>
             <a href="#irrtuemer" className="text-muted-foreground hover:text-foreground">
-              Sätze, die nicht stimmen
+              {t("wiki.ui.saetzeDieNichtStimmen")}
             </a>
           </li>
         )}
         {guide.who.length > 0 && (
           <li>
             <a href="#wer-was" className="text-muted-foreground hover:text-foreground">
-              Wer welchen Schritt macht
+              {t("wiki.ui.werWelchenSchrittMacht")}
             </a>
           </li>
         )}
         {guide.seeAlso.length > 0 && (
           <li>
             <a href="#weiter" className="text-muted-foreground hover:text-foreground">
-              Weiter lesen
+              {t("wiki.ui.weiterLesen")}
             </a>
           </li>
         )}

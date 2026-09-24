@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { FeaturesListTable } from "@/modules/work/features/feature/components/features-list-table";
 import type { FeatureListRow } from "@/server/views/features-list";
 
@@ -17,12 +18,13 @@ interface Props {
  * — die wandert im Bedarfsfall in einen eigenen PR.
  */
 export function MyTasksFeaturesSection({ rows, canEdit, showWsjf, compact }: Props) {
+  const t = useTranslations();
   if (rows.length === 0) return null;
   return (
     <section className="space-y-2">
       <div className="flex items-baseline justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Features
+          {t("work.myTasks.features")}
         </h2>
         <span className="text-xs text-muted-foreground">{rows.length}</span>
       </div>

@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { anchorId } from "@/modules/wiki/domain/anchor";
 import type { RoleSheet, RoleSheetClaim } from "@/modules/wiki/domain/role-sheet";
@@ -40,6 +41,7 @@ export function RoleSheetsView({
   duties: readonly DutyRow[];
   roles: readonly Role[];
 }) {
+  const t = useTranslations();
   return (
     <div className="grid gap-8 lg:grid-cols-[200px_minmax(0,1fr)] lg:items-start">
       <RoleToc sheets={sheets} roles={roles} />
@@ -48,15 +50,15 @@ export function RoleSheetsView({
         <header className="space-y-3">
           <p className="font-mono text-meta uppercase tracking-[0.14em] text-muted-foreground">
             <Link href="/wiki" className="hover:text-foreground">
-              Wiki
+              {t("wiki.ui.wiki")}
             </Link>
             <span className="px-1.5" aria-hidden>
               /
             </span>
-            Nachschlagen
+            {t("wiki.ui.nachschlagen")}
           </p>
           <h1 className="font-heading text-3xl font-semibold tracking-tight">
-            Wer was verantwortet
+            {t("wiki.ui.werWasVerantwortet")}
           </h1>
           <p className="max-w-[var(--reading-max-w)] text-prose-lede leading-relaxed text-muted-foreground">
             {inline(
@@ -68,12 +70,12 @@ export function RoleSheetsView({
         <section id="rollen" className="scroll-mt-24 space-y-8">
           <div className="space-y-2 border-t pt-6">
             <h2 className="font-heading text-xl font-semibold tracking-tight">
-              Die Rollen — überall dieselben
+              {t("wiki.ui.dieRollenUeberallDieselben")}
             </h2>
             <p className="max-w-[var(--reading-max-w)] text-prose text-muted-foreground">
-              Sie werden zugewiesen, tragen Rechte und heissen in jedem Mandanten gleich. Das
-              Rollenmodell kennt <strong className="text-foreground">keine Vererbung</strong> — eine
-              höhere Rolle enthält die niedrigere nicht.
+              {t("wiki.ui.sieWerdenZugewiesenTragen")}{" "}
+              <strong className="text-foreground">{t("wiki.ui.keineVererbung")}</strong>{" "}
+              {t("wiki.ui.eineHoehereRolleEnthaelt")}
             </p>
           </div>
 
@@ -95,6 +97,7 @@ export function RoleSheetsView({
 }
 
 function RoleCard({ sheet, index, own }: { sheet: RoleSheet; index: number; own: boolean }) {
+  const t = useTranslations();
   return (
     <section id={anchorId("r", sheet.label)} className="scroll-mt-24 space-y-4">
       <div className="space-y-2">
@@ -104,7 +107,7 @@ function RoleCard({ sheet, index, own }: { sheet: RoleSheet; index: number; own:
           </h3>
           {own && (
             <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-label uppercase tracking-[0.1em] text-primary">
-              deine Rolle
+              {t("wiki.ui.deineRolle")}
             </span>
           )}
         </div>
@@ -114,8 +117,8 @@ function RoleCard({ sheet, index, own }: { sheet: RoleSheet; index: number; own:
       </div>
 
       <div className="grid gap-2.5 md:grid-cols-2 md:items-start">
-        <ClaimList title="Verantwortung" claims={sheet.responsibilities} />
-        <ClaimList title="Übergaben" claims={sheet.handoffs} />
+        <ClaimList title={t("wiki.ui.verantwortung")} claims={sheet.responsibilities} />
+        <ClaimList title={t("wiki.ui.uebergaben")} claims={sheet.handoffs} />
       </div>
     </section>
   );
@@ -128,6 +131,7 @@ function RoleCard({ sheet, index, own }: { sheet: RoleSheet; index: number; own:
  * Auskunft.
  */
 function ClaimList({ title, claims }: { title: string; claims: readonly RoleSheetClaim[] }) {
+  const t = useTranslations();
   return (
     <div className="rounded-lg bg-card shadow-card px-3.5 py-3">
       <p className="font-mono text-label uppercase tracking-[0.12em] text-muted-foreground">
@@ -135,7 +139,7 @@ function ClaimList({ title, claims }: { title: string; claims: readonly RoleShee
       </p>
       {claims.length === 0 ? (
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          In diesem Mandanten nichts — die Module dafür sind nicht freigeschaltet.
+          {t("wiki.ui.inDiesemMandantenNichts")}
         </p>
       ) : (
         <ul className="mt-2 space-y-1.5">
@@ -160,11 +164,12 @@ function ClaimList({ title, claims }: { title: string; claims: readonly RoleShee
  * zaehlt. Traegt jemand einen achten Platz ein, erscheint er hier von selbst.
  */
 function DutiesSection({ duties }: { duties: readonly DutyRow[] }) {
+  const t = useTranslations();
   return (
     <section id="zustaendigkeiten" className="scroll-mt-24 space-y-4">
       <div className="space-y-2 border-t pt-6">
         <h2 className="font-heading text-xl font-semibold tracking-tight">
-          Die Zuständigkeiten — je Wertstrom besetzt
+          {t("wiki.ui.dieZustaendigkeitenJeWertstrom")}
         </h2>
         <p className="max-w-[var(--reading-max-w)] text-prose text-muted-foreground">
           {inline(
@@ -210,7 +215,7 @@ function DutiesSection({ duties }: { duties: readonly DutyRow[] }) {
       <p className="text-prose text-muted-foreground">
         Wer das bei euch ist, steht in der{" "}
         <Link href="/structure/rollen" className="font-medium text-foreground hover:underline">
-          Rollenverteilung
+          {t("wiki.ui.rollenverteilung")}
         </Link>{" "}
         — dort mit Namen, und dort wird auch eingetragen.
       </p>
@@ -220,6 +225,7 @@ function DutiesSection({ duties }: { duties: readonly DutyRow[] }) {
 
 /** Dieselben drei Naehte wie am Fuss einer Anleitung. */
 function SeeAlso() {
+  const t = useTranslations();
   const targets = [
     {
       href: "/meine-rolle",
@@ -240,7 +246,9 @@ function SeeAlso() {
 
   return (
     <section id="weiter" className="scroll-mt-24 space-y-3 border-t pt-6">
-      <h2 className="font-heading text-xl font-semibold tracking-tight">Weiter lesen</h2>
+      <h2 className="font-heading text-xl font-semibold tracking-tight">
+        {t("wiki.ui.weiterLesen")}
+      </h2>
       <ul className="grid gap-2 border-l-2 pl-4 md:grid-cols-2">
         {targets.map((t) => (
           <li key={t.href}>
@@ -258,15 +266,19 @@ function SeeAlso() {
 }
 
 function RoleToc({ sheets, roles }: { sheets: readonly RoleSheet[]; roles: readonly Role[] }) {
+  const t = useTranslations();
   return (
-    <nav aria-label="Auf dieser Seite" className="top-24 space-y-2 border-l pl-4 text-xs lg:sticky">
+    <nav
+      aria-label={t("wiki.ui.aufDieserSeite")}
+      className="top-24 space-y-2 border-l pl-4 text-xs lg:sticky"
+    >
       <p className="font-mono text-label uppercase tracking-[0.14em] text-muted-foreground">
-        Auf dieser Seite
+        {t("wiki.ui.aufDieserSeite")}
       </p>
       <ul className="space-y-1.5">
         <li>
           <a href="#rollen" className="text-muted-foreground hover:text-foreground">
-            Die Rollen
+            {t("wiki.ui.dieRollen")}
           </a>
           <ul className="mt-1 space-y-1 pl-3">
             {sheets.map((s, i) => (
@@ -287,12 +299,12 @@ function RoleToc({ sheets, roles }: { sheets: readonly RoleSheet[]; roles: reado
         </li>
         <li>
           <a href="#zustaendigkeiten" className="text-muted-foreground hover:text-foreground">
-            Die Zuständigkeiten
+            {t("wiki.ui.dieZustaendigkeiten")}
           </a>
         </li>
         <li>
           <a href="#weiter" className="text-muted-foreground hover:text-foreground">
-            Weiter lesen
+            {t("wiki.ui.weiterLesen")}
           </a>
         </li>
       </ul>

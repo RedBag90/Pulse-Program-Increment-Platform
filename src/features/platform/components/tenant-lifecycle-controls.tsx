@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useEffect, type MouseEvent } from "react";
 import { useRouter } from "@/i18n/navigation";
 import {
@@ -23,6 +24,7 @@ export function TenantLifecycleControls({
   status: string;
   name: string;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [sState, sAction, sPending] = useActionState<ActionState, FormData>(
     setTenantStatusAction,
@@ -61,7 +63,7 @@ export function TenantLifecycleControls({
                 )}
                 className="rounded-md border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
               >
-                Sperren
+                {t("platform.ui.sperren")}
               </button>
               <button
                 type="submit"
@@ -71,7 +73,7 @@ export function TenantLifecycleControls({
                 onClick={confirmOr(`„${name}" archivieren? Der Bereich wird stillgelegt.`)}
                 className="rounded-md border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
               >
-                Archivieren
+                {t("platform.ui.archivieren")}
               </button>
             </>
           ) : (
@@ -82,7 +84,7 @@ export function TenantLifecycleControls({
               disabled={sPending}
               className="rounded-md border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
             >
-              Reaktivieren
+              {t("platform.ui.reaktivieren")}
             </button>
           )}
         </form>
@@ -97,7 +99,7 @@ export function TenantLifecycleControls({
             )}
             className="rounded-md border border-destructive/40 px-3 py-1.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
           >
-            Löschen
+            {t("platform.ui.loeschen")}
           </button>
         </form>
       </div>

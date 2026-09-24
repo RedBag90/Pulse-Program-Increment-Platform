@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { Building2, Lock } from "lucide-react";
 import { requirePlatformAdmin, platformDb } from "@/server/auth/platform";
@@ -10,6 +11,7 @@ import { CreateTenantForm } from "@/features/platform/components/create-tenant-f
 import { TenantStatusBadge } from "@/features/platform/components/tenant-status-badge";
 
 export default async function PlatformTenantsPage() {
+  const t = await getTranslations();
   const actor = await requirePlatformAdmin();
   const db = platformDb(actor.id);
   const [tenants, privat] = await Promise.all([listAllTenants(db), personalWorkspaceSummary(db)]);
@@ -17,8 +19,8 @@ export default async function PlatformTenantsPage() {
   return (
     <Page>
       <PageHeader
-        title="Tenants"
-        subtitle="Alle Organisationen tenant-übergreifend verwalten."
+        title={t("platform.page.tenants")}
+        subtitle={t("platform.page.alleOrganisationenTenantUebergreifend")}
         actions={<CreateTenantForm />}
       />
 
@@ -40,58 +42,66 @@ export default async function PlatformTenantsPage() {
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
               <tr>
-                <th className="px-3 py-2 font-medium">Name</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Region</th>
-                <th className="px-3 py-2 font-medium">Mitglieder</th>
-                <th className="px-3 py-2 text-right font-medium">Inhalt</th>
-                <th className="px-3 py-2 font-medium">Module</th>
-                <th className="px-3 py-2 font-medium">Angelegt</th>
-                <th className="px-3 py-2 font-medium">Zuletzt aktiv</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.name")}</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.status")}</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.region")}</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.mitglieder")}</th>
+                <th className="px-3 py-2 text-right font-medium">{t("platform.page.inhalt")}</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.module")}</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.angelegt")}</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.zuletztAktiv")}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {tenants.map((t) => {
-                const Icon = t.kind === "personal" ? Lock : Building2;
+              {tenants.map((row) => {
+                const Icon = row.kind === "personal" ? Lock : Building2;
                 return (
-                  <tr key={t.id} className="hover:bg-muted/30">
+                  <tr key={row.id} className="hover:bg-muted/30">
                     <td className="px-3 py-2">
                       <Link
-                        href={`/platform/tenants/${t.id}`}
+                        href={`/platform/tenants/${row.id}`}
                         className="flex items-center gap-2 font-medium hover:underline"
                       >
                         <Icon className="size-3.5 shrink-0 opacity-60" aria-hidden />
-                        <span className="truncate">{t.name}</span>
+                        <span className="truncate">{row.name}</span>
                       </Link>
                     </td>
                     <td className="px-3 py-2">
-                      <TenantStatusBadge status={t.status} />
+                      <TenantStatusBadge status={row.status} />
                     </td>
-                    <td className="px-3 py-2 uppercase text-muted-foreground">{t.region}</td>
-                    <td className="px-3 py-2 tabular-nums">{t.memberCount}</td>
+                    <td className="px-3 py-2 uppercase text-muted-foreground">{row.region}</td>
+                    <td className="px-3 py-2 tabular-nums">{row.memberCount}</td>
                     {/* Die Grösse in einem Blick — ohne sie lässt sich nicht
                         entscheiden, welcher Testmandant weg kann. */}
                     <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
-                      {t.epicCount + t.featureCount + t.objectiveCount === 0 ? (
-                        <span title="Keine Vorhaben, keine Ziele">leer</span>
+                      {row.epicCount + row.featureCount + row.objectiveCount === 0 ? (
+                        <span title={t("platform.page.keineVorhabenKeineZiele")}>
+                          {t("platform.page.leer")}
+                        </span>
                       ) : (
                         <span
-                          title={`${t.epicCount} Epics · ${t.featureCount} Features · ${t.objectiveCount} Ziele`}
+                          title={t("platform.page.sizeTooltip", {
+                            epics: row.epicCount,
+                            features: row.featureCount,
+                            goals: row.objectiveCount,
+                          })}
                         >
-                          {t.epicCount} / {t.featureCount} / {t.objectiveCount}
+                          {row.epicCount} / {row.featureCount} / {row.objectiveCount}
                         </span>
                       )}
                     </td>
                     <td className="px-3 py-2 text-xs text-muted-foreground">
-                      {t.enabledModules.length === 0
+                      {row.enabledModules.length === 0
                         ? "—"
-                        : t.enabledModules
+                        : row.enabledModules
                             .map((m) => MODULES[m as ModuleKey]?.label ?? m)
                             .join(", ")}
                     </td>
-                    <td className="px-3 py-2 text-muted-foreground">{t.createdAt}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{row.createdAt}</td>
                     <td className="px-3 py-2 text-muted-foreground">
-                      {t.lastActivity ?? <span title="Kein Audit-Ereignis">—</span>}
+                      {row.lastActivity ?? (
+                        <span title={t("platform.page.keinAuditEreignis")}>—</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -99,7 +109,7 @@ export default async function PlatformTenantsPage() {
               {tenants.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
-                    Keine Tenants.
+                    {t("platform.page.keineTenants")}
                   </td>
                 </tr>
               )}

@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
@@ -19,6 +20,7 @@ import type { ModuleKey } from "@/modules/core/kernel/domain/modules";
  * Anleitung**: was der Mandant nicht gebucht hat, wird auch nicht erklärt.
  */
 export default async function WikiPage() {
+  const t = await getTranslations();
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
@@ -33,10 +35,7 @@ export default async function WikiPage() {
 
   return (
     <Page>
-      <PageHeader
-        title="Wiki"
-        subtitle="Wie in Pulse gearbeitet wird — die Abläufe als Anleitungen, nach ihrem Rhythmus geordnet."
-      />
+      <PageHeader title={t("wiki.ui.wiki")} subtitle={t("wiki.ui.wieInPulseGearbeitet")} />
       <WikiHub guides={guides} roles={principal.roles as Role[]} />
     </Page>
   );

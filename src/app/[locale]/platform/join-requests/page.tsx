@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { requirePlatformAdmin, platformDb } from "@/server/auth/platform";
 import { listAllJoinRequests } from "@/server/views/join-requests";
 import { Page } from "@/components/layout/page";
@@ -16,14 +17,15 @@ const STATUS_LABEL: Record<string, string> = {
  * nicht hier.
  */
 export default async function PlatformJoinRequestsPage() {
+  const t = await getTranslations();
   const actor = await requirePlatformAdmin();
   const requests = await listAllJoinRequests(platformDb(actor.id));
 
   return (
     <Page>
       <PageHeader
-        title="Anfragen"
-        subtitle="Beitritts-Anfragen über alle Tenants (read-only) — Freigabe beim jeweiligen Tenant-Admin."
+        title={t("platform.page.anfragen")}
+        subtitle={t("platform.page.beitrittsAnfragenUeberAlle")}
       />
 
       <PageSection>
@@ -32,11 +34,11 @@ export default async function PlatformJoinRequestsPage() {
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
               <tr>
-                <th className="px-3 py-2 font-medium">Tenant</th>
-                <th className="px-3 py-2 font-medium">E-Mail</th>
-                <th className="px-3 py-2 font-medium">Weg</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Eingegangen</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.tenant")}</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.eMail")}</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.weg")}</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.status")}</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.eingegangen")}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -56,7 +58,7 @@ export default async function PlatformJoinRequestsPage() {
               {requests.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
-                    Keine Anfragen.
+                    {t("platform.page.keineAnfragen")}
                   </td>
                 </tr>
               )}

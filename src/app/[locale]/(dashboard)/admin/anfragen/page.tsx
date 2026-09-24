@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
@@ -16,6 +17,7 @@ import { JoinRequestList } from "@/features/admin/components/join-request-list";
  * (tenant-scoped) — gesperrt, wenn der Principal die Capability nicht hält.
  */
 export default async function AnfragenPage() {
+  const t = await getTranslations();
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
   if (!authorize("tenant.users.manage", { tenantId: principal.tenantId }, principal).allow) {
@@ -29,11 +31,11 @@ export default async function AnfragenPage() {
   return (
     <Page>
       <PageHeader
-        title="Beitritts-Anfragen"
-        subtitle="Offener Einladungslink und Beitrittscode für diesen Bereich — plus Freigabe offener Anfragen."
+        title={t("admin.page.beitrittsAnfragen")}
+        subtitle={t("admin.page.offenerEinladungslinkUndBeitrittscode")}
       />
 
-      <PageSection title="Einladungslink & Code">
+      <PageSection title={t("admin.page.einladungslinkCode")}>
         <InviteManager
           linkToken={invite.linkToken}
           joinCode={invite.joinCode}

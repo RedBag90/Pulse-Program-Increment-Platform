@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 
@@ -20,16 +21,17 @@ interface Props {
  * alte Routen als Redirects.
  */
 export function LayoutToggle({ current, otherHref }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const switchTo = current === "old" ? "new" : "old";
 
   return (
     <div
       role="group"
-      aria-label="Layout"
+      aria-label={t("nav.ui.layout")}
       className="inline-flex items-center gap-1 rounded-full border bg-muted/40 p-0.5 text-xs"
     >
-      <span className="px-2 py-0.5 text-muted-foreground">Layout:</span>
+      <span className="px-2 py-0.5 text-muted-foreground">{t("nav.ui.layout2")}</span>
       <button
         type="button"
         aria-pressed={current === "old"}
@@ -41,7 +43,7 @@ export function LayoutToggle({ current, otherHref }: Props) {
             : "text-muted-foreground hover:text-foreground",
         )}
       >
-        Old
+        {t("nav.ui.old")}
       </button>
       <button
         type="button"
@@ -54,7 +56,7 @@ export function LayoutToggle({ current, otherHref }: Props) {
             : "text-muted-foreground hover:text-foreground",
         )}
       >
-        New
+        {t("nav.ui.new")}
       </button>
       {/* Hint fuer Voice-over — sagt was beim Click passiert. */}
       <span className="sr-only">Wechsel zu {switchTo === "old" ? "Old" : "New"}-Layout</span>

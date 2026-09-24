@@ -66,7 +66,7 @@ export function ExposureMatrix() {
         </table>
       </div>
       <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span className="font-mono text-meta uppercase tracking-wider">Bänder</span>
+        <span className="font-mono text-meta uppercase tracking-wider">{t("wiki.ui.baender")}</span>
         {BAND_THRESHOLDS.map((band) => (
           <span key={band.band} className="inline-flex items-center gap-1.5">
             <span

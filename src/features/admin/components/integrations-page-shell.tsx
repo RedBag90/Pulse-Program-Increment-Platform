@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { PlugZap } from "lucide-react";
@@ -27,6 +28,7 @@ interface Props {
  * first list entry otherwise.
  */
 export function IntegrationsPageShell({ model, canManage, banner }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -60,10 +62,10 @@ export function IntegrationsPageShell({ model, canManage, banner }: Props) {
   return (
     <div className="space-y-4 p-6">
       <header>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Integrationen</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Externe Tools mit Pulse verbinden — Stories und Work Items synchronisieren.
-        </p>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">
+          {t("admin.ui.integrationen")}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("admin.ui.externeToolsMitPulse")}</p>
       </header>
 
       {banner && (
@@ -97,10 +99,11 @@ export function IntegrationsPageShell({ model, canManage, banner }: Props) {
 }
 
 function EmptyPane() {
+  const t = useTranslations();
   return (
     <div className="rounded-lg border border-dashed p-8 text-center">
       <PlugZap className="mx-auto h-6 w-6 text-muted-foreground" />
-      <p className="mt-2 text-sm text-muted-foreground">Wähle eine Integration aus der Liste.</p>
+      <p className="mt-2 text-sm text-muted-foreground">{t("admin.ui.waehleEineIntegrationAus")}</p>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Fragment, useState } from "react";
 import { Plus } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
@@ -32,6 +33,7 @@ const INDENT = ["pl-2", "pl-6", "pl-10", "pl-14"] as const;
  * their create dialog directly in the topbar; the rest still navigate.
  */
 export function CreateMenu() {
+  const t = useTranslations();
   const ctx = useCreateContext();
   const router = useRouter();
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export function CreateMenu() {
       <DropdownMenu>
         <DropdownMenuTrigger
           className="inline-flex size-8 items-center justify-center rounded-md text-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          aria-label="Create new"
+          aria-label={t("pages.ui.createNew")}
         >
           <Plus className="size-4" />
         </DropdownMenuTrigger>

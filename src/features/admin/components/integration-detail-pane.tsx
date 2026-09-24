@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Copy, Check, ExternalLink } from "lucide-react";
 import { saveJiraProjectMapAction } from "@/features/integrations/actions/jira";
@@ -53,6 +54,7 @@ function JiraDetailBlocks({
   arts: ArtOption[];
   canManage: boolean;
 }) {
+  const t = useTranslations();
   return (
     <>
       <HeaderCard
@@ -64,7 +66,7 @@ function JiraDetailBlocks({
       >
         {detail.connected && (
           <dl className="grid grid-cols-[120px_1fr] gap-y-1 text-xs">
-            <dt className="text-muted-foreground">Instance</dt>
+            <dt className="text-muted-foreground">{t("admin.ui.instance")}</dt>
             <dd>
               <a
                 href={detail.instanceUrl ?? "#"}
@@ -76,7 +78,7 @@ function JiraDetailBlocks({
                 <ExternalLink className="size-3" />
               </a>
             </dd>
-            <dt className="text-muted-foreground">Cloud-ID</dt>
+            <dt className="text-muted-foreground">{t("admin.ui.cloudId")}</dt>
             <dd className="font-mono">{detail.cloudId ?? "—"}</dd>
           </dl>
         )}
@@ -84,23 +86,20 @@ function JiraDetailBlocks({
 
       {detail.connected && (
         <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
-          <h2 className="font-heading text-sm font-medium">ART → Jira-Projekt</h2>
+          <h2 className="font-heading text-sm font-medium">{t("admin.ui.artJiraProjekt")}</h2>
           <ProjectMappingForm
             arts={arts}
             currentMap={detail.projectKeyMap}
             save={saveJiraProjectMapAction}
-            helpText="Ordne jedem ART seinen Jira-Projekt-Key zu. Storys, die in diesem ART angelegt werden, landen im verknüpften Jira-Projekt."
-            placeholder="z. B. PROJ"
+            helpText={t("admin.ui.ordneJedemArtSeinen")}
+            placeholder={t("admin.ui.zBProj")}
             uppercase
           />
         </section>
       )}
 
       {detail.connected && (
-        <WebhookCard
-          url={detail.webhookUrl}
-          helpText="Trage diese URL in Jira (Projektkonfiguration → Webhooks) ein, um Status-Updates zu empfangen. Das Webhook-Secret wird sicher gespeichert und für die HMAC-Signaturprüfung verwendet."
-        />
+        <WebhookCard url={detail.webhookUrl} helpText={t("admin.ui.trageDieseUrlIn")} />
       )}
     </>
   );
@@ -115,6 +114,7 @@ function AdoDetailBlocks({
   arts: ArtOption[];
   canManage: boolean;
 }) {
+  const t = useTranslations();
   return (
     <>
       <HeaderCard
@@ -126,7 +126,7 @@ function AdoDetailBlocks({
       >
         {detail.connected && (
           <dl className="grid grid-cols-[120px_1fr] gap-y-1 text-xs">
-            <dt className="text-muted-foreground">Organisation</dt>
+            <dt className="text-muted-foreground">{t("admin.ui.organisation")}</dt>
             <dd className="font-mono">{detail.organization ?? "—"}</dd>
           </dl>
         )}
@@ -134,13 +134,15 @@ function AdoDetailBlocks({
 
       {detail.connected && (
         <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
-          <h2 className="font-heading text-sm font-medium">ART → Azure-DevOps-Projekt</h2>
+          <h2 className="font-heading text-sm font-medium">
+            {t("admin.ui.artAzureDevopsProjekt")}
+          </h2>
           <ProjectMappingForm
             arts={arts}
             currentMap={detail.projectMap}
             save={saveAdoProjectMapAction}
             helpText={`Gib den Projekt-Pfad als „Organisation/Projekt“ an. Storys aus diesem ART werden in das verknüpfte Azure-DevOps-Projekt geschrieben.`}
-            placeholder="z. B. acme/Mobile"
+            placeholder={t("admin.ui.zBAcmeMobile")}
           />
         </section>
       )}
@@ -170,9 +172,12 @@ function HeaderCard({
   canManage: boolean;
   children?: React.ReactNode;
 }) {
+  const t = useTranslations();
   return (
     <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
-      <p className="text-xs uppercase tracking-[0.1em] text-muted-foreground">Integration</p>
+      <p className="text-xs uppercase tracking-[0.1em] text-muted-foreground">
+        {t("admin.ui.integration")}
+      </p>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h2 className="font-heading text-base font-medium">{name}</h2>
         <div className="flex items-center gap-2">
@@ -192,6 +197,7 @@ function HeaderCard({
 }
 
 function WebhookCard({ url, helpText }: { url: string; helpText: string }) {
+  const t = useTranslations();
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -206,7 +212,7 @@ function WebhookCard({ url, helpText }: { url: string; helpText: string }) {
 
   return (
     <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
-      <h2 className="font-heading text-sm font-medium">Webhook-URL</h2>
+      <h2 className="font-heading text-sm font-medium">{t("admin.ui.webhookUrl")}</h2>
       <p className="text-xs text-muted-foreground">{helpText}</p>
       <div className="flex items-center gap-2">
         <code className="block flex-1 break-all rounded-md border border-input bg-muted/30 px-3 py-2 text-meta font-mono">

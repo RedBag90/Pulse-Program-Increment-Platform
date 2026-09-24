@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { ROLE_LABELS, type Role } from "@/modules/core/kernel/domain/roles";
@@ -21,6 +22,7 @@ export function GeneratedCredentials({
   password: string;
   tenantId: string;
 }) {
+  const t = useTranslations();
   const [kopiert, setKopiert] = useState(false);
 
   const alles = users.map((u) => `${u.email}\t${password}`).join("\n");
@@ -45,12 +47,12 @@ export function GeneratedCredentials({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        <strong className="text-foreground">Das Passwort steht hier nur dieses eine Mal.</strong> Es
-        ist für alle aufgeführten Konten gleich und lässt sich danach nicht wieder anzeigen.
+        <strong className="text-foreground">{t("platform.ui.dasPasswortStehtHier")}</strong>{" "}
+        {t("platform.ui.esIstFuerAlle")}
       </p>
 
       <p className="font-mono text-sm">
-        <span className="text-muted-foreground">Passwort: </span>
+        <span className="text-muted-foreground">{t("platform.ui.passwort")} </span>
         <span className="select-all font-semibold">{password}</span>
       </p>
 
@@ -69,7 +71,7 @@ export function GeneratedCredentials({
         href={`/platform/tenants/${tenantId}`}
         className="inline-block text-sm text-primary hover:underline"
       >
-        Zum Mandanten →
+        {t("platform.ui.zumMandanten")}
       </Link>
     </section>
   );

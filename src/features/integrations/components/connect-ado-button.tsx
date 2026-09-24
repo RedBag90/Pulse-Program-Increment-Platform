@@ -1,8 +1,10 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 
 export function ConnectAdoButton() {
+  const t = useTranslations();
   return (
     <Button
       type="button"
@@ -10,7 +12,7 @@ export function ConnectAdoButton() {
         window.location.href = "/api/integrations/azure-devops/connect";
       }}
     >
-      Connect Azure DevOps
+      {t("integrations.ui.connectAzureDevops")}
     </Button>
   );
 }

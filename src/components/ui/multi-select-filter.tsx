@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -46,6 +47,7 @@ export function MultiSelectFilter({
   /** Suchfeld über der Liste — für lange Optionslisten (z. B. alle Epics). */
   searchable?: boolean;
 }) {
+  const t = useTranslations();
   const count = selected.size;
   const [q, setQ] = useState("");
   const needle = q.trim().toLowerCase();
@@ -71,7 +73,7 @@ export function MultiSelectFilter({
             {count}
           </span>
         ) : (
-          <span className="text-muted-foreground/70">Alle</span>
+          <span className="text-muted-foreground/70">{t("common.ui.alle")}</span>
         )}
         <ChevronDown className="size-3.5 opacity-60" aria-hidden />
       </PopoverTrigger>
@@ -85,7 +87,7 @@ export function MultiSelectFilter({
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Suchen…"
+              placeholder={t("common.ui.suchen")}
               aria-label={`${label} durchsuchen`}
               className="h-7 w-full rounded-md border border-input bg-transparent pl-7 pr-2 text-xs focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             />
@@ -117,7 +119,9 @@ export function MultiSelectFilter({
                   </div>
                 )}
                 {section.options.length === 0 ? (
-                  <p className="px-2 py-1 text-xs text-muted-foreground">Keine Optionen.</p>
+                  <p className="px-2 py-1 text-xs text-muted-foreground">
+                    {t("common.ui.keineOptionen")}
+                  </p>
                 ) : (
                   section.options.map((opt) => {
                     const on = selected.has(opt.value);
@@ -162,7 +166,7 @@ export function MultiSelectFilter({
             onClick={onClear}
             className="w-full rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground"
           >
-            Zurücksetzen
+            {t("common.ui.zuruecksetzen")}
           </button>
         )}
       </PopoverContent>

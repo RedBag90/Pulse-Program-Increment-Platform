@@ -181,7 +181,7 @@ export function FeatureListRowComponent({
                     variant="ghost"
                     className="size-7"
                     disabled={busy}
-                    aria-label="Mehr"
+                    aria-label={t("work.feature.mehr")}
                   >
                     <MoreHorizontal className="size-3.5" />
                   </Button>
@@ -199,7 +199,7 @@ export function FeatureListRowComponent({
                         onClick={moveToBacklog}
                         className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-muted/50"
                       >
-                        ← In Backlog verschieben
+                        {t("work.feature.inBacklogVerschieben")}
                       </button>
                     </li>
                   )}
@@ -210,7 +210,7 @@ export function FeatureListRowComponent({
                       onClick={removeRow}
                       className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-destructive hover:bg-destructive/10"
                     >
-                      Löschen
+                      {t("work.feature.loeschen")}
                     </button>
                   </li>
                 </ul>
@@ -229,6 +229,7 @@ export function FeatureListRowComponent({
 }
 
 function RowBadges({ row }: { row: FeatureListRow }) {
+  const t = useTranslations();
   const showBlocked = row.isBlocked;
   const showNoAc = row.acceptanceCriteriaCount === 0 && row.status !== "draft";
   if (!showBlocked && !showNoAc) return null;
@@ -237,7 +238,7 @@ function RowBadges({ row }: { row: FeatureListRow }) {
       {showBlocked && (
         <span
           className="inline-flex size-5 items-center justify-center rounded-sm bg-destructive-surface text-destructive"
-          title="Blockiert durch andere Features"
+          title={t("work.feature.blockiertDurchAndereFeatures")}
         >
           <ShieldAlert className="size-3" />
         </span>
@@ -245,7 +246,7 @@ function RowBadges({ row }: { row: FeatureListRow }) {
       {showNoAc && (
         <span
           className="inline-flex size-5 items-center justify-center rounded-sm bg-warning-surface text-warning"
-          title="Noch keine Akzeptanzkriterien"
+          title={t("work.feature.nochKeineAkzeptanzkriterien")}
         >
           <ClipboardList className="size-3" />
         </span>

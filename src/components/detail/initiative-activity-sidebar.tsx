@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Activity, FileText, Layers, Target, type LucideIcon } from "lucide-react";
 import { actionLabel, userLabel, initials } from "@/components/detail/initiative-labels";
@@ -66,6 +67,7 @@ export function InitiativeActivitySidebar({
    */
   truncated?: boolean;
 }) {
+  const t = useTranslations();
   const [filter, setFilter] = useState("all");
   const now = Date.now();
 
@@ -77,15 +79,15 @@ export function InitiativeActivitySidebar({
     <aside className="w-full shrink-0 border-t bg-surface-frame lg:w-72 lg:border-l lg:border-t-0">
       <div className="space-y-2 border-b p-3">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Aktivität
+          {t("common.detail.aktivitaet")}
         </p>
         <select
-          aria-label="Aktivität filtern"
+          aria-label={t("common.detail.aktivitaetFiltern")}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          <option value="all">Alles anzeigen</option>
+          <option value="all">{t("common.detail.allesAnzeigen")}</option>
           {categories.map((c) => (
             <option key={c} value={c}>
               {c}
@@ -97,7 +99,7 @@ export function InitiativeActivitySidebar({
       {shown.length === 0 ? (
         <div className="flex flex-col items-center gap-2 p-8 text-center text-sm text-muted-foreground">
           <Activity className="h-5 w-5" />
-          Keine Aktivität
+          {t("common.detail.keineAktivitaet")}
         </div>
       ) : (
         <ul className="divide-y">
@@ -136,7 +138,7 @@ export function InitiativeActivitySidebar({
       )}
       {truncated && (
         <p className="border-t px-3 py-2 text-xs text-muted-foreground">
-          Nur die letzten 50 Ereignisse — ältere stehen im Reiter „History“.
+          {t("common.detail.nurDieLetztenEreignisse")}
         </p>
       )}
     </aside>

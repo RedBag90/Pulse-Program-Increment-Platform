@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useEffect } from "react";
 import { useRouter } from "@/i18n/navigation";
 import {
@@ -16,6 +17,7 @@ export function TenantModulesEditor({
   tenantId: string;
   enabledModules: string[];
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [state, action, isPending] = useActionState<ActionState, FormData>(
     setTenantModulesAction,
@@ -39,7 +41,9 @@ export function TenantModulesEditor({
           {isPending ? "Speichern…" : "Module speichern"}
         </button>
         {state.error && <span className="text-sm text-destructive">{state.error}</span>}
-        {state.success && <span className="text-sm text-primary">Gespeichert.</span>}
+        {state.success && (
+          <span className="text-sm text-primary">{t("platform.ui.gespeichert")}</span>
+        )}
       </div>
     </form>
   );

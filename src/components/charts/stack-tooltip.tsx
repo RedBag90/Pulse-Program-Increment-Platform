@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { formatEUR as fmtEur } from "@/lib/formatting";
 
 /**
@@ -120,6 +121,7 @@ export function StackTooltip({
   /** Zusatz hinter jedem Betrag, etwa „/Monat“. */
   suffix?: string;
 }) {
+  const t = useTranslations();
   if (!active || !payload || payload.length === 0) return null;
   const rows = stackTooltipRows(payload, stacks);
   const sum = rows.reduce((acc, r) => acc + r.total, 0);
@@ -128,7 +130,7 @@ export function StackTooltip({
     <div style={shell}>
       <p className="mb-1 font-medium">{label}</p>
       {rows.length === 0 ? (
-        <p className="text-muted-foreground">kein Beitrag in diesem Monat</p>
+        <p className="text-muted-foreground">{t("common.charts.keinBeitragInDiesem")}</p>
       ) : (
         <>
           {rows.map((r) => (

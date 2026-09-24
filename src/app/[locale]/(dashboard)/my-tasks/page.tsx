@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { resolveEpicHorizon } from "@/modules/work/domain/epic-horizon";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
@@ -69,6 +70,7 @@ function latestMeasurement(raw: unknown): number | null {
  * ehemaligen /my-approvals extrahiert).
  */
 export default async function MyTasksPage() {
+  const t = await getTranslations();
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
@@ -310,7 +312,10 @@ export default async function MyTasksPage() {
 
   return (
     <Page>
-      <PageHeader title="Meine Tasks" subtitle="Deine Freigaben und Aufgaben an einem Ort." />
+      <PageHeader
+        title={t("pages.ui.meineTasks")}
+        subtitle={t("pages.ui.deineFreigabenUndAufgaben")}
+      />
       <MyApprovalsList rows={approvals} />
       <Suspense fallback={null}>
         <MyTasksListShell

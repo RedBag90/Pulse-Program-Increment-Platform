@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useEffect } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { X } from "lucide-react";
@@ -19,15 +20,16 @@ export function TenantMembers({
   tenantId: string;
   members: PlatformTenantMember[];
 }) {
+  const t = useTranslations();
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
             <tr>
-              <th className="px-3 py-2 font-medium">Nutzer</th>
-              <th className="px-3 py-2 font-medium">Rolle</th>
-              <th className="px-3 py-2 font-medium">Seit</th>
+              <th className="px-3 py-2 font-medium">{t("platform.ui.nutzer")}</th>
+              <th className="px-3 py-2 font-medium">{t("platform.ui.rolle")}</th>
+              <th className="px-3 py-2 font-medium">{t("platform.ui.seit")}</th>
               <th className="px-3 py-2" />
             </tr>
           </thead>
@@ -47,7 +49,7 @@ export function TenantMembers({
             {members.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">
-                  Keine Mitglieder.
+                  {t("platform.ui.keineMitglieder")}
                 </td>
               </tr>
             )}
@@ -67,6 +69,7 @@ function RemoveMemberButton({
   tenantId: string;
   assignmentId: string;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [state, action, isPending] = useActionState<ActionState, FormData>(
     removeTenantMemberAction,
@@ -85,7 +88,7 @@ function RemoveMemberButton({
       <button
         type="submit"
         disabled={isPending}
-        aria-label="Mitglied entfernen"
+        aria-label={t("platform.ui.mitgliedEntfernen")}
         className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
       >
         <X className="size-3.5" aria-hidden />
@@ -95,6 +98,7 @@ function RemoveMemberButton({
 }
 
 function AddMemberForm({ tenantId }: { tenantId: string }) {
+  const t = useTranslations();
   const router = useRouter();
   const [state, action, isPending] = useActionState<ActionState, FormData>(
     addTenantMemberAction,
@@ -113,20 +117,20 @@ function AddMemberForm({ tenantId }: { tenantId: string }) {
       <input type="hidden" name="tenantId" value={tenantId} />
       <div className="min-w-48 flex-1">
         <label htmlFor="am-email" className="mb-1 block text-xs font-medium">
-          E-Mail
+          {t("platform.ui.eMail")}
         </label>
         <input
           id="am-email"
           name="email"
           type="email"
           required
-          placeholder="kolleg:in@firma.de"
+          placeholder={t("platform.ui.kollegInFirmaDe")}
           className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>
       <div>
         <label htmlFor="am-role" className="mb-1 block text-xs font-medium">
-          Rolle
+          {t("platform.ui.rolle")}
         </label>
         <select
           id="am-role"
@@ -152,7 +156,7 @@ function AddMemberForm({ tenantId }: { tenantId: string }) {
       </button>
       {state.error && <span className="w-full text-sm text-destructive">{state.error}</span>}
       {state.success && state.invited && (
-        <span className="w-full text-sm text-primary">Einladung versendet.</span>
+        <span className="w-full text-sm text-primary">{t("platform.ui.einladungVersendet")}</span>
       )}
     </form>
   );

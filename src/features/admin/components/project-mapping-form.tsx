@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import type { ArtOption } from "@/server/views/admin-integrations";
@@ -35,6 +36,7 @@ export function ProjectMappingForm({
   placeholder,
   uppercase = false,
 }: Props) {
+  const t = useTranslations();
   const [map, setMap] = useState<Record<string, string>>(currentMap);
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
@@ -58,9 +60,7 @@ export function ProjectMappingForm({
 
   if (arts.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Keine ARTs vorhanden — Mappings können erst angelegt werden, wenn ein ART existiert.
-      </p>
+      <p className="text-sm text-muted-foreground">{t("admin.ui.keineArtsVorhandenMappings")}</p>
     );
   }
 
@@ -94,7 +94,7 @@ export function ProjectMappingForm({
         <Button type="button" size="sm" disabled={pending} onClick={handleSave}>
           {pending ? "Speichert…" : "Mappings speichern"}
         </Button>
-        {saved && <span className="text-xs text-success">Gespeichert.</span>}
+        {saved && <span className="text-xs text-success">{t("admin.ui.gespeichert")}</span>}
         {error && (
           <span role="alert" className="text-xs text-destructive">
             {error}

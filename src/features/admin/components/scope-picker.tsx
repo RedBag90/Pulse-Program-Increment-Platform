@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 interface ValueStream {
@@ -19,6 +20,7 @@ export function ScopePicker({
   initialValueStreamIds = [],
   initialArtIds = [],
 }: ScopePickerProps) {
+  const t = useTranslations();
   const [selectedVsIds, setSelectedVsIds] = useState<Set<string>>(new Set(initialValueStreamIds));
   const [selectedArtIds, setSelectedArtIds] = useState<Set<string>>(new Set(initialArtIds));
   const [allVs, setAllVs] = useState(initialValueStreamIds.length === 0);
@@ -55,7 +57,7 @@ export function ScopePicker({
 
   return (
     <fieldset className="space-y-4 rounded-md border p-4">
-      <legend className="text-sm font-medium px-1">Visibility Scope</legend>
+      <legend className="text-sm font-medium px-1">{t("admin.ui.visibilityScope")}</legend>
 
       {/* Value Stream level */}
       <div>
@@ -71,7 +73,7 @@ export function ScopePicker({
               }
             }}
           />
-          All Value Streams
+          {t("admin.ui.allValueStreams")}
         </label>
         {!allVs && (
           <div className="pl-4 space-y-1">
@@ -92,7 +94,7 @@ export function ScopePicker({
       {/* ART level */}
       {availableArts.length > 0 && (
         <div>
-          <p className="text-sm font-medium mb-2">ARTs</p>
+          <p className="text-sm font-medium mb-2">{t("admin.ui.arts")}</p>
           <div className="pl-4 space-y-1">
             {availableArts.map((art) => (
               <label key={art.id} className="flex items-center gap-2 text-sm">

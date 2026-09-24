@@ -532,6 +532,9 @@ Siehe **ADR-0024**. Kurz:
   E-Mail-Vorlagen und die Domäne haben beides nicht. Sie nehmen `Translate`
   (`src/i18n/translate.ts`) als gewöhnlichen Parameter; der Aufrufer sitzt
   immer in einer Komponente oder einem Request und reicht ihn herein.
+- **Der Wächter läuft projektweit** (`src/i18n/__tests__/translated-surfaces.test.ts`).
+  Er prüft JSX-Text und sichtbare Eigenschaften über ganz `src/`. Konstanten-
+  Tabellen in `domain/` sieht er nicht — dort helfen nur Schlüssel.
 - **Im Test gibt es keinen Provider.** `src/test/setup.ts` ersetzt `next-intl`
   durch den echten Katalog — strenger als das Original, denn ein unbekannter
   Schlüssel wirft dort, statt sich als Text zu rendern. Kein Test braucht

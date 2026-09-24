@@ -270,17 +270,17 @@ export function FeaturesListView({
           type="search"
           value={state.query}
           onChange={(e) => push({ q: e.target.value || null })}
-          placeholder="Suche Titel · Epic · ART …"
+          placeholder={t("work.feature.sucheTitelEpicArt")}
           className="min-w-[12rem] flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
         />
         {show.has("valueStream") && (
           <select
             value={state.valueStreamId ?? ""}
             onChange={(e) => push({ vs: e.target.value || null, art: null /* invalidiert */ })}
-            aria-label="Wertstrom"
+            aria-label={t("work.feature.wertstrom")}
             className={SELECT_CLASS}
           >
-            <option value="">Alle Wertströme</option>
+            <option value="">{t("work.feature.alleWertstroeme")}</option>
             {model.valueStreamOptions.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.name}
@@ -291,10 +291,10 @@ export function FeaturesListView({
         <select
           value={state.artId ?? ""}
           onChange={(e) => push({ art: e.target.value || null })}
-          aria-label="ART"
+          aria-label={t("work.feature.art")}
           className={SELECT_CLASS}
         >
-          <option value="">Alle ARTs</option>
+          <option value="">{t("work.feature.alleArts")}</option>
           {artsForVs.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
@@ -305,11 +305,11 @@ export function FeaturesListView({
           <select
             value={state.piId ?? ""}
             onChange={(e) => push({ pi: e.target.value || null })}
-            aria-label="PI"
+            aria-label={t("work.feature.pi")}
             className={SELECT_CLASS}
           >
-            <option value="">Alle PIs</option>
-            <option value="backlog">— Backlog</option>
+            <option value="">{t("work.feature.allePis")}</option>
+            <option value="backlog">{t("work.feature.backlog")}</option>
             {model.piOptions.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -321,10 +321,10 @@ export function FeaturesListView({
           <select
             value={state.epicId ?? ""}
             onChange={(e) => push({ epic: e.target.value || null })}
-            aria-label="Epic"
+            aria-label={t("work.feature.epic")}
             className={SELECT_CLASS}
           >
-            <option value="">Alle Epics</option>
+            <option value="">{t("work.feature.alleEpics")}</option>
             {model.epicOptions.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.title}
@@ -336,10 +336,10 @@ export function FeaturesListView({
           <select
             value={state.tier ?? ""}
             onChange={(e) => push({ tier: e.target.value || null })}
-            aria-label="WSJF-Tier"
+            aria-label={t("work.feature.wsjfTier")}
             className={SELECT_CLASS}
           >
-            <option value="">Alle WSJF-Tiers</option>
+            <option value="">{t("work.feature.alleWsjfTiers")}</option>
             {WSJF_TIERS.map((wert) => (
               <option key={wert} value={wert}>
                 {t(WSJF_TIER_KEYS[wert] ?? wert)}
@@ -350,10 +350,10 @@ export function FeaturesListView({
         <select
           value={state.featureType ?? ""}
           onChange={(e) => push({ type: e.target.value || null })}
-          aria-label="Feature-Typ"
+          aria-label={t("work.feature.featureTyp")}
           className={SELECT_CLASS}
         >
-          <option value="">Alle Typen</option>
+          <option value="">{t("work.feature.alleTypen")}</option>
           {FEATURE_TYPES.map((wert) => (
             <option key={wert} value={wert}>
               {t(FEATURE_TYPE_KEYS[wert] ?? wert)}
@@ -363,12 +363,12 @@ export function FeaturesListView({
         <select
           value={state.sort}
           onChange={(e) => push({ sort: e.target.value })}
-          aria-label="Sortierung"
+          aria-label={t("work.feature.sortierung")}
           className={SELECT_CLASS}
         >
-          <option value="wsjf:desc">WSJF abwärts</option>
-          <option value="createdAt:desc">Neueste zuerst</option>
-          <option value="createdAt:asc">Älteste zuerst</option>
+          <option value="wsjf:desc">{t("work.feature.wsjfAbwaerts")}</option>
+          <option value="createdAt:desc">{t("work.feature.neuesteZuerst")}</option>
+          <option value="createdAt:asc">{t("work.feature.aeltesteZuerst")}</option>
         </select>
       </div>
 
@@ -379,14 +379,14 @@ export function FeaturesListView({
         <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className={`${STICKY_THEAD} text-left`}>
-              <th className="py-2 pl-4 pr-2">Feature</th>
+              <th className="py-2 pl-4 pr-2">{t("work.feature.feature")}</th>
               {show.has("art") && (
                 <th className="py-2 pr-3">{show.has("valueStream") ? "Wertstrom · ART" : "ART"}</th>
               )}
-              {show.has("epic") && <th className="py-2 pr-3">Epic</th>}
+              {show.has("epic") && <th className="py-2 pr-3">{t("work.feature.epic")}</th>}
               {show.has("pi") && <th className="py-2 pr-3">PI</th>}
-              {show.has("status") && <th className="py-2 pr-3">Status</th>}
-              {showWsjf && <th className="py-2 pr-4 text-right">WSJF</th>}
+              {show.has("status") && <th className="py-2 pr-3">{t("work.feature.status")}</th>}
+              {showWsjf && <th className="py-2 pr-4 text-right">{t("work.feature.wsjf")}</th>}
               {show.has("ak") && <th className="py-2 pr-4 text-right">AK</th>}
               {renderActions && <th className="py-2 pr-4" />}
             </tr>
@@ -447,6 +447,7 @@ function FeatureTableRow({
   renderActions,
   renderExpanded,
 }: RowProps) {
+  const t = useTranslations();
   const statusKey = toFeatureStatus(row.status);
   const expanded = renderExpanded?.(row);
 
@@ -482,10 +483,10 @@ function FeatureTableRow({
             {row.isBlocked && (
               <span
                 className={`inline-flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-label font-medium ${STATUS_BADGE.blocked}`}
-                title="Ziel einer Blocker-Abhängigkeit"
+                title={t("work.feature.zielEinerBlockerAbhaengigkeit")}
               >
                 <OctagonX className="size-3" aria-hidden />
-                Blocker
+                {t("work.feature.blocker")}
               </span>
             )}
           </div>
@@ -528,7 +529,7 @@ function FeatureTableRow({
                 {row.pi.name}
               </Link>
             ) : (
-              <span className="text-muted-foreground">Backlog</span>
+              <span className="text-muted-foreground">{t("work.feature.backlog2")}</span>
             )}
           </td>
         )}

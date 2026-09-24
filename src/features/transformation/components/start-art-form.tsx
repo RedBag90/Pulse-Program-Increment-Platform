@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, startTransition } from "react";
 import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -29,6 +30,7 @@ const SELECT =
  * das ist Drumbeat und wird nachträglich pro ART zugewiesen (nur mit Drumbeat).
  */
 export function StartArtForm({ valueStreams, rteUsers, canManage }: Props) {
+  const t = useTranslations();
   const [state, formAction, isPending] = useActionState(startArtAction, {});
 
   const [valueStreamId, setValueStreamId] = useState(valueStreams[0]?.id ?? "");
@@ -51,7 +53,7 @@ export function StartArtForm({ valueStreams, rteUsers, canManage }: Props) {
   if (!canManage) {
     return (
       <p className="text-sm text-muted-foreground">
-        Nur Administrator:innen können einen ART starten.
+        {t("transformation.ui.nurAdministratorInnenKoennen")}
       </p>
     );
   }
@@ -59,7 +61,7 @@ export function StartArtForm({ valueStreams, rteUsers, canManage }: Props) {
   if (valueStreams.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Lege zuerst einen Wertstrom an — ein ART gehört immer zu einem Wertstrom.
+        {t("transformation.ui.legeZuerstEinenWertstrom")}
       </p>
     );
   }
@@ -74,13 +76,11 @@ export function StartArtForm({ valueStreams, rteUsers, canManage }: Props) {
               href={state.created.href}
               className="inline-flex items-center gap-1 text-primary hover:underline"
             >
-              Zum ART <ArrowRight className="h-3.5 w-3.5" />
+              {t("transformation.ui.zumArt")} <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           )}
         </p>
-        <p className="text-xs text-muted-foreground">
-          Eine PI-Kadenz kann später (mit dem Drumbeat-Modul) pro ART zugewiesen werden.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("transformation.ui.einePiKadenzKann")}</p>
       </div>
     );
   }
@@ -90,7 +90,7 @@ export function StartArtForm({ valueStreams, rteUsers, canManage }: Props) {
   return (
     <div className="max-w-xl space-y-5">
       <div className="space-y-1.5">
-        <Label htmlFor="sa-vs">Wertstrom</Label>
+        <Label htmlFor="sa-vs">{t("transformation.ui.wertstrom")}</Label>
         <select
           id="sa-vs"
           className={SELECT}
@@ -106,25 +106,24 @@ export function StartArtForm({ valueStreams, rteUsers, canManage }: Props) {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="sa-name">ART-Name</Label>
+        <Label htmlFor="sa-name">{t("transformation.ui.artName")}</Label>
         <Input id="sa-name" value={name} onChange={(e) => setName(e.target.value)} />
       </div>
 
       <div className="space-y-1.5">
-        <Label>RTE (optional)</Label>
+        <Label>{t("transformation.ui.rteOptional")}</Label>
         <UserPicker
           value={rteId}
           onChange={setRteId}
           options={rteUsers.map((u) => ({ value: u.id, label: u.label }))}
-          ariaLabel="RTE"
-          placeholder="— niemand —"
-          emptyLabel="— niemand —"
+          ariaLabel={t("transformation.ui.rte")}
+          placeholder={t("transformation.ui.niemand")}
+          emptyLabel={t("transformation.ui.niemand")}
         />
       </div>
 
       <p className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
-        Eine PI-Kadenz ist optional und gehört zum Drumbeat-Modul — sie wird nachträglich pro ART
-        zugewiesen, nicht beim Anlegen.
+        {t("transformation.ui.einePiKadenzIst")}
       </p>
 
       {state.error && (

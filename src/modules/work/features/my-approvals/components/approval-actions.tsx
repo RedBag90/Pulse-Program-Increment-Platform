@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, startTransition } from "react";
 import { decideGateTransitionAction } from "@/modules/work/features/portfolio/actions/stage-gate";
 import type { MyApprovalRow } from "@/modules/work/server/services/my-approvals";
@@ -43,6 +44,7 @@ function buildEntries(row: MyApprovalRow, mode: Mode, comment: string): Record<s
 }
 
 export function ApprovalActions({ row }: { row: MyApprovalRow }) {
+  const t = useTranslations();
   const [state, dispatchAction, pending] = useActionState(decideGateTransitionAction, {});
   const [open, setOpen] = useState<Mode | null>(null);
   const [comment, setComment] = useState("");
@@ -70,7 +72,7 @@ export function ApprovalActions({ row }: { row: MyApprovalRow }) {
           onChange={(e) => setComment(e.target.value)}
           rows={3}
           maxLength={2000}
-          placeholder="Begründung (erforderlich)"
+          placeholder={t("work.myApprovals.begruendungErforderlich")}
           className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
         />
         <div className="flex gap-2">
@@ -91,7 +93,7 @@ export function ApprovalActions({ row }: { row: MyApprovalRow }) {
               setComment("");
             }}
           >
-            Abbrechen
+            {t("work.myApprovals.abbrechen")}
           </button>
         </div>
         {state.error ? (
@@ -107,7 +109,7 @@ export function ApprovalActions({ row }: { row: MyApprovalRow }) {
     <div className="space-y-1">
       <div className="flex flex-wrap gap-2">
         <button type="button" disabled={pending} className={APPROVE} onClick={onApproveClick}>
-          Freigeben
+          {t("work.myApprovals.freigeben")}
         </button>
         <button
           type="button"
@@ -115,7 +117,7 @@ export function ApprovalActions({ row }: { row: MyApprovalRow }) {
           className={REJECT}
           onClick={() => setOpen("reject")}
         >
-          Ablehnen
+          {t("work.myApprovals.ablehnen")}
         </button>
       </div>
       {state.error ? (

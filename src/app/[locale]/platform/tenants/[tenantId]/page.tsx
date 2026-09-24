@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Building2, Lock } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -17,6 +18,7 @@ interface PageProps {
 }
 
 export default async function PlatformTenantDetailPage({ params }: PageProps) {
+  const t = await getTranslations();
   const actor = await requirePlatformAdmin();
   const { tenantId } = await params;
   const detail = await loadTenantDetail(platformDb(actor.id), tenantId);
@@ -33,7 +35,7 @@ export default async function PlatformTenantDetailPage({ params }: PageProps) {
             className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="size-3" aria-hidden />
-            Alle Tenants
+            {t("platform.page.alleTenants")}
           </Link>
         }
         eyebrow={<TenantStatusBadge status={detail.status} />}
@@ -46,16 +48,16 @@ export default async function PlatformTenantDetailPage({ params }: PageProps) {
         subtitle={`${detail.kind === "personal" ? "Privater Bereich" : "Organisation"} · Region ${detail.region.toUpperCase()} · angelegt ${detail.createdAt}`}
       />
 
-      <PageSection title="Module">
+      <PageSection title={t("platform.page.module")}>
         <TenantModulesEditor tenantId={detail.id} enabledModules={detail.enabledModules} />
       </PageSection>
 
-      <PageSection title="Mitglieder">
+      <PageSection title={t("platform.page.mitglieder")}>
         <TenantMembers tenantId={detail.id} members={detail.members} />
       </PageSection>
 
       {detail.kind !== "personal" && (
-        <PageSection title="Lifecycle">
+        <PageSection title={t("platform.page.lifecycle")}>
           <div className="space-y-4">
             <TenantLifecycleControls
               tenantId={detail.id}

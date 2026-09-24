@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useEffect, type MouseEvent } from "react";
 import { useRouter } from "@/i18n/navigation";
 import {
@@ -34,6 +35,7 @@ export function UserRowActions({
   status: "active" | "suspended";
   isSelf: boolean;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [rState, roleAction, rPending] = useActionState<ActionState, FormData>(
     setPlatformRoleAction,
@@ -92,7 +94,7 @@ export function UserRowActions({
               onClick={confirmOr(`„${who}" sperren? Der Zugang wird sofort blockiert.`)}
               className="rounded-md border border-destructive/40 px-2.5 py-1 text-xs text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
             >
-              Sperren
+              {t("platform.ui.sperren")}
             </button>
           </form>
         )
@@ -104,7 +106,7 @@ export function UserRowActions({
             disabled={busy}
             className="rounded-md border px-2.5 py-1 text-xs transition-colors hover:bg-muted disabled:opacity-50"
           >
-            Entsperren
+            {t("platform.ui.entsperren")}
           </button>
         </form>
       )}
@@ -122,7 +124,7 @@ export function UserRowActions({
             )}
             className="rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/15 disabled:opacity-50"
           >
-            Löschen
+            {t("platform.ui.loeschen")}
           </button>
         </form>
       )}

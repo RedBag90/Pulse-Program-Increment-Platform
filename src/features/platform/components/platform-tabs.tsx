@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 
 /**
@@ -15,10 +16,11 @@ const TABS: ReadonlyArray<{ href: string; label: string }> = [
 ];
 
 export function PlatformTabs() {
+  const t = useTranslations();
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Plattform-Verwaltung" className="flex gap-1 text-sm">
+    <nav aria-label={t("platform.ui.plattformVerwaltung")} className="flex gap-1 text-sm">
       {TABS.map((tab) => {
         const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
         const cls = active

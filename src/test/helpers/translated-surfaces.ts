@@ -73,7 +73,7 @@ const JSX_TEXT_RE = />\s*([^<>{}\n][^<>{}]*?[A-Za-zÄÖÜäöüß]{2,}[^<>{}]*?)
  * Oberflächentext nie ohne Leerzeichen davor steht.
  */
 const CODE =
-  /[;=<"]|^[(,)[|]|=>|&&|\|\||\),|,\s*$|\w\(|\?\s*\(|^\d+\s*,|^new\b|^(?:ReturnType|Awaited|Parameters|Promise|Array|Set|Map)\b|^(?:void|string|number|boolean|Record|Partial|readonly|null|undefined)\b|^\w+\.\w+$/;
+  /[;=<"]|^[(,)[|]|=>|&&|\|\||\),|,\s*$|\w\(|\?\s*\(|^\d+\s*,|^new\b|^&|^(?:ReturnType|Awaited|Parameters|Promise|Array|Set|Map|VariantProps|ComponentProps|Result|TKey)\b|^(?:void|string|number|boolean|Record|Partial|readonly|null|undefined)\b|^\w+\.\w+$/;
 
 /**
  * Was literal stehenbleiben darf.

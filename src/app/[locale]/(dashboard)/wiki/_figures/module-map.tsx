@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import {
   MODULE_KEYS,
   MODULES,
@@ -14,6 +15,7 @@ import {
  * `MODULE_KEYS`.
  */
 export function ModuleMap() {
+  const t = useTranslations();
   return (
     <div className="space-y-3">
       <div className="divide-y overflow-hidden rounded-lg bg-card shadow-card">
@@ -36,7 +38,7 @@ export function ModuleMap() {
               </div>
               <p className="font-mono text-meta text-muted-foreground sm:text-right">
                 {needs.length === 0 ? (
-                  <span className="text-muted-foreground/60">ohne Voraussetzung</span>
+                  <span className="text-muted-foreground/60">{t("wiki.ui.ohneVoraussetzung")}</span>
                 ) : (
                   <>braucht {needs.join(", ")}</>
                 )}

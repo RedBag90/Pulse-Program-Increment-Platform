@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { Search, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ export function UsersHeader({
   onRoleFilterChange,
   onInvite,
 }: Props) {
+  const t = useTranslations();
   const [draft, setDraft] = useState(query);
   useEffect(() => setDraft(query), [query]);
   useEffect(() => {
@@ -48,14 +50,16 @@ export function UsersHeader({
     <header className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">Benutzer</h1>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
+            {t("admin.ui.benutzer")}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Tenant-Mitglieder, ihre Rollen und Sichtbarkeits-Scopes.
+            {t("admin.ui.tenantMitgliederIhreRollen")}
           </p>
         </div>
         {canManage && (
           <Button type="button" size="sm" onClick={onInvite}>
-            <UserPlus className="size-3.5" /> Einladen
+            <UserPlus className="size-3.5" /> {t("admin.ui.einladen")}
           </Button>
         )}
       </div>
@@ -63,7 +67,7 @@ export function UsersHeader({
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex flex-wrap gap-1">
           <Chip
-            label="Alle"
+            label={t("admin.ui.alle")}
             count={totalCount}
             active={roleFilter === null}
             onClick={() => onRoleFilterChange(null)}
@@ -83,7 +87,7 @@ export function UsersHeader({
           <Input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Suche…"
+            placeholder={t("admin.ui.suche")}
             className="h-8 pl-7"
           />
         </div>

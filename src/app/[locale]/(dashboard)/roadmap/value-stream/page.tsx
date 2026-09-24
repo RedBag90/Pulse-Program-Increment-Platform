@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
@@ -18,6 +19,7 @@ interface Props {
  * hierarchically (Epic → Features) or grouped by ART.
  */
 export default async function ValueStreamRoadmapPage({ searchParams }: Props) {
+  const t = await getTranslations();
   const { vs, group } = await searchParams;
   const activeGroup = group === "art" ? "art" : "epic";
 
@@ -30,7 +32,10 @@ export default async function ValueStreamRoadmapPage({ searchParams }: Props) {
   if (valueStreams.length === 0) {
     return (
       <Page>
-        <PageHeader title="Wertstrom-Roadmap" subtitle="Keine Wertströme verfügbar." />
+        <PageHeader
+          title={t("pages.ui.wertstromRoadmap")}
+          subtitle={t("pages.ui.keineWertstroemeVerfuegbar")}
+        />
       </Page>
     );
   }
@@ -44,8 +49,8 @@ export default async function ValueStreamRoadmapPage({ searchParams }: Props) {
   return (
     <Page>
       <PageHeader
-        title="Wertstrom-Roadmap"
-        subtitle="Epics des Wertstroms und die Features seiner ARTs."
+        title={t("pages.ui.wertstromRoadmap")}
+        subtitle={t("pages.ui.epicsDesWertstromsUnd")}
         actions={
           <div className="flex shrink-0 overflow-hidden rounded-md border text-sm">
             {(["epic", "art"] as const).map((g) => (

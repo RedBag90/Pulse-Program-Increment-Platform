@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
@@ -17,6 +18,7 @@ import { RolePlaybookPanel } from "@/modules/onboarding/features/onboarding/comp
  * aus; der Einstieg läuft über das Benutzermenü.
  */
 export default async function MeineRollePage() {
+  const t = await getTranslations();
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
@@ -27,7 +29,9 @@ export default async function MeineRollePage() {
   return (
     <div className="space-y-5 p-6">
       <header>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Meine Rolle</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">
+          {t("pages.ui.meineRolle")}
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {entries.length > 1
             ? "Du hast mehrere Rollen. Jede bringt ihre eigene Verantwortung mit."
@@ -37,8 +41,7 @@ export default async function MeineRollePage() {
 
       {entries.length === 0 ? (
         <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-          Dir ist in diesem Workspace noch keine Rolle zugewiesen. Sobald ein Administrator das tut,
-          findest du hier deine Aufgaben.
+          {t("pages.ui.dirIstInDiesem")}
         </p>
       ) : (
         entries.map((e) => (
@@ -57,7 +60,7 @@ export default async function MeineRollePage() {
       <p className="text-sm text-muted-foreground">
         Und was machen die anderen?{" "}
         <Link href="/wiki/rollen" className="font-medium text-foreground hover:underline">
-          Alle Rollen im Wiki
+          {t("pages.ui.alleRollenImWiki")}
         </Link>
       </p>
     </div>

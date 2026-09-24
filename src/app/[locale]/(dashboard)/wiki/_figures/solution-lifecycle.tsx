@@ -25,14 +25,14 @@ export function SolutionLifecycle() {
             {t(SOLUTION_STATUS_STEP_KEYS[s])}
           </p>
           <ul className="space-y-1.5">
-            {SOLUTION_TRANSITIONS[s].map((t) => (
-              <li key={t.to} className="text-sm leading-relaxed text-muted-foreground">
-                <span className="font-mono text-muted-foreground/70">→</span> {t.label}
-                {t.gate && (
+            {SOLUTION_TRANSITIONS[s].map((schritt) => (
+              <li key={schritt.to} className="text-sm leading-relaxed text-muted-foreground">
+                <span className="font-mono text-muted-foreground/70">→</span> {schritt.label}
+                {schritt.gate && (
                   <>
                     {" "}
                     <span className="rounded-sm border border-amber-500/50 bg-amber-500/10 px-1.5 py-0.5 font-mono text-meta uppercase tracking-[0.1em] text-amber-900 dark:text-amber-200">
-                      Tor
+                      {t("wiki.ui.tor")}
                     </span>
                     <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-xs">
                       {PROMOTION_CRITERIA.map((c) => (

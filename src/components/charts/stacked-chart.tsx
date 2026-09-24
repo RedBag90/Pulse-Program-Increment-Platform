@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import {
   Bar,
@@ -203,6 +204,7 @@ export function ChartLegend({
   hatch?: boolean;
   forecast?: boolean;
 }) {
+  const t = useTranslations();
   return (
     <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-meta text-muted-foreground">
       {hatch && (
@@ -212,7 +214,7 @@ export function ChartLegend({
               className="inline-block h-3 w-3 rounded-sm"
               style={{ background: "var(--muted-foreground)" }}
             />
-            freigegebenes Budget
+            {t("common.charts.freigegebenesBudget")}
           </span>
           <span className="flex items-center gap-1.5">
             <span
@@ -222,7 +224,7 @@ export function ChartLegend({
                   "repeating-linear-gradient(45deg, var(--muted-foreground) 0 1.5px, transparent 1.5px 4px)",
               }}
             />
-            veranschlagt (nicht freigegeben)
+            {t("common.charts.veranschlagtNichtFreigegeben")}
           </span>
         </>
       )}
@@ -260,9 +262,12 @@ export function StackedChart({
   uplift?: boolean;
   children?: ReactNode;
 }) {
+  const t = useTranslations();
   if (stacks.length === 0) {
     return (
-      <p className="py-12 text-center text-sm text-muted-foreground">Keine Epics ausgewählt.</p>
+      <p className="py-12 text-center text-sm text-muted-foreground">
+        {t("common.charts.keineEpicsAusgewaehlt")}
+      </p>
     );
   }
   return (

@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
@@ -14,6 +15,7 @@ import { Page, PageHeader } from "@/components/layout";
  * PI. Gated by the `art.create` capability (Portfolio Manager / Tenant-Admin).
  */
 export default async function StartArtPage() {
+  const t = await getTranslations();
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
@@ -33,8 +35,8 @@ export default async function StartArtPage() {
   return (
     <Page>
       <PageHeader
-        title="ART starten"
-        subtitle="Richte einen Agile Release Train unter einem Wertstrom ein. Die PI-Kadenz wird später (mit Drumbeat) zugewiesen."
+        title={t("pages.ui.artStarten")}
+        subtitle={t("pages.ui.richteEinenAgileRelease")}
       />
 
       <StartArtForm

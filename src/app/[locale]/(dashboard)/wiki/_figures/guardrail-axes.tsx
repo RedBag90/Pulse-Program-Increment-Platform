@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import {
   STATIONS,
   DEFAULT_GUARDRAIL_TARGETS as D,
@@ -64,6 +65,7 @@ const AXES: Axis[] = [
 ];
 
 export function GuardrailAxes() {
+  const t = useTranslations();
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {AXES.map((a) => (
@@ -83,7 +85,8 @@ export function GuardrailAxes() {
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            {a.mix ? <span className="text-foreground">Mischung</span> : "Schwelle"} · {a.rule}
+            {a.mix ? <span className="text-foreground">{t("wiki.ui.mischung")}</span> : "Schwelle"}{" "}
+            · {a.rule}
           </p>
         </div>
       ))}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { decideProvisionAction } from "@/features/platform/actions/provision-actions";
@@ -17,6 +18,7 @@ const STATUS_LABEL: Record<string, string> = {
  * (via Service) und navigiert zur Detail-Ansicht.
  */
 export function ProvisionRequestList({ requests }: { requests: ProvisionRequestRow[] }) {
+  const t = useTranslations();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +34,7 @@ export function ProvisionRequestList({ requests }: { requests: ProvisionRequestR
   if (requests.length === 0) {
     return (
       <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-        Keine Anträge.
+        {t("platform.ui.keineAntraege")}
       </p>
     );
   }
@@ -58,7 +60,7 @@ export function ProvisionRequestList({ requests }: { requests: ProvisionRequestR
                   onClick={() => decide(r.id, true)}
                   className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                 >
-                  Genehmigen
+                  {t("platform.ui.genehmigen")}
                 </button>
                 <button
                   type="button"
@@ -66,7 +68,7 @@ export function ProvisionRequestList({ requests }: { requests: ProvisionRequestR
                   onClick={() => decide(r.id, false)}
                   className="rounded-md border px-3 py-1 text-xs transition-colors hover:bg-muted disabled:opacity-50"
                 >
-                  Ablehnen
+                  {t("platform.ui.ablehnen")}
                 </button>
               </div>
             ) : (

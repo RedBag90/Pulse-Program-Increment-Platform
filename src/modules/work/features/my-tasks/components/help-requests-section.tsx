@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { userLabel } from "@/components/detail/initiative-labels";
 import type { HelpRequestTask } from "@/modules/work/server/services/my-help-requests";
@@ -19,36 +20,38 @@ export function HelpRequestsSection({
   tasks: HelpRequestTask[];
   userLabels: Record<string, string>;
 }) {
+  const t = useTranslations();
   if (tasks.length === 0) return null;
 
   return (
     <section className="space-y-2">
       <h2 className="text-sm font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        Unterstützung angefragt
+        {t("work.myTasks.unterstuetzungAngefragt")}
       </h2>
       <ul className="mt-2 space-y-2">
-        {tasks.map((t) => (
+        {tasks.map((task) => (
           <li
-            key={t.epicId}
+            key={task.epicId}
             className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-card shadow-card px-4 py-3"
           >
             <div className="text-sm">
-              <span className="font-medium">🆘 {t.title}</span> braucht Unterstützung
-              {t.ownerId && (
+              <span className="font-medium">🆘 {task.title}</span> braucht Unterstützung
+              {task.ownerId && (
                 <>
                   {" "}
-                  — Owner: <span className="font-medium">{userLabel(t.ownerId, userLabels)}</span>
+                  — Owner:{" "}
+                  <span className="font-medium">{userLabel(task.ownerId, userLabels)}</span>
                 </>
               )}
-              {t.valueStreamName && (
-                <span className="ml-1 text-xs text-muted-foreground">{t.valueStreamName}</span>
+              {task.valueStreamName && (
+                <span className="ml-1 text-xs text-muted-foreground">{task.valueStreamName}</span>
               )}
             </div>
             <Link
-              href={`/portfolio/epics/${t.epicId}`}
+              href={`/portfolio/epics/${task.epicId}`}
               className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              Zum Epic →
+              {t("work.myTasks.zumEpic")}
             </Link>
           </li>
         ))}

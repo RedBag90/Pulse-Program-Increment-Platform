@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Zap, Target, LineChart, Users } from "lucide-react";
 
 /**
@@ -25,6 +26,7 @@ const BULLETS = [
 ] as const;
 
 export function AuthHero() {
+  const t = useTranslations();
   return (
     <div className="flex flex-col justify-between bg-[#1b1a33] p-8 text-white lg:min-h-screen lg:w-1/2 lg:p-12">
       {/* Brand */}
@@ -38,13 +40,12 @@ export function AuthHero() {
       {/* Headline + Bullets (Bullets erst ab lg — Mobile bleibt kompakt) */}
       <div className="mt-10 lg:mt-0">
         <h1 className="text-3xl font-bold leading-tight tracking-tight lg:text-4xl">
-          Vom Ziel bis zur Umsetzung.
+          {t("auth.ui.vomZielBisZur")}
           <br />
-          Ein Portfolio.
+          {t("auth.ui.einPortfolio")}
         </h1>
         <p className="mt-4 max-w-md text-sm leading-relaxed text-indigo-200/90">
-          Starte kostenlos mit deinem persönlichen Ziele-Bereich — und skaliere bis zum vollen
-          SAFe-Portfolio.
+          {t("auth.ui.starteKostenlosMitDeinem")}
         </p>
 
         <ul className="mt-10 hidden flex-col gap-6 lg:flex">

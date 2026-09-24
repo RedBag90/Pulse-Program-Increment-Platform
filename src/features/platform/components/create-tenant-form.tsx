@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { createTenantAction, type ActionState } from "@/features/platform/actions/tenant-actions";
@@ -27,6 +28,7 @@ const TESTNUTZER_ROLLEN = ALL_ROLES.filter((r) => r !== ROLES.PLATFORM_ADMIN);
  * bleibt es beim bisherigen Verhalten: direkt in die Detailansicht.
  */
 export function CreateTenantForm() {
+  const t = useTranslations();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [state, action, isPending] = useActionState<ActionState, FormData>(createTenantAction, {});
@@ -48,7 +50,7 @@ export function CreateTenantForm() {
         onClick={() => setOpen(true)}
         className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
       >
-        Neue Organisation
+        {t("platform.ui.neueOrganisation")}
       </button>
     );
   }
@@ -56,33 +58,33 @@ export function CreateTenantForm() {
   return (
     <form action={action} className="space-y-3 rounded-lg bg-card shadow-card p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Neue Organisation anlegen</h3>
+        <h3 className="text-sm font-semibold">{t("platform.ui.neueOrganisationAnlegen")}</h3>
         <button
           type="button"
           onClick={() => setOpen(false)}
           className="text-xs text-muted-foreground hover:text-foreground"
         >
-          Abbrechen
+          {t("platform.ui.abbrechen")}
         </button>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="ct-name" className="mb-1 block text-xs font-medium">
-            Name
+            {t("platform.ui.name")}
           </label>
           <input
             id="ct-name"
             name="name"
             required
             minLength={2}
-            placeholder="Acme GmbH"
+            placeholder={t("platform.ui.acmeGmbh")}
             className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
         </div>
         <div>
           <label htmlFor="ct-region" className="mb-1 block text-xs font-medium">
-            Region
+            {t("platform.ui.region")}
           </label>
           <select
             id="ct-region"
@@ -92,36 +94,38 @@ export function CreateTenantForm() {
           >
             <option value="eu">EU</option>
             <option value="us">US</option>
-            <option value="apac">APAC</option>
+            <option value="apac">{t("platform.ui.apac")}</option>
           </select>
         </div>
       </div>
 
       <div>
         <label htmlFor="ct-admin" className="mb-1 block text-xs font-medium">
-          E-Mail des Tenant-Admins
+          {t("platform.ui.eMailDesTenant")}
         </label>
         <input
           id="ct-admin"
           name="adminEmail"
           type="email"
           required
-          placeholder="admin@acme.de"
+          placeholder={t("platform.ui.adminAcmeDe")}
           className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
         <p className="mt-1 text-xs text-muted-foreground">
-          Existiert der Account, wird die Rolle direkt vergeben — sonst eine Einladung versendet.
+          {t("platform.ui.existiertDerAccountWird")}
         </p>
       </div>
 
       <div>
-        <span className="mb-1 block text-xs font-medium">Freigeschaltete Module</span>
+        <span className="mb-1 block text-xs font-medium">
+          {t("platform.ui.freigeschalteteModule")}
+        </span>
         <ModuleCheckboxes selected={["ziele", "portfolio", "program", "controlling"]} />
       </div>
 
       <fieldset className="space-y-2 border-t pt-3">
-        <legend className="sr-only">Datensatz</legend>
-        <span className="block text-xs font-medium">Datensatz</span>
+        <legend className="sr-only">{t("platform.ui.datensatz")}</legend>
+        <span className="block text-xs font-medium">{t("platform.ui.datensatz")}</span>
         <div className="space-y-1.5">
           {SEED_PROFILE_META.map((p) => (
             <label key={p.id} className="flex items-start gap-2 text-xs">
@@ -142,13 +146,12 @@ export function CreateTenantForm() {
       </fieldset>
 
       <fieldset className="space-y-2 border-t pt-3">
-        <legend className="sr-only">Testnutzer</legend>
-        <span className="block text-xs font-medium">Testnutzer je Rolle</span>
+        <legend className="sr-only">{t("platform.ui.testnutzer")}</legend>
+        <span className="block text-xs font-medium">{t("platform.ui.testnutzerJeRolle")}</span>
         <p className="text-xs text-muted-foreground">
           Echte Konten mit einem gemeinsamen Passwort, das danach{" "}
-          <strong className="text-foreground">einmal</strong> angezeigt wird. Sie sehen den ganzen
-          Mandanten — eine Wertstrom- oder ART-Eingrenzung trägst du bei Bedarf in der
-          Rollenverwaltung nach.
+          <strong className="text-foreground">{t("platform.ui.einmal")}</strong>{" "}
+          {t("platform.ui.angezeigtWirdSieSehen")}
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
           {TESTNUTZER_ROLLEN.map((role) => (
@@ -174,7 +177,7 @@ export function CreateTenantForm() {
       )}
       {state.success && state.invited && (
         <p role="status" className="text-sm text-primary">
-          Organisation angelegt — Einladung an den Admin versendet.
+          {t("platform.ui.organisationAngelegtEinladungAn")}
         </p>
       )}
       {state.warnings?.map((w) => (

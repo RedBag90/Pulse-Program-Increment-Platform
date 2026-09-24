@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import type { Guide } from "@/modules/wiki/domain/guide";
 import { CADENCES, CADENCE_LABEL, CADENCE_HINT } from "@/modules/wiki/domain/cadence";
@@ -21,6 +22,7 @@ import type { Role } from "@/modules/core/kernel/domain/roles";
  * gezeichnet: der Faden darf nicht an einer Zeile enden, die gar nicht da ist.
  */
 export function WikiHub({ guides, roles }: { guides: readonly Guide[]; roles: readonly Role[] }) {
+  const t = useTranslations();
   const mine = guidesForRoles(guides, roles);
 
   const rows = CADENCES.map((cadence) => ({
@@ -31,7 +33,7 @@ export function WikiHub({ guides, roles }: { guides: readonly Guide[]; roles: re
   if (rows.length === 0) {
     return (
       <p className="max-w-[var(--reading-max-w)] text-prose text-muted-foreground">
-        Für die freigeschalteten Module gibt es noch keine Anleitungen.
+        {t("wiki.ui.noGuides")}
       </p>
     );
   }
@@ -97,19 +99,21 @@ export function WikiHub({ guides, roles }: { guides: readonly Guide[]; roles: re
  * was man **durchlaeuft**.
  */
 function ReferenceTile() {
+  const t = useTranslations();
   return (
     <div className="space-y-2.5">
       <h2 className="font-mono text-label uppercase tracking-[0.14em] text-muted-foreground">
-        Nachschlagen
+        {t("wiki.ui.nachschlagen")}
       </h2>
       <Link
         href="/wiki/rollen"
         className="block rounded-lg bg-card shadow-card px-3.5 py-3 transition-colors hover:border-foreground/25"
       >
-        <h3 className="font-heading text-sm font-semibold leading-snug">Wer was verantwortet</h3>
+        <h3 className="font-heading text-sm font-semibold leading-snug">
+          {t("wiki.ui.werWasVerantwortet")}
+        </h3>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          Die acht Rollen mit Auftrag, Verantwortung und Übergaben — und die sieben Zuständigkeiten,
-          die je Wertstrom besetzt werden.
+          {t("wiki.ui.rolesTeaser")}
         </p>
       </Link>
     </div>

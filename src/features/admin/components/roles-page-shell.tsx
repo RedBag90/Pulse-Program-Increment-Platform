@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useState, startTransition, useActionState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { CheckCircle2, RotateCcw, ShieldCheck } from "lucide-react";
@@ -38,6 +39,7 @@ const SCOPE_LABELS: Record<string, string> = Object.fromEntries(
  * rechts die Capability-Liste der gewählten Rolle gruppiert nach Domäne.
  */
 export function RolesPageShell({ model, canManage }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -57,13 +59,13 @@ export function RolesPageShell({ model, canManage }: Props) {
   return (
     <Page>
       <PageHeader
-        title="Rollen & Capabilities"
-        subtitle="Pro Rolle einzelne Capabilities zuweisen oder entziehen. Das Default-Bundle stammt aus dem Code; Tenant-Anpassungen leben in der Datenbank."
+        title={t("admin.ui.rollenCapabilities")}
+        subtitle={t("admin.ui.proRolleEinzelneCapabilities")}
       />
 
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
         <nav
-          aria-label="Rollen"
+          aria-label={t("admin.ui.rollen")}
           data-tour="admin-roles-nav"
           className="space-y-1 rounded-lg border bg-surface-frame p-2"
         >
@@ -91,7 +93,7 @@ export function RolesPageShell({ model, canManage }: Props) {
                   {hasDiff && (
                     <span
                       className="size-1.5 rounded-full bg-amber-500"
-                      title="Tenant-Anpassung gegenüber Default"
+                      title={t("admin.ui.tenantAnpassungGegenueberDefault")}
                     />
                   )}
                   <span className="text-xs tabular-nums text-muted-foreground">
@@ -110,6 +112,7 @@ export function RolesPageShell({ model, canManage }: Props) {
 }
 
 function RoleDetailPane({ role, canManage }: { role: RoleView; canManage: boolean }) {
+  const t = useTranslations();
   const [resetState, resetDispatch, resetPending] = useActionState(resetRoleToDefaultAction, {});
 
   function reset() {
@@ -141,7 +144,7 @@ function RoleDetailPane({ role, canManage }: { role: RoleView; canManage: boolea
         </div>
         {canManage && hasDiff && (
           <Button type="button" size="sm" variant="outline" disabled={resetPending} onClick={reset}>
-            <RotateCcw className="size-3.5" /> Auf Default zurücksetzen
+            <RotateCcw className="size-3.5" /> {t("admin.ui.aufDefaultZuruecksetzen")}
           </Button>
         )}
       </div>
@@ -192,6 +195,7 @@ interface CapabilityRowProps {
 }
 
 function CapabilityRow({ role, row, canManage }: CapabilityRowProps) {
+  const t = useTranslations();
   const [scopeDraft, setScopeDraft] = useState<string>(row.scope ?? "");
   const [setState, setDispatch, setPending] = useActionState(setRoleCapabilityAction, {});
   const [removeState, removeDispatch, removePending] = useActionState(
@@ -240,7 +244,7 @@ function CapabilityRow({ role, row, canManage }: CapabilityRowProps) {
         )}
         {isDirty && (
           <span className="rounded-full bg-warning-surface px-1.5 text-label text-warning">
-            Δ scope
+            {t("admin.ui.scope")}
           </span>
         )}
       </label>
@@ -269,7 +273,7 @@ function CapabilityRow({ role, row, canManage }: CapabilityRowProps) {
           ))}
         </select>
         {setState.success && (
-          <CheckCircle2 className="size-3.5 text-success" aria-label="Gespeichert" />
+          <CheckCircle2 className="size-3.5 text-success" aria-label={t("admin.ui.gespeichert")} />
         )}
       </div>
 

@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { Shield, ArrowLeft } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -13,6 +14,7 @@ import { PlatformTabs } from "@/features/platform/components/platform-tabs";
  * tenant-scoped Modul-Gating.
  */
 export default async function PlatformLayout({ children }: { children: ReactNode }) {
+  const t = await getTranslations();
   const principal = await requirePlatformAdmin();
 
   return (
@@ -23,7 +25,7 @@ export default async function PlatformLayout({ children }: { children: ReactNode
             <span className="flex size-7 items-center justify-center rounded-lg bg-primary">
               <Shield className="size-4 text-primary-foreground" strokeWidth={2.5} />
             </span>
-            Plattform-Verwaltung
+            {t("platform.page.plattformVerwaltung")}
           </span>
           <div className="flex-1" />
           <span className="hidden text-xs text-muted-foreground md:inline">{principal.email}</span>
@@ -32,7 +34,7 @@ export default async function PlatformLayout({ children }: { children: ReactNode
             className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted"
           >
             <ArrowLeft className="size-3" aria-hidden />
-            Zurück zur App
+            {t("platform.page.zurueckZurApp")}
           </Link>
         </div>
         <div className="px-4 md:px-6">

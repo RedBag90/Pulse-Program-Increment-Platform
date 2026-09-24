@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listArts } from "@/modules/core/org/server/services/art";
@@ -15,6 +16,7 @@ interface Props {
 
 /** ART roadmap — every Feature of one ART, timed via its assigned PI. */
 export default async function ArtRoadmapPage({ searchParams }: Props) {
+  const t = await getTranslations();
   const { art } = await searchParams;
 
   const principal = await requirePrincipal().catch(() => null);
@@ -30,7 +32,7 @@ export default async function ArtRoadmapPage({ searchParams }: Props) {
   if (arts.length === 0) {
     return (
       <Page>
-        <PageHeader title="ART-Roadmap" subtitle="Keine ARTs verfügbar." />
+        <PageHeader title={t("pages.ui.artRoadmap")} subtitle={t("pages.ui.keineArtsVerfuegbar")} />
       </Page>
     );
   }
@@ -43,10 +45,7 @@ export default async function ArtRoadmapPage({ searchParams }: Props) {
 
   return (
     <Page>
-      <PageHeader
-        title="ART-Roadmap"
-        subtitle="Die Features eines ARTs, terminiert über ihre zugewiesene PI."
-      />
+      <PageHeader title={t("pages.ui.artRoadmap")} subtitle={t("pages.ui.dieFeaturesEinesArts")} />
 
       {arts.length > 1 && (
         <div className="flex flex-wrap gap-1 border-b">

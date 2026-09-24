@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { EpicsListTable } from "@/modules/work/features/portfolio/components/epics-list-table";
 import type { EpicListRow } from "@/modules/work/server/views/portfolio-epics-list";
 
@@ -18,12 +19,13 @@ interface Props {
  * `/portfolio/epics`-Surface vorbehalten.
  */
 export function MyTasksEpicsSection({ rows, canEdit, stageGatesEnabled, compact }: Props) {
+  const t = useTranslations();
   if (rows.length === 0) return null;
   return (
     <section className="space-y-2">
       <div className="flex items-baseline justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Epics
+          {t("work.myTasks.epics")}
         </h2>
         <span className="text-xs text-muted-foreground">{rows.length}</span>
       </div>

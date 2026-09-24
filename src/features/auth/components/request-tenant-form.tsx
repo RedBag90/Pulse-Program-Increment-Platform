@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import {
   submitProvisionAction,
@@ -11,6 +12,7 @@ import {
  * Bestätigung; der platform_admin genehmigt den Antrag separat.
  */
 export function RequestTenantForm() {
+  const t = useTranslations();
   const [state, action, isPending] = useActionState<SubmitProvisionState, FormData>(
     submitProvisionAction,
     {},
@@ -19,10 +21,8 @@ export function RequestTenantForm() {
   if (state.success) {
     return (
       <div className="rounded-lg bg-card shadow-card p-6 text-center">
-        <p className="text-sm font-medium">Antrag übermittelt.</p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Wir melden uns per E-Mail, sobald dein Bereich freigeschaltet ist.
-        </p>
+        <p className="text-sm font-medium">{t("auth.ui.antragUebermittelt")}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{t("auth.ui.wirMeldenUnsPer")}</p>
       </div>
     );
   }
@@ -31,39 +31,39 @@ export function RequestTenantForm() {
     <form action={action} className="space-y-4">
       <div>
         <label htmlFor="rt-name" className="mb-1 block text-sm font-medium">
-          Name der Organisation
+          {t("auth.ui.nameDerOrganisation")}
         </label>
         <input
           id="rt-name"
           name="desiredName"
           required
           minLength={2}
-          placeholder="Acme GmbH"
+          placeholder={t("auth.ui.acmeGmbh")}
           className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>
       <div>
         <label htmlFor="rt-email" className="mb-1 block text-sm font-medium">
-          Deine E-Mail
+          {t("auth.ui.deineEMail")}
         </label>
         <input
           id="rt-email"
           name="email"
           type="email"
           required
-          placeholder="du@firma.de"
+          placeholder={t("auth.ui.duFirmaDe")}
           className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>
       <div>
         <label htmlFor="rt-note" className="mb-1 block text-sm font-medium">
-          Notiz <span className="text-muted-foreground">(optional)</span>
+          {t("auth.ui.notiz")} <span className="text-muted-foreground">(optional)</span>
         </label>
         <textarea
           id="rt-note"
           name="note"
           rows={3}
-          placeholder="Kurz zum Kontext…"
+          placeholder={t("auth.ui.kurzZumKontext")}
           className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Copy, Check, RefreshCw, Power } from "lucide-react";
 import {
@@ -26,6 +26,7 @@ export function InviteManager({
   autoAccept: boolean;
   active: boolean;
 }) {
+  const t = useTranslations();
   const locale = useLocale();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -52,14 +53,14 @@ export function InviteManager({
   if (!active) {
     return (
       <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed p-4">
-        <p className="text-sm text-muted-foreground">Kein aktiver Einladungslink.</p>
+        <p className="text-sm text-muted-foreground">{t("admin.ui.keinAktiverEinladungslink")}</p>
         <button
           type="button"
           disabled={isPending}
           onClick={() => run(rotateInviteAction)}
           className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
-          Link erstellen
+          {t("admin.ui.linkErstellen")}
         </button>
       </div>
     );
@@ -68,7 +69,9 @@ export function InviteManager({
   return (
     <div className="space-y-3 rounded-lg border p-4">
       <div className="space-y-1">
-        <span className="text-xs font-medium text-muted-foreground">Einladungslink</span>
+        <span className="text-xs font-medium text-muted-foreground">
+          {t("admin.ui.einladungslink")}
+        </span>
         <div className="flex items-center gap-2">
           <input
             readOnly
@@ -78,7 +81,7 @@ export function InviteManager({
           <button
             type="button"
             onClick={() => copy(link, "link")}
-            aria-label="Link kopieren"
+            aria-label={t("admin.ui.linkKopieren")}
             className="inline-flex size-8 items-center justify-center rounded-md border transition-colors hover:bg-muted"
           >
             {copied === "link" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
@@ -87,7 +90,9 @@ export function InviteManager({
       </div>
 
       <div className="space-y-1">
-        <span className="text-xs font-medium text-muted-foreground">Beitrittscode</span>
+        <span className="text-xs font-medium text-muted-foreground">
+          {t("admin.ui.beitrittscode")}
+        </span>
         <div className="flex items-center gap-2">
           <span className="rounded-md border bg-muted/40 px-3 py-1.5 font-mono text-sm tracking-widest">
             {joinCode}
@@ -95,7 +100,7 @@ export function InviteManager({
           <button
             type="button"
             onClick={() => copy(joinCode, "code")}
-            aria-label="Code kopieren"
+            aria-label={t("admin.ui.codeKopieren")}
             className="inline-flex size-8 items-center justify-center rounded-md border transition-colors hover:bg-muted"
           >
             {copied === "code" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
@@ -111,7 +116,7 @@ export function InviteManager({
           onChange={(e) => run(() => setInviteAutoAcceptAction(e.target.checked))}
           className="size-4"
         />
-        Beitritt automatisch bestätigen (ohne Freigabe)
+        {t("admin.ui.beitrittAutomatischBestaetigenOhne")}
       </label>
 
       <div className="flex items-center gap-2 pt-1">
@@ -122,7 +127,7 @@ export function InviteManager({
           className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted disabled:opacity-50"
         >
           <RefreshCw className="size-3.5" aria-hidden />
-          Neu generieren
+          {t("admin.ui.neuGenerieren")}
         </button>
         <button
           type="button"
@@ -131,7 +136,7 @@ export function InviteManager({
           className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
         >
           <Power className="size-3.5" aria-hidden />
-          Deaktivieren
+          {t("admin.ui.deaktivieren")}
         </button>
       </div>
 

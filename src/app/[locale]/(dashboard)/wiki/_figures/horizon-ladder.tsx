@@ -30,9 +30,13 @@ export function HorizonLadder() {
               </p>
               <p className="text-sm leading-relaxed text-muted-foreground">{help.blurb}</p>
               <dl className="grid gap-x-3 gap-y-0.5 text-xs text-muted-foreground sm:grid-cols-[auto_minmax(0,1fr)]">
-                <dt className="font-mono text-meta uppercase tracking-wider sm:pt-[3px]">Epics</dt>
+                <dt className="font-mono text-meta uppercase tracking-wider sm:pt-[3px]">
+                  {t("wiki.ui.epics")}
+                </dt>
                 <dd>{help.epicArt}</dd>
-                <dt className="font-mono text-meta uppercase tracking-wider sm:pt-[3px]">Budget</dt>
+                <dt className="font-mono text-meta uppercase tracking-wider sm:pt-[3px]">
+                  {t("wiki.ui.budget")}
+                </dt>
                 <dd>{help.budgetFokus}</dd>
               </dl>
             </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useMemo } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Users } from "lucide-react";
@@ -32,6 +33,7 @@ function parseRole(raw: string | null): Role | null {
  * the two-column master-detail layout. Mirrors `goals-page-shell.tsx`.
  */
 export function UsersPageShell({ model, canManage }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -101,13 +103,13 @@ export function UsersPageShell({ model, canManage }: Props) {
 
       {selectedOutOfView && (
         <div className="flex items-center justify-between rounded-md border border-warning/40 bg-warning-surface px-3 py-2 text-xs text-warning">
-          <span>Ausgewählte:r Benutzer:in ist im aktuellen Filter nicht sichtbar.</span>
+          <span>{t("admin.ui.ausgewaehlteRBenutzerIn")}</span>
           <button
             type="button"
             onClick={() => onRoleFilterChange(null)}
             className="font-medium underline hover:no-underline"
           >
-            Filter zurücksetzen
+            {t("admin.ui.filterZuruecksetzen")}
           </button>
         </div>
       )}
@@ -140,16 +142,17 @@ export function UsersPageShell({ model, canManage }: Props) {
 }
 
 function InvitePane({ onDone }: { onDone: () => void }) {
+  const t = useTranslations();
   return (
     <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-heading text-sm font-medium">Neue:n Benutzer:in einladen</h2>
+        <h2 className="font-heading text-sm font-medium">{t("admin.ui.neueNBenutzerIn")}</h2>
         <button
           type="button"
           onClick={onDone}
           className="text-xs text-muted-foreground hover:underline"
         >
-          Abbrechen
+          {t("admin.ui.abbrechen")}
         </button>
       </div>
       <InviteUserForm />
@@ -158,12 +161,11 @@ function InvitePane({ onDone }: { onDone: () => void }) {
 }
 
 function EmptyPane() {
+  const t = useTranslations();
   return (
     <div className="rounded-lg border border-dashed p-8 text-center">
       <Users className="mx-auto h-6 w-6 text-muted-foreground" />
-      <p className="mt-2 text-sm text-muted-foreground">
-        Wähle eine:n Benutzer:in aus der Liste — oder lade jemanden neu ein.
-      </p>
+      <p className="mt-2 text-sm text-muted-foreground">{t("admin.ui.waehleEineNBenutzer")}</p>
     </div>
   );
 }

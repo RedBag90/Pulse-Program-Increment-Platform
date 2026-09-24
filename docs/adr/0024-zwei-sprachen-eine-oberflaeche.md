@@ -86,6 +86,21 @@ Daraus folgen fünf Regeln:
 
 ## Consequences
 
+**Der Wächter ist projektweit, seit Zug 3 abgeschlossen ist.** Er begann als
+Liste von zwölf Dateien, wuchs auf 455 und ist seit dem Abschluss von Zug 3
+ein Verzeichnis-Durchgang über `src/` — der Endzustand, den diese ADR
+angekündigt hat. Zwei Ausnahmen stehen benannt in der Testdatei:
+`global-error.tsx` (ersetzt das Dokument, hat keinen Provider) und die
+Einladungs-E-Mail (zwei Funktionen statt Platzhaltern — das Muster, das diese
+ADR selbst als richtig benennt).
+
+**Was der Wächter nicht sieht.** Er prüft JSX-Text und die Eigenschaften, die
+auf dem Bildschirm landen. Eine Konstanten-Tabelle in `domain/` sieht er
+nicht: die `help`-Prosa der Gate-Kriterien, `ROLE_PLAYBOOKS` und die
+Fehlermeldungen der Services stehen in gewöhnlichen Objekten. Ein grüner Lauf
+heisst deshalb **nicht**, dass die Anwendung fertig übersetzt ist — er heisst,
+dass keine Fläche zurückfallen kann.
+
 **Der Wächter ist ein Test, keine ESLint-Regel.** `eslint-plugin-react` ist im
 Projekt nicht installiert, und das Repo hat für Quelltext-Regeln bereits ein
 Muster: den ADR-0021-Wächter (`src/test/helpers/visual-language.ts`). Der

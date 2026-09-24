@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { decideJoinRequestAction } from "@/features/admin/actions/join-request-actions";
@@ -10,6 +11,7 @@ import type { JoinRequestRow } from "@/server/views/join-requests";
  * (tenant_admin). Direkt-Aufruf der Server-Action über useTransition.
  */
 export function JoinRequestList({ requests }: { requests: JoinRequestRow[] }) {
+  const t = useTranslations();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +27,7 @@ export function JoinRequestList({ requests }: { requests: JoinRequestRow[] }) {
   if (requests.length === 0) {
     return (
       <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-        Keine offenen Anfragen.
+        {t("admin.ui.keineOffenenAnfragen")}
       </p>
     );
   }
@@ -49,7 +51,7 @@ export function JoinRequestList({ requests }: { requests: JoinRequestRow[] }) {
                 onClick={() => decide(r.id, true)}
                 className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
               >
-                Freigeben
+                {t("admin.ui.freigeben")}
               </button>
               <button
                 type="button"
@@ -57,7 +59,7 @@ export function JoinRequestList({ requests }: { requests: JoinRequestRow[] }) {
                 onClick={() => decide(r.id, false)}
                 className="rounded-md border px-3 py-1 text-xs transition-colors hover:bg-muted disabled:opacity-50"
               >
-                Ablehnen
+                {t("admin.ui.ablehnen")}
               </button>
             </div>
           </li>

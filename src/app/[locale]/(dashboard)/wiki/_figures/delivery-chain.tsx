@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { FEATURE_DELIVERY_STATUSES } from "@/modules/work/domain/feature-status";
 import { canDeliveryTransition } from "@/modules/core/kernel/domain/initiative-status";
 import { STATUS_LABELS } from "@/components/detail/initiative-labels";
@@ -11,6 +12,7 @@ import { STATUS_LABELS } from "@/components/detail/initiative-labels";
  * Figur, die den Waechter befragt, kann nicht anders sagen als er.
  */
 export function DeliveryChain() {
+  const t = useTranslations();
   return (
     <div className="divide-y overflow-hidden rounded-lg bg-card shadow-card">
       {FEATURE_DELIVERY_STATUSES.map((from) => {
@@ -23,7 +25,9 @@ export function DeliveryChain() {
             </p>
             <p className="text-sm leading-relaxed text-muted-foreground">
               {to.length === 0 ? (
-                <span className="text-muted-foreground/70">Endzustand — keine Kante hinaus.</span>
+                <span className="text-muted-foreground/70">
+                  {t("wiki.ui.endzustandKeineKanteHinaus")}
+                </span>
               ) : (
                 to.map((t, i) => (
                   <span key={t}>

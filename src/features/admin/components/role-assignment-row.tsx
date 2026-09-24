@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useEffect, startTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { removeRoleAction } from "@/features/admin/actions/role-assignment";
@@ -36,6 +37,7 @@ export function RoleAssignmentRow({
   canManage,
   onDeleted,
 }: Props) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(removeRoleAction, {});
 
   useEffect(() => {
@@ -68,7 +70,7 @@ export function RoleAssignmentRow({
             variant="ghost"
             className="size-8"
             disabled={pending}
-            aria-label="Rolle entfernen"
+            aria-label={t("admin.ui.rolleEntfernen")}
             onClick={remove}
           >
             <Trash2 className="size-4" />
@@ -77,12 +79,14 @@ export function RoleAssignmentRow({
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        <ScopeChip label="Wertströme">
+        <ScopeChip label={t("admin.ui.wertstroeme")}>
           {vsLabels.length === 0 ? "Alle" : vsLabels.join(", ")}
         </ScopeChip>
-        <ScopeChip label="ARTs">{artLabels.length === 0 ? "Alle" : artLabels.join(", ")}</ScopeChip>
+        <ScopeChip label={t("admin.ui.arts")}>
+          {artLabels.length === 0 ? "Alle" : artLabels.join(", ")}
+        </ScopeChip>
         {assignment.teamIds.length > 0 && (
-          <ScopeChip label="Teams">{assignment.teamIds.length} ausgewählt</ScopeChip>
+          <ScopeChip label={t("admin.ui.teams")}>{assignment.teamIds.length} ausgewählt</ScopeChip>
         )}
       </div>
 

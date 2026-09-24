@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { assignRoleAction } from "@/features/admin/actions/role-assignment";
@@ -36,6 +37,7 @@ const SELECT_CLASS =
  * Mirrors `goal-detail-pane.tsx` structure.
  */
 export function UserDetailPane({ user, valueStreams, canManage, canErase }: Props) {
+  const t = useTranslations();
   const [draftVisible, setDraftVisible] = useState(false);
   const assignedRoles = new Set<Role>(user.assignments.map((a) => a.role));
 
@@ -43,7 +45,9 @@ export function UserDetailPane({ user, valueStreams, canManage, canErase }: Prop
     <div className="space-y-6">
       {/* Header card */}
       <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
-        <p className="text-xs uppercase tracking-[0.1em] text-muted-foreground">Benutzer</p>
+        <p className="text-xs uppercase tracking-[0.1em] text-muted-foreground">
+          {t("admin.ui.benutzer")}
+        </p>
         <div className="flex items-center gap-3">
           <span
             className="inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground"
@@ -64,18 +68,16 @@ export function UserDetailPane({ user, valueStreams, canManage, canErase }: Prop
       {/* Roles card */}
       <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-heading text-sm font-medium">Rollen</h2>
+          <h2 className="font-heading text-sm font-medium">{t("admin.ui.rollen")}</h2>
           {canManage && !draftVisible && (
             <Button type="button" size="sm" variant="outline" onClick={() => setDraftVisible(true)}>
-              <Plus className="size-3.5" /> Rolle hinzufügen
+              <Plus className="size-3.5" /> {t("admin.ui.rolleHinzufuegen")}
             </Button>
           )}
         </div>
 
         {user.assignments.length === 0 && !draftVisible ? (
-          <p className="text-sm text-muted-foreground">
-            Noch keine Rollen — mit „Rolle hinzufügen“ die erste zuweisen.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("admin.ui.nochKeineRollenMit")}</p>
         ) : (
           <ul className="space-y-3">
             {user.assignments.map((a) => (
@@ -106,17 +108,14 @@ export function UserDetailPane({ user, valueStreams, canManage, canErase }: Prop
       {/* GDPR card */}
       {canErase && (
         <section className="space-y-3 rounded-lg bg-card shadow-card p-4">
-          <h2 className="font-heading text-sm font-medium">Datenschutz (DSGVO)</h2>
-          <p className="text-xs text-muted-foreground">
-            Exportiere alles, was Pulse über diese Nutzer:in speichert, oder lösche das Konto
-            unwiderruflich.
-          </p>
+          <h2 className="font-heading text-sm font-medium">{t("admin.ui.datenschutzDsgvo")}</h2>
+          <p className="text-xs text-muted-foreground">{t("admin.ui.exportiereAllesWasPulse")}</p>
           <div className="flex flex-wrap items-center gap-3">
             <a
               href={`/api/v1/admin/users/${user.id}/export`}
               className="inline-flex h-8 items-center rounded-md border px-3 text-xs font-medium hover:bg-muted/50"
             >
-              JSON-Export
+              {t("admin.ui.jsonExport")}
             </a>
             <EraseUserButton userId={user.id} />
           </div>
@@ -139,6 +138,7 @@ function AddRoleDraft({
   onCreated: () => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(assignRoleAction, {});
 
   useEffect(() => {
@@ -151,9 +151,9 @@ function AddRoleDraft({
   if (candidates.length === 0) {
     return (
       <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-        Alle verfügbaren Rollen sind bereits zugewiesen.
+        {t("admin.ui.alleVerfuegbarenRollenSind")}
         <button type="button" onClick={onCancel} className="ml-2 text-primary hover:underline">
-          Schließen
+          {t("admin.ui.schliessen")}
         </button>
       </div>
     );
@@ -165,11 +165,11 @@ function AddRoleDraft({
 
       <div className="space-y-1.5">
         <Label htmlFor="new-role" className="text-xs text-muted-foreground">
-          Rolle
+          {t("admin.ui.rolle")}
         </Label>
         <select id="new-role" name="role" required defaultValue="" className={SELECT_CLASS}>
           <option value="" disabled>
-            — wählen —
+            {t("admin.ui.waehlen")}
           </option>
           {candidates.map((r) => (
             <option key={r} value={r}>
@@ -196,7 +196,7 @@ function AddRoleDraft({
           onClick={onCancel}
           className="text-xs text-muted-foreground hover:underline"
         >
-          Abbrechen
+          {t("admin.ui.abbrechen")}
         </button>
       </div>
     </form>

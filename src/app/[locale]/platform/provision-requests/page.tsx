@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { requirePlatformAdmin, platformDb } from "@/server/auth/platform";
 import { listProvisionRequests } from "@/server/services/tenant-provision";
 import { Page } from "@/components/layout/page";
@@ -10,6 +11,7 @@ import { ProvisionRequestList } from "@/features/platform/components/provision-r
  * Genehmigen legt den Tenant an und lädt den Antragsteller als tenant_admin ein.
  */
 export default async function PlatformProvisionRequestsPage() {
+  const t = await getTranslations();
   const actor = await requirePlatformAdmin();
   const requests = await listProvisionRequests(platformDb(actor.id));
   const pending = requests.filter((r) => r.status === "pending").length;
@@ -17,8 +19,8 @@ export default async function PlatformProvisionRequestsPage() {
   return (
     <Page>
       <PageHeader
-        title="Tenant-Anfragen"
-        subtitle="Provisioning-Anträge für neue Organisationen — genehmigen legt den Tenant an und lädt den Antragsteller ein."
+        title={t("platform.page.tenantAnfragen")}
+        subtitle={t("platform.page.provisioningAntraegeFuerNeue")}
       />
       <PageSection title={`Offen (${pending})`}>
         <ProvisionRequestList requests={requests} />

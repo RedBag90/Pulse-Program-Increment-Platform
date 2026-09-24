@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, User, ChevronUp, Shield, Compass } from "lucide-react";
@@ -34,6 +35,7 @@ function getInitials(email: string): string {
 }
 
 export function UserNav({ email, placement = "sidebar", isPlatformAdmin = false }: UserNavProps) {
+  const t = useTranslations();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -85,13 +87,13 @@ export function UserNav({ email, placement = "sidebar", isPlatformAdmin = false 
         <DropdownMenuGroup>
           <DropdownMenuItem disabled>
             <User className="size-4 mr-2" />
-            Profile
+            {t("nav.ui.profile")}
           </DropdownMenuItem>
           {/* Einstieg ins Rollen-Playbook. Bewusst hier und nicht in NAV_GROUPS:
               der Nav-Filter blendet Core-Segmente im persönlichen Tenant aus. */}
           <DropdownMenuItem render={<Link href="/meine-rolle" />}>
             <Compass className="size-4 mr-2" />
-            Meine Rolle & Tour
+            {t("nav.ui.meineRolleTour")}
           </DropdownMenuItem>
         </DropdownMenuGroup>
         {isPlatformAdmin && (
@@ -100,7 +102,7 @@ export function UserNav({ email, placement = "sidebar", isPlatformAdmin = false 
             <DropdownMenuGroup>
               <DropdownMenuItem render={<Link href="/platform/tenants" />}>
                 <Shield className="size-4 mr-2" />
-                Plattform-Verwaltung
+                {t("nav.ui.plattformVerwaltung")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </>
@@ -113,7 +115,7 @@ export function UserNav({ email, placement = "sidebar", isPlatformAdmin = false 
             className="text-destructive focus:text-destructive"
           >
             <LogOut className="size-4 mr-2" />
-            Sign out
+            {t("nav.ui.signOut")}
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

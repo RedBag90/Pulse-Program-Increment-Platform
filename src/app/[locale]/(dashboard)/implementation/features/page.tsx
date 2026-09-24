@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
@@ -15,6 +16,7 @@ import { Page } from "@/components/layout";
  * Wertstrom, und übergibt sie an die Filter-Shell.
  */
 export default async function FeaturesOverviewPage() {
+  const t = await getTranslations();
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
@@ -44,9 +46,7 @@ export default async function FeaturesOverviewPage() {
     return (
       <Page>
         <div className="mx-auto max-w-2xl rounded-lg bg-card shadow-card p-8 text-center shadow-sm">
-          <p className="text-sm text-muted-foreground">
-            Keine ARTs im Zugriff. Bitte einen Admin um Scope-Zuweisung.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("pages.ui.keineArtsImZugriff")}</p>
         </div>
       </Page>
     );

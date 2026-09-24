@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 
 /**
@@ -14,10 +15,16 @@ export const BreakEvenChart = dynamic(
   () => import("./break-even-chart").then((m) => m.BreakEvenChart),
   {
     ssr: false,
-    loading: () => (
-      <div className="grid h-[220px] place-items-center text-sm text-muted-foreground">
-        Kurve wird geladen…
-      </div>
-    ),
+    loading: Ladehinweis,
   },
 );
+
+/** Eigene Komponente statt einer Pfeilfunktion: `useTranslations` ist ein Hook. */
+function Ladehinweis() {
+  const t = useTranslations();
+  return (
+    <div className="grid h-[220px] place-items-center text-sm text-muted-foreground">
+      {t("common.charts.kurveWirdGeladen")}
+    </div>
+  );
+}

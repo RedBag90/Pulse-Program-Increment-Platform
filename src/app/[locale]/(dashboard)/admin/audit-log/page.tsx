@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
@@ -19,6 +20,7 @@ interface Props {
 const PAGE_SIZE = 50;
 
 export default async function AuditLogPage({ searchParams }: Props) {
+  const t = await getTranslations();
   const params = await searchParams;
 
   const principal = await requirePrincipal().catch(() => null);
@@ -56,26 +58,26 @@ export default async function AuditLogPage({ searchParams }: Props) {
 
   return (
     <Page>
-      <PageHeader title="Audit Log" />
+      <PageHeader title={t("admin.page.auditLog")} />
 
       {/* Filters */}
       <form method="get" data-tour="audit-log-filter" className="flex flex-wrap gap-3 text-sm">
         <input
           name="actor"
           defaultValue={params.actor}
-          placeholder="Actor user ID"
+          placeholder={t("admin.page.actorUserId")}
           className="w-64 rounded-md border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
         <input
           name="action"
           defaultValue={params.action}
-          placeholder="Action (e.g. initiative.created)"
+          placeholder={t("admin.page.actionEGInitiative")}
           className="w-64 rounded-md border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
         <input
           name="resourceType"
           defaultValue={params.resourceType}
-          placeholder="Resource type"
+          placeholder={t("admin.page.resourceType")}
           className="w-48 rounded-md border border-input bg-background px-3 py-1.5 focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
         <input
@@ -94,10 +96,10 @@ export default async function AuditLogPage({ searchParams }: Props) {
           type="submit"
           className="rounded-md bg-primary px-4 py-1.5 text-primary-foreground hover:bg-primary/90"
         >
-          Filter
+          {t("admin.page.filter")}
         </button>
         <a href="?" className="rounded-md border px-4 py-1.5 hover:bg-muted/50">
-          Clear
+          {t("admin.page.clear")}
         </a>
       </form>
 
@@ -119,7 +121,7 @@ export default async function AuditLogPage({ searchParams }: Props) {
         <div className="flex justify-between text-sm">
           {params.cursor && (
             <a href="?" className="text-primary hover:underline">
-              ← First page
+              {t("admin.page.firstPage")}
             </a>
           )}
           {nextCursor && (
@@ -127,7 +129,7 @@ export default async function AuditLogPage({ searchParams }: Props) {
               href={`?${new URLSearchParams({ ...params, cursor: nextCursor }).toString()}`}
               className="text-primary hover:underline ml-auto"
             >
-              Next page →
+              {t("admin.page.nextPage")}
             </a>
           )}
         </div>

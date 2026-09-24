@@ -23,7 +23,7 @@ export function GateCriteria() {
             <span className="text-foreground">{t(gateStepNumberKey(doc.stageTo))}</span>
           </p>
           {doc.criteria.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Kein eigenes Kriterium.</p>
+            <p className="text-sm text-muted-foreground">{t("wiki.ui.keinEigenesKriterium")}</p>
           ) : (
             <ul className="space-y-2.5">
               {doc.criteria.map((c) => (

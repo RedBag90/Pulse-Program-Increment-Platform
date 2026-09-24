@@ -39,6 +39,7 @@ function ContextCell({ row }: { row: MyApprovalRow }) {
 }
 
 export function MyApprovalsList({ rows }: { rows: MyApprovalRow[] }) {
+  const t = useTranslations();
   const byKind = new Map<MyApprovalRow["kind"], MyApprovalRow[]>();
   for (const r of rows) {
     const list = byKind.get(r.kind) ?? [];
@@ -49,15 +50,19 @@ export function MyApprovalsList({ rows }: { rows: MyApprovalRow[] }) {
   return (
     <section className="space-y-4">
       <div className="space-y-1">
-        <h2 className="text-lg font-semibold tracking-tight">Meine Freigaben</h2>
+        <h2 className="text-lg font-semibold tracking-tight">
+          {t("work.myApprovals.meineFreigaben")}
+        </h2>
         <p className="text-sm text-muted-foreground">
-          Alle Freigaben, die aktuell auf deine Entscheidung warten.
+          {t("work.myApprovals.alleFreigabenDieAktuell")}
         </p>
       </div>
 
       {rows.length === 0 ? (
         <div className="rounded-lg border bg-muted/30 px-6 py-8 text-center">
-          <p className="text-sm text-muted-foreground">Nichts Offenes — alle Freigaben erledigt.</p>
+          <p className="text-sm text-muted-foreground">
+            {t("work.myApprovals.nichtsOffenesAlleFreigaben")}
+          </p>
         </div>
       ) : (
         KIND_ORDER.filter((k) => (byKind.get(k)?.length ?? 0) > 0).map((kind) => {

@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { Shield } from "lucide-react";
 import { requirePlatformAdmin, platformDb } from "@/server/auth/platform";
 import { listAllUsers } from "@/server/views/platform-users";
@@ -8,14 +9,15 @@ import { PageSection } from "@/components/layout/page-section";
 import { UserRowActions } from "@/features/platform/components/user-row-actions";
 
 export default async function PlatformUsersPage() {
+  const t = await getTranslations();
   const actor = await requirePlatformAdmin();
   const users = await listAllUsers(platformDb(actor.id));
 
   return (
     <Page>
       <PageHeader
-        title="Nutzer"
-        subtitle="Globales Verzeichnis über alle Tenants — Rollen, Status, Sperren."
+        title={t("platform.page.nutzer")}
+        subtitle={t("platform.page.globalesVerzeichnisUeberAlle")}
       />
 
       <PageSection>
@@ -24,11 +26,11 @@ export default async function PlatformUsersPage() {
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
               <tr>
-                <th className="px-3 py-2 font-medium">Nutzer</th>
-                <th className="px-3 py-2 font-medium">Rollen</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Letzte Aktivität</th>
-                <th className="px-3 py-2 font-medium">Angelegt</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.nutzer")}</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.rollen")}</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.status")}</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.letzteAktivitaet")}</th>
+                <th className="px-3 py-2 font-medium">{t("platform.page.angelegt")}</th>
                 <th className="px-3 py-2" />
               </tr>
             </thead>
@@ -40,7 +42,7 @@ export default async function PlatformUsersPage() {
                       {u.isPlatformAdmin && (
                         <Shield
                           className="size-3.5 shrink-0 text-primary"
-                          aria-label="Plattform-Admin"
+                          aria-label={t("platform.page.plattformAdmin")}
                         />
                       )}
                       <span className="truncate">{u.email ?? u.id}</span>
@@ -52,11 +54,11 @@ export default async function PlatformUsersPage() {
                   <td className="px-3 py-2">
                     {u.status === "suspended" ? (
                       <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
-                        Gesperrt
+                        {t("platform.page.gesperrt")}
                       </span>
                     ) : (
                       <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                        Aktiv
+                        {t("platform.page.aktiv")}
                       </span>
                     )}
                   </td>
@@ -76,7 +78,7 @@ export default async function PlatformUsersPage() {
               {users.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
-                    Keine Nutzer.
+                    {t("platform.page.keineNutzer")}
                   </td>
                 </tr>
               )}

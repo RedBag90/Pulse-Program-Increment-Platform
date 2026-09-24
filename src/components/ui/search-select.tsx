@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,7 @@ export function SearchSelect({
   disabled,
   className,
 }: Props) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -168,7 +170,9 @@ export function SearchSelect({
             className="max-h-64 overflow-y-auto"
           >
             {visible.length === 0 ? (
-              <li className="px-2 py-1.5 text-sm text-muted-foreground">Keine Treffer.</li>
+              <li className="px-2 py-1.5 text-sm text-muted-foreground">
+                {t("common.ui.keineTreffer")}
+              </li>
             ) : (
               visible.map((opt, i) => {
                 const on = opt.value === value;

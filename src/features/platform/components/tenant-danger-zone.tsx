@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import {
@@ -31,6 +32,7 @@ export function TenantDangerZone({
   /** Wie viele Mitglieder der Mandant hat — für den Satz über dem Häkchen. */
   memberCount: number;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [offen, setOffen] = useState(false);
   const [getippt, setGetippt] = useState("");
@@ -57,7 +59,7 @@ export function TenantDangerZone({
         onClick={() => setOffen(true)}
         className="text-xs text-muted-foreground underline-offset-2 hover:text-destructive hover:underline"
       >
-        Zurücksetzen oder samt Inhalt löschen …
+        {t("platform.ui.zuruecksetzenOderSamtInhalt")}
       </button>
     );
   }
@@ -65,19 +67,22 @@ export function TenantDangerZone({
   return (
     <section className="space-y-4 rounded-lg border border-destructive/30 p-4">
       <div className="flex items-baseline justify-between gap-3">
-        <h4 className="text-sm font-semibold text-destructive">Nicht umkehrbar</h4>
+        <h4 className="text-sm font-semibold text-destructive">
+          {t("platform.ui.nichtUmkehrbar")}
+        </h4>
         <button
           type="button"
           onClick={() => setOffen(false)}
           className="text-xs text-muted-foreground hover:text-foreground"
         >
-          Schließen
+          {t("platform.ui.schliessen")}
         </button>
       </div>
 
       <div>
         <label htmlFor="dz-name" className="mb-1 block text-xs font-medium">
-          Zum Bestätigen den Mandantennamen eingeben: <code className="font-mono">{name}</code>
+          {t("platform.ui.zumBestaetigenDenMandantennamen")}{" "}
+          <code className="font-mono">{name}</code>
         </label>
         <input
           id="dz-name"
@@ -91,10 +96,9 @@ export function TenantDangerZone({
       <form action={rAction} className="space-y-2 border-t pt-3">
         <input type="hidden" name="tenantId" value={tenantId} />
         <input type="hidden" name="confirmName" value={getippt} />
-        <span className="block text-xs font-medium">Zurücksetzen</span>
+        <span className="block text-xs font-medium">{t("platform.ui.zuruecksetzen")}</span>
         <p className="text-xs text-muted-foreground">
-          Alle Fachdaten werden gelöscht und — wenn gewählt — durch einen frischen Datensatz
-          ersetzt. Mitglieder, Rollen und die Mandanten-Id bleiben.
+          {t("platform.ui.alleFachdatenWerdenGeloescht")}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <select
@@ -121,14 +125,15 @@ export function TenantDangerZone({
       <form action={dAction} className="space-y-2 border-t pt-3">
         <input type="hidden" name="tenantId" value={tenantId} />
         <input type="hidden" name="confirmName" value={getippt} />
-        <span className="block text-xs font-medium">Samt Inhalt löschen</span>
+        <span className="block text-xs font-medium">{t("platform.ui.samtInhaltLoeschen")}</span>
         <label className="flex items-start gap-2 text-xs">
           <input type="checkbox" name="alsoDeleteUsers" className="mt-0.5" />
           <span>
             Auch die Konten löschen.{" "}
             <span className="text-muted-foreground">
-              Betrifft nur Konten, deren <strong className="text-foreground">einzige</strong>{" "}
-              Mitgliedschaft dieser Mandant ist ({memberCount} Mitglied
+              {t("platform.ui.betrifftNurKontenDeren")}{" "}
+              <strong className="text-foreground">{t("platform.ui.einzige")}</strong> Mitgliedschaft
+              dieser Mandant ist ({memberCount} Mitglied
               {memberCount === 1 ? "" : "er"} insgesamt). Wer noch anderswo steht, verliert hier nur
               seine Rolle. Das eigene Konto bleibt immer.
             </span>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, Building2, LogOut } from "lucide-react";
@@ -18,6 +19,7 @@ interface Tenant {
  * (`listUserTenants` filtert auf aktive Bereiche).
  */
 export function SuspendedActions({ tenants }: { tenants: Tenant[] }) {
+  const t = useTranslations();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -42,7 +44,9 @@ export function SuspendedActions({ tenants }: { tenants: Tenant[] }) {
     <div className="space-y-4">
       {tenants.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">In anderen Bereich wechseln</p>
+          <p className="text-xs font-medium text-muted-foreground">
+            {t("platform.ui.inAnderenBereichWechseln")}
+          </p>
           <ul className="space-y-1.5">
             {tenants.map((t) => {
               const Icon = t.kind === "personal" ? Lock : Building2;
@@ -73,7 +77,7 @@ export function SuspendedActions({ tenants }: { tenants: Tenant[] }) {
         className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
       >
         <LogOut className="size-4" aria-hidden />
-        Abmelden
+        {t("platform.ui.abmelden")}
       </button>
     </div>
   );

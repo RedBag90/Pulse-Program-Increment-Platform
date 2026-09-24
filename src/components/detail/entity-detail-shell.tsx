@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -149,6 +150,7 @@ export function EntityDetailShell({
   aside,
   children,
 }: Props) {
+  const t = useTranslations();
   const tabSuffix = Object.entries(tabQuery ?? {})
     .map(([k, v]) => `&${k}=${encodeURIComponent(v)}`)
     .join("");
@@ -190,7 +192,7 @@ export function EntityDetailShell({
           unterhalb von ~1100 px blieb für die Mitte kaum etwas übrig. */}
       <div className="flex min-h-[70vh] flex-col lg:flex-row">
         <nav
-          aria-label="Bereiche"
+          aria-label={t("common.detail.bereiche")}
           data-tour="entity-tab-rail"
           className="w-full shrink-0 border-b bg-surface-frame p-2 lg:w-48 lg:border-b-0 lg:border-r lg:p-3"
         >

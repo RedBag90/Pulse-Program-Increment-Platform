@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
@@ -37,6 +38,7 @@ interface Props {
 const initial: FeatureActionState = {};
 
 export function WsjfScoreDialog({ featureId, artId, current, renderTrigger }: Props) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
 
   const [state, formAction, pending] = useActionState(
@@ -72,7 +74,7 @@ export function WsjfScoreDialog({ featureId, artId, current, renderTrigger }: Pr
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Update WSJF Score</DialogTitle>
+            <DialogTitle>{t("work.feature.updateWsjfScore")}</DialogTitle>
           </DialogHeader>
           <form action={formAction} className="space-y-3">
             <input type="hidden" name="featureId" value={featureId} />
@@ -102,7 +104,7 @@ export function WsjfScoreDialog({ featureId, artId, current, renderTrigger }: Pr
 
             <DialogFooter>
               <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
-                Cancel
+                {t("work.feature.cancel")}
               </Button>
               <Button type="submit" size="sm" disabled={pending}>
                 {pending ? "Saving…" : "Save"}

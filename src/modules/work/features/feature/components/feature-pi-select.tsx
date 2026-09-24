@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { setFeaturePiAction } from "@/modules/work/features/feature/actions/feature";
 import { setFeaturePi } from "@/modules/work/features/feature/lib/feature-actions-client";
@@ -18,6 +19,7 @@ interface Props {
 
 /** Inline PI assignment dropdown for a feature row in the backlog list. */
 export function FeaturePiSelect({ featureId, artId, currentPiId, pis }: Props) {
+  const t = useTranslations();
   const [isPending, startTransition] = useTransition();
   const [value, setValue] = useState(currentPiId ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export function FeaturePiSelect({ featureId, artId, currentPiId, pis }: Props) {
         disabled={isPending}
         className="rounded-md border px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
       >
-        <option value="">Backlog</option>
+        <option value="">{t("work.feature.backlog")}</option>
         {pis.map((pi) => (
           <option key={pi.id} value={pi.id}>
             {pi.name}

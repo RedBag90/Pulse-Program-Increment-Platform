@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, Building2, ChevronDown, Check } from "lucide-react";
@@ -35,6 +36,7 @@ interface Props {
  * ist). Bei nur einem Tenant: stilles Label ohne Dropdown.
  */
 export function TenantSwitcher({ tenants, activeTenantId }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const active = tenants.find((t) => t.id === activeTenantId) ?? tenants[0];
@@ -67,7 +69,7 @@ export function TenantSwitcher({ tenants, activeTenantId }: Props) {
       <DropdownMenuTrigger
         disabled={isPending}
         className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors hover:bg-muted focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
-        aria-label="Bereich wechseln"
+        aria-label={t("nav.ui.bereichWechseln")}
       >
         <ActiveIcon className="size-3" aria-hidden />
         <span className="max-w-32 truncate">{label}</span>
@@ -76,7 +78,7 @@ export function TenantSwitcher({ tenants, activeTenantId }: Props) {
       <DropdownMenuContent align="end" className="w-60">
         <DropdownMenuGroup>
           <DropdownMenuLabel className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            Bereich wechseln
+            {t("nav.ui.bereichWechseln")}
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

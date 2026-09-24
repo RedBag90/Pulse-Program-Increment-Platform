@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +33,7 @@ export function InitiativeSearchField({
   value,
   onChange,
 }: InitiativeSearchFieldProps) {
+  const t = useTranslations();
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<InitiativeHit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -82,7 +84,7 @@ export function InitiativeSearchField({
               setOpen(true);
             }}
           >
-            Change
+            {t("create.ui.change")}
           </button>
         </div>
       ) : (
@@ -94,13 +96,19 @@ export function InitiativeSearchField({
               setOpen(true);
             }}
             onFocus={() => setOpen(true)}
-            placeholder="Search initiatives…"
+            placeholder={t("create.ui.searchInitiatives")}
           />
           {open && (
             <ul className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-popover shadow-md">
-              {loading && <li className="px-3 py-2 text-sm text-muted-foreground">Searching…</li>}
+              {loading && (
+                <li className="px-3 py-2 text-sm text-muted-foreground">
+                  {t("create.ui.searching")}
+                </li>
+              )}
               {!loading && hits.length === 0 && (
-                <li className="px-3 py-2 text-sm text-muted-foreground">No matches</li>
+                <li className="px-3 py-2 text-sm text-muted-foreground">
+                  {t("create.ui.noMatches")}
+                </li>
               )}
               {hits.map((hit) => (
                 <li key={hit.id}>

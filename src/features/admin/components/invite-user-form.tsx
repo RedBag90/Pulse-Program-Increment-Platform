@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { inviteUserAction } from "@/features/admin/actions/invite-user";
 import { ROLES, ROLE_LABELS } from "@/modules/core/kernel/domain/roles";
 import type { Role } from "@/modules/core/kernel/domain/roles";
@@ -12,6 +12,7 @@ import type { Role } from "@/modules/core/kernel/domain/roles";
  * the parent shell clears the selection back to the list on success.
  */
 export function InviteUserForm() {
+  const t = useTranslations();
   const [state, action, isPending] = useActionState(inviteUserAction, {});
   const locale = useLocale();
 
@@ -22,21 +23,21 @@ export function InviteUserForm() {
       <input type="hidden" name="locale" value={locale} />
       <div>
         <label htmlFor="email" className="block text-sm font-medium mb-1">
-          E-Mail-Adresse
+          {t("admin.ui.eMailAdresse")}
         </label>
         <input
           id="email"
           name="email"
           type="email"
           required
-          placeholder="kolleg:in@firma.de"
+          placeholder={t("admin.ui.kollegInFirmaDe")}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>
 
       <div>
         <label htmlFor="role" className="block text-sm font-medium mb-1">
-          Rolle
+          {t("admin.ui.rolle")}
         </label>
         <select
           id="role"
@@ -60,7 +61,7 @@ export function InviteUserForm() {
 
       {state.success && (
         <p role="status" className="text-sm text-success">
-          Einladung erfolgreich versendet.
+          {t("admin.ui.einladungErfolgreichVersendet")}
         </p>
       )}
 

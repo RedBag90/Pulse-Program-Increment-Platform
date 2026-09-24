@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 /**
@@ -20,6 +21,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
  * `role` machen ihn trotzdem für die Tastatur erreichbar.
  */
 export function InfoHint({ text }: { text: string }) {
+  const t = useTranslations();
   return (
     <Tooltip>
       <TooltipTrigger
@@ -27,7 +29,7 @@ export function InfoHint({ text }: { text: string }) {
           <span
             role="button"
             tabIndex={0}
-            aria-label="Erklärung"
+            aria-label={t("common.ui.erklaerung")}
             // Ein Klick soll nur das zugehörige Feld fokussieren, nicht das
             // Formular abschicken oder die Beschriftung umschalten.
             onClick={(e) => e.preventDefault()}

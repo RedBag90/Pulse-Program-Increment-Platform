@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -31,6 +32,7 @@ export function FeatureParentAssign({
   options: ReadonlyArray<{ id: string; title: string }>;
   canEdit: boolean;
 }) {
+  const t = useTranslations();
   const [pending, startTransition] = useTransition();
   const [current, setCurrent] = useState(parent?.id ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,11 @@ export function FeatureParentAssign({
   );
 
   if (!canEdit) {
-    return link || <span className="text-muted-foreground">Eigenständig — ohne Epic</span>;
+    return (
+      link || (
+        <span className="text-muted-foreground">{t("work.feature.eigenstaendigOhneEpic")}</span>
+      )
+    );
   }
 
   function choose(next: string) {
@@ -78,10 +84,10 @@ export function FeatureParentAssign({
         value={current}
         onChange={(e) => choose(e.target.value)}
         disabled={pending}
-        aria-label="Eltern-Epic"
+        aria-label={t("work.feature.elternEpic")}
         className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
       >
-        <option value="">— eigenständig, ohne Epic —</option>
+        <option value="">{t("work.feature.eigenstaendigOhneEpic2")}</option>
         {options.map((e) => (
           <option key={e.id} value={e.id}>
             {e.title}

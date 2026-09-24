@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useOptimistic, useTransition, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Link } from "@/i18n/navigation";
@@ -21,6 +22,7 @@ interface Props {
  * `tenant.users.manage` beschraenkt; andere User sehen Read-only.
  */
 export function SetupChecklist({ initialDone, canEdit }: Props) {
+  const t = useTranslations();
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -54,10 +56,11 @@ export function SetupChecklist({ initialDone, canEdit }: Props) {
     <div className="space-y-6">
       <header className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">Setup-Guide</h1>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
+            {t("setup.ui.setupGuide")}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Acht Milestones, der Reihe nach abarbeiten. Tempo bestimmt das Team — Reihenfolge ist
-            fix.
+            {t("setup.ui.achtMilestonesDerReihe")}
           </p>
         </div>
         <div className="rounded-full border bg-card px-3 py-1 text-sm font-medium tabular-nums">
@@ -68,10 +71,7 @@ export function SetupChecklist({ initialDone, canEdit }: Props) {
       {!canEdit && (
         <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
           <Lock className="mt-0.5 size-3.5 shrink-0" />
-          <span>
-            Read-only-Sicht — nur der Tenant-Admin kann den Setup-Fortschritt aendern. Du siehst den
-            gemeinsamen Stand des Tenants.
-          </span>
+          <span>{t("setup.ui.readOnlySichtNur")}</span>
         </div>
       )}
 
@@ -110,6 +110,7 @@ function MilestoneCard({
   canEdit: boolean;
   onToggle: (id: string) => void;
 }) {
+  const t = useTranslations();
   const completed = milestone.checks.filter((c) => done.has(c.id)).length;
   const total = milestone.checks.length;
   const allDone = completed === total;
@@ -129,7 +130,7 @@ function MilestoneCard({
       <p className="text-sm text-muted-foreground">{milestone.outcome}</p>
 
       <dl className="grid grid-cols-[64px_1fr] gap-y-1 text-xs">
-        <dt className="text-muted-foreground">Wer</dt>
+        <dt className="text-muted-foreground">{t("setup.ui.wer")}</dt>
         <dd>{milestone.who}</dd>
         <dt className="text-muted-foreground">Wo</dt>
         <dd className="space-y-0.5">

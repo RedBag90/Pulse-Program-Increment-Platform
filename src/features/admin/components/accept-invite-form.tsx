@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { acceptInviteAction } from "@/features/admin/actions/accept-invite";
 
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function AcceptInviteForm({ token, email }: Props) {
+  const t = useTranslations();
   const [state, action, isPending] = useActionState(acceptInviteAction, {});
 
   return (
@@ -18,7 +20,7 @@ export function AcceptInviteForm({ token, email }: Props) {
 
       <div>
         <label htmlFor="password" className="block text-sm font-medium mb-1">
-          Password
+          {t("admin.ui.password")}
         </label>
         <input
           id="password"

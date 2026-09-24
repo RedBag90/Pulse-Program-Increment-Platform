@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { deleteFeatureAction } from "@/modules/work/features/feature/actions/feature";
 
@@ -10,11 +11,12 @@ interface DeleteFeatureButtonProps {
 }
 
 export function DeleteFeatureButton({ id, artId, title }: DeleteFeatureButtonProps) {
+  const t = useTranslations();
   return (
     <ConfirmMutateForm
       action={deleteFeatureAction}
       fields={{ id, artId }}
-      label="Löschen"
+      label={t("work.feature.loeschen")}
       pendingLabel="Wird gelöscht …"
       // Hier stand „Alle untergeordneten Stories werden mitgeloescht." Stories
       // gibt es nicht — `InitiativeLevel` kennt EPIC und FEATURE, es gibt kein

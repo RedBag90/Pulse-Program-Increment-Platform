@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SearchSelect, type SearchSelectOption } from "@/components/ui/search-select";
@@ -45,6 +46,7 @@ export function FeatureOwnerAssign({
   approvers,
   userLabels,
 }: Props) {
+  const t = useTranslations();
   const [pending, startTransition] = useTransition();
   const [current, setCurrent] = useState(ownerId ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +91,7 @@ export function FeatureOwnerAssign({
           <span className="truncate">{ownerName}</span>
         </span>
       ) : (
-        <span className="text-sm text-muted-foreground">Nicht zugewiesen</span>
+        <span className="text-sm text-muted-foreground">{t("work.feature.nichtZugewiesen")}</span>
       )}
 
       {canAssignOwner && (
@@ -98,10 +100,10 @@ export function FeatureOwnerAssign({
             value={current}
             onChange={assign}
             options={options}
-            emptyLabel="— kein Owner —"
-            placeholder="Owner wählen …"
-            searchPlaceholder="Person suchen …"
-            ariaLabel="Feature-Owner"
+            emptyLabel={t("work.feature.keinOwner")}
+            placeholder={t("work.feature.ownerWaehlen")}
+            searchPlaceholder={t("work.feature.personSuchen")}
+            ariaLabel={t("work.feature.featureOwner")}
             disabled={pending}
           />
           {error && <p className="text-xs text-destructive">{error}</p>}

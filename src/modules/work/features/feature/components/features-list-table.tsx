@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { FEATURE_STATUSES, type FeatureStatus } from "@/server/views/features-list";
@@ -41,10 +42,11 @@ export function FeaturesListTable({
   onToggleSelect,
   onToggleSelectAll,
 }: Props) {
+  const t = useTranslations();
   if (rows.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-        Keine Features gefunden — Filter anpassen oder ein neues anlegen.
+        {t("work.feature.keineFeaturesGefundenFilter")}
       </div>
     );
   }
@@ -65,17 +67,19 @@ export function FeaturesListTable({
                   checked={allVisibleSelected}
                   onChange={() => onToggleSelectAll?.(rows.map((r) => r.id))}
                   className="size-4 rounded-sm border-border"
-                  aria-label="Alle sichtbaren auswählen"
+                  aria-label={t("work.feature.alleSichtbarenAuswaehlen")}
                 />
               </th>
             )}
-            <th className="py-2 pr-3 text-left">Feature</th>
-            {!compact && <th className="py-2 pr-3 text-left">Epic</th>}
+            <th className="py-2 pr-3 text-left">{t("work.feature.feature")}</th>
+            {!compact && <th className="py-2 pr-3 text-left">{t("work.feature.epic")}</th>}
             {!compact && <th className="py-2 pr-3 text-left">PI</th>}
-            <th className="py-2 pr-3 text-left">Status</th>
-            {!compact && showWsjf && <th className="py-2 pr-3 text-right">WSJF</th>}
+            <th className="py-2 pr-3 text-left">{t("work.feature.status")}</th>
+            {!compact && showWsjf && (
+              <th className="py-2 pr-3 text-right">{t("work.feature.wsjf")}</th>
+            )}
             {!compact && <th className="py-2 pr-3 text-right">AC</th>}
-            {canEdit && <th className="py-2 pl-2 pr-3 text-right">Aktionen</th>}
+            {canEdit && <th className="py-2 pl-2 pr-3 text-right">{t("work.feature.aktionen")}</th>}
           </tr>
         </thead>
         {group === "flat" ? (
@@ -121,6 +125,7 @@ function StatusGroupedBody({
   selectedIds: Set<string> | null;
   onToggleSelect: ((id: string) => void) | null;
 }) {
+  const t = useTranslations();
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(FEATURE_STATUSES.map((s) => [s, rows.some((r) => r.status === s)])),
   );
@@ -161,7 +166,7 @@ function StatusGroupedBody({
             {isOpen && statusRows.length === 0 && (
               <tr className="border-b">
                 <td colSpan={colCount} className="py-2 pl-9 text-xs text-muted-foreground">
-                  Keine Features in diesem Status
+                  {t("work.feature.keineFeaturesInDiesem")}
                 </td>
               </tr>
             )}

@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { ComponentProps } from "react";
 import { ChevronRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -11,10 +12,11 @@ export interface Crumb {
 }
 
 export function Breadcrumbs({ items }: { items: Crumb[] }) {
+  const t = useTranslations();
   if (items.length === 0) return null;
 
   return (
-    <nav aria-label="breadcrumb">
+    <nav aria-label={t("nav.ui.breadcrumb")}>
       <ol className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
         {items.map((item, i) => (
           <li key={i} className="inline-flex items-center gap-1.5">

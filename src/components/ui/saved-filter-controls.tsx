@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, startTransition, useState } from "react";
 import { Save, Star, Trash2 } from "lucide-react";
 import type { SavedFilterDTO, FilterCriteria } from "@/server/services/saved-filter";
@@ -45,6 +46,7 @@ export function SavedFilterControls({
   saveAction: FilterAction;
   deleteAction: FilterAction;
 }) {
+  const t = useTranslations();
   const [saveOpen, setSaveOpen] = useState(false);
   const [, submitSave, savingBusy] = useActionState(saveAction, {});
   const [, submitDelete] = useActionState(deleteAction, {});
@@ -66,7 +68,7 @@ export function SavedFilterControls({
       <div className="ml-auto flex items-center gap-2">
         {filters.length > 0 && (
           <select
-            aria-label="Gespeicherten Filter anwenden"
+            aria-label={t("common.ui.gespeichertenFilterAnwenden")}
             defaultValue=""
             onChange={(e) => {
               const f = filters.find((x) => x.id === e.target.value);
@@ -76,7 +78,7 @@ export function SavedFilterControls({
             className="rounded-md border bg-background px-2 py-1.5 text-xs"
           >
             <option value="" disabled>
-              Gespeicherte Filter…
+              {t("common.ui.gespeicherteFilter")}
             </option>
             {filters.map((f) => (
               <option key={f.id} value={f.id}>
@@ -93,7 +95,7 @@ export function SavedFilterControls({
             onClick={() => setSaveOpen(true)}
             className="inline-flex items-center gap-1 rounded-md border px-2 py-1.5 text-xs font-medium hover:bg-muted"
           >
-            <Save className="size-3.5" /> Speichern
+            <Save className="size-3.5" /> {t("common.ui.speichern")}
           </button>
         )}
 
@@ -103,26 +105,26 @@ export function SavedFilterControls({
               name="name"
               required
               maxLength={80}
-              placeholder="Filter-Name"
+              placeholder={t("common.ui.filterName")}
               autoFocus
               className="w-36 rounded-md border bg-background px-2 py-1.5 text-xs"
             />
             <label className="flex items-center gap-1 text-xs text-muted-foreground">
-              <input type="checkbox" name="isDefault" value="true" /> Standard
+              <input type="checkbox" name="isDefault" value="true" /> {t("common.ui.standard")}
             </label>
             <button
               type="submit"
               disabled={savingBusy}
               className="rounded-md bg-primary px-2 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
             >
-              OK
+              {t("common.ui.ok")}
             </button>
             <button
               type="button"
               onClick={() => setSaveOpen(false)}
               className="rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground"
             >
-              Abbrechen
+              {t("common.ui.abbrechen")}
             </button>
           </form>
         )}

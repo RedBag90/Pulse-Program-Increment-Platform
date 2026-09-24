@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import {
   BENEFIT_KINDS,
   BENEFIT_KIND_LABELS,
@@ -19,6 +20,7 @@ const EFFECT: Record<(typeof BENEFIT_KINDS)[number], string> = {
  * anders auf der Seite.
  */
 export function BenefitKinds() {
+  const t = useTranslations();
   const fallback = benefitKindOrDefault(null);
   return (
     <div className="divide-y overflow-hidden rounded-lg bg-card shadow-card">
@@ -29,7 +31,7 @@ export function BenefitKinds() {
             <code className="font-mono text-meta font-normal text-muted-foreground">{k}</code>
             {k === fallback && (
               <span className="ml-2 rounded-sm border bg-muted px-1.5 py-0.5 font-mono text-label uppercase tracking-[0.1em] text-muted-foreground">
-                Vorgabe
+                {t("wiki.ui.vorgabe")}
               </span>
             )}
           </p>

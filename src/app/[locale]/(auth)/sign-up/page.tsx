@@ -7,9 +7,9 @@ export default function SignUpPage() {
 
   return (
     <>
-      <h1 className="text-2xl font-bold tracking-tight">Konto erstellen</h1>
+      <h1 className="text-2xl font-bold tracking-tight">{t("auth.page.kontoErstellen")}</h1>
       <p className="mb-6 mt-1.5 text-sm text-muted-foreground">
-        Starte kostenlos mit deinem persönlichen Ziele-Bereich.
+        {t("auth.page.starteKostenlosMitDeinem")}
       </p>
       <SignUpForm />
       <p className="mt-4 text-center text-sm text-muted-foreground">

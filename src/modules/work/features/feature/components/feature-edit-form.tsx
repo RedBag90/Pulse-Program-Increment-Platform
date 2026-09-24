@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { updateFeatureAction } from "@/modules/work/features/feature/actions/feature";
 
@@ -18,6 +19,7 @@ export function FeatureEditForm({
   currentTitle,
   currentDescription,
 }: FeatureEditFormProps) {
+  const t = useTranslations();
   const [state, action, isPending] = useActionState(updateFeatureAction, {});
 
   return (
@@ -27,7 +29,7 @@ export function FeatureEditForm({
 
       <div>
         <label htmlFor="feature-title" className="block text-sm font-medium mb-1">
-          Title
+          {t("work.feature.title")}
         </label>
         <input
           id="feature-title"
@@ -40,7 +42,7 @@ export function FeatureEditForm({
 
       <div>
         <label htmlFor="feature-description" className="block text-sm font-medium mb-1">
-          Description
+          {t("work.feature.description")}
         </label>
         <textarea
           id="feature-description"
@@ -58,7 +60,7 @@ export function FeatureEditForm({
       )}
       {state.success && (
         <p role="status" className="text-sm text-success">
-          Saved successfully.
+          {t("work.feature.savedSuccessfully")}
         </p>
       )}
 

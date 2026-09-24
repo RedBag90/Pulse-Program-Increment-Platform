@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useMemo, type ReactNode } from "react";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import { MyTasksFilterBar } from "@/modules/work/features/my-tasks/components/my-tasks-filter-bar";
@@ -60,6 +61,7 @@ function parseLevel(raw: string | null): TaskLevel | null {
  * der Bucket-Filter geht über `model.bucketById` und ist Cross-Shape.
  */
 export function MyTasksListShell({ model, showWsjf, embedded = false, notices }: Props) {
+  const t = useTranslations();
   const { params, push: pushParam } = useUrlState();
 
   const bucket = parseBucket(params.get("bucket"));
@@ -135,11 +137,8 @@ export function MyTasksListShell({ model, showWsjf, embedded = false, notices }:
     <>
       {embedded && (
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold tracking-tight">Meine Tasks</h2>
-          <p className="text-sm text-muted-foreground">
-            Alles, wofür ich Owner oder Assignee bin — Epics und Features mit denselben
-            Zeileninhalten wie auf den Hauptlisten.
-          </p>
+          <h2 className="text-lg font-semibold tracking-tight">{t("work.myTasks.meineTasks")}</h2>
+          <p className="text-sm text-muted-foreground">{t("work.myTasks.allesWofuerIchOwner")}</p>
         </div>
       )}
 
@@ -182,7 +181,7 @@ export function MyTasksListShell({ model, showWsjf, embedded = false, notices }:
 
       {filteredEpics.length === 0 && filteredFeatures.length === 0 && (
         <div className="rounded-lg bg-card shadow-card p-8 text-center text-sm text-muted-foreground">
-          Keine Tasks im aktuellen Filter.
+          {t("work.myTasks.keineTasksImAktuellen")}
         </div>
       )}
     </>
@@ -193,8 +192,8 @@ export function MyTasksListShell({ model, showWsjf, embedded = false, notices }:
   return (
     <Page>
       <PageHeader
-        title="Meine Tasks"
-        subtitle="Alles, wofür ich Owner oder Assignee bin — Epics und Features mit denselben Zeileninhalten wie auf den Hauptlisten."
+        title={t("work.myTasks.meineTasks")}
+        subtitle={t("work.myTasks.allesWofuerIchOwner")}
       />
       {body}
     </Page>

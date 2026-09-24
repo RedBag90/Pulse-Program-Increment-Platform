@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 interface AuditRow {
@@ -18,6 +19,7 @@ interface AuditLogTableProps {
 }
 
 export function AuditLogTable({ events }: AuditLogTableProps) {
+  const t = useTranslations();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const toggle = (id: string) => {
@@ -30,18 +32,18 @@ export function AuditLogTable({ events }: AuditLogTableProps) {
   };
 
   if (events.length === 0) {
-    return <p className="text-muted-foreground text-sm">No audit events found.</p>;
+    return <p className="text-muted-foreground text-sm">{t("admin.ui.noAuditEventsFound")}</p>;
   }
 
   return (
     <table className="w-full text-sm border-collapse">
       <thead>
         <tr className="border-b text-left text-muted-foreground">
-          <th className="pb-2 pr-3 w-40">Time</th>
-          <th className="pb-2 pr-3 w-64">Actor</th>
-          <th className="pb-2 pr-3">Action</th>
-          <th className="pb-2 pr-3">Resource</th>
-          <th className="pb-2 w-20">Trace</th>
+          <th className="pb-2 pr-3 w-40">{t("admin.ui.time")}</th>
+          <th className="pb-2 pr-3 w-64">{t("admin.ui.actor")}</th>
+          <th className="pb-2 pr-3">{t("admin.ui.action")}</th>
+          <th className="pb-2 pr-3">{t("admin.ui.resource")}</th>
+          <th className="pb-2 w-20">{t("admin.ui.trace")}</th>
         </tr>
       </thead>
       <tbody>
@@ -69,7 +71,7 @@ export function AuditLogTable({ events }: AuditLogTableProps) {
                       e.stopPropagation();
                       void navigator.clipboard.writeText(event.traceId!);
                     }}
-                    title="Copy trace ID"
+                    title={t("admin.ui.copyTraceId")}
                   >
                     {event.traceId.slice(0, 8)}…
                   </button>

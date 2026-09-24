@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 /** A single audit entry, pre-serialised on the server for the client boundary. */
 export interface AuditTimelineItem {
   id: string;
@@ -37,8 +38,9 @@ function actionLabel(action: string): string {
  * the Verlauf tab of the Value Stream / ART / Team detail pages.
  */
 export function AuditTimeline({ events }: { events: AuditTimelineItem[] }) {
+  const t = useTranslations();
   if (events.length === 0) {
-    return <p className="text-sm text-muted-foreground">Keine Historie.</p>;
+    return <p className="text-sm text-muted-foreground">{t("common.detail.keineHistorie")}</p>;
   }
   return (
     <ul className="divide-y rounded-lg border">

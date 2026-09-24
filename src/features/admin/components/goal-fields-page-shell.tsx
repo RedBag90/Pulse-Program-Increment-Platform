@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, startTransition, useState } from "react";
 import type { GoalFieldsPageModel } from "@/modules/core/goals/server/views/admin-goal-fields";
 import {
@@ -18,22 +19,23 @@ const TYPE_LABELS: Record<string, string> = {
  * Werte pro Ziel werden im Ziele-Drawer gepflegt.
  */
 export function GoalFieldsPageShell({ model }: { model: GoalFieldsPageModel }) {
+  const t = useTranslations();
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
       <header className="space-y-1">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Custom Fields</h1>
-        <p className="text-sm text-muted-foreground">
-          Tenant-weite Zusatzfelder für Ziele. Werte pflegst du je Ziel im Ziel-Drawer.
-        </p>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">
+          {t("admin.ui.customFields")}
+        </h1>
+        <p className="text-sm text-muted-foreground">{t("admin.ui.tenantWeiteZusatzfelderFuer")}</p>
       </header>
 
       <section className="space-y-2">
         <h2 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Definierte Felder
+          {t("admin.ui.definierteFelder")}
         </h2>
         {model.fields.length === 0 ? (
           <p className="rounded-lg border border-dashed bg-muted/10 px-3 py-6 text-center text-sm text-muted-foreground">
-            Noch keine Custom Fields definiert.
+            {t("admin.ui.nochKeineCustomFields")}
           </p>
         ) : (
           <ul className="divide-y rounded-lg bg-card shadow-card">
@@ -60,6 +62,7 @@ function FieldRow({
   type: string;
   options: string[];
 }) {
+  const t = useTranslations();
   const [state, run, pending] = useActionState(deleteCustomFieldDefAction, {});
 
   function remove() {
@@ -85,13 +88,14 @@ function FieldRow({
         disabled={pending}
         className="rounded-md border px-2 py-1 text-meta font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
       >
-        Löschen
+        {t("admin.ui.loeschen")}
       </button>
     </li>
   );
 }
 
 function AddFieldForm() {
+  const t = useTranslations();
   const [state, run, pending] = useActionState(createCustomFieldDefAction, {});
   const [type, setType] = useState("text");
 
@@ -106,24 +110,24 @@ function AddFieldForm() {
       key={state.success ? "reset" : "form"}
     >
       <h2 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        Neues Feld
+        {t("admin.ui.neuesFeld")}
       </h2>
       <div className="grid grid-cols-2 gap-3">
         <label className="block space-y-1">
           <span className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
-            Name
+            {t("admin.ui.name")}
           </span>
           <input
             name="name"
             required
             maxLength={100}
             className="h-9 w-full rounded-md border bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            placeholder="z.B. Risiko"
+            placeholder={t("admin.ui.zBRisiko")}
           />
         </label>
         <label className="block space-y-1">
           <span className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
-            Typ
+            {t("admin.ui.typ")}
           </span>
           <select
             name="type"
@@ -131,22 +135,22 @@ function AddFieldForm() {
             onChange={(e) => setType(e.target.value)}
             className="h-9 w-full rounded-md border bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            <option value="text">Text</option>
-            <option value="number">Zahl</option>
-            <option value="select">Auswahl</option>
+            <option value="text">{t("admin.ui.text")}</option>
+            <option value="number">{t("admin.ui.zahl")}</option>
+            <option value="select">{t("admin.ui.auswahl")}</option>
           </select>
         </label>
       </div>
       {type === "select" && (
         <label className="block space-y-1">
           <span className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
-            Optionen (eine pro Zeile)
+            {t("admin.ui.optionenEineProZeile")}
           </span>
           <textarea
             name="options"
             rows={3}
             className="w-full rounded-md border bg-background px-2 py-1.5 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            placeholder={"hoch\nmittel\nniedrig"}
+            placeholder={t("admin.ui.hochNmittelNniedrig")}
           />
         </label>
       )}
@@ -157,7 +161,7 @@ function AddFieldForm() {
           disabled={pending}
           className="ml-auto rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
         >
-          Feld anlegen
+          {t("admin.ui.feldAnlegen")}
         </button>
       </div>
     </form>

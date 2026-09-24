@@ -187,14 +187,14 @@ export function CreateFeatureDialog({
       {!isControlled && (
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="size-4 mr-1.5" />
-          Feature anlegen
+          {t("work.feature.featureAnlegen")}
         </Button>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Feature anlegen</DialogTitle>
+            <DialogTitle>{t("work.feature.featureAnlegen")}</DialogTitle>
           </DialogHeader>
           <form action={action} className="space-y-4">
             {artId !== undefined ? (
@@ -202,7 +202,7 @@ export function CreateFeatureDialog({
             ) : (
               <div className="space-y-1.5">
                 <Label htmlFor="f-art">
-                  ART <span className="text-destructive">*</span>
+                  {t("work.feature.art")} <span className="text-destructive">*</span>
                 </Label>
                 <select
                   id="f-art"
@@ -231,7 +231,7 @@ export function CreateFeatureDialog({
             )}
 
             <div className="space-y-1.5">
-              <Label htmlFor="f-parent">Epic</Label>
+              <Label htmlFor="f-parent">{t("work.feature.epic")}</Label>
               <select
                 id="f-parent"
                 name="parentId"
@@ -249,17 +249,14 @@ export function CreateFeatureDialog({
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-muted-foreground">
-                Ohne Epic wird es ein eigenständiges Feature — ART-eigene Arbeit, die unter keinem
-                Portfolio-Vorhaben hängt.
-              </p>
+              <p className="text-xs text-muted-foreground">{t("work.feature.ohneEpicWirdEs")}</p>
               {fetchedEpics.error && (
                 <p className="text-xs text-destructive">{fetchedEpics.error}</p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="f-solution">Solution</Label>
+              <Label htmlFor="f-solution">{t("work.feature.solution")}</Label>
               <select
                 key={`sol-${vsId}`}
                 id="f-solution"
@@ -282,13 +279,13 @@ export function CreateFeatureDialog({
                 ))}
               </select>
               <p className="text-xs text-muted-foreground">
-                Ohne eigene Zuordnung gilt die Solution des Epics.
+                {t("work.feature.ohneEigeneZuordnungGilt")}
               </p>
               {solutions.error && <p className="text-xs text-destructive">{solutions.error}</p>}
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="f-pi">Program Increment</Label>
+              <Label htmlFor="f-pi">{t("work.feature.programIncrement")}</Label>
               <select
                 id="f-pi"
                 name="piId"
@@ -313,7 +310,7 @@ export function CreateFeatureDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="f-owner">Verantwortlich</Label>
+              <Label htmlFor="f-owner">{t("work.feature.verantwortlich")}</Label>
               {/*
                 `SearchSelect` ist kein natives `<select>` — der Wert erreicht
                 die FormData deshalb über ein verstecktes Feld.
@@ -323,9 +320,9 @@ export function CreateFeatureDialog({
                 value={ownerSel}
                 onChange={setOwnerSel}
                 options={peopleOptions}
-                ariaLabel="Verantwortlich"
+                ariaLabel={t("work.feature.verantwortlich")}
                 placeholder={people.loading ? "Wird geladen …" : "Person wählen …"}
-                emptyLabel="— niemand —"
+                emptyLabel={t("work.feature.niemand")}
                 disabled={people.loading}
               />
               {people.error && <p className="text-xs text-destructive">{people.error}</p>}
@@ -333,31 +330,31 @@ export function CreateFeatureDialog({
 
             <div className="space-y-1.5">
               <Label htmlFor="f-title">
-                Titel <span className="text-destructive">*</span>
+                {t("work.feature.titel")} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="f-title"
                 name="title"
                 required
                 maxLength={200}
-                placeholder="z. B. Passwort per E-Mail zurücksetzen"
+                placeholder={t("work.feature.zBPasswortPer")}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="f-desc">Beschreibung</Label>
+              <Label htmlFor="f-desc">{t("work.feature.beschreibung")}</Label>
               <Textarea id="f-desc" name="description" rows={3} />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="f-type">Typ</Label>
+              <Label htmlFor="f-type">{t("work.feature.typ")}</Label>
               <select
                 id="f-type"
                 name="featureType"
                 defaultValue="feature"
                 className={SELECT_CLASS}
               >
-                <option value="">— ungesetzt</option>
+                <option value="">{t("work.feature.ungesetzt")}</option>
                 {FEATURE_TYPES.map((wert) => (
                   <option key={wert} value={wert}>
                     {t(FEATURE_TYPE_KEYS[wert] ?? wert)}
@@ -367,7 +364,9 @@ export function CreateFeatureDialog({
             </div>
 
             <fieldset className="border border-border rounded-md p-4 space-y-3">
-              <legend className="text-sm font-medium px-1">WSJF-Bewertung</legend>
+              <legend className="text-sm font-medium px-1">
+                {t("work.feature.wsjfBewertung")}
+              </legend>
               {(
                 [
                   ["wsjfBusinessValue", "Geschäftswert"],
@@ -388,7 +387,7 @@ export function CreateFeatureDialog({
                     className={SELECT_CLASS}
                   >
                     <option value="" disabled>
-                      Wählen …
+                      {t("work.feature.waehlen")}
                     </option>
                     {FIBONACCI.map((v) => (
                       <option key={v} value={v}>
@@ -401,14 +400,16 @@ export function CreateFeatureDialog({
             </fieldset>
 
             <div className="space-y-1.5">
-              <Label htmlFor="f-ac">Akzeptanzkriterien</Label>
+              <Label htmlFor="f-ac">{t("work.feature.akzeptanzkriterien")}</Label>
               <Textarea
                 id="f-ac"
                 name="acceptanceCriteria"
                 rows={4}
-                placeholder={"Gegeben …\nWenn …\nDann …"}
+                placeholder={t("work.feature.gegebenNwennNdann")}
               />
-              <p className="text-xs text-muted-foreground">Ein Kriterium je Zeile</p>
+              <p className="text-xs text-muted-foreground">
+                {t("work.feature.einKriteriumJeZeile")}
+              </p>
             </div>
 
             {state.error && (
@@ -419,7 +420,7 @@ export function CreateFeatureDialog({
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Abbrechen
+                {t("work.feature.abbrechen")}
               </Button>
               <Button type="submit" disabled={isPending}>
                 {isPending ? "Wird angelegt …" : "Feature anlegen"}

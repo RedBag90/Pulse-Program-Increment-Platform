@@ -52,7 +52,7 @@ export function MyTasksFilterBar(props: Props) {
         type="search"
         value={localQuery}
         onChange={(e) => setLocalQuery(e.target.value)}
-        placeholder="Suche Titel · Parent-Epic …"
+        placeholder={t("work.myTasks.sucheTitelParentEpic")}
         className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
       />
       <select
@@ -62,7 +62,7 @@ export function MyTasksFilterBar(props: Props) {
         }
         className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
       >
-        <option value="">Alle Levels</option>
+        <option value="">{t("work.myTasks.alleLevels")}</option>
         {props.options.levelOptions.map((l) => (
           <option key={l} value={l}>
             {t(LEVEL_KEYS[l])}
@@ -74,7 +74,7 @@ export function MyTasksFilterBar(props: Props) {
         onChange={(e) => props.onValueStreamChange(e.target.value || null)}
         className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
       >
-        <option value="">Alle Wertströme</option>
+        <option value="">{t("work.myTasks.alleWertstroeme")}</option>
         {props.options.valueStreamOptions.map((v) => (
           <option key={v.id} value={v.id}>
             {v.name}
@@ -86,7 +86,7 @@ export function MyTasksFilterBar(props: Props) {
         onChange={(e) => props.onArtChange(e.target.value || null)}
         className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
       >
-        <option value="">Alle ARTs</option>
+        <option value="">{t("work.myTasks.alleArts")}</option>
         {props.options.artOptions.map((a) => (
           <option key={a.id} value={a.id}>
             {a.name}
@@ -98,7 +98,7 @@ export function MyTasksFilterBar(props: Props) {
         onChange={(e) => props.onEpicChange(e.target.value || null)}
         className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
       >
-        <option value="">Alle Parent-Epics</option>
+        <option value="">{t("work.myTasks.alleParentEpics")}</option>
         {props.options.parentEpicOptions.map((e) => (
           <option key={e.id} value={e.id}>
             {e.title}
@@ -110,8 +110,8 @@ export function MyTasksFilterBar(props: Props) {
         onChange={(e) => props.onPiChange(e.target.value || null)}
         className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
       >
-        <option value="">Alle PIs</option>
-        <option value="backlog">— Backlog</option>
+        <option value="">{t("work.myTasks.allePis")}</option>
+        <option value="backlog">{t("work.myTasks.backlog")}</option>
         {props.options.piOptions.map((p) => (
           <option key={p.id} value={p.id}>
             {p.name}

@@ -22,10 +22,8 @@ export default function SignInPage() {
 
   return (
     <>
-      <h1 className="text-2xl font-bold tracking-tight">Willkommen zurück</h1>
-      <p className="mb-6 mt-1.5 text-sm text-muted-foreground">
-        Melde dich an und arbeite an deinen Zielen weiter.
-      </p>
+      <h1 className="text-2xl font-bold tracking-tight">{t("auth.page.willkommenZurueck")}</h1>
+      <p className="mb-6 mt-1.5 text-sm text-muted-foreground">{t("auth.page.meldeDichAnUnd")}</p>
       <SignInForm />
       <p className="mt-4 text-center text-sm">
         <Link href="/forgot-password" className="font-medium text-primary hover:underline">
@@ -41,9 +39,9 @@ export default function SignInPage() {
 
       {process.env.NODE_ENV === "development" && (
         <div className="mt-8 rounded-lg border border-dashed border-warning/50 bg-warning-surface p-4 text-sm">
-          <p className="font-semibold text-warning">🧪 Demo accounts — one per role</p>
+          <p className="font-semibold text-warning">{t("auth.page.demoAccountsOnePer")}</p>
           <p className="mb-3 text-xs text-warning">
-            Password for all: <span className="font-mono">{TEST_PASSWORD}</span>
+            {t("auth.page.passwordForAll")} <span className="font-mono">{TEST_PASSWORD}</span>
           </p>
           <div className="space-y-1.5">
             {TEST_USERS.map((u) => (

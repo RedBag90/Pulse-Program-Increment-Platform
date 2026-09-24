@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import {
   PORTFOLIO_COLUMNS,
   PORTFOLIO_COLUMN_LABELS,
@@ -23,6 +24,7 @@ const REIFEGRAD: Record<string, string> = {
 };
 
 export function KanbanColumns() {
+  const t = useTranslations();
   return (
     <div className="space-y-3">
       <div className="overflow-x-auto rounded-lg bg-card shadow-card">
@@ -40,13 +42,14 @@ export function KanbanColumns() {
         </div>
       </div>
       <p className="max-w-[var(--reading-max-w)] text-xs leading-relaxed text-muted-foreground">
-        <strong className="font-medium text-foreground">Drei Grenzen sind keine Tore.</strong>{" "}
-        <em>Funnel</em> und <em>Hypothese</em> tragen beide <code>L0</code> — dazwischen liegt die
-        erste Benennung eines Epic Owners. <em>Hypothese</em> und <em>Business Case</em> tragen
-        beide <code>L1</code> — dazwischen liegt die Entscheidung, das Vorhaben zur Analyse
-        auszuwählen. Und <em>Umsetzung</em> und <em>Impact</em> tragen beide <code>L4</code> —
-        dazwischen liegt die Fertigmeldung. Ein Epic mit bestätigtem Impact (<code>L5</code>)
-        verlässt das Board.
+        <strong className="font-medium text-foreground">{t("wiki.ui.dreiGrenzenSindKeine")}</strong>{" "}
+        <em>{t("wiki.ui.funnel")}</em> {t("wiki.ui.und")} <em>{t("wiki.ui.hypothese")}</em>{" "}
+        {t("wiki.ui.tragenBeide")} <code>L0</code> {t("wiki.ui.dazwischenLiegtDieErste")}{" "}
+        <em>{t("wiki.ui.hypothese")}</em> {t("wiki.ui.und")} <em>{t("wiki.ui.businessCase")}</em>{" "}
+        {t("wiki.ui.tragenBeide")} <code>L1</code> {t("wiki.ui.dazwischenLiegtDieEntscheidung")}{" "}
+        <em>{t("wiki.ui.umsetzung")}</em> {t("wiki.ui.und")} <em>{t("wiki.ui.impact")}</em>{" "}
+        {t("wiki.ui.tragenBeide")} <code>L4</code> {t("wiki.ui.dazwischenLiegtDieFertigmeldung")}
+        <code>L5</code>) verlässt das Board.
       </p>
     </div>
   );
