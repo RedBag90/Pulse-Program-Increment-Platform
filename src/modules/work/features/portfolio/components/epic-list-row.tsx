@@ -234,10 +234,12 @@ export function EpicListRowComponent({
             {showNextStep && row.nextStep && (
               <Link
                 href={nextHref}
-                title={`${row.nextStep.title} — ${row.nextStep.hint}`}
+                title={`${t(row.nextStep.titleKey, row.nextStep.titleValues)} — ${t(row.nextStep.hintKey)}`}
                 className="inline-flex max-w-[11rem] items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
               >
-                <span className="truncate">{row.nextStep.title}</span>
+                <span className="truncate">
+                  {t(row.nextStep.titleKey, row.nextStep.titleValues)}
+                </span>
                 <ArrowRight className="size-3 shrink-0 opacity-60" aria-hidden />
               </Link>
             )}

@@ -49,5 +49,5 @@ export const saveViewPreferenceAction = createServerAction({
   parseFormData: (fd) => ({ key: fields(fd).string("key"), value: fields(fd).string("value") }),
   service: (ctx, input) =>
     saveViewPreference(ctx, { key: input.key, value: JSON.parse(input.value) as unknown }),
-  mapError: () => "Die Ansicht konnte nicht gespeichert werden",
+  mapError: (_e, t) => t("errors.action.saveView"),
 });

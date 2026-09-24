@@ -63,38 +63,36 @@ export function horizonShort(horizon: Horizon): string {
 }
 
 /** Erklärtexte je Horizont — Quelle für Tooltips + Legende (Helfer-Schicht). */
-export const HORIZON_HELP: Record<
+export const HORIZON_HELP_KEYS: Record<
   Horizon,
   { blurb: string; epicArt: string; budgetFokus: string }
 > = {
   h3: {
-    blurb: "Evaluating / R&D — noch keine Solution, nur Ideen, Spikes und Prototypen.",
-    epicArt: "Exploratory Epics (Machbarkeit, Prototypen, Patente)",
-    budgetFokus: "Lernen & Validieren (reine OpEx)",
+    blurb: "org.horizonHelp.h3.blurb",
+    epicArt: "org.horizonHelp.h3.epicArt",
+    budgetFokus: "org.horizonHelp.h3.budgetFokus",
   },
   h2: {
-    blurb: "Emerging — eine neue Solution entsteht und wird als MVP am Markt getestet.",
-    epicArt: "Emerging Epics (MVP-Bau, Markttest)",
-    budgetFokus: "Markttest & Skalierung (fast nur Grow)",
+    blurb: "org.horizonHelp.h2.blurb",
+    epicArt: "org.horizonHelp.h2.epicArt",
+    budgetFokus: "org.horizonHelp.h2.budgetFokus",
   },
   h1: {
-    blurb: "Investing & Extracting — etablierte Kern-Solution, trägt den Hauptumsatz.",
-    epicArt: "Business Epics (Erweiterung) + Enabler Epics (Umbau)",
-    budgetFokus: "Ausbauen (Invest) bzw. effizient betreiben (Extract)",
+    blurb: "org.horizonHelp.h1.blurb",
+    epicArt: "org.horizonHelp.h1.epicArt",
+    budgetFokus: "org.horizonHelp.h1.budgetFokus",
   },
   h0: {
-    blurb: "Decommissioning — Solution am Lebensende, wird geordnet abgeschaltet.",
-    epicArt: "Decommissioning Epics (Migration, Archivierung, Shutdown)",
-    budgetFokus: "Run-Budget auf 0 senken (OpEx-Abwicklung)",
+    blurb: "org.horizonHelp.h0.blurb",
+    epicArt: "org.horizonHelp.h0.epicArt",
+    budgetFokus: "org.horizonHelp.h0.budgetFokus",
   },
 };
 
 /** Kurze Konzept-Erklärungen für die Onboarding-Helfer. */
-export const CONCEPT_HELP = {
-  solutionVsEpic:
-    "Eine Solution ist das langlebige Produkt/System (erzeugt laufende Betriebskosten, Run). Ein Epic ist eine große, zeitlich begrenzte Veränderung an einer Solution (Grow). Die Primär-Solution bestimmt den Investitionshorizont des Epics — außer in H3: dort gibt es keine Solution, und das Vorhaben trägt seinen Horizont selbst.",
-  grow: "Grow = Σ Umsetzungskosten der laufenden Epics dieser Solution (Investition in Weiterentwicklung).",
-  run: "Run = Σ der Run-the-Business-Positionen, die dieser Solution zugerechnet sind, auf ein Jahr gerechnet (Wartung, Support, Infrastruktur). Gepflegt werden sie im Budgeting-Modul — je Position mit eigener Periode; wertstrom-übergreifende Positionen zählen in keine Solution.",
-  primarySolution:
-    "Die Primär-Solution eines Epics liefert seinen Investitionshorizont und seine Swimlane im Portfolio-Kanban — solange am Epic selbst keiner steht. Ein R&D-Vorhaben hat gar keine Solution und trägt ihn deshalb immer selbst.",
+export const CONCEPT_HELP_KEYS = {
+  solutionVsEpic: "org.concept.solutionVsEpic",
+  grow: "org.concept.grow",
+  run: "org.concept.run",
+  primarySolution: "org.concept.primarySolution",
 } as const;

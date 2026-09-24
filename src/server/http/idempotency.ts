@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import type { Principal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { problemJson } from "@/server/http/problem";
+import { apiTranslate } from "@/server/http/api-locale";
 
 /**
  * Wraps a mutation Route Handler with idempotency-key handling (concept §8.4).
@@ -35,9 +36,8 @@ export async function withIdempotency(
 
   if (existing) {
     if (existing.requestHash !== requestHash) {
-      return problemJson(409, "conflict", {
-        detail: "Idempotency-Key was already used with a different request body",
-      });
+      const t = await apiTranslate(req);
+      return problemJson(409, "conflict", { detail: t("errors.idempotencyKeyReused") });
     }
     return new Response(existing.responseBody.length > 0 ? existing.responseBody : null, {
       status: existing.responseStatus,

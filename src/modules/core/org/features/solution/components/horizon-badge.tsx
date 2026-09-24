@@ -1,6 +1,7 @@
 "use client";
 
-import { HORIZON_HELP, horizonLabel, isHorizon } from "@/modules/core/org/domain/horizon";
+import { useTranslations } from "next-intl";
+import { HORIZON_HELP_KEYS, horizonLabel, isHorizon } from "@/modules/core/org/domain/horizon";
 import { HORIZON_BADGE_CLASS } from "@/modules/core/org/features/solution/components/horizon-tokens";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ export function HorizonBadge({
   short?: boolean;
   className?: string;
 }) {
+  const t = useTranslations();
   const h = isHorizon(horizon) ? horizon : null;
   const style = h ? HORIZON_BADGE_CLASS[h] : NONE_CLASS;
   // Die Regel „H1 zerfällt in Investing/Extracting" steht in der Domäne, nicht
@@ -55,16 +57,16 @@ export function HorizonBadge({
 
   if (!withHelp || !h) return pill;
 
-  const help = HORIZON_HELP[h];
+  const help = HORIZON_HELP_KEYS[h];
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger render={<span className="cursor-help" />}>{pill}</TooltipTrigger>
         <TooltipContent className="max-w-xs flex-col items-start gap-1 text-left">
           <span className="font-medium">{label}</span>
-          <span>{help.blurb}</span>
-          <span className="opacity-80">Epics: {help.epicArt}</span>
-          <span className="opacity-80">Budget: {help.budgetFokus}</span>
+          <span>{t(help.blurb)}</span>
+          <span className="opacity-80">Epics: {t(help.epicArt)}</span>
+          <span className="opacity-80">Budget: {t(help.budgetFokus)}</span>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

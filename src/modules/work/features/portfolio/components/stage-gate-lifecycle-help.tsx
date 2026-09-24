@@ -57,10 +57,10 @@ export function StageGateLifecycleHelp({ className }: { className?: string }) {
                   ) : (
                     g.criteria.map((c) => (
                       <span
-                        key={c.label}
+                        key={c.labelKey}
                         className={`block ${c.blocking ? "font-medium" : "text-muted-foreground"}`}
                       >
-                        {c.label}
+                        {t(c.labelKey)}
                       </span>
                     ))
                   )}

@@ -1,4 +1,5 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { isLocale, routing } from "@/i18n/routing";
 import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 import type { FigureKind } from "@/modules/wiki/domain/blocks";
@@ -24,10 +25,13 @@ import { inline } from "@/modules/wiki/features/wiki/components/inline";
  */
 export function GuideView({
   guide,
+  translated = true,
   roles,
   figures,
 }: {
   guide: Guide;
+  /** `false` ⇒ die deutsche Fassung in einer englischen Oberfläche. */
+  translated?: boolean;
   roles: readonly Role[];
   figures: Partial<Record<FigureKind, ReactNode>>;
 }) {
@@ -51,6 +55,14 @@ export function GuideView({
           <p className="max-w-[var(--reading-max-w)] text-prose-lede leading-relaxed text-muted-foreground">
             {inline(guide.standfirst)}
           </p>
+          {/* Lieber ein sichtbarer Hinweis als eine stillschweigend deutsche
+              Seite in einer englischen Oberfläche — oder, schlimmer, eine
+              Anleitung, die gar nicht erst erscheint. */}
+          {!translated && (
+            <p className="max-w-[var(--reading-max-w)] border-l-2 border-l-amber-500 pl-3 text-xs text-muted-foreground">
+              {t("wiki.ui.onlyGerman")}
+            </p>
+          )}
         </header>
 
         <section id="mechanik" className="scroll-mt-24 space-y-4">
@@ -164,7 +176,11 @@ export function GuideView({
  */
 function SeeAlso({ guide }: { guide: Guide }) {
   const t = useTranslations();
-  const targets = guide.seeAlso.map(guideBySlug).filter((g): g is Guide => g != null);
+  const roh = useLocale();
+  const locale = isLocale(roh) ? roh : routing.defaultLocale;
+  const targets = guide.seeAlso
+    .map((slug) => guideBySlug(slug, locale)?.guide)
+    .filter((g): g is Guide => g != null);
   if (targets.length === 0) return null;
 
   return (

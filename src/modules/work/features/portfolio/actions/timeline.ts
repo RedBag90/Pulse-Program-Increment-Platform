@@ -7,6 +7,7 @@ import { fields } from "@/server/http/form-data";
 import type { EpicId } from "@/modules/core/kernel/domain/types";
 import type { TimelineFields } from "@/modules/work/domain/timeline";
 import type { ActionState } from "@/server/http/server-action";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 export type { ActionState as TimelineActionState };
 
@@ -63,8 +64,7 @@ export const saveTimelineAction = createServerAction({
     return saveTimeline(ctx, { epicId: input.epicId as EpicId, fields });
   },
   revalidate: "epic",
-  mapError: (e) =>
-    e.kind === "not_found" ? "Epic nicht gefunden" : "Timeline-Speichern fehlgeschlagen",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveTimeline" }, t),
 });
 
 export const assignEpicOwnerAction = createServerAction({
@@ -83,6 +83,5 @@ export const assignEpicOwnerAction = createServerAction({
       ownerId: input.ownerId === "" ? null : input.ownerId,
     }),
   revalidate: "epic",
-  mapError: (e) =>
-    e.kind === "not_found" ? "Epic nicht gefunden" : "Owner-Zuweisung fehlgeschlagen",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.assignOwner" }, t),
 });

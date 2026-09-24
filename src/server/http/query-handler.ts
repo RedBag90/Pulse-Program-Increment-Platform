@@ -5,6 +5,7 @@ import type { Action } from "@/server/auth/policies";
 import type { Principal } from "@/server/auth/principal";
 import { forbidden, notFound, unauthorized, unprocessable } from "@/server/http/problem";
 import { buildRequestContext } from "@/server/http/request-context";
+import { apiTranslate } from "@/server/http/api-locale";
 import type { PrismaClient } from "@/generated/prisma";
 
 // ---------------------------------------------------------------------------
@@ -69,6 +70,7 @@ export function createQueryHandler<TParams = Record<string, never>, TResult = un
     const built = await buildRequestContext({ includeRequestMeta: false });
     if (!built) return unauthorized();
     const { principal, db } = built;
+    const t = await apiTranslate(request);
 
     // Merge route params + searchParams into one plain object for validation.
     const routeParams = await ctx.params;
@@ -88,12 +90,12 @@ export function createQueryHandler<TParams = Record<string, never>, TResult = un
     // Optional application-level read authorization (in addition to RLS).
     if (readAction !== undefined && resource !== undefined) {
       const decision = authorize(readAction, resource(validatedParams, principal), principal);
-      if (!decision.allow) return forbidden(decision.reason);
+      if (!decision.allow) return forbidden(t(decision.reason ?? "errors.forbidden"));
       // Modul-Gate (Entitlement): Reads mit deklarierter Action folgen derselben
       // Modul-Zuordnung wie Mutationen; Reads ohne readAction bleiben RLS-only.
       const requiredModule = moduleForAction(readAction);
       if (requiredModule && !principal.enabledModules.includes(requiredModule)) {
-        return forbidden("Dieses Modul ist in diesem Bereich nicht verfügbar");
+        return forbidden(t("errors.moduleUnavailable"));
       }
     }
 

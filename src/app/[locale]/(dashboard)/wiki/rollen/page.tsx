@@ -80,7 +80,7 @@ function toClaim(claim: PlaybookClaim): RoleSheetClaim {
   // Nicht `module` nennen: Next verbietet die Zuweisung an diesen Namen.
   const key = claim.module ?? (claim.capability ? moduleForAction(claim.capability) : null);
   return {
-    text: claim.text,
+    textKey: claim.textKey,
     ...(key != null ? { module: key } : {}),
     ...(claim.practice != null ? { practice: claim.practice } : {}),
   };
@@ -93,7 +93,7 @@ function roleSheets(): RoleSheet[] {
     return {
       role,
       label: ROLE_LABELS[role],
-      mission: playbook.mission,
+      missionKey: playbook.missionKey,
       responsibilities: playbook.responsibilities.map(toClaim),
       handoffs: playbook.handoffs.map(toClaim),
     };

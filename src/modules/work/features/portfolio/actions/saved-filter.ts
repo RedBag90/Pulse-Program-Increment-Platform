@@ -37,7 +37,7 @@ export const savePortfolioFilterAction = createServerAction({
   }),
   service: (ctx, input) => saveSavedPortfolioFilter(ctx, input),
   revalidate: "portfolioFilter",
-  mapError: (e) => formatDomainError(e, { fallback: "Filter konnte nicht gespeichert werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveFilter" }, t),
 });
 
 /** Löscht einen gespeicherten Filter des aktuellen Nutzers. */
@@ -48,5 +48,5 @@ export const deletePortfolioFilterAction = createServerAction({
   parseFormData: (fd) => ({ id: String(fd.get("id") ?? "") }),
   service: (ctx, input) => deleteSavedPortfolioFilter(ctx, input),
   revalidate: "portfolioFilter",
-  mapError: (e) => formatDomainError(e, { fallback: "Filter konnte nicht gelöscht werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.deleteFilter" }, t),
 });

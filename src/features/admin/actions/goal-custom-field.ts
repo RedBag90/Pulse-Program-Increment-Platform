@@ -49,7 +49,7 @@ export const createCustomFieldDefAction = createServerAction({
       options: input.options ?? null,
     }),
   revalidate: "goalCustomFields",
-  mapError: (e) => formatDomainError(e, { fallback: "Feld konnte nicht angelegt werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.createField" }, t),
 });
 
 export const updateCustomFieldDefAction = createServerAction({
@@ -78,7 +78,7 @@ export const updateCustomFieldDefAction = createServerAction({
       options: input.options ?? null,
     }),
   revalidate: "goalCustomFields",
-  mapError: (e) => formatDomainError(e, { fallback: "Feld konnte nicht aktualisiert werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.updateField" }, t),
 });
 
 export const deleteCustomFieldDefAction = createServerAction({
@@ -88,5 +88,5 @@ export const deleteCustomFieldDefAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) => deleteCustomFieldDef(ctx, { id: input.id }),
   revalidate: "goalCustomFields",
-  mapError: (e) => formatDomainError(e, { fallback: "Feld konnte nicht gelöscht werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.deleteField" }, t),
 });

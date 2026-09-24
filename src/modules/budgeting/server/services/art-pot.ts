@@ -77,7 +77,7 @@ export async function setArtEpicAllocation(
 ): Promise<Result<{ remaining: number }>> {
   const mctx = toMutationContext(ctx);
   if (!Number.isFinite(input.amount) || input.amount < 0) {
-    return err({ kind: "conflict" as const, reason: "Betrag muss eine Zahl ≥ 0 sein." });
+    return err({ kind: "conflict" as const, reason: "budgeting.errors.amountNotANumber" });
   }
 
   const closed = potWindowClosedReason(input.cycleKey, now);
@@ -172,7 +172,8 @@ export async function setArtEpicAllocation(
       if (sum > pot) {
         return err({
           kind: "conflict" as const,
-          reason: `Die Summe überschreitet den Rahmen um ${Math.round(sum - pot)} €.`,
+          reason: "budgeting.errors.sumOverPot",
+          values: { over: Math.round(sum - pot) },
         });
       }
 
@@ -316,14 +317,15 @@ export async function saveArtEpicAllocations(
     });
     const ownWorkAmount = input.ownWork?.amount ?? (bestehend ? Number(bestehend.amount) : 0);
     if (!Number.isFinite(ownWorkAmount) || ownWorkAmount < 0) {
-      return err({ kind: "conflict" as const, reason: "Betrag muss eine Zahl ≥ 0 sein." });
+      return err({ kind: "conflict" as const, reason: "budgeting.errors.amountNotANumber" });
     }
 
     const sum = input.amounts.reduce((s, a) => s + a.amount, 0) + ownWorkAmount;
     if (sum > pot) {
       return err({
         kind: "conflict" as const,
-        reason: `Die Summe überschreitet den ART-Rahmen um ${Math.round(sum - pot)} €.`,
+        reason: "budgeting.errors.sumOverArtPot",
+        values: { over: Math.round(sum - pot) },
       });
     }
 

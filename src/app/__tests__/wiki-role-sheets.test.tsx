@@ -23,7 +23,7 @@ describe("Rollen-Blaetter", () => {
       const p = ROLE_PLAYBOOKS[r];
       return (
         p == null ||
-        p.mission.trim().length < 20 ||
+        p.missionKey.trim().length < 20 ||
         p.responsibilities.length === 0 ||
         (ROLE_LABELS[r] ?? "").length === 0
       );
@@ -34,8 +34,8 @@ describe("Rollen-Blaetter", () => {
   it("jede Uebergabe traegt Text — eine leere Zeile ist ein Loch im Zusammenspiel", () => {
     const leer = ALL_ROLES.flatMap((r) =>
       [...ROLE_PLAYBOOKS[r].responsibilities, ...ROLE_PLAYBOOKS[r].handoffs]
-        .filter((c) => c.text.trim().length < 10)
-        .map((c) => `${r}: ${c.text}`),
+        .filter((c) => c.textKey.trim().length < 10)
+        .map((c) => `${r}: ${c.textKey}`),
     );
     expect(leer).toEqual([]);
   });
@@ -48,7 +48,7 @@ describe("Rollen-Blaetter", () => {
       [...ROLE_PLAYBOOKS[r].responsibilities, ...ROLE_PLAYBOOKS[r].handoffs]
         .filter((c) => c.module == null && c.capability != null)
         .filter((c) => moduleForAction(c.capability!) == null)
-        .map((c) => `${r}: ${c.text} → ${c.capability}`),
+        .map((c) => `${r}: ${c.textKey} → ${c.capability}`),
     );
     expect(unaufloesbar).toEqual([]);
   });

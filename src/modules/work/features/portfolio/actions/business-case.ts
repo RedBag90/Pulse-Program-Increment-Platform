@@ -51,6 +51,10 @@ export const saveBusinessCaseAction = createServerAction({
     return saveBusinessCase(ctx, { epicId: epicId as EpicId, fields });
   },
   revalidate: "epic",
-  mapError: (e) =>
-    formatDomainError(e, { notFound: "Epic not found", fallback: "Failed to save business case" }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      { notFoundKey: "errors.action.epicNotFound2", fallbackKey: "errors.action.saveBusinessCase" },
+      t,
+    ),
 });

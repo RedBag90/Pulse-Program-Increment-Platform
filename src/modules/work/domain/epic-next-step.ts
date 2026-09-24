@@ -13,7 +13,7 @@ import type { GateStep } from "@/modules/work/domain/stage-gate";
 import type { SubStage } from "@/modules/work/domain/stage-gate";
 
 export type EpicNextStepCta =
-  | { kind: "link"; label: string; href: string }
+  | { kind: "link"; labelKey: string; href: string }
   /**
    * Der Reifegrad-Wechsel wird beantragt, nicht direkt vollzogen — die Seite
    * rendert dafür die Gate-Karte. Früher stand hier `impact-confirm` für einen
@@ -22,8 +22,10 @@ export type EpicNextStepCta =
   | { kind: "gate-request"; to: GateStep };
 
 export interface EpicNextStep {
-  title: string;
-  hint: string;
+  titleKey: string;
+  /** Platzhalter des Titels, wo er welche hat (nur „Features abschliessen"). */
+  titleValues?: Record<string, string | number>;
+  hintKey: string;
   cta?: EpicNextStepCta;
 }
 
@@ -89,23 +91,28 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
   // Abnehmern, nicht mehr beim Epic.
   if (openGateRequestTo != null) {
     return {
-      title: `Auf die Abnahme von ${openGateRequestTo} warten`,
-      hint: "Der Reifegrad-Wechsel ist beantragt. Die benannten Personen entscheiden als Nächstes; bis dahin sind die zugehörigen Inhalte gesperrt.",
-      cta: { kind: "link", label: "Zu meinen Freigaben", href: "/my-approvals" },
+      titleKey: "work.nextStep.waitingTitle",
+      titleValues: { gate: openGateRequestTo },
+      hintKey: "work.nextStep.waitingHint",
+      cta: { kind: "link", labelKey: "work.nextStep.toMyApprovals", href: "/my-approvals" },
     };
   }
 
   if (stageGate === "L0") {
     if (!hasHypothesis) {
       return {
-        title: "Benefit Hypothese ausarbeiten",
-        hint: "Beschreibe im Hypothese-Tab Problem, Zielgruppe, erwarteten Nutzen und Leading Indicators — damit die Abnehmer eine Entscheidungsgrundlage haben.",
-        cta: { kind: "link", label: "Zur Hypothese", href: tab("benefit-hypothesis") },
+        titleKey: "work.nextStep.hypothesisTitle",
+        hintKey: "work.nextStep.hypothesisHint",
+        cta: {
+          kind: "link",
+          labelKey: "work.nextStep.toHypothesis",
+          href: tab("benefit-hypothesis"),
+        },
       };
     }
     return {
-      title: "Wechsel auf L1 beantragen",
-      hint: "Inhalte sind da. Beantrage den Reifegrad-Wechsel auf L1 — seine Abnahme ist zugleich die Freigabe der Benefit-Hypothese.",
+      titleKey: "work.nextStep.requestL1Title",
+      hintKey: "work.nextStep.requestL1Hint",
       cta: { kind: "gate-request", to: "L1" },
     };
   }
@@ -116,22 +123,22 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
     // Case ausgearbeitet und freigegeben.
     if (selectedForAnalyzingAt == null) {
       return {
-        title: "Zur Analyse auswählen lassen",
-        hint: "Die Hypothese ist freigegeben. Beantrage die Auswahl zur Analyse — der Wertstrom entscheidet, was Aufwand bekommt. Der Reifegrad bleibt dabei L1.",
+        titleKey: "work.nextStep.analysisTitle",
+        hintKey: "work.nextStep.analysisHint",
         cta: { kind: "gate-request", to: "analysis" },
       };
     }
     if (hasBusinessCase) {
       return {
-        title: "Wechsel auf L2 beantragen",
-        hint: "Inhalte sind da. Beantrage den Wechsel auf L2 — die Abnahme durch die fünf Parteien ist die Freigabe des Business Case.",
+        titleKey: "work.nextStep.requestL2Title",
+        hintKey: "work.nextStep.requestL2Hint",
         cta: { kind: "gate-request", to: "L2" },
       };
     }
     return {
-      title: "Business Case ausarbeiten",
-      hint: "Detailliere den Business Case (Kosten, Nutzen, Annahmen, Risiken), bevor du ihn zur Freigabe einreichst.",
-      cta: { kind: "link", label: "Zum Business Case", href: tab("business-case") },
+      titleKey: "work.nextStep.businessCaseTitle",
+      hintKey: "work.nextStep.businessCaseHint",
+      cta: { kind: "link", labelKey: "work.nextStep.toBusinessCase", href: tab("business-case") },
     };
   }
 
@@ -140,24 +147,28 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
     // allein an der Unterschrift von VMO und Finance.
     return budgetAllocated || !budgetingEnabled
       ? {
-          title: "Investition abnehmen lassen",
-          hint: budgetingEnabled
-            ? "Budget ist alloziert. Beantrage den Wechsel auf L3 — damit ist die Investitionsentscheidung namentlich abgenommen."
-            : "Beantrage den Wechsel auf L3 — damit ist die Investitionsentscheidung namentlich abgenommen, von VMO und Finance.",
+          titleKey: "work.nextStep.investmentTitle",
+          hintKey: budgetingEnabled
+            ? "work.nextStep.investmentHintBudgeting"
+            : "work.nextStep.investmentHintPlain",
           cta: { kind: "gate-request", to: "L3" },
         }
       : {
-          title: "Budget allozieren",
-          hint: "Business Case ist freigegeben. Plane jetzt im Controlling Budget für dieses Epic ein, damit die Investition abgenommen werden kann.",
-          cta: { kind: "link", label: "Zum Controlling", href: "/budgeting/periods" },
+          titleKey: "work.nextStep.allocateTitle",
+          hintKey: "work.nextStep.allocateHint",
+          cta: {
+            kind: "link",
+            labelKey: "work.nextStep.toControlling",
+            href: "/budgeting/periods",
+          },
         };
   }
 
   if (stageGate === "L3") {
     return {
-      title: "Erstes Feature starten",
-      hint: "Die Investition ist abgenommen. Lege in den Deliverables Features an und starte das erste in einem PI — das Epic rückt damit auf L4.",
-      cta: { kind: "link", label: "Zu den Deliverables", href: tab("breakdown") },
+      titleKey: "work.nextStep.firstFeatureTitle",
+      hintKey: "work.nextStep.firstFeatureHint",
+      cta: { kind: "link", labelKey: "work.nextStep.toDeliverables", href: tab("breakdown") },
     };
   }
 
@@ -168,26 +179,24 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
     // ist ein eigener Antrag: „fertig gebaut" ist nicht „Nutzen nachgewiesen".
     if (subStage === "L4.2") {
       return {
-        title: "Impact bestätigen lassen",
-        hint: "Die Umsetzung ist als abgeschlossen bestätigt. Beantrage den Wechsel auf L5 — das Controlling nimmt ab, dass der prognostizierte Nutzen auf der Balance-Sheet bzw. an den KPIs angekommen ist.",
+        titleKey: "work.nextStep.impactTitle",
+        hintKey: "work.nextStep.impactHint",
         cta: { kind: "gate-request", to: "L5" },
       };
     }
     if (total > 0 && completed === total) {
       return {
-        title: "Umsetzung bestätigen lassen",
-        hint: "Alle Features sind abgeschlossen. Beantrage den Schritt auf L4.2 — damit wird die fertige Umsetzung abgenommen und das Ist-Datum gesetzt.",
+        titleKey: "work.nextStep.confirmTitle",
+        hintKey: "work.nextStep.confirmHint",
         cta: { kind: "gate-request", to: "L4.2" },
       };
     }
     return {
-      title:
-        total > 0 ? `Features abschließen (${completed}/${total})` : "Features anlegen und starten",
-      hint:
-        total > 0
-          ? "Die Implementierung läuft. Schließe die restlichen Features ab — danach lässt sich die fertige Umsetzung (L4.2) bestätigen."
-          : "Es sind noch keine Child-Features am Epic. Lege in den Deliverables welche an und starte sie.",
-      cta: { kind: "link", label: "Zu den Deliverables", href: tab("breakdown") },
+      titleKey:
+        total > 0 ? "work.nextStep.finishFeaturesTitle" : "work.nextStep.createFeaturesTitle",
+      ...(total > 0 ? { titleValues: { completed, total } } : {}),
+      hintKey: total > 0 ? "work.nextStep.finishFeaturesHint" : "work.nextStep.createFeaturesHint",
+      cta: { kind: "link", labelKey: "work.nextStep.toDeliverables", href: tab("breakdown") },
     };
   }
 

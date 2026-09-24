@@ -45,22 +45,24 @@ describe("LIFECYCLE_STEPS — Aufbau", () => {
   it("hat acht Abschnitte mit je einem Tor", () => {
     expect(LIFECYCLE_STEPS).toHaveLength(8);
     for (const s of LIFECYCLE_STEPS) {
-      expect(s.label.length).toBeGreaterThan(0);
-      expect(s.description.length).toBeGreaterThan(0);
-      expect(s.milestone.label.length).toBeGreaterThan(0);
+      expect(s.labelKey.length).toBeGreaterThan(0);
+      expect(s.descriptionKey.length).toBeGreaterThan(0);
+      expect(s.milestone.labelKey.length).toBeGreaterThan(0);
     }
   });
 
   it("nennt an jedem Tor, wer zeichnet", () => {
     // „VMO" ist drei Zeichen kurz — gefragt ist, dass jemand benannt **ist**.
-    for (const s of LIFECYCLE_STEPS) expect(s.milestone.approver.trim()).not.toBe("");
+    for (const s of LIFECYCLE_STEPS) expect(s.milestone.approverKey.trim()).not.toBe("");
   });
 
   it("hat genau ein Tor ohne Reifegrad-Wechsel", () => {
     // Die Erstsichtung — sie wird durch die Benennung des Owners erreicht, nicht
     // durch Antrag und Abnahme.
     const soft = LIFECYCLE_STEPS.filter((s) => s.milestone.step === null);
-    expect(soft.map((s) => s.milestone.label)).toEqual(["Erstsichtung"]);
+    expect(soft.map((s) => s.milestone.labelKey)).toEqual([
+      "work.lifecycle.detailing.milestoneLabel",
+    ]);
   });
 
   it("deckt sich Schlüssel für Schlüssel mit den Schätzfeldern", () => {

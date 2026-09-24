@@ -48,7 +48,7 @@ export async function setEpicSolutions(
 
     if (solutionIds.length > 0) {
       if (epic.valueStreamId == null) {
-        return err({ kind: "conflict" as const, reason: "Epic hat keinen Value Stream." });
+        return err({ kind: "conflict" as const, reason: "work.errors.epicWithoutValueStream" });
       }
       const valid = await tx.solution.findMany({
         where: {
@@ -62,7 +62,7 @@ export async function setEpicSolutions(
       if (valid.length !== solutionIds.length) {
         return err({
           kind: "conflict" as const,
-          reason: "Alle Solutions müssen zum Value Stream des Epics gehören.",
+          reason: "work.errors.solutionsOtherValueStream",
         });
       }
     }

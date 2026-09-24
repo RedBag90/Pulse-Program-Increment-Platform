@@ -47,7 +47,7 @@ export const quickAddFeatureWithDependencyAction = createServerAction({
       ...(input.edgeType !== undefined && { edgeType: input.edgeType }),
     }),
   revalidate: "feature",
-  mapError: (e) => formatDomainError(e, { fallback: "Feature konnte nicht angelegt werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.createFeature" }, t),
 });
 
 /**
@@ -85,5 +85,5 @@ export const insertFeatureBetweenAction = createServerAction({
       }),
     }),
   revalidate: "feature",
-  mapError: (e) => formatDomainError(e, { fallback: "Feature konnte nicht zwischengefügt werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.insertFeature" }, t),
 });

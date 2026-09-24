@@ -54,5 +54,5 @@ export const saveBreakdownLayoutAction = createServerAction({
       })),
     }),
   revalidate: "epic",
-  mapError: (e) => formatDomainError(e, { fallback: "Layout konnte nicht gespeichert werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveLayout" }, t),
 });

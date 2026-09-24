@@ -28,7 +28,16 @@ export function NextStepsBlock({ data }: { data: PortfolioOverview }) {
                 className="group inline-flex items-center gap-1.5 hover:text-primary"
               >
                 <ChevronRight className="size-4 text-muted-foreground transition-colors group-hover:text-primary" />
-                <span>{s.title}</span>
+                <span>
+                  {t(s.titleKey, {
+                    ...s.titleValues,
+                    // Die Werte, die selbst Schlüssel sind, werden hier erst zu
+                    // Wörtern — deshalb führt `NextStep` sie getrennt.
+                    ...Object.fromEntries(
+                      Object.entries(s.titleKeyValues).map(([name, key]) => [name, t(key)]),
+                    ),
+                  })}
+                </span>
               </Link>
             </li>
           ))}

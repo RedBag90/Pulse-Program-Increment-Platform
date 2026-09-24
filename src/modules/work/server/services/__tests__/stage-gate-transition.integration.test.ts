@@ -166,7 +166,12 @@ describe("requestGateTransition", () => {
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result) || result.error.kind !== "forbidden") return;
-    expect(result.error.reason).toContain("Business Case ist freigegeben");
+    // Die Zusicherung stand bis September 2026 auf „Business Case ist
+    // freigegeben" — einem Satz, den es nie gab: das L2-Kriterium heisst
+    // „ist ausgearbeitet", und der Schritt *ist* die Freigabe, kann sie also
+    // nicht voraussetzen. Der Fehler fiel nicht auf, weil dieser Lauf ohne
+    // Postgres gar nicht erst startet.
+    expect(result.error.reason).toContain("Business Case ist ausgearbeitet");
     expect(await auditCount()).toBe(before);
   });
 
@@ -189,7 +194,7 @@ describe("requestGateTransition", () => {
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result) || result.error.kind !== "conflict") return;
-    expect(result.error.reason).toContain("keine abnehmende Person");
+    expect(result.error.reason).toBe("work.errors.noApproverConfigured");
   });
 
   it("required=false rückt in einer Transaktion vor — mit genau einer Audit-Zeile", async () => {

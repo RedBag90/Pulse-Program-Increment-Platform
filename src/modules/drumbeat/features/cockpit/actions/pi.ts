@@ -10,6 +10,7 @@ import {
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import type { PiId } from "@/modules/core/kernel/domain/types";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 // PI-Erstellung ist seit dem Timeline-Rollout zentralisiert: PIs entstehen
 // ausschließlich aus `applyPiStandard(timelineId, standardId, year)` —
@@ -35,7 +36,7 @@ export const transitionPiAction = createServerAction({
   parseFormData: (fd) => ({ piId: fields(fd).string("piId"), artId: fields(fd).string("artId") }),
   service: (ctx, input) => startPi(ctx, { id: input.piId as PiId }),
   revalidate: "pi",
-  mapError: (e) => (e.kind === "conflict" ? e.reason : "PI konnte nicht gestartet werden"),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.startPi" }, t),
 });
 
 /**
@@ -51,7 +52,7 @@ export const advanceCadenceAction = createServerAction({
   service: (ctx, input) => advanceCadence(ctx, { piId: input.piId as PiId }),
   revalidate: "pi",
   foldWarnings: (v) => v.warnings,
-  mapError: (e) => (e.kind === "conflict" ? e.reason : "Fortschreiben fehlgeschlagen"),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.advanceCadence" }, t),
 });
 
 /**
@@ -86,12 +87,7 @@ export const setPiCapacityAction = createServerAction({
       capacityAmount: input.capacityAmount,
     }),
   revalidate: "pi",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "PI nicht gefunden"
-        : "Kapazität konnte nicht gespeichert werden",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveCapacity" }, t),
 });
 
 export const deletePiAction = createServerAction({
@@ -100,10 +96,5 @@ export const deletePiAction = createServerAction({
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
   service: (ctx, input) => deletePi(ctx, { id: input.id as PiId }),
   revalidate: "pi",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "PI not found"
-        : "Failed to delete PI",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.deletePi" }, t),
 });

@@ -63,7 +63,7 @@ export function RolePlaybookPanel({ role, tour, seenStepKeys }: Props) {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-heading text-lg font-semibold tracking-tight">{ROLE_LABELS[role]}</h2>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{tour.mission}</p>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t(tour.missionKey)}</p>
         </div>
         {tour.total > 0 && (
           <div className="flex items-center gap-3">
@@ -134,9 +134,9 @@ export function RolePlaybookPanel({ role, tour, seenStepKeys }: Props) {
                     href={s.route}
                     className="text-sm font-medium underline-offset-4 hover:underline"
                   >
-                    {s.title}
+                    {t(s.titleKey)}
                   </Link>
-                  <p className="text-sm text-muted-foreground">{s.body}</p>
+                  <p className="text-sm text-muted-foreground">{t(s.bodyKey)}</p>
                 </div>
               </li>
             ))}

@@ -3,7 +3,7 @@ import { Link } from "@/i18n/navigation";
 import { SignUpForm } from "@/features/auth/components/sign-up-form";
 
 export default function SignUpPage() {
-  const t = useTranslations("auth");
+  const t = useTranslations();
 
   return (
     <>
@@ -13,9 +13,9 @@ export default function SignUpPage() {
       </p>
       <SignUpForm />
       <p className="mt-4 text-center text-sm text-muted-foreground">
-        {t("alreadyAccount")}{" "}
+        {t("auth.alreadyAccount")}{" "}
         <Link href="/sign-in" className="font-medium text-primary hover:underline">
-          {t("signIn")}
+          {t("auth.signIn")}
         </Link>
       </p>
     </>

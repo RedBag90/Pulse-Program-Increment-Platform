@@ -71,7 +71,7 @@ export const suggestIssueAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: createRiskService(suggestIssue),
   revalidate: "risk",
-  mapError: (e) => formatDomainError(e, { fallback: "Vorschlag fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.suggest" }, t),
 });
 
 export const documentIssueAction = createServerAction({
@@ -81,7 +81,7 @@ export const documentIssueAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: createRiskService(documentIssue),
   revalidate: "risk",
-  mapError: (e) => formatDomainError(e, { fallback: "Dokumentation fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.document" }, t),
 });
 
 // ── reparent (bundle under a head-issue) ───────────────────────────────────────
@@ -92,7 +92,7 @@ export const reparentIssueAction = createServerAction({
   service: (ctx, input) =>
     reparentIssue(ctx, { id: input.id, newParentId: input.newParentId ?? null }),
   revalidate: "risk",
-  mapError: (e) => formatDomainError(e, { fallback: "Umhängen fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.reparent" }, t),
 });
 
 // ── review (risk suggestions) ──────────────────────────────────────────────────
@@ -102,7 +102,7 @@ export const reviewIssueAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) => reviewIssue(ctx, { id: input.id, decision: input.decision }),
   revalidate: "risk",
-  mapError: (e) => formatDomainError(e, { fallback: "Review fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.review" }, t),
 });
 
 // ── edit / owner / roam / mitigation / reassess ────────────────────────────────
@@ -129,7 +129,7 @@ export const updateIssueAction = createServerAction({
       targetResolutionDate: input.targetResolutionDate,
     }),
   revalidate: "risk",
-  mapError: (e) => formatDomainError(e, { fallback: "Aktualisierung fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.update" }, t),
 });
 
 export const assignIssueOwnerAction = createServerAction({
@@ -139,7 +139,7 @@ export const assignIssueOwnerAction = createServerAction({
   service: (ctx, input) =>
     assignIssueOwner(ctx, { id: input.id, ownerId: emptyToUndef(input.ownerId) ?? null }),
   revalidate: "risk",
-  mapError: (e) => formatDomainError(e, { fallback: "Owner-Zuweisung fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.assignOwner" }, t),
 });
 
 export const setIssueRoamAction = createServerAction({
@@ -157,7 +157,7 @@ export const setIssueRoamAction = createServerAction({
       roamRationale: input.roamRationale,
     }),
   revalidate: "risk",
-  mapError: (e) => formatDomainError(e, { fallback: "ROAM fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.roam" }, t),
 });
 
 /** Bulk ROAM — drives the unified register's bulk action bar (cap 50). */
@@ -173,7 +173,7 @@ export const setIssueRoamBatchAction = createServerAction({
     service: (ctx, id, rest) => setIssueRoam(ctx, { id, roamStatus: rest.roamStatus }),
   },
   revalidate: "risk",
-  mapError: (e) => formatDomainError(e, { fallback: "ROAM-Bulk fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.roamBulk" }, t),
 });
 
 export const addIssueMitigationAction = createServerAction({
@@ -184,7 +184,7 @@ export const addIssueMitigationAction = createServerAction({
   service: (ctx, input) =>
     addIssueMitigation(ctx, { issueId: input.issueId, description: input.description }),
   revalidate: "risk",
-  mapError: (e) => formatDomainError(e, { fallback: "Maßnahme fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.action" }, t),
 });
 
 export const removeIssueMitigationAction = createServerAction({
@@ -193,7 +193,7 @@ export const removeIssueMitigationAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) => removeIssueMitigation(ctx, { id: input.id }),
   revalidate: "risk",
-  mapError: (e) => formatDomainError(e, { fallback: "Entfernen fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.remove" }, t),
 });
 
 export const reassessIssueAction = createServerAction({
@@ -214,7 +214,7 @@ export const reassessIssueAction = createServerAction({
       note: emptyToUndef(input.note),
     }),
   revalidate: "risk",
-  mapError: (e) => formatDomainError(e, { fallback: "Neubewertung fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.reassess" }, t),
 });
 
 // ── delivery lifecycle (impediment kind) ───────────────────────────────────────
@@ -226,7 +226,7 @@ export const linkIssueToInitiativeAction = createServerAction({
   service: (ctx, input) =>
     linkIssueToInitiative(ctx, { id: input.id, initiativeId: input.initiativeId }),
   revalidate: "risk",
-  mapError: (e) => formatDomainError(e, { fallback: "Verknüpfung fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.link" }, t),
 });
 
 export const deleteIssueAction = createServerAction({
@@ -235,7 +235,7 @@ export const deleteIssueAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) => deleteIssue(ctx, { id: input.id }),
   revalidate: "risk",
-  mapError: (e) => formatDomainError(e, { fallback: "Löschen fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.deleteFailed" }, t),
 });
 
 export const setIssuePrefixAction = createServerAction({
@@ -244,5 +244,5 @@ export const setIssuePrefixAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) => setIssuePrefix(ctx, { prefix: input.prefix }),
   revalidate: "risk",
-  mapError: (e) => formatDomainError(e, { fallback: "Präfix-Änderung fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.changePrefix" }, t),
 });

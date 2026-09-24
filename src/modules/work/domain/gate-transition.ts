@@ -1,3 +1,4 @@
+import type { Translate } from "@/i18n/translate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 import {
@@ -261,6 +262,15 @@ export interface PlanGateRequestInput {
   actorId: string;
   hasOpenRequest: boolean;
   now: Date;
+  /**
+   * Der Übersetzer für die **eine** Meldung, die diese Funktion selbst
+   * formuliert: welche Kriterien einen Wechsel blockieren. Die übrigen
+   * `reason`-Texte dieser Datei sind noch deutsch — sie gehören zu Zug 5, der
+   * alle Service-Meldungen gemeinsam nimmt. Diese eine musste vorziehen,
+   * weil die Kriterien mit Zug 4 auf Schlüssel umgestellt wurden und sonst
+   * `work.gateCriteria.…` im Fehlertext stünde.
+   */
+  t: Translate;
 }
 
 /**
@@ -272,7 +282,7 @@ export interface PlanGateRequestInput {
  * der Nutzer immer den grundlegendsten Grund genannt statt eines Folgefehlers.
  */
 export function planGateRequest(input: PlanGateRequestInput): Result<GateRequestPlan> {
-  const { facts, to, policy, approvers, actorId, hasOpenRequest, now } = input;
+  const { facts, to, policy, approvers, actorId, hasOpenRequest, now, t } = input;
   const from = currentGateStep(facts);
 
   if (!isGateStep(to)) {
@@ -284,7 +294,8 @@ export function planGateRequest(input: PlanGateRequestInput): Result<GateRequest
   if (from === to) {
     return err({
       kind: "conflict" as const,
-      reason: `Das Epic steht bereits auf ${to}.`,
+      reason: "work.errors.alreadyAtGate",
+      values: { gate: to },
     });
   }
   // Ein Antrag geht immer genau einen Schritt vorwärts. Rückwärts ist kein
@@ -302,12 +313,12 @@ export function planGateRequest(input: PlanGateRequestInput): Result<GateRequest
   if (hasOpenRequest) {
     return err({
       kind: "conflict" as const,
-      reason: "Für dieses Epic ist bereits ein Reifegrad-Wechsel beantragt.",
+      reason: "work.errors.transitionPending",
     });
   }
 
   const readiness = gateReadiness(facts, to);
-  const blocked = readinessBlockReason(readiness);
+  const blocked = readinessBlockReason(readiness, t);
   if (blocked) {
     return err({ kind: "forbidden" as const, reason: blocked });
   }
@@ -330,7 +341,8 @@ export function planGateRequest(input: PlanGateRequestInput): Result<GateRequest
   if (approvers.length === 0) {
     return err({
       kind: "conflict" as const,
-      reason: `Für den Wechsel nach ${to} ist keine abnehmende Person hinterlegt — bitte zuerst die Abnehmer des Wertstroms konfigurieren.`,
+      reason: "work.errors.noApproverConfigured",
+      values: { gate: to },
     });
   }
 
@@ -445,20 +457,22 @@ export function planGateRevert(
   if (reason.trim().length === 0) {
     return err({
       kind: "conflict" as const,
-      reason: "Eine Rückstufung verlangt eine Begründung.",
+      reason: "work.errors.demotionNeedsReason",
     });
   }
   if (GATE_STEPS.indexOf(to) >= GATE_STEPS.indexOf(from)) {
     return err({
       kind: "conflict" as const,
-      reason: `Eine Korrektur geht rückwärts — ${to} liegt nicht vor ${from}.`,
+      reason: "work.errors.correctionGoesBack",
+      values: { from, to },
     });
   }
   if (!isValidStepTransition(from, to)) {
     return err({
       kind: "hierarchy_violation" as const,
       violatedConstraint: "stage_gate_transition",
-      detail: `Kein Wechsel von ${from} nach ${to} — nur ein Schritt je Korrektur.`,
+      detail: "work.errors.oneStepPerCorrection",
+      values: { from, to },
     });
   }
 

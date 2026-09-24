@@ -348,7 +348,7 @@ export async function reparentGoalNode(
       ) {
         return err({
           kind: "conflict" as const,
-          reason: "Ein Ziel kann nicht unter sich selbst oder einen Nachfahren verschoben werden.",
+          reason: "goals.errors.cannotMoveUnderSelf",
         });
       }
 

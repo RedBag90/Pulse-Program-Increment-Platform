@@ -35,7 +35,7 @@ export const createDependencyAction = createServerAction({
       type: input.type,
     }),
   revalidate: "dependency",
-  mapError: (e) => formatDomainError(e, { fallback: "Failed to link dependency" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.linkDependency" }, t),
 });
 
 /**
@@ -59,7 +59,7 @@ export const linkDependencyAction = createServerAction({
       type: input.type,
     }),
   revalidate: "dependency",
-  mapError: (e) => formatDomainError(e, { fallback: "Failed to link dependency" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.linkDependency" }, t),
 });
 
 /**
@@ -81,7 +81,7 @@ export const unlinkDependencyAction = createServerAction({
       type: input.type,
     }),
   revalidate: "dependency",
-  mapError: (e) => formatDomainError(e, { fallback: "Failed to unlink dependency" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.unlinkDependency" }, t),
 });
 
 /**
@@ -107,8 +107,8 @@ export const changeDependencyTypeAction = createServerAction({
       toType: input.toType,
     }),
   revalidate: "dependency",
-  mapError: (e) =>
-    formatDomainError(e, { fallback: "Abhängigkeits-Typ konnte nicht geändert werden" }),
+  mapError: (e, t) =>
+    formatDomainError(e, { fallbackKey: "errors.action.changeDependencyType" }, t),
 });
 
 /**
@@ -130,5 +130,5 @@ export const unlinkDependencyBatchAction = createServerAction({
     service: (ctx, id) => unlinkDependencyById(ctx, { id }),
   },
   revalidate: "dependency",
-  mapError: (e) => formatDomainError(e, { fallback: "Abhängigkeit konnte nicht gelöst werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.resolveDependency" }, t),
 });

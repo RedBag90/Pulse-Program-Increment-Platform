@@ -64,8 +64,8 @@ describe("GATE_CRITERIA_DOC", () => {
     };
     const doc = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L2");
     const evaluated = gateReadiness(facts, "L2");
-    expect(doc?.criteria.map((c) => [c.label, c.blocking])).toEqual(
-      evaluated.criteria.map((c) => [c.label, c.blocking]),
+    expect(doc?.criteria.map((c) => [c.labelKey, c.blocking])).toEqual(
+      evaluated.criteria.map((c) => [c.labelKey, c.blocking]),
     );
   });
 
@@ -73,8 +73,8 @@ describe("GATE_CRITERIA_DOC", () => {
     const l3 = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L2");
     const l4 = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L4");
     // Die Owner-Nennung ist auch hier nur beratend — blockierend ist der Inhalt.
-    expect(l3?.criteria.filter((c) => c.blocking).map((c) => c.label)).toEqual([
-      "Business Case ist ausgearbeitet",
+    expect(l3?.criteria.filter((c) => c.blocking).map((c) => c.labelKey)).toEqual([
+      "work.gateCriteria.businessCaseDrafted.label",
     ]);
     expect(l4?.criteria.some((c) => c.blocking)).toBe(false);
   });

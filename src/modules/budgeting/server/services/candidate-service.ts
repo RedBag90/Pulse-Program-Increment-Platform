@@ -136,9 +136,8 @@ function assertNotArtEpic(
   if (classifyEpic(epic, basis.thresholdFor(epic.valueStreamId)).epicClass !== "art") return null;
   return err({
     kind: "conflict" as const,
-    reason:
-      `„${epic.title}" ist ein ART-Epic und wird aus dem ART-Rahmen seines ARTs ` +
-      "finanziert — es steht deshalb nicht auf der PB-Liste.",
+    reason: "budgeting.errors.artEpicNotOnList",
+    values: { title: epic.title },
   });
 }
 
@@ -158,7 +157,7 @@ export async function addEpicCandidate(
     if (round.status !== "draft") {
       return err({
         kind: "conflict" as const,
-        reason: "Die PB-Liste ist nur im Status draft kuratierbar.",
+        reason: "budgeting.errors.listDraftOnly",
       });
     }
 
@@ -188,8 +187,7 @@ export async function addEpicCandidate(
     if (!isPbEligible(epic)) {
       return err({
         kind: "conflict" as const,
-        reason:
-          "Epic ist noch nicht budgeting-reif — es braucht eine freigegebene Benefit-Hypothese oder einen freigegebenen Lean Business Case.",
+        reason: "budgeting.errors.epicNotReadyEither",
       });
     }
 
@@ -251,7 +249,7 @@ export async function removeCandidate(
     if (row.round.status !== "draft") {
       return err({
         kind: "conflict" as const,
-        reason: "Die PB-Liste ist nur im Status draft kuratierbar.",
+        reason: "budgeting.errors.listDraftOnly",
       });
     }
     await tx.budgetCandidate.delete({ where: { id: input.id } });

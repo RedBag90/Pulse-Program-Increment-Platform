@@ -45,7 +45,7 @@ export function assertAssignedApprover(
   if (row.approverUserId !== actorId) {
     return err({
       kind: "conflict" as const,
-      reason: "Nur der zugewiesene Approver darf diese Freigabe entscheiden",
+      reason: "work.errors.onlyAssignedApprover",
     });
   }
   return ok(undefined);

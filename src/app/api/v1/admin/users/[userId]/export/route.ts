@@ -5,18 +5,22 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { exportUserData } from "@/server/services/gdpr";
 import { emitAuditEvent } from "@/server/audit/emit";
 import { unauthorized, forbidden } from "@/server/http/problem";
+import { apiTranslate } from "@/server/http/api-locale";
 import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 
 /** GDPR data export — returns everything Pulse holds about a user as a JSON download. */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   ctx: { params: Promise<{ userId: string }> },
 ): Promise<Response> {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return unauthorized();
 
   const decision = authorize("admin.users.read", { tenantId: principal.tenantId }, principal);
-  if (!decision.allow) return forbidden(decision.reason);
+  if (!decision.allow) {
+    const t = await apiTranslate(request);
+    return forbidden(t(decision.reason ?? "errors.forbidden"));
+  }
 
   const { userId } = await ctx.params;
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });

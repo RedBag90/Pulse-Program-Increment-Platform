@@ -35,7 +35,7 @@ export const acknowledgeRoleAction = createServerAction({
   parseFormData: (fd) => ({ role: fields(fd).string("role") }),
   service: (ctx, input) => acknowledgeRole(ctx, input),
   revalidate: "roleOnboarding",
-  mapError: () => "Die Rolle konnte nicht bestätigt werden",
+  mapError: (_e, t) => t("errors.action.confirmRole"),
 });
 
 /**
@@ -55,7 +55,7 @@ export const markStepsSeenAction = createServerAction({
     stepKeys: fd.getAll("stepKeys").map(String),
   }),
   service: (ctx, input) => markStepsSeen(ctx, input),
-  mapError: () => "Der Tour-Fortschritt konnte nicht gespeichert werden",
+  mapError: (_e, t) => t("errors.action.saveTourProgress"),
 });
 
 /**
@@ -78,7 +78,7 @@ export const dismissTourStepsAction = createServerAction({
     stepKeys: fd.getAll("stepKeys").map(String),
   }),
   service: (ctx, input) => dismissTourSteps(ctx, input),
-  mapError: () => "Der Hinweis konnte nicht ausgeblendet werden",
+  mapError: (_e, t) => t("errors.action.hideHint"),
 });
 
 /** Tour zurücksetzen (Wiedereinstieg über `/meine-rolle`). */
@@ -89,5 +89,5 @@ export const restartTourAction = createServerAction({
   parseFormData: (fd) => ({ role: fields(fd).string("role") }),
   service: (ctx, input) => restartTour(ctx, input),
   revalidate: "roleOnboarding",
-  mapError: () => "Die Tour konnte nicht zurückgesetzt werden",
+  mapError: (_e, t) => t("errors.action.resetTour"),
 });

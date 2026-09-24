@@ -1,5 +1,6 @@
 "use server";
 
+import type { Translate } from "@/i18n/translate";
 import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
@@ -30,8 +31,10 @@ const solutionField = (f: ReturnType<typeof fields>) => f.nonEmptyString("soluti
 // `authorizedInService`: die Finance-Partei trägt `rtb_item.manage` nicht und
 // wurde hier sonst abgewiesen, bevor ihr Bypass im Service greifen konnte.
 const tenantResource = (_i: unknown, p: { tenantId: string }) => ({ tenantId: p.tenantId });
-const err = (e: Parameters<typeof formatDomainError>[0]) =>
-  e.kind === "forbidden" ? e.reason : formatDomainError(e, { fallback: "Aktion fehlgeschlagen" });
+const err = (e: Parameters<typeof formatDomainError>[0], t: Translate) =>
+  e.kind === "forbidden"
+    ? e.reason
+    : formatDomainError(e, { fallbackKey: "errors.action.actionFailed" }, t);
 
 /**
  * Die Aufteilung des Zuspruchs auf die Positionen des Wertstroms.

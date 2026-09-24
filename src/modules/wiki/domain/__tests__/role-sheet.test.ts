@@ -25,18 +25,18 @@ const SHEETS: RoleSheet[] = [
   {
     role: "portfolio_manager",
     label: "Portfolio Manager",
-    mission: "Du fuehrst das Portfolio.",
+    missionKey: "Du fuehrst das Portfolio.",
     responsibilities: [
-      { text: "Ohne Tor." },
-      { text: "Nur mit Budgeting.", module: "budgeting" },
-      { text: "Nur mit Stage Gates.", practice: "stageGates" },
+      { textKey: "Ohne Tor." },
+      { textKey: "Nur mit Budgeting.", module: "budgeting" },
+      { textKey: "Nur mit Stage Gates.", practice: "stageGates" },
     ],
-    handoffs: [{ text: "An den RTE." }],
+    handoffs: [{ textKey: "An den RTE." }],
   },
   {
     role: "viewer",
     label: "Viewer",
-    mission: "Du liest mit.",
+    missionKey: "Du liest mit.",
     responsibilities: [],
     handoffs: [],
   },
@@ -56,8 +56,8 @@ describe("visibleRoleSheets", () => {
 
   it("ein Satz fuer ein nicht gebuchtes Modul faellt weg", () => {
     const out = visibleRoleSheets(SHEETS, ctx({ enabledModules: ["core", "work"] }));
-    expect(out[0]!.responsibilities.map((c) => c.text)).not.toContain("Nur mit Budgeting.");
-    expect(out[0]!.responsibilities.map((c) => c.text)).toContain("Ohne Tor.");
+    expect(out[0]!.responsibilities.map((c) => c.textKey)).not.toContain("Nur mit Budgeting.");
+    expect(out[0]!.responsibilities.map((c) => c.textKey)).toContain("Ohne Tor.");
   });
 
   it("ein Satz fuer eine abgeschaltete Practice faellt weg", () => {
@@ -65,12 +65,12 @@ describe("visibleRoleSheets", () => {
       SHEETS,
       ctx({ practices: { ...DEFAULT_PRACTICES, stageGates: false } }),
     );
-    expect(out[0]!.responsibilities.map((c) => c.text)).not.toContain("Nur mit Stage Gates.");
+    expect(out[0]!.responsibilities.map((c) => c.textKey)).not.toContain("Nur mit Stage Gates.");
   });
 
   it("der Auftrag bleibt immer stehen — er ist modulneutral", () => {
     const out = visibleRoleSheets(SHEETS, ctx({ enabledModules: ["core"] }));
-    expect(out[0]!.mission).toBe("Du fuehrst das Portfolio.");
+    expect(out[0]!.missionKey).toBe("Du fuehrst das Portfolio.");
   });
 });
 

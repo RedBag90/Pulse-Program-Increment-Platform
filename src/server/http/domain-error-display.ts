@@ -1,75 +1,95 @@
 import type { DomainError } from "@/modules/core/kernel/domain/errors";
+import type { Translate } from "@/i18n/translate";
 
 /**
  * Per-action overrides for `formatDomainError`. Each field replaces the
  * default for one error shape; everything else falls through.
+ *
+ * **Die Felder tragen Katalog-Schlüssel, keine Sätze** (ADR-0024): eine
+ * Fehlermeldung ist Oberfläche wie jede andere, nur erscheint sie an einem
+ * schlechteren Tag.
  */
 export interface DisplayOverrides {
-  /** Replaces the default message when the error is `not_found`. */
-  notFound?: string;
-  /** Replaces `e.reason` when the error is `conflict`. */
-  conflict?: string;
-  /** Used when the error kind has no specific default (catch-all). */
-  fallback?: string;
-}
-
-const GERMAN_RESOURCE: Record<string, string> = {
-  Initiative: "Initiative",
-  Epic: "Epic",
-  Feature: "Feature",
-  Story: "Story",
-  Task: "Aufgabe",
-  ProgramIncrement: "Program Increment",
-  Pi: "Program Increment",
-  Sprint: "Sprint",
-  Team: "Team",
-  Art: "ART",
-  ValueStream: "Wertstrom",
-  Timeline: "Timeline",
-  PiStandard: "PI-Standard",
-  Impediment: "Impediment",
-  Dependency: "Abhängigkeit",
-  BudgetAllocation: "Budget-Zuteilung",
-  TransformationGoal: "Ziel",
-  KpiValue: "KPI-Wert",
-  Tenant: "Mandant",
-};
-
-function localizeResourceType(rt: string): string {
-  return GERMAN_RESOURCE[rt] ?? rt;
+  /** Ersetzt die Vorgabe bei `not_found`. */
+  notFoundKey?: string;
+  /** Ersetzt `e.reason` bei `conflict`. */
+  conflictKey?: string;
+  /** Ersetzt `e.reason` bei `forbidden`. */
+  forbiddenKey?: string;
+  /** Für Fehlerarten ohne eigene Vorgabe (Auffangfall). */
+  fallbackKey?: string;
 }
 
 /**
- * Maps a `DomainError` to a user-facing string. The seam every action
- * action-factory used to re-implement inline now lives here exactly once.
+ * Macht aus einem `DomainError` einen Satz für den Nutzer. Die Naht, die jede
+ * Action-Fabrik früher für sich selbst erfand, liegt hier genau einmal.
  *
- * Defaults (no overrides):
- *   - `conflict`           → `e.reason` (the domain message)
- *   - `not_found`          → `"<Resource> nicht gefunden"` (German label table)
- *   - `forbidden`          → `"Keine Berechtigung"`
- *   - `tenant_mismatch`    → `"Mandantenzuordnung passt nicht"`
- *   - `validation`         → `"Eingabe ungültig"` (rare — field errors normally surface separately)
- *   - `hierarchy_violation` → `e.detail`
+ * Vorgaben (ohne Overrides):
+ *   - `conflict`            → `e.reason`, übersetzt
+ *   - `not_found`           → `"<Ressource> nicht gefunden"`
+ *   - `forbidden`           → `e.reason`, übersetzt
+ *   - `tenant_mismatch`     → `errors.tenantMismatch`
+ *   - `validation`          → `errors.validation` (selten — Feldfehler kommen eigens)
+ *   - `hierarchy_violation` → `e.detail`, übersetzt
+ *   - `pyramid_violated`    → `errors.pyramidViolated`
  *
- * Per-action overrides allow Custom-coping where the default copy is too
- * generic (e.g. "Story nicht gefunden" reads better than "Feature nicht gefunden"
- * for a story action that fails to find its parent Feature).
+ * **`forbidden` zeigt seinen Grund, wie `conflict` auch.** Bis Zug 5 warf
+ * diese Naht `e.reason` bei `forbidden` weg und zeigte stattdessen einen
+ * Einheitssatz — weshalb sich drei Actions eine eigene Verzweigung gebaut
+ * hatten, nur um den Grund sichtbar zu machen. Die Sätze dort sind geschrieben,
+ * nicht generiert („Nur der Sprecher darf die Verteilung einreichen."), und
+ * einem Nutzer zu sagen, *warum* er nicht darf, ist die halbe Meldung.
+ *
+ * Eine Ausnahme trug das mit: `authorizeResource` fiel auf
+ * `Principal <id> lacks permission for <action>` zurück — technisch, englisch
+ * und nichts, was ein Nutzer lesen soll. Die Stelle legt seither
+ * `errors.forbidden` ab; der Einheitssatz steht damit dort, wo er entsteht,
+ * statt als Vorgabe einer Anzeigefunktion.
+ *
+ * **`reason` und `detail` tragen Schlüssel.** Die Services legen dort seit
+ * Zug 5 `work.errors.…` ab statt eines deutschen Satzes; `t` löst ihn hier
+ * auf. Ein Wert, den der Katalog nicht kennt, kommt unverändert zurück — das
+ * ist die Eigenschaft, die den Umbau überhaupt stückweise möglich gemacht hat.
  */
-export function formatDomainError(e: DomainError, overrides: DisplayOverrides = {}): string {
+/**
+ * **`resourceType` wird kleingeschrieben nachgeschlagen.**
+ *
+ * Die Services schreiben denselben Typ in drei Fassungen — `ART`, `Art` und
+ * `art`, dazu `EPIC` neben `Epic`; 45 Schreibweisen für 34 Ressourcen. Der
+ * Katalog trug nur eine davon, also rendert `next-intl` bei den übrigen still
+ * den Schlüssel: „errors.resource.art nicht gefunden". Solange die Services
+ * uneinheitlich sind, gleicht das hier die Schreibweise an, statt die
+ * Unordnung in den Katalog zu kopieren.
+ */
+export const resourceKey = (resourceType: string): string =>
+  `errors.resource.${resourceType.toLowerCase()}`;
+
+export function formatDomainError(
+  e: DomainError,
+  overrides: DisplayOverrides = {},
+  t: Translate,
+): string {
+  const uebersetzt = (schluessel: string | undefined, vorgabe: string): string =>
+    t(schluessel ?? vorgabe);
+
   switch (e.kind) {
     case "conflict":
-      return overrides.conflict ?? e.reason;
+      return t(overrides.conflictKey ?? e.reason, e.values);
     case "not_found":
-      return overrides.notFound ?? `${localizeResourceType(e.resourceType)} nicht gefunden`;
+      return overrides.notFoundKey
+        ? t(overrides.notFoundKey)
+        : t("errors.notFound", { resource: t(resourceKey(e.resourceType)) });
     case "forbidden":
-      return overrides.fallback ?? "Keine Berechtigung";
+      return t(overrides.forbiddenKey ?? e.reason, e.values);
     case "tenant_mismatch":
-      return overrides.fallback ?? "Mandantenzuordnung passt nicht";
+      return overrides.fallbackKey
+        ? t(overrides.fallbackKey)
+        : t("errors.tenantMismatch", e.values);
     case "validation":
-      return overrides.fallback ?? "Eingabe ungültig";
+      return uebersetzt(overrides.fallbackKey, "errors.validation");
     case "hierarchy_violation":
-      return overrides.fallback ?? e.detail;
+      return overrides.fallbackKey ? t(overrides.fallbackKey) : t(e.detail, e.values);
     case "pyramid_violated":
-      return overrides.fallback ?? "KPI ist bereits an einen anderen Key Result gebunden";
+      return uebersetzt(overrides.fallbackKey, "errors.pyramidViolated");
   }
 }

@@ -19,7 +19,21 @@ export interface AuthResource {
 
 export interface AuthorizationDecision {
   allow: boolean;
+  /**
+   * Katalog-Schlüssel für das, was der Nutzer lesen soll. Bewusst knapp: wer
+   * ein Recht nicht hat, erfährt das — nicht, welches Recht es war.
+   */
   reason?: string;
+  /**
+   * Was beim Nachsehen hilft: Principal und Aktion im Klartext.
+   *
+   * Bis September 2026 stand dieser Satz in `reason` — und `reason` ging an
+   * vier Stellen ungefiltert in den Rumpf einer 403-Antwort. Eine abgelehnte
+   * Anfrage verriet damit die Principal-Kennung und den internen Namen des
+   * Rechts. Das Feld ist für Protokolle da und darf eine HTTP-Antwort nie
+   * verlassen; deshalb steht es getrennt.
+   */
+  diagnostic?: string;
 }
 
 /**
@@ -104,7 +118,8 @@ export function authorize(
 
   return {
     allow: false,
-    reason: `Principal ${principal.id} lacks permission for ${action}`,
+    reason: "errors.forbidden",
+    diagnostic: `Principal ${principal.id} lacks permission for ${action}`,
   };
 }
 
@@ -162,8 +177,10 @@ export function authorizeResource(
 ): Result<void> {
   const decision = authorize(action, resource, principal);
   if (decision.allow) return ok(undefined);
-  return err({
-    kind: "forbidden" as const,
-    reason: decision.reason ?? `Principal ${principal.id} lacks permission for ${action}`,
-  });
+  // `decision.reason` ist ein Katalog-Schlüssel, wo die Richtlinie einen
+  // gesetzt hat; sonst der Einheitssatz. Der technische Rückfall von früher
+  // (`Principal <id> lacks permission for <action>`) stand am Ende in der
+  // Oberfläche **und** im `detail` der REST-Antwort — eine Kennung und ein
+  // Rechtename, die niemanden ausserhalb dieses Moduls etwas angehen.
+  return err({ kind: "forbidden" as const, reason: decision.reason ?? "errors.forbidden" });
 }

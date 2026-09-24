@@ -1,3 +1,4 @@
+import type { MessageValues } from "@/modules/core/kernel/domain/errors";
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
@@ -5,7 +6,7 @@ import { getStructureTree } from "@/modules/core/org/server/services/structure";
 import { getActiveTargetModel } from "@/server/services/target-model";
 import {
   effectivePractices,
-  PRACTICE_LABELS,
+  PRACTICE_KEYS,
   type Practice,
 } from "@/modules/core/kernel/domain/operating-model";
 
@@ -17,7 +18,8 @@ import {
 
 export interface GapDimension {
   key: string;
-  label: string;
+  /** Katalog-Schlüssel, kein Wort — die Fläche übersetzt (ADR-0024, Regel 2). */
+  labelKey: string;
   ist: number;
   /** Target value; `null` means this dimension is not part of the target. */
   soll: number | null;
@@ -33,9 +35,9 @@ export interface StructureGap {
   overallProgress: number;
 }
 
-function dimension(key: string, label: string, ist: number, soll: number | null): GapDimension {
+function dimension(key: string, labelKey: string, ist: number, soll: number | null): GapDimension {
   const progress = soll == null || soll === 0 ? 1 : Math.min(1, ist / soll);
-  return { key, label, ist, soll, progress };
+  return { key, labelKey, ist, soll, progress };
 }
 
 /** Compares structure counts (Wertströme / ARTs / Teams) against the Soll. */
@@ -52,8 +54,8 @@ export async function computeStructureGap(
   const arts = tree.flatMap((vs) => vs.arts);
 
   const dimensions = [
-    dimension("valueStreams", "Wertströme", tree.length, model.targetValueStreams),
-    dimension("arts", "ARTs", arts.length, model.targetArtsTotal),
+    dimension("valueStreams", "structure.valueStreams", tree.length, model.targetValueStreams),
+    dimension("arts", "structure.arts", arts.length, model.targetArtsTotal),
   ];
 
   const withTarget = dimensions.filter((d) => d.soll != null);
@@ -67,9 +69,12 @@ export async function computeStructureGap(
 /** Per-practice adoption rate (0..1) — is an enabled practice actually used? */
 export interface AdoptionSignal {
   key: Practice;
-  label: string;
+  /** Katalog-Schlüssel, kein Wort. */
+  labelKey: string;
   value: number;
-  detail: string;
+  /** Schlüssel des Belegs („3/8 Features bewertet") samt seiner Zahlen. */
+  detailKey: string;
+  detailValues: MessageValues;
 }
 
 export interface PracticeAdoption {
@@ -123,33 +128,38 @@ export async function computePracticeAdoption(
 
   const candidates: Record<
     Exclude<Practice, "portfolioLevel" | "programLevel" | "artEpics">,
-    { value: number; detail: string }
+    { value: number; detailKey: string; detailValues: MessageValues }
   > = {
     wsjf: {
       value: rate(featuresWsjf, totalFeatures),
-      detail: `${featuresWsjf}/${totalFeatures} Features bewertet`,
+      detailKey: "work.adoption.featuresScored",
+      detailValues: { n: featuresWsjf, total: totalFeatures },
     },
     featureQs: {
       value: rate(featuresApproved, totalFeatures),
-      detail: `${featuresApproved}/${totalFeatures} Features freigegeben`,
+      detailKey: "work.adoption.featuresApproved",
+      detailValues: { n: featuresApproved, total: totalFeatures },
     },
     dependencies: {
       value: dependencyCount > 0 ? 1 : 0,
-      detail: `${dependencyCount} verknüpft`,
+      detailKey: "work.adoption.dependenciesLinked",
+      detailValues: { n: dependencyCount },
     },
     stageGates: {
       value: rate(epicsBeyondFunnel, totalEpics),
-      detail: `${epicsBeyondFunnel}/${totalEpics} Epics über L0`,
+      detailKey: "work.adoption.epicsBeyondFunnel",
+      detailValues: { n: epicsBeyondFunnel, total: totalEpics },
     },
     multiPartyApproval: {
       value: rate(epicsInApproval, totalEpics),
-      detail: `${epicsInApproval}/${totalEpics} Epics mit beantragter BC-Freigabe`,
+      detailKey: "work.adoption.epicsInApproval",
+      detailValues: { n: epicsInApproval, total: totalEpics },
     },
   };
 
   const signals: AdoptionSignal[] = (Object.keys(candidates) as (keyof typeof candidates)[])
     .filter((key) => on[key])
-    .map((key) => ({ key, label: PRACTICE_LABELS[key], ...candidates[key] }));
+    .map((key) => ({ key, labelKey: PRACTICE_KEYS[key], ...candidates[key] }));
 
   return { hasTarget: true, signals };
 }
@@ -157,7 +167,17 @@ export async function computePracticeAdoption(
 /** A recommended action that closes part of the Soll/Ist gap. */
 export interface NextStep {
   key: string;
-  title: string;
+  /** Katalog-Schlüssel des Satzes — die Fläche setzt ihn zusammen. */
+  titleKey: string;
+  /** Zahlen, direkt einsetzbar. */
+  titleValues: MessageValues;
+  /**
+   * Platzhalter, deren Wert **selbst ein Schlüssel** ist („Wertströme",
+   * „WSJF-Priorisierung"). Getrennt geführt, weil die Fläche sie erst
+   * übersetzen muss — stünden sie in `titleValues`, müsste sie raten, welcher
+   * Wert ein Wort und welcher ein Schlüssel ist.
+   */
+  titleKeyValues: Record<string, string>;
   href: string;
 }
 
@@ -190,7 +210,9 @@ export function deriveNextSteps(gap: StructureGap, adoption: PracticeAdoption): 
     if (d.soll != null && d.ist < d.soll) {
       steps.push({
         key: `struct-${d.key}`,
-        title: `Noch ${d.soll - d.ist} ${d.label} anlegen`,
+        titleKey: "work.nextStep.createMore",
+        titleValues: { missing: d.soll - d.ist },
+        titleKeyValues: { what: d.labelKey },
         href: STRUCTURE_HREF[d.key] ?? "/structure",
       });
     }
@@ -200,7 +222,9 @@ export function deriveNextSteps(gap: StructureGap, adoption: PracticeAdoption): 
     if (s.value < LOW_ADOPTION) {
       steps.push({
         key: `prac-${s.key}`,
-        title: `${s.label}: niedrige Adoption (${s.detail})`,
+        titleKey: "work.nextStep.lowAdoption",
+        titleValues: s.detailValues,
+        titleKeyValues: { practice: s.labelKey, detail: s.detailKey },
         href: PRACTICE_HREF[s.key] ?? "/structure",
       });
     }

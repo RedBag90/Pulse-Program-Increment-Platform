@@ -31,7 +31,7 @@ export const createArtAction = createServerAction({
       name: input.name,
     }),
   revalidate: "artCreated",
-  mapError: (e) => formatDomainError(e, { fallback: "Failed to create ART" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.createArt" }, t),
 });
 
 export const updateArtAction = createServerAction({
@@ -65,12 +65,7 @@ export const updateArtAction = createServerAction({
       technicalLeadId: input.technicalLeadId,
     }),
   revalidate: "art",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "ART not found"
-        : "Failed to update ART",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.updateArt" }, t),
 });
 
 export const deleteArtAction = createServerAction({
@@ -80,10 +75,5 @@ export const deleteArtAction = createServerAction({
   parseFormData: (fd) => ({ id: fields(fd).string("id") }),
   service: (ctx, input) => softDeleteArt(ctx, { id: input.id as ArtId }),
   revalidate: "art",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "ART not found"
-        : "Failed to delete ART",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.deleteArt" }, t),
 });

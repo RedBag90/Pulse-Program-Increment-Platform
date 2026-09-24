@@ -1,3 +1,4 @@
+import type { Translate } from "@/i18n/translate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import type { Horizon } from "@/modules/work/domain/portfolio-guardrails";
 import {
@@ -118,14 +119,14 @@ export interface EpicGateFacts {
 /** Ein ausgewertetes Kriterium: was verlangt wird, und ob es erfüllt ist. */
 export interface GateCriterion {
   key: string;
-  /** Nutzersprache, Deutsch — wird 1:1 in der Checkliste gerendert. */
-  label: string;
+  /** Katalog-Schlüssel — die Checkliste übersetzt. */
+  labelKey: string;
   /**
-   * Hilfetext in Nutzersprache: was das Kriterium bedeutet und wo/wie man es
-   * erfüllt. Wird in der Checkliste per Hover/„How to" gezeigt und fließt über
-   * `GATE_CRITERIA_DOC` auch in das Lifecycle-Popover.
+   * Katalog-Schlüssel des Hilfetexts: was das Kriterium bedeutet und wo/wie man
+   * es erfüllt. Wird in der Checkliste per Hover/„How to" gezeigt und fließt
+   * über `GATE_CRITERIA_DOC` auch in das Lifecycle-Popover.
    */
-  help: string;
+  helpKey: string;
   satisfied: boolean;
   /**
    * `true` = verhindert den Antrag. `false` = beratend: die Checkliste zeigt
@@ -160,13 +161,30 @@ export type CriterionLabelContext = Pick<EpicGateFacts, "multiPartyApproval">;
  */
 export interface CriterionRule {
   key: string;
-  label: (ctx: CriterionLabelContext) => string;
   /**
-   * Statischer Hilfetext (1–2 Sätze, Nutzersprache): Bedeutung des Kriteriums
-   * plus der zuständige Reiter, in dem man es erfüllt. Bewusst kontextfrei —
-   * wie {@link label} soll er ohne echtes Epic erzeugbar sein.
+   * **Ein Schlüssel, keine Funktion mehr.**
+   *
+   * Bis September 2026 stand hier `(ctx: CriterionLabelContext) => string`:
+   * das Etikett durfte von den Fakten abhängen, weil die Hypothese bei
+   * eingeschalteter Mehrparteien-Freigabe „freigegeben" hiess und sonst
+   * „ausgearbeitet". Dieser Fall ist längst in **zwei eigene Kriterien**
+   * aufgeteilt (`hypothesis_drafted` und `hypothesis_approved`) — seitdem
+   * benutzte keine der elf Regeln den Kontext noch. Übrig blieb eine
+   * Funktion, die immer dasselbe zurückgab, und ein Typ, der nichts mehr
+   * unterschied.
+   *
+   * Bräuchte ein Etikett je wieder eine Fallunterscheidung, gehört sie in den
+   * Katalog (ICU `select`), nicht in den Code: sonst steht die eine Hälfte
+   * der Entscheidung in `de.json` und die andere hier.
    */
-  help: string;
+  labelKey: string;
+  /**
+   * Katalog-Schlüssel des Hilfetexts (1–2 Sätze, Nutzersprache): Bedeutung des
+   * Kriteriums plus der zuständige Reiter, in dem man es erfüllt. Bewusst
+   * kontextfrei — wie {@link labelKey} soll er ohne echtes Epic erzeugbar
+   * sein.
+   */
+  helpKey: string;
   satisfied: (facts: EpicGateFacts) => boolean;
   blocking: boolean;
   /**
@@ -188,11 +206,8 @@ export interface CriterionRule {
  */
 const HYPOTHESIS_DRAFTED: CriterionRule = {
   key: "hypothesis_drafted",
-  label: () => "Benefit-Hypothese ist ausgearbeitet",
-  help:
-    "Die Benefit-Hypothese beschreibt den erwarteten Nutzen und die Annahme dahinter. " +
-    "Formuliere sie im Reiter Hypothese. Freigegeben wird sie mit der Abnahme dieses " +
-    "Schritts — einen eigenen Freigabelauf davor gibt es nicht.",
+  labelKey: "work.gateCriteria.hypothesisDrafted.label",
+  helpKey: "work.gateCriteria.hypothesisDrafted.help",
   satisfied: (f) => f.hasHypothesisContent,
   blocking: true,
 };
@@ -204,20 +219,16 @@ const HYPOTHESIS_DRAFTED: CriterionRule = {
  */
 const HYPOTHESIS_APPROVED: CriterionRule = {
   key: "hypothesis_approved",
-  label: () => "Benefit-Hypothese ist freigegeben",
-  help:
-    "Die Hypothese wurde mit dem Schritt auf L1 abgenommen. Fehlt der Stempel, ist " +
-    "das Epic nie sauber durch L1 gegangen.",
+  labelKey: "work.gateCriteria.hypothesisApproved.label",
+  helpKey: "work.gateCriteria.hypothesisApproved.help",
   satisfied: (f) => f.hypothesisApprovedAt != null,
   blocking: true,
 };
 
 const OWNER_NOMINATED: CriterionRule = {
   key: "owner_nominated",
-  label: () => "Epic Owner ist benannt",
-  help:
-    "Der Epic Owner verantwortet Fortschritt, Business Case und Freigaben. " +
-    "Benenne ihn im Overview über das Owner-Feld.",
+  labelKey: "work.gateCriteria.ownerNominated.label",
+  helpKey: "work.gateCriteria.ownerNominated.help",
   satisfied: (f) => f.ownerId != null,
   blocking: false,
 };
@@ -245,11 +256,8 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
   L2: [
     {
       key: "business_case_drafted",
-      label: () => "Business Case ist ausgearbeitet",
-      help:
-        "Der Business Case hält Kosten, Nutzen und Optionen fest. Pflege ihn im " +
-        "Reiter Business Case. Freigegeben wird er mit der Abnahme dieses Schritts " +
-        "durch die fünf Parteien — einen eigenen Freigabelauf davor gibt es nicht.",
+      labelKey: "work.gateCriteria.businessCaseDrafted.label",
+      helpKey: "work.gateCriteria.businessCaseDrafted.help",
       satisfied: (f) => f.hasBusinessCaseContent,
       blocking: true,
     },
@@ -260,19 +268,15 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
     // ausgearbeitete Business Case, denn nur ihn gibt dieser Schritt frei.
     {
       key: "deliverables_drafted",
-      label: () => "Deliverables sind geschnitten",
-      help:
-        "Das Epic ist in untergeordnete Features zerlegt. Schneide sie im Reiter " +
-        "Deliverables — sie tragen später die Umsetzung und die Aufwandsschätzung.",
+      labelKey: "work.gateCriteria.deliverablesDrafted.label",
+      helpKey: "work.gateCriteria.deliverablesDrafted.help",
       satisfied: (f) => f.childFeatureStats.total > 0,
       blocking: false,
     },
     {
       key: "dependencies_mapped",
-      label: () => "Abhängigkeiten sind erfasst",
-      help:
-        "Abhängigkeiten zu anderen Vorhaben sind im Reiter Dependencies eingetragen. " +
-        "Sie bestimmen, was vor diesem Epic fertig sein muss.",
+      labelKey: "work.gateCriteria.dependenciesMapped.label",
+      helpKey: "work.gateCriteria.dependenciesMapped.help",
       // **Bewusste Unschärfe, und sie gehört benannt:** ein Epic ohne
       // Abhängigkeiten ist ein gültiger Zustand, den keine Zählung von „noch
       // nicht angeschaut" unterscheidet. Dort bleibt der Kreis offen. Weil das
@@ -284,10 +288,8 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
     },
     {
       key: "kpis_defined",
-      label: () => "KPI sind definiert",
-      help:
-        "Mindestens eine Kennzahl mit Ausgangswert und Ziel ist im Reiter KPI & Nutzen " +
-        "angelegt. An ihr wird später der realisierte Nutzen gemessen.",
+      labelKey: "work.gateCriteria.kpisDefined.label",
+      helpKey: "work.gateCriteria.kpisDefined.help",
       satisfied: (f) => f.kpiCount > 0,
       blocking: false,
     },
@@ -299,10 +301,8 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
   L3: [
     {
       key: "budget_allocated",
-      label: () => "Budget ist alloziert (Σ > 0)",
-      help:
-        "Dem Epic ist über das Participatory Budgeting Budget zugeteilt (Summe > 0). " +
-        "Die Zuteilung erfolgt in den Budgeting-Zeiträumen.",
+      labelKey: "work.gateCriteria.budgetAllocated.label",
+      helpKey: "work.gateCriteria.budgetAllocated.help",
       satisfied: (f) => f.budgetAllocationSum > 0,
       blocking: true,
       // Nur dort, wo es ein Budget gibt. Ohne das Modul trägt den Schritt die
@@ -316,10 +316,8 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
       // Umsetzung. Früher war L3→L4 explizit „manuell ohne Vorbedingung
       // erlaubt" — dieselbe Entscheidung, jetzt sichtbar statt kommentiert.
       key: "feature_started",
-      label: () => "Mindestens ein Feature ist gestartet",
-      help:
-        "Mindestens ein untergeordnetes Feature ist in Umsetzung. Features entstehen " +
-        "im Reiter Deliverables; ihr Status wird im Delivery-Cockpit gesetzt.",
+      labelKey: "work.gateCriteria.featureStarted.label",
+      helpKey: "work.gateCriteria.featureStarted.help",
       satisfied: (f) => f.childFeatureStats.started > 0,
       blocking: false,
     },
@@ -334,11 +332,8 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
       // ein Rest-Feature, das bewusst offen bleibt, darf den Abschluss nicht
       // aufhalten. Hart bleibt dafür `implementation_confirmed` bei L5.
       key: "features_completed",
-      label: () => "Alle Child-Features sind abgeschlossen",
-      help:
-        "Alle untergeordneten Features sind abgeschlossen — der übliche Anhaltspunkt " +
-        "dafür, dass die Umsetzung fertig ist. Die Bestätigung trifft die Abnahme, " +
-        "nicht der Zähler. Den Feature-Status pflegst du im Delivery-Cockpit.",
+      labelKey: "work.gateCriteria.featuresCompleted.label",
+      helpKey: "work.gateCriteria.featuresCompleted.help",
       satisfied: (f) => allChildrenCompleted(f.childFeatureStats),
       blocking: false,
     },
@@ -349,10 +344,8 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
       // beidem darf beliebig viel Zeit liegen. Der Impact-Antrag setzt die
       // bestätigte Umsetzung voraus, ersetzt sie aber nicht.
       key: "implementation_confirmed",
-      label: () => "Umsetzung ist als abgeschlossen bestätigt (L4.2)",
-      help:
-        "Der Abschluss der Umsetzung wurde beantragt und abgenommen (Schritt L4.2). " +
-        "Erst danach lässt sich der realisierte Impact bestätigen (L5).",
+      labelKey: "work.gateCriteria.implementationConfirmed.label",
+      helpKey: "work.gateCriteria.implementationConfirmed.help",
       satisfied: (f) => f.implementationCompletedAt != null,
       blocking: true,
     },
@@ -380,8 +373,8 @@ export function gateReadiness(facts: EpicGateFacts, to: GateStep): GateReadiness
   const rules = (GATE_CRITERIA[to] ?? []).filter((rule) => rule.applies?.(facts) ?? true);
   const criteria = rules.map((rule) => ({
     key: rule.key,
-    label: rule.label(facts),
-    help: rule.help,
+    labelKey: rule.labelKey,
+    helpKey: rule.helpKey,
     satisfied: rule.satisfied(facts),
     blocking: rule.blocking,
   }));
@@ -397,8 +390,11 @@ export function gateReadiness(facts: EpicGateFacts, to: GateStep): GateReadiness
  * Der Grund, warum ein Antrag blockiert ist — vorformuliert, damit weder Service
  * noch UI die Botschaft neu erfinden. `null`, wenn nichts blockiert.
  */
-export function readinessBlockReason(readiness: GateReadiness): string | null {
+export function readinessBlockReason(readiness: GateReadiness, t: Translate): string | null {
   const missing = readiness.criteria.filter((c) => c.blocking && !c.satisfied);
   if (missing.length === 0) return null;
-  return `Reifegrad ${readiness.to} verlangt: ${missing.map((c) => c.label).join("; ")}.`;
+  return t("work.gate.blockReason", {
+    gate: readiness.to,
+    criteria: missing.map((c) => t(c.labelKey)).join("; "),
+  });
 }

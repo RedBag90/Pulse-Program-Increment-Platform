@@ -49,16 +49,16 @@ export const DEFAULT_PRACTICES: PracticeFlags = {
   artEpics: false,
 };
 
-/** Short German labels for the configurator + glossary. */
-export const PRACTICE_LABELS: Record<Practice, string> = {
-  portfolioLevel: "Portfolio-Ebene (Wertströme, Epics)",
-  programLevel: "Programm-Ebene (ARTs, PIs, Features)",
-  stageGates: "Stage Gates (Investment-Funnel L0–L5)",
-  wsjf: "WSJF-Priorisierung",
-  multiPartyApproval: "Mehrparteien-Freigabe für Epics",
-  featureQs: "Feature-QS",
-  dependencies: "Abhängigkeiten",
-  artEpics: "ART-Epics (kleine Vorhaben aus dem ART-Rahmen)",
+/** Katalog-Schlüssel für den Konfigurator und das Glossar (ADR-0024, Regel 2). */
+export const PRACTICE_KEYS: Record<Practice, string> = {
+  portfolioLevel: "practices.portfolioLevel",
+  programLevel: "practices.programLevel",
+  stageGates: "practices.stageGates",
+  wsjf: "practices.wsjf",
+  multiPartyApproval: "practices.multiPartyApproval",
+  featureQs: "practices.featureQs",
+  dependencies: "practices.dependencies",
+  artEpics: "practices.artEpics",
 };
 
 export type OperatingModelTemplate = "team_level" | "essential_safe" | "portfolio_safe" | "custom";

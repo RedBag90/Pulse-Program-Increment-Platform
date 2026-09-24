@@ -6,6 +6,7 @@ import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import type { EpicId } from "@/modules/core/kernel/domain/types";
 import type { ActionState } from "@/server/http/server-action";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 export type { ActionState as BenefitHypothesisActionState };
 
@@ -45,6 +46,6 @@ export const saveBenefitHypothesisAction = createServerAction({
     return saveBenefitHypothesis(ctx, { epicId: epicId as EpicId, fields });
   },
   revalidate: "epic",
-  mapError: (e) =>
-    e.kind === "not_found" ? "Epic not found" : "Failed to save benefit hypothesis",
+  mapError: (e, t) =>
+    formatDomainError(e, { fallbackKey: "errors.action.saveBenefitHypothesis" }, t),
 });

@@ -27,9 +27,9 @@ export function GateCriteria() {
           ) : (
             <ul className="space-y-2.5">
               {doc.criteria.map((c) => (
-                <li key={c.label} className="space-y-0.5">
+                <li key={t(c.labelKey)} className="space-y-0.5">
                   <p className="text-sm leading-snug text-foreground">
-                    {c.label}{" "}
+                    {t(c.labelKey)}{" "}
                     <span
                       className={
                         c.blocking
@@ -41,7 +41,7 @@ export function GateCriteria() {
                     </span>
                   </p>
                   <p className="max-w-[var(--reading-max-w)] text-xs leading-relaxed text-muted-foreground">
-                    {c.help}
+                    {t(c.helpKey)}
                   </p>
                 </li>
               ))}

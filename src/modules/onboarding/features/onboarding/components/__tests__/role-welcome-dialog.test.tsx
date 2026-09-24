@@ -6,6 +6,9 @@ import { ROLE_PLAYBOOKS } from "@/modules/onboarding/domain/role-playbook";
 import { resolveTour, type Notice } from "@/modules/onboarding/domain/role-tour";
 import { ROLES } from "@/modules/core/kernel/domain/roles";
 import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
+import { catalogTranslate } from "@/test/helpers/catalog";
+
+const t = catalogTranslate("de");
 import { DEFAULT_PRACTICES } from "@/modules/core/kernel/domain/operating-model";
 import { POLICIES, type Action } from "@/server/auth/policies";
 import type { ActionState } from "@/server/http/server-action";
@@ -89,7 +92,8 @@ describe("RoleWelcomeDialog", () => {
 
   it("zeigt Mission und Verantwortung der Rolle", () => {
     render(<RoleWelcomeDialog notice={newRole} onStartTour={vi.fn()} onDismiss={vi.fn()} />);
-    expect(screen.getByText(tour.mission)).toBeInTheDocument();
+    // Die Fläche zeigt das Wort, der Tour-Bau den Schlüssel.
+    expect(screen.getByText(t(tour.missionKey))).toBeInTheDocument();
     for (const r of tour.responsibilities) {
       expect(screen.getByText(r)).toBeInTheDocument();
     }

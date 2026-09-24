@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { Info, X } from "lucide-react";
-import { CONCEPT_HELP } from "@/modules/core/org/domain/horizon";
+import { CONCEPT_HELP_KEYS } from "@/modules/core/org/domain/horizon";
 
 /**
  * Dismissbarer Erklär-Callout „Solution vs. Epic" (Helfer-Schicht). Der
@@ -24,7 +24,7 @@ export function ConceptCallout({ storageKey }: { storageKey: string }) {
   return (
     <div className="flex gap-3 rounded-lg border-l-4 border-l-primary bg-card p-3 text-sm shadow-card">
       <Info className="mt-0.5 size-4 shrink-0 text-primary" />
-      <p className="flex-1 text-muted-foreground">{CONCEPT_HELP.solutionVsEpic}</p>
+      <p className="flex-1 text-muted-foreground">{t(CONCEPT_HELP_KEYS.solutionVsEpic)}</p>
       <button
         type="button"
         aria-label={t("org.ui.hinweisAusblenden")}

@@ -45,7 +45,7 @@ export const setArtEpicAllocationAction = createServerAction({
     revalidateFor("budgetAllocation");
     revalidateFor("art");
   },
-  mapError: (e) => formatDomainError(e, { fallback: "Zuteilung konnte nicht gespeichert werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.save" }, t),
 });
 
 /**
@@ -98,8 +98,5 @@ export const saveArtEpicAllocationsAction = createServerAction({
     revalidateFor("budgetAllocation");
     revalidateFor("art");
   },
-  mapError: (e) =>
-    e.kind === "forbidden" || e.kind === "conflict"
-      ? e.reason
-      : formatDomainError(e, { fallback: "Speichern fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.save" }, t),
 });

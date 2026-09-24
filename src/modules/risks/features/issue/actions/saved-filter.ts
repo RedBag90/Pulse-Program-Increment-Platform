@@ -44,7 +44,7 @@ export const saveIssueFilterAction = createServerAction({
   }),
   service: (ctx, input) => saveSavedFilter(ctx, { ...input, scope: "issues" }),
   revalidate: "issueFilter",
-  mapError: (e) => formatDomainError(e, { fallback: "Filter konnte nicht gespeichert werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveFilter" }, t),
 });
 
 /** Löscht einen gespeicherten Issue-Filter des aktuellen Nutzers. */
@@ -55,5 +55,5 @@ export const deleteIssueFilterAction = createServerAction({
   parseFormData: (fd) => ({ id: String(fd.get("id") ?? "") }),
   service: (ctx, input) => deleteSavedFilter(ctx, { id: input.id, scope: "issues" }),
   revalidate: "issueFilter",
-  mapError: (e) => formatDomainError(e, { fallback: "Filter konnte nicht gelöscht werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.deleteFilter" }, t),
 });

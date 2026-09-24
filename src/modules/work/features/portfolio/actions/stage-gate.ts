@@ -73,11 +73,15 @@ export const requestGateTransitionAction = createServerAction({
       approvers: input.approvers,
     }),
   revalidate: "epic",
-  mapError: (e) =>
-    formatDomainError(e, {
-      notFound: "Epic nicht gefunden",
-      fallback: "Reifegrad-Wechsel konnte nicht beantragt werden",
-    }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      {
+        notFoundKey: "errors.action.epicNotFound",
+        fallbackKey: "errors.action.requestGate",
+      },
+      t,
+    ),
 });
 
 /** Ein namentlich benannter Abnehmer entscheidet über einen offenen Antrag. */
@@ -96,11 +100,15 @@ export const decideGateTransitionAction = createServerAction({
       comment: input.comment,
     }),
   revalidate: "epic",
-  mapError: (e) =>
-    formatDomainError(e, {
-      notFound: "Für diesen Antrag ist dir keine Abnahme zugewiesen",
-      fallback: "Abnahme fehlgeschlagen",
-    }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      {
+        notFoundKey: "errors.action.noApprovalAssigned",
+        fallbackKey: "errors.action.approve",
+      },
+      t,
+    ),
 });
 
 /** Zieht einen offenen Antrag zurück. */
@@ -114,11 +122,15 @@ export const withdrawGateTransitionAction = createServerAction({
   service: (ctx, input) =>
     withdrawGateTransition(ctx, { transitionId: input.transitionId, reason: input.reason }),
   revalidate: "epic",
-  mapError: (e) =>
-    formatDomainError(e, {
-      notFound: "Antrag nicht gefunden",
-      fallback: "Antrag konnte nicht zurückgezogen werden",
-    }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      {
+        notFoundKey: "errors.action.requestNotFound",
+        fallbackKey: "errors.action.withdrawRequest",
+      },
+      t,
+    ),
 });
 
 /**
@@ -140,11 +152,15 @@ export const revertStageGateAction = createServerAction({
       reason: input.reason,
     }),
   revalidate: "epic",
-  mapError: (e) =>
-    formatDomainError(e, {
-      notFound: "Epic nicht gefunden",
-      fallback: "Rückstufung fehlgeschlagen",
-    }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      {
+        notFoundKey: "errors.action.epicNotFound",
+        fallbackKey: "errors.action.revert",
+      },
+      t,
+    ),
 });
 
 /** Hinterlegt, wer einen bestimmten Reifegrad-Wechsel abnimmt. */
@@ -176,5 +192,5 @@ export const saveGateApproverRuleAction = createServerAction({
       approverRoles: input.approverRoles,
     }),
   revalidate: "epic",
-  mapError: (e) => formatDomainError(e, { fallback: "Abnehmer konnten nicht gespeichert werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveApprovers" }, t),
 });

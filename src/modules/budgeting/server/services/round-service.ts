@@ -318,7 +318,7 @@ export async function startPeriod(
     if (round.status !== "draft") {
       return err({
         kind: "conflict" as const,
-        reason: "Nur eine Kachel im Entwurf lässt sich starten.",
+        reason: "budgeting.errors.onlyDraftStarts",
       });
     }
 
@@ -362,7 +362,7 @@ export async function updateRoundFrame(
     const round = await tx.budgetRound.findFirst({ where: { id, tenantId: mctx.tenantId } });
     if (!round) return err({ kind: "not_found" as const, resourceType: "BudgetRound", id });
     if (round.status !== "draft") {
-      return err({ kind: "conflict" as const, reason: "Rahmen ist nur im Status draft änderbar." });
+      return err({ kind: "conflict" as const, reason: "budgeting.errors.potDraftOnly" });
     }
 
     await tx.budgetRound.update({
@@ -477,7 +477,7 @@ export async function updatePeriodTimeframe(
   const mctx = toMutationContext(ctx);
 
   if (input.endDate.getTime() < input.startDate.getTime()) {
-    return err({ kind: "conflict" as const, reason: "Das Ende liegt vor dem Start." });
+    return err({ kind: "conflict" as const, reason: "budgeting.errors.endBeforeStart" });
   }
 
   return withAuditedTransaction(mctx, async (tx) => {

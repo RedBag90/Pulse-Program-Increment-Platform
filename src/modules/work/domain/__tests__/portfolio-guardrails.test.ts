@@ -149,21 +149,23 @@ describe("validateGuardrailTargets", () => {
       targets({ horizon: { h0: 0, "h1.1": 30, "h1.2": 30, h2: 30, h3: 5 } }),
     );
     expect(r.ok).toBe(false);
-    expect(r.reason).toContain("Horizon");
+    expect(r.reasonKey).toBe("work.guardrail.horizonSum");
+    expect(r.reasonValues).toEqual({ sum: 95 });
   });
   it("verlangt Capacity-Summe = 100", () => {
     const r = validateGuardrailTargets(
       targets({ capacity: { business: 70, enabler: 25, maintenance: 0 } }),
     );
     expect(r.ok).toBe(false);
-    expect(r.reason).toContain("Capacity");
+    expect(r.reasonKey).toBe("work.guardrail.capacitySum");
+    expect(r.reasonValues).toEqual({ sum: 95 });
   });
   it("verlangt nicht-negative Werte", () => {
     const r = validateGuardrailTargets(
       targets({ horizon: { h0: 0, "h1.1": 60, "h1.2": 50, h2: -5, h3: -5 } }),
     );
     expect(r.ok).toBe(false);
-    expect(r.reason).toContain("negativ");
+    expect(r.reasonKey).toBe("work.guardrail.targetsNegative");
   });
 
   it("wendet die Summenregel NICHT auf Engagement an", () => {
@@ -178,7 +180,7 @@ describe("validateGuardrailTargets", () => {
     ).toBe(false);
     const r = validateGuardrailTargets(targets({ engagement: { coverage: 90, responseDays: 0 } }));
     expect(r.ok).toBe(false);
-    expect(r.reason).toContain("Reaktionszeit");
+    expect(r.reasonKey).toBe("work.guardrail.responseDays");
   });
 });
 

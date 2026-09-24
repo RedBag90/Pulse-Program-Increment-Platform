@@ -5,6 +5,7 @@ import { createPi, updatePi, deletePi } from "@/modules/drumbeat/server/services
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import type { PiId, TimelineId } from "@/modules/core/kernel/domain/types";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 /**
  * PI-Mutationen aus der Timeline-Page heraus. Audience: LPM/Admin via
@@ -44,12 +45,7 @@ export const createPiOnTimelineAction = createServerAction({
       endDate: new Date(input.endDate),
     }),
   revalidate: "pi",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Timeline nicht gefunden"
-        : "PI konnte nicht angelegt werden",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.createPi" }, t),
 });
 
 export const updatePiOnTimelineAction = createServerAction({
@@ -81,12 +77,7 @@ export const updatePiOnTimelineAction = createServerAction({
       ...(input.endDate !== undefined ? { endDate: new Date(input.endDate) } : {}),
     }),
   revalidate: "pi",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "PI nicht gefunden"
-        : "PI konnte nicht aktualisiert werden",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.updatePi" }, t),
 });
 
 export const deletePiOnTimelineAction = createServerAction({
@@ -95,10 +86,5 @@ export const deletePiOnTimelineAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) => deletePi(ctx, { id: input.id as PiId }),
   revalidate: "pi",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "PI nicht gefunden"
-        : "PI konnte nicht geloescht werden",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.deletePi" }, t),
 });

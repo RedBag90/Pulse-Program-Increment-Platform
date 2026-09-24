@@ -42,5 +42,5 @@ export const captureBudgetPlanRevisionAction = createServerAction({
     label: "Budget-Plan-Revision",
     href: `/budgeting/budget-plan/${v.id}`,
   }),
-  mapError: (e) => formatDomainError(e, { fallback: "Snapshot konnte nicht erstellt werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.snapshot" }, t),
 });

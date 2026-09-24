@@ -53,27 +53,32 @@ describe("evaluateClosure", () => {
   it("flags open un-ROAMed Issues with the count", () => {
     const r = evaluateClosure({ ...READY, openUnroamedIssues: 3 });
     expect(r.ready).toBe(false);
-    expect(r.reasons).toEqual(["3 offene Issue(s) ohne ROAM"]);
+    // Der Schlüssel trägt die Zahl mit, statt sie in einen deutschen Satz zu
+    // giessen — sonst stünde „3 offene Anliegen" auch auf der englischen
+    // Fläche (ADR-0024, Regel 2).
+    expect(r.reasons).toEqual([
+      { key: "drumbeat.closure.openUnroamedIssues", values: { count: 3 } },
+    ]);
   });
 
   it("flags a missing System-Demo date", () => {
     expect(evaluateClosure({ ...READY, systemDemoAt: null }).reasons).toEqual([
-      "System-Demo-Termin fehlt",
+      { key: "drumbeat.closure.systemDemoMissing" },
     ]);
   });
 
   it("flags a missing Inspect & Adapt date", () => {
     expect(evaluateClosure({ ...READY, inspectAdaptAt: null }).reasons).toEqual([
-      "Inspect & Adapt-Termin fehlt",
+      { key: "drumbeat.closure.inspectAdaptMissing" },
     ]);
   });
 
   it("flags missing retrospective notes (null and whitespace-only)", () => {
     expect(evaluateClosure({ ...READY, retrospectiveNotes: null }).reasons).toEqual([
-      "Retrospektive-Notizen fehlen",
+      { key: "drumbeat.closure.retrospectiveMissing" },
     ]);
     expect(evaluateClosure({ ...READY, retrospectiveNotes: "   " }).reasons).toEqual([
-      "Retrospektive-Notizen fehlen",
+      { key: "drumbeat.closure.retrospectiveMissing" },
     ]);
   });
 
@@ -85,11 +90,11 @@ describe("evaluateClosure", () => {
       retrospectiveNotes: "",
     });
     expect(r.ready).toBe(false);
-    expect(r.reasons).toEqual([
-      "2 offene Issue(s) ohne ROAM",
-      "System-Demo-Termin fehlt",
-      "Inspect & Adapt-Termin fehlt",
-      "Retrospektive-Notizen fehlen",
+    expect(r.reasons.map((x) => x.key)).toEqual([
+      "drumbeat.closure.openUnroamedIssues",
+      "drumbeat.closure.systemDemoMissing",
+      "drumbeat.closure.inspectAdaptMissing",
+      "drumbeat.closure.retrospectiveMissing",
     ]);
   });
 });

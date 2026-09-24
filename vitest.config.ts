@@ -23,6 +23,9 @@ export default defineConfig({
         test: {
           name: "server",
           environment: "node",
+          // Nur die Sprach-Attrappen: eine Server-Action laeuft im Node-Projekt,
+          // `getTranslations` wirft dort ohne Request.
+          setupFiles: ["./src/test/setup-i18n.ts"],
           include: ["src/server/**/*.test.ts", "src/modules/**/server/**/*.test.ts"],
           exclude: ["src/server/**/*.integration.test.ts", "src/modules/**/*.integration.test.ts"],
         },
@@ -61,7 +64,13 @@ export default defineConfig({
           name: "integration",
           environment: "node",
           include: ["src/**/*.integration.test.ts"],
-          setupFiles: ["./src/test/setup-db.ts"],
+          // Die Datenbank **und** die Sprache: `completePi` und
+          // `requestGateTransition` holen sich seit Zug 5 selbst einen
+          // Übersetzer, und `getTranslations` wirft ohne Request. Ohne die
+          // zweite Zeile scheitert hier jeder Lauf, der einen davon berührt —
+          // und zwar nur auf einer Maschine mit laufendem Postgres, also
+          // genau dort, wo es am spätesten auffällt.
+          setupFiles: ["./src/test/setup-db.ts", "./src/test/setup-i18n.ts"],
           testTimeout: 30_000,
         },
         resolve: { alias },

@@ -1,5 +1,6 @@
 "use server";
 
+import type { Translate } from "@/i18n/translate";
 import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
@@ -13,8 +14,12 @@ import {
 
 const MANAGE = "budget.manage" as const;
 const tenantResource = (_i: unknown, p: { tenantId: string }) => ({ tenantId: p.tenantId });
-const err = (e: Parameters<typeof formatDomainError>[0]) =>
-  formatDomainError(e, { notFound: "Nicht gefunden", fallback: "Aktion fehlgeschlagen" });
+const err = (e: Parameters<typeof formatDomainError>[0], t: Translate) =>
+  formatDomainError(
+    e,
+    { notFoundKey: "errors.action.notFoundPlain", fallbackKey: "errors.action.actionFailed" },
+    t,
+  );
 
 export const closeDistributionAction = createServerAction({
   schema: z.object({ id: z.string().uuid() }),

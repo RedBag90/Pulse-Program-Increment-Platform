@@ -66,6 +66,5 @@ export const saveValueStreamGuardrailTargetsAction = createServerAction({
     revalidatePath("/structure/value-stream/[id]", "page");
     revalidatePath("/portfolio/guardrails", "page");
   },
-  mapError: (e) =>
-    formatDomainError(e, { fallback: "Guardrail-Ziele konnten nicht gespeichert werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveGuardrails" }, t),
 });

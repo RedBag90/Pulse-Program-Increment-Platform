@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+import type { Translate } from "@/i18n/translate";
 import type { z } from "zod";
 import { authorize, type AuthResource } from "@/server/auth/authorize";
 import type { Action } from "@/server/auth/policies";
@@ -81,7 +83,11 @@ interface BaseConfig<TInput, TOutput> {
   revalidate?: RevalidationResource;
   /** Extra post-success side effects (rarely needed once `revalidate` covers paths). */
   onSuccess?: (input: TInput) => void;
-  mapError?: (e: DomainError) => string;
+  /**
+   * Der Übersetzer kommt hinein, statt dass die Meldung deutsch feststeht: der
+   * Läufer sitzt im Request und holt ihn einmal (ADR-0024).
+   */
+  mapError?: (e: DomainError, t: Translate) => string;
   /** Builds the `CreatedRef` for the success toast from the service result. */
   describeCreated?: (value: TOutput, input: TInput) => CreatedRef;
   /**
@@ -126,11 +132,13 @@ export function createServerAction<TInput, TOutput = unknown>(
   config: ServerActionConfig<TInput, TOutput>,
 ): (_prev: ActionState, formData: FormData) => Promise<ActionState> {
   return async (_prev, formData) => {
+    // Einmal je Aufruf — jede Meldung dieses Laufs spricht dieselbe Sprache.
+    const t = await getTranslations();
     const startedAt = performance.now();
     const ctx = await buildRequestContext();
     if (!ctx) {
       logActionTiming(config.action, performance.now() - startedAt, "err");
-      return { error: "Not authenticated" };
+      return { error: t("errors.notAuthenticated") };
     }
     const { principal } = ctx;
 
@@ -152,7 +160,7 @@ export function createServerAction<TInput, TOutput = unknown>(
       const decision = authorize(config.action, config.resource(parsed.data, principal), principal);
       if (!decision.allow) {
         logActionTiming(config.action, performance.now() - startedAt, "err");
-        return { error: "Insufficient permissions" };
+        return { error: t("errors.insufficientPermissions") };
       }
     }
 
@@ -163,12 +171,12 @@ export function createServerAction<TInput, TOutput = unknown>(
     const requiredModule = moduleForAction(config.action);
     if (requiredModule && !principal.enabledModules.includes(requiredModule)) {
       logActionTiming(config.action, performance.now() - startedAt, "err");
-      return { error: "Dieses Modul ist in diesem Bereich nicht verfügbar" };
+      return { error: t("errors.moduleUnavailable") };
     }
 
     // Batch mode: loop the iterated field, calling the per-item service.
     if (config.batch) {
-      const batchResult = await runBatch(ctx, parsed.data, config.batch, config.mapError);
+      const batchResult = await runBatch(ctx, parsed.data, config.batch, config.mapError, t);
       if (batchResult.error) {
         logActionTiming(config.action, performance.now() - startedAt, "err");
         return batchResult;
@@ -182,7 +190,7 @@ export function createServerAction<TInput, TOutput = unknown>(
     // Single mode: one service call.
     const result = await config.service(ctx, parsed.data);
     if (isErr(result)) {
-      const msg = config.mapError ? config.mapError(result.error) : "Operation failed";
+      const msg = config.mapError ? config.mapError(result.error, t) : t("errors.operationFailed");
       logActionTiming(config.action, performance.now() - startedAt, "err");
       return { error: msg };
     }
@@ -209,7 +217,8 @@ async function runBatch<TInput, TOutput>(
   ctx: RequestContext,
   input: TInput,
   batch: ServerActionBatchConfig<TInput, TOutput>,
-  mapError: ((e: DomainError) => string) | undefined,
+  mapError: ((e: DomainError, t: Translate) => string) | undefined,
+  t: Translate,
 ): Promise<ActionState> {
   const items = (input as Record<string, unknown>)[batch.iterateOver];
   if (!Array.isArray(items)) {
@@ -222,7 +231,7 @@ async function runBatch<TInput, TOutput>(
   for (const item of items as string[]) {
     const result = await batch.service(ctx, item, input);
     if (isErr(result)) {
-      const msg = mapError ? mapError(result.error) : "Operation failed";
+      const msg = mapError ? mapError(result.error, t) : t("errors.operationFailed");
       if (!batch.continueOnError) return { error: msg };
       if (firstError === null) firstError = msg;
       continue;

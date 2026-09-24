@@ -7,6 +7,9 @@ import { isErr, type DomainError, type Result } from "@/modules/core/kernel/doma
 import { withIdempotency } from "@/server/http/idempotency";
 import { forbidden, problemJson, unauthorized, unprocessable } from "@/server/http/problem";
 import { buildRequestContext, type RequestContext } from "@/server/http/request-context";
+import { apiTranslate } from "@/server/http/api-locale";
+import { resourceKey } from "@/server/http/domain-error-display";
+import type { Translate } from "@/i18n/translate";
 
 // Re-export so existing imports `from "@/server/http/mutation-handler"` keep
 // working; the canonical home is `request-context.ts`.
@@ -24,27 +27,36 @@ const DEFAULT_ERROR_MAP: Partial<Record<DomainError["kind"], number>> = {
   forbidden: 403,
 };
 
+/**
+ * **`detail` ist für Menschen.** RFC 7807 nennt das Feld ausdrücklich eine
+ * lesbare Erklärung — und seit die Services in `reason`/`detail` Schlüssel
+ * ablegen (ADR-0024), muss diese Naht sie auflösen, sonst stünde dort
+ * `work.errors.epicNotInFunnel`. Die Sprache kommt aus `Accept-Language`.
+ */
 function errorToResponse(
   error: DomainError,
   statusMap: Partial<Record<DomainError["kind"], number>>,
+  t: Translate,
 ): Response {
   const status = statusMap[error.kind] ?? 500;
   switch (error.kind) {
     case "not_found":
-      return problemJson(status, "not-found", { detail: `${error.resourceType} not found` });
+      return problemJson(status, "not-found", {
+        detail: t("errors.notFound", { resource: t(resourceKey(error.resourceType)) }),
+      });
     case "conflict":
-      return problemJson(status, "conflict", { detail: error.reason });
+      return problemJson(status, "conflict", { detail: t(error.reason, error.values) });
     case "hierarchy_violation":
       return problemJson(status, "hierarchy-violation", {
-        detail: error.detail,
+        detail: t(error.detail, error.values),
         violatedConstraint: error.violatedConstraint,
       });
     case "validation":
       return problemJson(status, "validation-failed", { errors: error.issues });
     case "forbidden":
-      return forbidden(error.reason);
+      return forbidden(t(error.reason, error.values));
     case "tenant_mismatch":
-      return problemJson(403, "forbidden", { detail: error.detail });
+      return problemJson(403, "forbidden", { detail: t(error.detail, error.values) });
     default:
       return problemJson(500, "internal-error");
   }
@@ -115,6 +127,7 @@ export function createMutationHandler<TInput>(
     if (!built) return unauthorized();
     const ctx: RequestContext = built;
     const { principal } = ctx;
+    const t = await apiTranslate(request);
 
     async function execute(req: Request): Promise<Response> {
       let body: unknown = {};
@@ -122,30 +135,30 @@ export function createMutationHandler<TInput>(
         const text = await req.text();
         if (text.trim().length > 0) body = JSON.parse(text);
       } catch {
-        return unprocessable("Invalid JSON body");
+        return unprocessable(t("errors.invalidJsonBody"));
       }
 
       const parsed = schema.safeParse(body);
       if (!parsed.success) return unprocessable(parsed.error.message);
 
       if (platformOnly && !principal.isPlatformAdmin) {
-        return forbidden("Plattform-Admin erforderlich");
+        return forbidden(t("errors.platformAdminRequired"));
       }
 
       const decision = authorize(action, resource(parsed.data, principal), principal);
-      if (!decision.allow) return forbidden(decision.reason);
+      if (!decision.allow) return forbidden(t(decision.reason ?? "errors.forbidden"));
 
       // Modul-Gate (Entitlement, fail-closed) — gleiche Regel wie im
       // Server-Action-Factory; Actions ohne Modul-Zuordnung bleiben ungegated.
       const requiredModule = moduleForAction(action);
       if (requiredModule && !principal.enabledModules.includes(requiredModule)) {
-        return forbidden("Dieses Modul ist in diesem Bereich nicht verfügbar");
+        return forbidden(t("errors.moduleUnavailable"));
       }
 
       const result = await service(ctx, parsed.data);
 
       if (isErr(result)) {
-        return errorToResponse(result.error, resolvedErrorMap);
+        return errorToResponse(result.error, resolvedErrorMap, t);
       }
 
       if (successStatus === 204) {

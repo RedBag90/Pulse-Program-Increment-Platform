@@ -358,10 +358,10 @@ export function EpicTimelineTab({
                         <p
                           className={`text-sm font-medium ${step.status === "current" ? "text-primary" : ""}`}
                         >
-                          {step.label}
+                          {t(step.labelKey)}
                         </p>
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground">{step.description}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{t(step.descriptionKey)}</p>
                       <p className="mt-1">
                         <Dauer span={span} />
                       </p>
@@ -386,13 +386,13 @@ export function EpicTimelineTab({
                       >
                         <div className="min-w-0">
                           <p className={`text-sm font-semibold ${isNext ? "text-primary" : ""}`}>
-                            {gate.label}
+                            {t(gate.labelKey)}
                           </p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             <span className="mr-1.5 rounded-sm bg-muted px-1.5 py-0.5 text-label font-semibold uppercase tracking-[0.1em]">
                               {soft ? "Meilenstein" : "Gate"}
                             </span>
-                            {gate.approver}
+                            {t(gate.approverKey)}
                           </p>
                         </div>
                         <SollCell phase={step.key as TimelineEstimatePhase} />

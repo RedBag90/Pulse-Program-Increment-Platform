@@ -34,7 +34,7 @@ import type { WikiContext } from "@/modules/wiki/domain/guide-filter";
  * Modul ueber `moduleForAction()` auf — das Blatt kennt nur noch das Ergebnis.
  */
 export interface RoleSheetClaim {
-  text: string;
+  textKey: string;
   module?: ModuleKey;
   practice?: Practice;
 }
@@ -44,7 +44,7 @@ export interface RoleSheet {
   /** `ROLE_LABELS[role]` — nicht neu getextet, sonst haetten wir zwei Namen. */
   label: string;
   /** Ein Satz: der Auftrag. Modulneutral, steht immer da. */
-  mission: string;
+  missionKey: string;
   responsibilities: readonly RoleSheetClaim[];
   /** Woher die Arbeit kommt und wohin sie weitergeht. */
   handoffs: readonly RoleSheetClaim[];

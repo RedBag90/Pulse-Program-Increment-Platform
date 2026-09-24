@@ -6,6 +6,7 @@ import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { startArt } from "@/modules/core/org/server/services/art-setup";
 import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 const schema = z.object({
   valueStreamId: z.string().uuid(),
@@ -41,10 +42,13 @@ export const startArtAction = createServerAction({
     revalidatePath("/structure", "page");
     revalidatePath("/transformation", "page");
   },
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Wertstrom oder ART nicht gefunden"
-        : "ART konnte nicht gestartet werden",
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      {
+        notFoundKey: "errors.action.valueStreamOrArtNotFound",
+        fallbackKey: "errors.action.startArt",
+      },
+      t,
+    ),
 });

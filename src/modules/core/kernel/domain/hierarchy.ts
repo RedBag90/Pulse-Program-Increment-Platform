@@ -65,7 +65,7 @@ export function validateParentLevel(
       return err({
         kind: "hierarchy_violation" as const,
         violatedConstraint: "I2_epic_has_no_parent",
-        detail: "An EPIC (level=0) must not have a parent.",
+        detail: "errors.hierarchy.epicHasParent",
       });
     }
     return ok(undefined);
@@ -85,9 +85,14 @@ export function validateParentLevel(
     return err({
       kind: "hierarchy_violation" as const,
       violatedConstraint: "I1_level_strictness",
-      detail:
-        `A ${LEVEL_NAME[childLevel]} (level=${childLevel}) must have a parent of level ` +
-        `${LEVEL_NAME[expected]} (level=${expected}). Got parent of level ${actual}.`,
+      detail: "errors.hierarchy.wrongParentLevel",
+      values: {
+        child: LEVEL_NAME[childLevel],
+        childLevel,
+        expected: LEVEL_NAME[expected],
+        expectedLevel: expected,
+        actual,
+      },
     });
   }
 

@@ -142,7 +142,7 @@ describe("createQueryHandler — authorization", () => {
   });
 
   it("returns 403 when readAction is denied", async () => {
-    mockAuthorize.mockReturnValue({ allow: false, reason: "admin only" });
+    mockAuthorize.mockReturnValue({ allow: false, reason: "errors.forbidden" });
     const handler = createQueryHandler({
       readAction: "admin.audit-log.read",
       resource: (_p, principal) => ({ tenantId: principal.tenantId }),

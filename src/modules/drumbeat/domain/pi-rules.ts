@@ -10,6 +10,7 @@
  * stays separate — that is calendar *provisioning*, not a rule.
  */
 
+import type { MessageValues } from "@/modules/core/kernel/domain/errors";
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 import { piWindowsOverlap } from "@/modules/drumbeat/domain/timeline-grid";
 
@@ -59,30 +60,44 @@ export interface PiClosureSnapshot {
   retrospectiveNotes: string | null;
 }
 
-/**
- * Strukturiertes Ergebnis der Closure-Prüfung: `ready` + die deutschen Blocker-
- * Gründe (`reasons`, leer wenn ready). **Kein** bloßes `string[]`-Fehler-Idiom mehr
- * — der Aufrufer liest `ready` und formt die Gründe in seinen Fehler/seine Anzeige.
- */
-export interface PiClosureResult {
-  ready: boolean;
-  /** Deutsche, menschenlesbare Blocker-Gründe; leer wenn `ready`. */
-  reasons: string[];
+/** Ein Blocker: der Katalog-Schlüssel und, wo der Satz eine Zahl nennt, ihr Wert. */
+export interface PiClosureBlocker {
+  key: string;
+  values?: MessageValues;
 }
 
 /**
- * Closure readiness (eine Regel; belt & suspenders im `completePi`). Baut die
- * deutschen Blocker-Gründe und meldet über `ready`, ob `completePi` erlaubt ist.
+ * Strukturiertes Ergebnis der Closure-Prüfung: `ready` + die Blocker-Gründe
+ * (`reasons`, leer wenn ready). **Kein** bloßes `string[]`-Fehler-Idiom mehr —
+ * der Aufrufer liest `ready` und formt die Gründe in seinen Fehler/seine
+ * Anzeige.
+ *
+ * Seit Zug 5 stehen dort **Schlüssel statt deutscher Sätze** (ADR-0024,
+ * Regel 2). Eine reine Domänenfunktion kennt die Sprache ihres Lesers nicht;
+ * sie sagt, was fehlt, und der Aufrufer sagt es in der Sprache des Nutzers.
+ */
+export interface PiClosureResult {
+  ready: boolean;
+  /** Blocker als Katalog-Schlüssel; leer wenn `ready`. */
+  reasons: PiClosureBlocker[];
+}
+
+/**
+ * Closure readiness (eine Regel; belt & suspenders im `completePi`). Sammelt
+ * die Blocker und meldet über `ready`, ob `completePi` erlaubt ist.
  */
 export function evaluateClosure(snapshot: PiClosureSnapshot): PiClosureResult {
-  const reasons: string[] = [];
+  const reasons: PiClosureBlocker[] = [];
   if (snapshot.openUnroamedIssues > 0) {
-    reasons.push(`${snapshot.openUnroamedIssues} offene Issue(s) ohne ROAM`);
+    reasons.push({
+      key: "drumbeat.closure.openUnroamedIssues",
+      values: { count: snapshot.openUnroamedIssues },
+    });
   }
-  if (!snapshot.systemDemoAt) reasons.push("System-Demo-Termin fehlt");
-  if (!snapshot.inspectAdaptAt) reasons.push("Inspect & Adapt-Termin fehlt");
+  if (!snapshot.systemDemoAt) reasons.push({ key: "drumbeat.closure.systemDemoMissing" });
+  if (!snapshot.inspectAdaptAt) reasons.push({ key: "drumbeat.closure.inspectAdaptMissing" });
   if (!snapshot.retrospectiveNotes || snapshot.retrospectiveNotes.trim() === "") {
-    reasons.push("Retrospektive-Notizen fehlen");
+    reasons.push({ key: "drumbeat.closure.retrospectiveMissing" });
   }
   return { ready: reasons.length === 0, reasons };
 }
@@ -141,7 +156,7 @@ export interface ExistingPi {
 
 export function validateDateRange(start: Date, end: Date): Result<void> {
   if (end <= start) {
-    return err({ kind: "conflict" as const, reason: "End date must be after start date" });
+    return err({ kind: "conflict" as const, reason: "drumbeat.errors.endBeforeStart" });
   }
   return ok(undefined);
 }
@@ -177,7 +192,8 @@ export function validatePiDates(input: PiDateValidationInput): Result<void> {
     if (overlaps) {
       return err({
         kind: "conflict" as const,
-        reason: `PI-Daten ueberlappen mit "${other.name ?? other.id}"`,
+        reason: "drumbeat.errors.piOverlaps",
+        values: { other: other.name ?? other.id },
       });
     }
   }
@@ -186,7 +202,7 @@ export function validatePiDates(input: PiDateValidationInput): Result<void> {
   if (start < thirtyDaysAgo) {
     return err({
       kind: "conflict" as const,
-      reason: "Start-Datum darf nicht mehr als 30 Tage in der Vergangenheit liegen",
+      reason: "drumbeat.errors.startTooFarBack",
     });
   }
 
@@ -196,7 +212,8 @@ export function validatePiDates(input: PiDateValidationInput): Result<void> {
       if (other.name === name) {
         return err({
           kind: "conflict" as const,
-          reason: `PI-Name "${name}" existiert bereits in dieser Timeline`,
+          reason: "drumbeat.errors.piNameTaken",
+          values: { name },
         });
       }
     }

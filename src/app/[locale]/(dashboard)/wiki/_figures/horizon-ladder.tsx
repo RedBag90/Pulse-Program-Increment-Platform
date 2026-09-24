@@ -2,7 +2,7 @@ import { useTranslations } from "next-intl";
 import {
   HORIZONS,
   HORIZON_KEYS,
-  HORIZON_HELP,
+  HORIZON_HELP_KEYS,
   stationsOf,
 } from "@/modules/work/domain/portfolio-guardrails";
 
@@ -21,23 +21,23 @@ export function HorizonLadder() {
     <div className="divide-y overflow-hidden rounded-lg bg-card shadow-card">
       {HORIZONS.map((h) => {
         const stations = stationsOf(h);
-        const help = HORIZON_HELP[h];
+        const help = HORIZON_HELP_KEYS[h];
         return (
           <div key={h} className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
             <div className="space-y-1.5">
               <p className="font-heading text-sm font-semibold text-foreground">
                 {t(HORIZON_KEYS[h])}
               </p>
-              <p className="text-sm leading-relaxed text-muted-foreground">{help.blurb}</p>
+              <p className="text-sm leading-relaxed text-muted-foreground">{t(help.blurb)}</p>
               <dl className="grid gap-x-3 gap-y-0.5 text-xs text-muted-foreground sm:grid-cols-[auto_minmax(0,1fr)]">
                 <dt className="font-mono text-meta uppercase tracking-wider sm:pt-[3px]">
                   {t("wiki.ui.epics")}
                 </dt>
-                <dd>{help.epicArt}</dd>
+                <dd>{t(help.epicArt)}</dd>
                 <dt className="font-mono text-meta uppercase tracking-wider sm:pt-[3px]">
                   {t("wiki.ui.budget")}
                 </dt>
-                <dd>{help.budgetFokus}</dd>
+                <dd>{t(help.budgetFokus)}</dd>
               </dl>
             </div>
             <div className="flex gap-1.5 sm:justify-end">

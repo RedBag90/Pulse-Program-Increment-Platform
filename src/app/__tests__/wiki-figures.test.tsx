@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { resolveFigures } from "@/app/[locale]/(dashboard)/wiki/_figures";
-import { GUIDES } from "@/modules/wiki/domain/guides";
+import { GUIDES_DE as GUIDES } from "@/modules/wiki/domain/guides";
 import type { Block } from "@/modules/wiki/domain/blocks";
 
 /**

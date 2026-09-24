@@ -18,7 +18,7 @@ const TEST_USERS = [
 ] as const;
 
 export default function SignInPage() {
-  const t = useTranslations("auth");
+  const t = useTranslations();
 
   return (
     <>
@@ -27,13 +27,13 @@ export default function SignInPage() {
       <SignInForm />
       <p className="mt-4 text-center text-sm">
         <Link href="/forgot-password" className="font-medium text-primary hover:underline">
-          {t("forgotPassword")}
+          {t("auth.forgotPassword")}
         </Link>
       </p>
       <p className="mt-2 text-center text-sm text-muted-foreground">
-        {t("noAccount")}{" "}
+        {t("auth.noAccount")}{" "}
         <Link href="/sign-up" className="font-medium text-primary hover:underline">
-          {t("signUp")}
+          {t("auth.signUp")}
         </Link>
       </p>
 

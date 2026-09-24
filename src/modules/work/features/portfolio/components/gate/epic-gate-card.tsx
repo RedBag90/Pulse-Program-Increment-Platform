@@ -324,19 +324,19 @@ function NoRequest({
                     <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                   )}
                   <span className="flex flex-wrap items-baseline gap-x-1.5">
-                    {c.help ? (
+                    {c.helpKey ? (
                       <Tooltip>
                         <TooltipTrigger
                           render={
                             <span className="cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2" />
                           }
                         >
-                          {c.label}
+                          {t(c.labelKey)}
                         </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">{c.help}</TooltipContent>
+                        <TooltipContent className="max-w-xs">{t(c.helpKey)}</TooltipContent>
                       </Tooltip>
                     ) : (
-                      c.label
+                      t(c.labelKey)
                     )}
                     {/* Markiert wird die **Ausnahme**. Solange nur ein Punkt
                         blockiert, ist „Pflicht" an ihm eine Information —
@@ -385,7 +385,7 @@ function NoRequest({
             blocked
               ? gate.readiness?.criteria
                   .filter((c) => c.blocking && !c.satisfied)
-                  .map((c) => c.label)
+                  .map((c) => t(c.labelKey))
                   .join("; ")
               : undefined
           }

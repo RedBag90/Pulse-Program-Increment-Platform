@@ -62,7 +62,7 @@ export interface TourContext {
 /** Ein Playbook, reduziert auf das, was in diesem Workspace tatsächlich gilt. */
 export interface ResolvedTour {
   role: Role;
-  mission: string;
+  missionKey: string;
   responsibilities: readonly string[];
   handoffs: readonly string[];
   steps: readonly TourStep[];
@@ -157,11 +157,11 @@ export function resolveTour(playbook: RolePlaybook, ctx: TourContext): ResolvedT
   const steps = playbook.steps.filter((s) => stepAllowed(s, ctx));
   return {
     role: playbook.role,
-    mission: playbook.mission,
+    missionKey: playbook.missionKey,
     responsibilities: playbook.responsibilities
       .filter((c) => claimAllowed(c, ctx))
-      .map((c) => c.text),
-    handoffs: playbook.handoffs.filter((c) => claimAllowed(c, ctx)).map((c) => c.text),
+      .map((c) => c.textKey),
+    handoffs: playbook.handoffs.filter((c) => claimAllowed(c, ctx)).map((c) => c.textKey),
     steps,
     total: steps.length,
   };

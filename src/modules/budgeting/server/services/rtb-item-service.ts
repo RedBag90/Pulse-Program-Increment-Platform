@@ -86,7 +86,7 @@ async function assertArtFits(
     return isChangeKind(kind)
       ? err({
           kind: "conflict" as const,
-          reason: "Ein ART-Rahmen braucht den ART, für den er reserviert wird.",
+          reason: "budgeting.errors.artPotNeedsArt",
         })
       : // Betrieb ohne ART ist der Normalfall: die Position wird dann über ihre
         // Solution aufgelöst oder gleichmässig geschlüsselt.
@@ -99,7 +99,7 @@ async function assertArtFits(
   if (!art)
     return err({
       kind: "conflict" as const,
-      reason: "Dieser ART gehört nicht zu diesem Wertstrom.",
+      reason: "budgeting.errors.artOtherValueStream",
     });
   return null;
 }

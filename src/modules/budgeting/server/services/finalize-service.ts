@@ -36,7 +36,7 @@ export async function closeDistribution(
     if (round.status !== "running") {
       return err({
         kind: "conflict" as const,
-        reason: "Nur eine laufende Runde lässt sich schließen.",
+        reason: "budgeting.errors.onlyRunningRoundCloses",
       });
     }
     await tx.budgetRound.update({
@@ -106,7 +106,7 @@ async function finalizePeriodRound(
     if (round.status !== "decided") {
       return err({
         kind: "conflict" as const,
-        reason: "Erst die Verteilung schließen, dann finalisieren.",
+        reason: "budgeting.errors.closeDistributionFirst",
       });
     }
 
@@ -190,7 +190,7 @@ export async function reopenFinalization(
     if (round.status !== "closed") {
       return err({
         kind: "conflict" as const,
-        reason: "Nur eine abgeschlossene Kachel lässt sich zurücknehmen.",
+        reason: "budgeting.errors.onlyFinalisedReopens",
       });
     }
 

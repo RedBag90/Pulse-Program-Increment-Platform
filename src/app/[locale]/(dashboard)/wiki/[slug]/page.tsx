@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { isLocale, routing } from "@/i18n/routing";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getTenantPractices } from "@/server/services/target-model";
@@ -23,13 +24,19 @@ import type { ModuleKey } from "@/modules/core/kernel/domain/modules";
  * kommt, kann nicht von der Anwendung abdriften. Eine abgeschriebene schon —
  * `work/domain/epic-lifecycle-doc.ts` erzählt im eigenen Header, wie das ausgeht.
  */
-export default async function GuidePage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
+export default async function GuidePage({
+  params,
+}: {
+  params: Promise<{ slug: string; locale: string }>;
+}) {
+  const { slug, locale: rohLocale } = await params;
+  const locale = isLocale(rohLocale) ? rohLocale : routing.defaultLocale;
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
-  const guide = guideBySlug(slug);
-  if (!guide) notFound();
+  const lokalisiert = guideBySlug(slug, locale);
+  if (!lokalisiert) notFound();
+  const { guide, translated } = lokalisiert;
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const practices = await getTenantPractices(db, principal.tenantId);
@@ -45,7 +52,12 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
 
   return (
     <Page>
-      <GuideView guide={guide} roles={ctx.roles} figures={resolveFigures()} />
+      <GuideView
+        guide={guide}
+        translated={translated}
+        roles={ctx.roles}
+        figures={resolveFigures()}
+      />
     </Page>
   );
 }

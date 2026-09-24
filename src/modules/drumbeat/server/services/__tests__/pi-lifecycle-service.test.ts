@@ -61,7 +61,7 @@ describe("startPi — one-active-PI-per-Timeline guard", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.kind).toBe("conflict");
-      expect(result.error).toMatchObject({ reason: expect.stringContaining("bereits") });
+      expect(result.error).toMatchObject({ reason: "drumbeat.errors.otherPiActive" });
     }
     expect(t.programIncrement!.update).not.toHaveBeenCalled();
   });

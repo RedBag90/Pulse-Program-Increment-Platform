@@ -311,11 +311,227 @@
   },
   "errors": {
     "unauthorized": "Sie sind nicht berechtigt, diese Aktion durchzuführen",
-    "forbidden": "Zugriff verweigert",
-    "notFound": "Die angeforderte Ressource wurde nicht gefunden",
+    "forbidden": "Keine Berechtigung",
+    "notFound": "{resource} nicht gefunden",
     "validationFailed": "Validierung fehlgeschlagen",
     "serverError": "Ein unerwarteter Fehler ist aufgetreten",
-    "tryAgain": "Erneut versuchen"
+    "tryAgain": "Erneut versuchen",
+    "resource": {
+      "art": "ART",
+      "budgetallocation": "Budget-Zuteilung",
+      "budgetcandidate": "Budget-Kandidat",
+      "budgetgroup": "Budget-Gruppe",
+      "budgetparticipant": "Budget-Teilnehmer",
+      "budgetround": "Budget-Runde",
+      "dependency": "Abhängigkeit",
+      "epic": "Epic",
+      "feature": "Feature",
+      "goalcheckin": "Check-in",
+      "goalcomment": "Kommentar",
+      "goalcustomfielddef": "Eigenes Feld",
+      "impediment": "Impediment",
+      "initiative": "Initiative",
+      "issue": "Anliegen",
+      "issuemitigation": "Massnahme",
+      "keyresult": "Key Result",
+      "kpi": "KPI",
+      "kpivalue": "KPI-Wert",
+      "objective": "Objective",
+      "pi": "Program Increment",
+      "piobjective": "PI-Objective",
+      "pistandard": "PI-Standard",
+      "programincrement": "Program Increment",
+      "risk": "Risiko",
+      "role": "Rolle",
+      "runthebusinessitem": "RTB-Posten",
+      "savedfilter": "Gespeicherter Filter",
+      "solution": "Solution",
+      "sprint": "Sprint",
+      "story": "Story",
+      "strategictheme": "Strategisches Thema",
+      "systemdemo": "System-Demo",
+      "systemdemoitem": "System-Demo-Eintrag",
+      "task": "Aufgabe",
+      "team": "Team",
+      "tenant": "Mandant",
+      "timeline": "Timeline",
+      "transformationgoal": "Ziel",
+      "user": "Nutzer",
+      "userroleassignment": "Rollenzuweisung",
+      "valuestream": "Wertstrom"
+    },
+    "tenantMismatch": "Mandantenzuordnung passt nicht",
+    "validation": "Eingabe ungültig",
+    "pyramidViolated": "KPI ist bereits an einen anderen Key Result gebunden",
+    "moduleUnavailable": "Dieses Modul ist in diesem Bereich nicht verfügbar",
+    "operationFailed": "Aktion fehlgeschlagen",
+    "notAuthenticated": "Nicht angemeldet",
+    "insufficientPermissions": "Keine ausreichende Berechtigung",
+    "action": {
+      "action": "Maßnahme fehlgeschlagen",
+      "actionFailed": "Aktion fehlgeschlagen",
+      "addStandardPis": "Standard-PIs konnten nicht angelegt werden",
+      "advanceCadence": "Fortschreiben fehlgeschlagen",
+      "approve": "Abnahme fehlgeschlagen",
+      "artOrTimelineNotFound": "ART oder Timeline nicht gefunden",
+      "assign": "Zuordnung fehlgeschlagen",
+      "assignFeature": "Feature konnte nicht zugewiesen werden",
+      "assignOwner": "Owner-Zuweisung fehlgeschlagen",
+      "assignRole": "Rolle konnte nicht zugewiesen werden",
+      "bulkStatusChange": "Status konnte nicht für alle geändert werden",
+      "changeDependencyType": "Abhängigkeits-Typ konnte nicht geändert werden",
+      "changeEpicAssignment": "Epic-Zuordnung konnte nicht geändert werden",
+      "changeLifecycle": "Lifecycle konnte nicht geändert werden",
+      "changePrefix": "Präfix-Änderung fehlgeschlagen",
+      "changeStatus": "Status konnte nicht geändert werden",
+      "checkin": "Check-in fehlgeschlagen",
+      "confirmRole": "Die Rolle konnte nicht bestätigt werden",
+      "create": "Anlegen fehlgeschlagen",
+      "createArt": "ART konnte nicht angelegt werden",
+      "createEpic": "Epic konnte nicht angelegt werden",
+      "createFeature": "Feature konnte nicht angelegt werden",
+      "createField": "Feld konnte nicht angelegt werden",
+      "createGoal": "Ziel konnte nicht angelegt werden",
+      "createKeyResult": "Key Result konnte nicht angelegt werden",
+      "createKpi": "KPI konnte nicht erstellt werden",
+      "createPeriod": "Kachel konnte nicht angelegt werden",
+      "createPi": "PI konnte nicht angelegt werden",
+      "createPiStandard": "PI-Standard konnte nicht angelegt werden",
+      "createSolution": "Solution konnte nicht angelegt werden",
+      "createTimeline": "Timeline konnte nicht angelegt werden",
+      "createTimelineFromStandard": "Timeline aus Standard konnte nicht angelegt werden",
+      "delete": "Löschen fehlgeschlagen",
+      "deleteArt": "ART konnte nicht gelöscht werden",
+      "deleteComment": "Kommentar konnte nicht entfernt werden",
+      "deleteEntry": "Eintrag konnte nicht entfernt werden",
+      "deleteEpic": "Epic konnte nicht gelöscht werden",
+      "deleteFailed": "Löschen fehlgeschlagen",
+      "deleteFeature": "Feature konnte nicht gelöscht werden",
+      "deleteField": "Feld konnte nicht gelöscht werden",
+      "deleteFilter": "Filter konnte nicht gelöscht werden",
+      "deleteGoal": "Ziel konnte nicht gelöscht werden",
+      "deleteKeyResult": "Key Result konnte nicht gelöscht werden",
+      "deleteKpi": "KPI konnte nicht gelöscht werden",
+      "deletePeriod": "Kachel konnte nicht gelöscht werden",
+      "deletePi": "PI konnte nicht gelöscht werden",
+      "deletePiStandard": "PI-Standard konnte nicht gelöscht werden",
+      "deleteSolution": "Solution konnte nicht gelöscht werden",
+      "deleteTimeline": "Timeline konnte nicht gelöscht werden",
+      "distribute": "Verteilung fehlgeschlagen",
+      "document": "Dokumentation fehlgeschlagen",
+      "epicNotFound": "Epic nicht gefunden",
+      "epicNotFound2": "Epic nicht gefunden",
+      "featureNotFound": "Feature nicht gefunden",
+      "featureOrPiNotFound": "Feature oder PI nicht gefunden",
+      "hideGuide": "Anleitung konnte nicht ausgeblendet werden",
+      "hideHint": "Der Hinweis konnte nicht ausgeblendet werden",
+      "insertFeature": "Feature konnte nicht zwischengefügt werden",
+      "joinTimeline": "ART konnte der Timeline nicht beitreten",
+      "leaveTimeline": "ART konnte die Timeline nicht verlassen",
+      "link": "Verknüpfung fehlgeschlagen",
+      "linkArt": "ART-Zuordnung fehlgeschlagen",
+      "linkDependency": "Abhängigkeit konnte nicht verknüpft werden",
+      "linkEpic": "Epic-Verknüpfung fehlgeschlagen",
+      "linkValueStream": "Wertstrom-Zuordnung fehlgeschlagen",
+      "move": "Verschieben fehlgeschlagen",
+      "noApprovalAssigned": "Für diesen Antrag ist dir keine Abnahme zugewiesen",
+      "notFoundPlain": "Nicht gefunden",
+      "promote": "Beförderung fehlgeschlagen",
+      "reassess": "Neubewertung fehlgeschlagen",
+      "remove": "Entfernen fehlgeschlagen",
+      "removeRole": "Rolle konnte nicht entfernt werden",
+      "reparent": "Umhängen fehlgeschlagen",
+      "requestGate": "Reifegrad-Wechsel konnte nicht beantragt werden",
+      "requestNotFound": "Antrag nicht gefunden",
+      "resetTour": "Die Tour konnte nicht zurückgesetzt werden",
+      "resolveDependency": "Abhängigkeit konnte nicht gelöst werden",
+      "revert": "Rückstufung fehlgeschlagen",
+      "review": "Prüfung fehlgeschlagen",
+      "roam": "ROAM fehlgeschlagen",
+      "roamBulk": "ROAM-Sammeländerung fehlgeschlagen",
+      "roleAssignmentNotFound": "Rollenzuweisung nicht gefunden",
+      "save": "Speichern fehlgeschlagen",
+      "saveAllocation": "Zuteilung konnte nicht gespeichert werden",
+      "saveApprovers": "Abnehmer konnten nicht gespeichert werden",
+      "saveBenefitHypothesis": "Nutzenhypothese konnte nicht gespeichert werden",
+      "saveBusinessCase": "Business Case konnte nicht gespeichert werden",
+      "saveCapacity": "Kapazität konnte nicht gespeichert werden",
+      "saveComment": "Kommentar konnte nicht gespeichert werden",
+      "saveFilter": "Filter konnte nicht gespeichert werden",
+      "saveGuardrails": "Guardrail-Ziele konnten nicht gespeichert werden",
+      "saveKpi": "KPI konnte nicht gespeichert werden",
+      "saveLayout": "Layout konnte nicht gespeichert werden",
+      "saveMeasurement": "Messwert konnte nicht gespeichert werden",
+      "saveSettings": "Einstellungen konnten nicht gespeichert werden",
+      "saveSetupProgress": "Setup-Fortschritt konnte nicht gespeichert werden",
+      "saveShare": "Anteil konnte nicht gespeichert werden",
+      "saveSolution": "Solution konnte nicht gespeichert werden",
+      "saveTimeWindow": "Zeitfenster konnte nicht gespeichert werden",
+      "saveTimeline": "Timeline konnte nicht gespeichert werden",
+      "saveTourProgress": "Der Tour-Fortschritt konnte nicht gespeichert werden",
+      "saveView": "Die Ansicht konnte nicht gespeichert werden",
+      "sendInvite": "Einladung konnte nicht versendet werden",
+      "setCustomField": "Wert des Zusatzfelds konnte nicht gesetzt werden",
+      "setException": "Ausnahme konnte nicht gesetzt werden",
+      "setOwner": "Owner konnte nicht gesetzt werden",
+      "setRollup": "Rollup-Einstellung konnte nicht geändert werden",
+      "setSolution": "Solution konnte nicht gesetzt werden",
+      "setTeam": "Team konnte nicht gesetzt werden",
+      "snapshot": "Snapshot konnte nicht erstellt werden",
+      "solutionNotFound": "Solution nicht gefunden",
+      "startArt": "ART konnte nicht gestartet werden",
+      "startFeature": "Feature konnte nicht gestartet werden",
+      "startPi": "PI konnte nicht gestartet werden",
+      "suggest": "Vorschlag fehlgeschlagen",
+      "timelineOrPiStandardNotFound": "Timeline oder PI-Standard nicht gefunden",
+      "unlink": "Verknüpfung lösen fehlgeschlagen",
+      "unlinkArt": "ART-Zuordnung lösen fehlgeschlagen",
+      "unlinkDependency": "Abhängigkeit konnte nicht gelöst werden",
+      "unlinkEpic": "Epic-Verknüpfung lösen fehlgeschlagen",
+      "unlinkValueStream": "Wertstrom-Zuordnung lösen fehlgeschlagen",
+      "update": "Aktualisierung fehlgeschlagen",
+      "updateArt": "ART konnte nicht aktualisiert werden",
+      "updateComment": "Kommentar konnte nicht geändert werden",
+      "updateEntry": "Eintrag konnte nicht geändert werden",
+      "updateEpic": "Epic konnte nicht aktualisiert werden",
+      "updateFeature": "Feature konnte nicht aktualisiert werden",
+      "updateField": "Feld konnte nicht aktualisiert werden",
+      "updateGoal": "Ziel konnte nicht aktualisiert werden",
+      "updateKeyResult": "Key Result konnte nicht aktualisiert werden",
+      "updatePi": "PI konnte nicht aktualisiert werden",
+      "updateProgress": "Fortschritt konnte nicht aktualisiert werden",
+      "updateTimeline": "Timeline konnte nicht aktualisiert werden",
+      "updateValueStream": "Wertstrom konnte nicht aktualisiert werden",
+      "updateWsjf": "WSJF-Wert konnte nicht aktualisiert werden",
+      "valueStreamNotFound": "Wertstrom nicht gefunden",
+      "valueStreamNotFound2": "Wertstrom nicht gefunden",
+      "valueStreamOrArtNotFound": "Wertstrom oder ART nicht gefunden",
+      "withdrawRequest": "Antrag konnte nicht zurückgezogen werden"
+    },
+    "invalidJsonBody": "Der Anfragerumpf ist kein gültiges JSON",
+    "platformAdminRequired": "Dafür braucht es einen Plattform-Admin",
+    "hierarchy": {
+      "epicHasParent": "Ein Epic (Ebene 0) darf keinen Überbau haben.",
+      "wrongParentLevel": "{child} (Ebene {childLevel}) braucht einen Überbau der Ebene {expected} (Ebene {expectedLevel}) — angegeben war Ebene {actual}."
+    },
+    "art": {
+      "hasProgramIncrements": "Der ART hat Program Increments und lässt sich nicht löschen."
+    },
+    "solution": {
+      "noSolutionInH3": "In H3 gibt es keine Solution — dort wird geforscht. Ein R&D-Vorhaben trägt seinen Horizont am Epic; eine Solution entsteht frühestens in H2.",
+      "artOtherValueStream": "Der ART gehört nicht zum gewählten Wertstrom.",
+      "onlyEmergingPromotes": "Nur Emerging-Solutions (H2) können nach H1 befördert werden.",
+      "allCriteriaNeeded": "Alle vier Transition-Kriterien müssen bestätigt sein.",
+      "noStep": "Von „{from}“ führt kein Schritt nach „{to}“."
+    },
+    "setup": {
+      "onlyTenantAdmin": "Den Setup-Fortschritt darf nur die Mandanten-Administration ändern."
+    },
+    "systemDemo": {
+      "reorderIncomplete": "Die neue Reihenfolge muss alle {expected} Einträge enthalten — übergeben wurden {got}.",
+      "itemOtherDemo": "Der Eintrag {id} gehört nicht zu dieser Demo."
+    },
+    "idempotencyKeyReused": "Dieser Idempotency-Key wurde bereits mit einem anderen Anfragerumpf benutzt."
   },
   "goals": {
     "status": {
@@ -578,6 +794,10 @@
     },
     "network": {
       "loading": "Netzplan wird geladen…"
+    },
+    "errors": {
+      "kpiAlreadyDrives": "Diese KPI treibt bereits ein anderes Ziel — jede KPI kann nur ein Ziel treiben.",
+      "cannotMoveUnderSelf": "Ein Ziel kann nicht unter sich selbst oder einen Nachfahren verschoben werden."
     }
   },
   "work": {
@@ -773,7 +993,8 @@
       "pflicht": "Pflicht",
       "inKlaerungSchicken": "In Klärung schicken",
       "ablehnen": "Ablehnen",
-      "zurueckstufen": "Zurückstufen"
+      "zurueckstufen": "Zurückstufen",
+      "blockReason": "Reifegrad {gate} verlangt: {criteria}."
     },
     "epic": {
       "keineNutzerImMandanten": "Keine Nutzer im Mandanten.",
@@ -1210,6 +1431,182 @@
       "meineFreigaben": "Meine Freigaben",
       "alleFreigabenDieAktuell": "Alle Freigaben, die aktuell auf deine Entscheidung warten.",
       "nichtsOffenesAlleFreigaben": "Nichts Offenes — alle Freigaben erledigt."
+    },
+    "gateCriteria": {
+      "hypothesisDrafted": {
+        "label": "Benefit-Hypothese ist ausgearbeitet",
+        "help": "Die Benefit-Hypothese beschreibt den erwarteten Nutzen und die Annahme dahinter. Formuliere sie im Reiter Hypothese. Freigegeben wird sie mit der Abnahme dieses Schritts — einen eigenen Freigabelauf davor gibt es nicht."
+      },
+      "hypothesisApproved": {
+        "label": "Benefit-Hypothese ist freigegeben",
+        "help": "Die Hypothese wurde mit dem Schritt auf L1 abgenommen. Fehlt der Stempel, ist das Epic nie sauber durch L1 gegangen."
+      },
+      "ownerNominated": {
+        "label": "Epic Owner ist benannt",
+        "help": "Der Epic Owner verantwortet Fortschritt, Business Case und Freigaben. Benenne ihn im Overview über das Owner-Feld."
+      },
+      "businessCaseDrafted": {
+        "label": "Business Case ist ausgearbeitet",
+        "help": "Der Business Case hält Kosten, Nutzen und Optionen fest. Pflege ihn im Reiter Business Case. Freigegeben wird er mit der Abnahme dieses Schritts durch die fünf Parteien — einen eigenen Freigabelauf davor gibt es nicht."
+      },
+      "deliverablesDrafted": {
+        "label": "Deliverables sind geschnitten",
+        "help": "Das Epic ist in untergeordnete Features zerlegt. Schneide sie im Reiter Deliverables — sie tragen später die Umsetzung und die Aufwandsschätzung."
+      },
+      "dependenciesMapped": {
+        "label": "Abhängigkeiten sind erfasst",
+        "help": "Abhängigkeiten zu anderen Vorhaben sind im Reiter Dependencies eingetragen. Sie bestimmen, was vor diesem Epic fertig sein muss."
+      },
+      "kpisDefined": {
+        "label": "KPI sind definiert",
+        "help": "Mindestens eine Kennzahl mit Ausgangswert und Ziel ist im Reiter KPI & Nutzen angelegt. An ihr wird später der realisierte Nutzen gemessen."
+      },
+      "budgetAllocated": {
+        "label": "Budget ist alloziert (Σ > 0)",
+        "help": "Dem Epic ist über das Participatory Budgeting Budget zugeteilt (Summe > 0). Die Zuteilung erfolgt in den Budgeting-Zeiträumen."
+      },
+      "featureStarted": {
+        "label": "Mindestens ein Feature ist gestartet",
+        "help": "Mindestens ein untergeordnetes Feature ist in Umsetzung. Features entstehen im Reiter Deliverables; ihr Status wird im Delivery-Cockpit gesetzt."
+      },
+      "featuresCompleted": {
+        "label": "Alle Child-Features sind abgeschlossen",
+        "help": "Alle untergeordneten Features sind abgeschlossen — der übliche Anhaltspunkt dafür, dass die Umsetzung fertig ist. Die Bestätigung trifft die Abnahme, nicht der Zähler. Den Feature-Status pflegst du im Delivery-Cockpit."
+      },
+      "implementationConfirmed": {
+        "label": "Umsetzung ist als abgeschlossen bestätigt (L4.2)",
+        "help": "Der Abschluss der Umsetzung wurde beantragt und abgenommen (Schritt L4.2). Erst danach lässt sich der realisierte Impact bestätigen (L5)."
+      }
+    },
+    "lifecycle": {
+      "detailing": {
+        "label": "Idee erfasst",
+        "description": "Epic im Funnel angelegt, wartet auf Sichtung.",
+        "milestoneLabel": "Erstsichtung",
+        "milestoneApprover": "Der VMO sichtet das Epic und benennt den Epic Owner"
+      },
+      "hypothesis": {
+        "label": "Hypothese ausarbeiten",
+        "description": "Problem, Zielgruppe, erwarteter Nutzen, Leading Indicators.",
+        "milestoneLabel": "L1 · Hypothese freigegeben",
+        "milestoneApprover": "VMO — die Abnahme ist zugleich die Freigabe"
+      },
+      "analyzing": {
+        "label": "Für die Analyse einplanen",
+        "description": "Der Wertstrom entscheidet, was Aufwand bekommt.",
+        "milestoneLabel": "Zur Analyse ausgewählt",
+        "milestoneApprover": "VMO"
+      },
+      "businessCase": {
+        "label": "Business Case ausarbeiten",
+        "description": "Lean Business Case erstellen und zur Freigabe stellen.",
+        "milestoneLabel": "L2 · Business Case freigegeben",
+        "milestoneApprover": "Architect Lead · Business Owner · Finance · IRT · VMO · Produkt-Manager"
+      },
+      "backlog": {
+        "label": "Budget zuteilen",
+        "description": "Die Investitionsentscheidung vorbereiten.",
+        "milestoneLabel": "L3 · Budget alloziert",
+        "milestoneApprover": "VMO und Finance"
+      },
+      "implementationStarted": {
+        "label": "Umsetzung starten",
+        "description": "Erstes Feature auf den Weg bringen.",
+        "milestoneLabel": "L4.1 · Umsetzung gestartet",
+        "milestoneApprover": "VMO — plus Produkt-Manager bei ART-Epics"
+      },
+      "implementation": {
+        "label": "Umsetzen",
+        "description": "Features liefern, bis das Vorhaben steht.",
+        "milestoneLabel": "L4.2 · Umsetzung fertig",
+        "milestoneApprover": "VMO"
+      },
+      "done": {
+        "label": "Nutzen messen",
+        "description": "Wirkt das Vorhaben wie versprochen?",
+        "milestoneLabel": "L5 · Impact realisiert",
+        "milestoneApprover": "Finance"
+      }
+    },
+    "nextStep": {
+      "waitingTitle": "Auf die Abnahme von {gate} warten",
+      "waitingHint": "Der Reifegrad-Wechsel ist beantragt. Die benannten Personen entscheiden als Nächstes; bis dahin sind die zugehörigen Inhalte gesperrt.",
+      "toMyApprovals": "Zu meinen Freigaben",
+      "hypothesisTitle": "Benefit Hypothese ausarbeiten",
+      "hypothesisHint": "Beschreibe im Hypothese-Tab Problem, Zielgruppe, erwarteten Nutzen und Leading Indicators — damit die Abnehmer eine Entscheidungsgrundlage haben.",
+      "toHypothesis": "Zur Hypothese",
+      "requestL1Title": "Wechsel auf L1 beantragen",
+      "requestL1Hint": "Inhalte sind da. Beantrage den Reifegrad-Wechsel auf L1 — seine Abnahme ist zugleich die Freigabe der Benefit-Hypothese.",
+      "analysisTitle": "Zur Analyse auswählen lassen",
+      "analysisHint": "Die Hypothese ist freigegeben. Beantrage die Auswahl zur Analyse — der Wertstrom entscheidet, was Aufwand bekommt. Der Reifegrad bleibt dabei L1.",
+      "requestL2Title": "Wechsel auf L2 beantragen",
+      "requestL2Hint": "Inhalte sind da. Beantrage den Wechsel auf L2 — die Abnahme durch die fünf Parteien ist die Freigabe des Business Case.",
+      "businessCaseTitle": "Business Case ausarbeiten",
+      "businessCaseHint": "Detailliere den Business Case (Kosten, Nutzen, Annahmen, Risiken), bevor du ihn zur Freigabe einreichst.",
+      "toBusinessCase": "Zum Business Case",
+      "investmentTitle": "Investition abnehmen lassen",
+      "investmentHintBudgeting": "Budget ist alloziert. Beantrage den Wechsel auf L3 — damit ist die Investitionsentscheidung namentlich abgenommen.",
+      "investmentHintPlain": "Beantrage den Wechsel auf L3 — damit ist die Investitionsentscheidung namentlich abgenommen, von VMO und Finance.",
+      "allocateTitle": "Budget allozieren",
+      "allocateHint": "Business Case ist freigegeben. Plane jetzt im Controlling Budget für dieses Epic ein, damit die Investition abgenommen werden kann.",
+      "toControlling": "Zum Controlling",
+      "firstFeatureTitle": "Erstes Feature starten",
+      "firstFeatureHint": "Die Investition ist abgenommen. Lege in den Deliverables Features an und starte das erste in einem PI — das Epic rückt damit auf L4.",
+      "toDeliverables": "Zu den Deliverables",
+      "impactTitle": "Impact bestätigen lassen",
+      "impactHint": "Die Umsetzung ist als abgeschlossen bestätigt. Beantrage den Wechsel auf L5 — das Controlling nimmt ab, dass der prognostizierte Nutzen auf der Balance-Sheet bzw. an den KPIs angekommen ist.",
+      "confirmTitle": "Umsetzung bestätigen lassen",
+      "confirmHint": "Alle Features sind abgeschlossen. Beantrage den Schritt auf L4.2 — damit wird die fertige Umsetzung abgenommen und das Ist-Datum gesetzt.",
+      "finishFeaturesTitle": "Features abschließen ({completed}/{total})",
+      "createFeaturesTitle": "Features anlegen und starten",
+      "finishFeaturesHint": "Die Implementierung läuft. Schließe die restlichen Features ab — danach lässt sich die fertige Umsetzung (L4.2) bestätigen.",
+      "createFeaturesHint": "Es sind noch keine Child-Features am Epic. Lege in den Deliverables welche an und starte sie.",
+      "createMore": "Noch {missing} {what} anlegen",
+      "lowAdoption": "{practice}: niedrige Adoption ({detail})"
+    },
+    "errors": {
+      "endBeforeStart": "Das Enddatum des geplanten Zeitfensters liegt vor dem Startdatum.",
+      "featureOtherArt": "Das Feature gehört zu einem anderen ART",
+      "onlyAssignedApprover": "Nur die zugewiesene abnehmende Person darf hierüber entscheiden.",
+      "epicOtherValueStream": "Das Epic gehört zu einem anderen Wertstrom als das ART des Features — bitte ein Epic aus demselben Wertstrom wählen.",
+      "alreadyAtGate": "Das Epic steht bereits auf {gate}.",
+      "transitionPending": "Für dieses Epic ist bereits ein Wechsel beantragt.",
+      "noApproverConfigured": "Für den Wechsel nach {gate} ist keine abnehmende Person hinterlegt — bitte zuerst die Abnehmer des Wertstroms einrichten.",
+      "demotionNeedsReason": "Eine Rückstufung verlangt eine Begründung.",
+      "correctionGoesBack": "Eine Korrektur geht rückwärts — {to} liegt nicht vor {from}.",
+      "oneStepPerCorrection": "Kein Wechsel von {from} nach {to} — je Korrektur ist nur ein Schritt erlaubt.",
+      "epicWithoutValueStream": "Das Epic hat keinen Wertstrom.",
+      "solutionsOtherValueStream": "Alle Solutions müssen zum Wertstrom des Epics gehören.",
+      "primarySolutionOtherValueStream": "Die Primär-Solution gehört nicht zum gewählten Wertstrom.",
+      "epicNotBudgetReady": "Epic ist noch nicht budgeting-reif — es braucht einen freigegebenen Lean Business Case (L3.1).",
+      "valueStreamAndArtTogether": "Wertstrom und ART müssen gemeinsam gesetzt sein.",
+      "artOtherValueStream": "Der ART gehört nicht zum gewählten Wertstrom.",
+      "artNotOnTimeline": "Das Feature gehört zu einem ART, der diese Timeline nicht abonniert hat.",
+      "featureWithoutArt": "Dem Feature fehlt ein ART — die Zuordnung lässt sich nicht prüfen.",
+      "solutionOtherValueStream": "Die Solution gehört zu einem anderen Wertstrom als das ART des Features — bitte eine Solution aus demselben Wertstrom wählen.",
+      "deliveryTransitionNotAllowed": "Der Übergang von „{from}“ nach „{to}“ ist im Delivery-Lebenszyklus nicht vorgesehen.",
+      "onlyOwnerSetsGuardrails": "Nur Wertstrom-Owner oder Portfolio-Management dürfen Guardrail-Ziele setzen.",
+      "stageGatesOff": "Stage Gates sind im aktiven Zielbild nicht aktiviert.",
+      "requestAlreadyDecided": "Dieser Antrag ist bereits entschieden.",
+      "youAlreadyDecided": "Sie haben diesen Antrag bereits entschieden.",
+      "requestOutOfDate": "Der Antrag bezieht sich auf {expected}, das Epic steht inzwischen auf {actual}.",
+      "onlyOpenWithdraws": "Nur ein offener Antrag lässt sich zurückziehen."
+    },
+    "adoption": {
+      "featuresScored": "{n}/{total} Features bewertet",
+      "featuresApproved": "{n}/{total} Features freigegeben",
+      "dependenciesLinked": "{n} verknüpft",
+      "epicsBeyondFunnel": "{n}/{total} Epics über L0",
+      "epicsInApproval": "{n}/{total} Epics mit beantragter BC-Freigabe"
+    },
+    "guardrail": {
+      "targetsNegative": "Ziele dürfen nicht negativ sein.",
+      "horizonSum": "Horizont-Ziele summieren auf {sum}, erwartet 100.",
+      "capacitySum": "Kapazitäts-Ziele summieren auf {sum}, erwartet 100.",
+      "coverageRange": "Das Abdeckungs-Ziel muss zwischen 0 und 100 liegen.",
+      "responseDays": "Die Reaktionszeit muss mindestens einen Tag betragen.",
+      "portfolioThreshold": "Das Portfolio-Limit muss eine Zahl ≥ 0 sein.",
+      "invalid": "Die Guardrail-Ziele sind ungültig."
     }
   },
   "budgeting": {
@@ -1486,6 +1883,29 @@
       "budget": "Budget €",
       "demandJobSizeFeat": "Demand (Σ Job Size · # Feat.)",
       "featuresDieZumSnapshot": "Features, die zum Snapshot-Zeitpunkt einem PI im Zyklus zugewiesen waren — gruppiert nach Epic in der Snapshot-Reihenfolge."
+    },
+    "errors": {
+      "amountNotANumber": "Betrag muss eine Zahl ≥ 0 sein.",
+      "sumOverPot": "Die Summe überschreitet den Rahmen um {over} €.",
+      "sumOverArtPot": "Die Summe überschreitet den ART-Rahmen um {over} €.",
+      "artEpicNotOnList": "„{title}“ ist ein ART-Epic und wird aus dem ART-Rahmen seines ARTs finanziert — es steht deshalb nicht auf der PB-Liste.",
+      "listDraftOnly": "Die PB-Liste ist nur im Status draft kuratierbar.",
+      "epicNotReadyEither": "Epic ist noch nicht budgeting-reif — es braucht eine freigegebene Benefit-Hypothese oder einen freigegebenen Lean Business Case.",
+      "onlyRunningRoundCloses": "Nur eine laufende Runde lässt sich schließen.",
+      "closeDistributionFirst": "Erst die Verteilung schließen, dann finalisieren.",
+      "onlyFinalisedReopens": "Nur eine abgeschlossene Kachel lässt sich zurücknehmen.",
+      "onlyGroupMembers": "Nur Mitglieder dieser Gruppe dürfen verteilen.",
+      "onlySpokesperson": "Nur der Sprecher (oder ein Einreicher) darf die Verteilung einreichen.",
+      "participantsDraftOnly": "Beteiligte sind nur im Status draft änderbar.",
+      "groupsDraftOnly": "Gruppen sind nur im Status draft änderbar.",
+      "membersDraftOnly": "Mitglieder sind nur im Status draft änderbar.",
+      "onlyDraftStarts": "Nur eine Kachel im Entwurf lässt sich starten.",
+      "potDraftOnly": "Rahmen ist nur im Status draft änderbar.",
+      "endBeforeStart": "Das Ende liegt vor dem Start.",
+      "itemOtherValueStream": "Eine der Positionen gehört nicht zu diesem Wertstrom.",
+      "nothingAwarded": "Für dieses Halbjahr ist dem Wertstrom noch nichts zugesprochen — es gibt nichts aufzuteilen.",
+      "artPotNeedsArt": "Ein ART-Rahmen braucht den ART, für den er reserviert wird.",
+      "artOtherValueStream": "Dieser ART gehört nicht zu diesem Wertstrom."
     }
   },
   "drumbeat": {
@@ -1692,6 +2112,35 @@
       "noEntries": "Keine Einträge.",
       "entry": "Eintrag",
       "today": "Heute"
+    },
+    "errors": {
+      "endBeforeStart": "Das Enddatum muss nach dem Startdatum liegen.",
+      "piOverlaps": "Die PI-Daten überlappen mit „{other}“.",
+      "startTooFarBack": "Das Startdatum darf höchstens 30 Tage zurückliegen.",
+      "piNameTaken": "Der PI-Name „{name}“ ist in dieser Timeline schon vergeben.",
+      "selfDependency": "Eine Initiative kann nicht von sich selbst abhängen.",
+      "typeUnchanged": "Der Typ ist bereits so gesetzt.",
+      "cannotReopen": "Ein abgeschlossenes PI lässt sich nicht wieder öffnen.",
+      "useLifecycleAction": "Für den Wechsel nach „{status}“ gibt es eine eigene Aktion — bitte diese benutzen.",
+      "piWithoutTimelineEdit": "Ein PI ohne Timeline lässt sich nicht über den Timeline-Pfad bearbeiten.",
+      "jobSizeNegative": "Die Job-Size-Kapazität darf nicht negativ sein.",
+      "budgetOverrideNegative": "Der Budget-Override darf nicht negativ sein.",
+      "onlyPlannedStarts": "Nur ein geplantes PI lässt sich starten — dieses steht auf „{status}“.",
+      "noTimelineStart": "Das PI hat keine Timeline und lässt sich nicht starten.",
+      "otherPiActive": "Das PI „{other}“ ist in dieser Timeline bereits aktiv — bitte zuerst abschliessen.",
+      "onlyActiveCompletes": "Nur ein aktives PI lässt sich abschliessen — dieses steht auf „{status}“.",
+      "closureBlocked": "PI-Abschluss nicht möglich: {reasons}",
+      "onlyActiveAdvances": "Nur ein aktives PI lässt sich fortschreiben — dieses steht auf „{status}“.",
+      "noTimelineAdvance": "Ein PI ohne Timeline lässt sich nicht fortschreiben.",
+      "cadenceUnknown": "Die Kadenz lässt sich nicht ableiten.",
+      "onlyPlannedDeletes": "Nur ein geplantes PI lässt sich löschen.",
+      "timelineHasArts": "Dieser Timeline sind noch {count} ART(s) zugeordnet — bitte zuerst lösen."
+    },
+    "closure": {
+      "openUnroamedIssues": "{count} offene Anliegen ohne ROAM",
+      "systemDemoMissing": "System-Demo-Termin fehlt",
+      "inspectAdaptMissing": "Inspect & Adapt-Termin fehlt",
+      "retrospectiveMissing": "Retrospektive-Notizen fehlen"
     }
   },
   "risks": {
@@ -1803,6 +2252,10 @@
       "sortierung": "Sortierung",
       "zeilenhoehe": "Zeilenhöhe",
       "art": "ART"
+    },
+    "errors": {
+      "noValueStreamAccess": "Kein Zugriff auf den Wertstrom dieses Anliegens.",
+      "onlyProposalsReviewed": "Nur Vorschläge lassen sich prüfen."
     }
   },
   "onboarding": {
@@ -1818,7 +2271,192 @@
       "dontShowAgain": "Nicht mehr anzeigen",
       "notNow": "Nicht jetzt",
       "view": "Ansehen",
-      "nothingUnlocked": "In diesem Workspace ist für diese Rolle aktuell nichts freigeschaltet. Sobald weitere Module dazukommen, melden wir uns hier wieder."
+      "nothingUnlocked": "In diesem Workspace ist für diese Rolle aktuell nichts freigeschaltet. Sobald weitere Module dazukommen, melden wir uns hier wieder.",
+      "newTasks": "Als {role} kommen dadurch {count, plural, one {# Aufgabe} other {# Aufgaben}} dazu."
+    },
+    "playbook": {
+      "platformAdmin": {
+        "mission": "Du betreibst Pulse mandantenübergreifend: du legst Workspaces an, schaltest Module frei und hältst den Betrieb gesund.",
+        "neueKundenWorkspacesBereitstellen": "Neue Kunden-Workspaces bereitstellen und ihre Module freischalten.",
+        "mitgliedschaftenUndPlattformAdminrechte": "Mitgliedschaften und Plattform-Adminrechte über alle Mandanten hinweg verwalten.",
+        "betriebsstoerungenErkennenBevorDie": "Betriebsstörungen erkennen, bevor die Kunden sie melden.",
+        "duUebergibstAnDen": "Du übergibst an den Tenant-Admin: sobald der Workspace steht, richtet er Nutzer, Rollen und Organisation ein.",
+        "deineArbeitLiegtAusserhalb": "Deine Arbeit liegt außerhalb dieses Workspaces",
+        "alsEinzigeRolleArbeitest": "Als einzige Rolle arbeitest du mandantenübergreifend: Workspaces bereitstellen, Module freischalten, Mitgliedschaften setzen. Hier drin bist du Gast — der Einstieg für den Tag ist trotzdem diese Inbox.",
+        "stehtDerWorkspace": "Steht der Workspace?",
+        "derStrukturbaumIstDein": "Der Strukturbaum ist dein schnellster Gesundheitscheck nach der Bereitstellung: Gibt es Wertströme und ARTs, oder hängt der Kunde noch beim Einrichten fest?",
+        "nachvollziehenWasPassiertIst": "Nachvollziehen, was passiert ist",
+        "jedeZustandsaenderndeAktionLandet": "Jede zustandsändernde Aktion landet hier, inklusive Rollenvergaben. Über die Filterzeile kommst du bei Rückfragen in Sekunden an den richtigen Vorgang."
+      },
+      "tenantAdmin": {
+        "mission": "Du richtest den Workspace ein und hältst ihn arbeitsfähig: die richtigen Leute mit den richtigen Rechten, die Organisation korrekt abgebildet.",
+        "nutzerEinladenRollenVergeben": "Nutzer einladen, Rollen vergeben und deren Sichtbarkeits-Scopes setzen.",
+        "getrenntDavonFestlegenWelche": "Getrennt davon festlegen, welche Rolle welche Berechtigung hat.",
+        "dieOrganisationAbbildenWertstroeme": "Die Organisation abbilden: Wertströme und ARTs anlegen und pflegen.",
+        "externeSystemeAnbindenJira": "Externe Systeme anbinden (Jira, Azure DevOps).",
+        "beiRueckfragenAusAudit": "Bei Rückfragen aus Audit oder Compliance Auskunft geben.",
+        "duUebernimmstVonDer": "Du übernimmst von der Plattform: der Workspace existiert, du füllst ihn mit Leben.",
+        "duUebergibstAnPortfolio": "Du übergibst an Portfolio Manager und RTE: sobald Struktur und Rollen stehen, beginnt die Facharbeit.",
+        "derSetupGuideGibt": "Der Setup-Guide gibt die Reihenfolge vor",
+        "werArbeitetInDiesem": "Wer arbeitet in diesem Workspace?",
+        "dieseListeIstDeine": "Diese Liste ist deine tägliche Anlaufstelle: Wer ist da, welche Rolle hat er, ist jemand gesperrt. Ein Klick öffnet rechts die Detailansicht mit den Rollen.",
+        "jemandenEinladen": "Jemanden einladen",
+        "berechtigungenJeRolleNachschaerfen": "Berechtigungen je Rolle nachschärfen",
+        "werNutzerEinlaedtUnd": "Wer Nutzer einlädt und wer Rechte vergibt, sind bewusst zwei getrennte Befugnisse. Links wählst du die Rolle, rechts siehst du jede Aktion und wo ihr vom Standard abweicht.",
+        "denErstenWertstromAnlegen": "Den ersten Wertstrom anlegen",
+        "wertstroemeFinanzierenEpicsOhne": "Wertströme finanzieren Epics — ohne sie bleibt das Portfolio leer. Der Knopf steht im Kopf der Struktur-Seite; ARTs legst du danach auf der Detailseite des jeweiligen Wertstroms an.",
+        "dieOrganisationImBlick": "Die Organisation im Blick",
+        "dieKarteZeigtJe": "Die Karte zeigt je Wertstrom eine Bahn, darin die ARTs als Spalten und deren Solutions als Kacheln. Ein Klick führt auf die Detailseite des Knotens — dort pflegst du Verantwortliche und legst weitere ARTs an.",
+        "dieKadenzEtablieren": "Die Kadenz etablieren",
+        "ohneWiederkehrendenPiTakt": "Ohne wiederkehrenden PI-Takt gibt es keine Planung. Dieser Meilenstein führt dich zu den Timelines, an die sich die ARTs anschließen.",
+        "auskunftsfaehigBleiben": "Auskunftsfähig bleiben",
+        "beiRueckfragenAusAudit2": "Bei Rückfragen aus Audit oder Compliance filterst du hier nach Akteur, Aktion oder Zeitraum. Auch Rollenvergaben stehen darin.",
+        "achtMeilensteineVonWorkspace": "Acht Meilensteine von „Workspace lebt\" bis „erstes PI läuft\". Das Tempo bestimmt ihr, die Reihenfolge ist fix — und du bist der Einzige, der hier abhaken darf.",
+        "ueberEinladenOeffnestDu": "Über „Einladen\" öffnest du rechts das Formular. Nach der Zuweisung sieht der Eingeladene dasselbe Willkommensfenster, das du gerade gesehen hast — deine Rollenwahl bestimmt also, was er erklärt bekommt."
+      },
+      "portfolioManager": {
+        "mission": "Du führst das Portfolio: du entscheidest, woran gearbeitet wird, finanzierst es und weist am Ende nach, was es gebracht hat.",
+        "denZielzustandUndDie": "Den Zielzustand und die Kopf-Ziele der Organisation setzen.",
+        "dieOrganisationAufbauenWertstroeme": "Die Organisation aufbauen: Wertströme anlegen und die ARTs darin.",
+        "epicsDurchDenInvestment": "Epics durch den Investment-Funnel führen und Reifegrad-Wechsel beantragen bzw. abnehmen.",
+        "denReifegradWechselAuf": "Den Reifegrad-Wechsel auf L1 abnehmen — damit ist die Benefit-Hypothese freigegeben.",
+        "dasBudgetAufDie": "Das Budget auf die Epics verteilen.",
+        "denRealisiertenMehrwertIm": "Den realisierten Mehrwert im Portfolio-Review nachhalten.",
+        "risikenFinalBewertenDu": "Risiken final bewerten — du bist der Einzige, der eines löschen darf.",
+        "duUebernimmstVomEpic": "Du übernimmst vom Epic Owner: er reicht Hypothese und Business Case ein, du entscheidest.",
+        "duUebergibstAnDen": "Du übergibst an den RTE: sobald ein Epic finanziert ist, plant er die Umsetzung im ART.",
+        "derTagBeginntBei": "Der Tag beginnt bei den Zielen",
+        "hierStehenZielbildUnd": "Hier stehen Zielbild und Kopf-Ziele. Jedes Epic zahlt später auf eines davon ein — ohne gepflegte Ziele lässt sich am Jahresende kein Wertnachweis führen.",
+        "derPortfolioStandAuf": "Der Portfolio-Stand auf einen Blick",
+        "dasBoardStelltAlle": "Das Board stellt alle Epics in ein Raster: Spalten sind die Reifegrade L0–L5, Zeilen die Investitionshorizonte H3 bis H0. Was sich links staut, ist unentschieden; was rechts steht, läuft bereits.",
+        "derInvestmentFunnel": "Der Investment-Funnel",
+        "inDerEpicListe": "In der Epic-Liste siehst du, wo jedes Epic im Investment-Funnel steht. Ein Reifegrad-Wechsel passiert nie von selbst: er wird am Epic beantragt und von den dafür benannten Personen abgenommen.",
+        "deineEntscheidungenSammelnSich": "Deine Entscheidungen sammeln sich hier",
+        "denBudgetTopfSetzen": "Den Budget-Topf setzen",
+        "jeHalbjahrEineKachel": "Je Halbjahr eine Kachel, und die Leiste oben nennt ihren Stand: laufende Kachel, Topf, Abgaben, letzter Stand. Der Topf ist der Rahmen, gegen den alles Weitere gerechnet wird.",
+        "budgetAufEpicsVerteilen": "Budget auf Epics verteilen",
+        "verteiltWirdInDer": "Verteilt wird in der Kachel: die Gruppen schlagen vor, das Ergebnis setzt die Endbeträge. Eine Zuteilung größer null erfüllt das blockierende Kriterium für den Schritt auf L3.2 — die Investitionsentscheidung selbst ist der Antrag plus die Abnahme durch VMO und Finance.",
+        "derWiederkehrendeSteuerungstermin": "Der wiederkehrende Steuerungstermin",
+        "diePortfolioUebersichtIst": "Die Portfolio-Übersicht ist die Fläche des Termins: oben Fördertopf und Ziele, darunter das Kanban mit dem Stand der Vorhaben, ganz unten die Risiken. Was hier stockt, gehört auf die Tagesordnung.",
+        "dieRisikolageLesen": "Die Risikolage lesen",
+        "dieMatrixStelltEintrittswahrscheinlichkeit": "Die Matrix stellt Eintrittswahrscheinlichkeit gegen Auswirkung — ein Zeichen je Head-Issue, verschachtelte zählen in ihrem Head. Mehrere Zeichen in der rechten oberen Ecke sind dein Handlungssignal für den nächsten Review.",
+        "risikenEinordnen": "Risiken einordnen",
+        "beantragteReifegradWechselUnd": "Beantragte Reifegrad-Wechsel und Business Cases warten in „Meine Tasks\", gestapelt unter deinen übrigen Aufgaben. Zustimmen oder begründet ablehnen — solange du nichts tust, steht das Epic still.",
+        "ueberDerListeFiltert": "Über der Liste filtert die ROAM-Leiste nach Einordnung — offen, resolved, owned, accepted, mitigated, jeweils mit Zähler. „Offen\" ist die Menge, über die noch zu entscheiden ist. Du bist der Einzige, der ein Risiko auch löschen darf."
+      },
+      "valueStreamOwner": {
+        "mission": "Du verantwortest einen Wertstrom: welche Vorhaben dort entstehen, ob sie fachlich tragen und wer sie ausarbeitet.",
+        "epicsInDeinemWertstrom": "Epics in deinem Wertstrom anlegen und schärfen.",
+        "einenEpicOwnerBenennen": "Einen Epic Owner benennen, der die Ausarbeitung übernimmt.",
+        "alsBenannterAbnehmerUeber": "Als benannter Abnehmer über Reifegrad-Wechsel entscheiden.",
+        "dasWertstromBudgetAuf": "Das Wertstrom-Budget auf die ARTs verteilen.",
+        "duUebernimmstVomPortfolio": "Du übernimmst vom Portfolio Manager: dein Wertstrom bekommt einen Finanzierungsrahmen.",
+        "duUebergibstAnDen": "Du übergibst an den Epic Owner: er arbeitet aus, was du beauftragt hast.",
+        "deinWertstrom": "Dein Wertstrom",
+        "imBaumFindestDu": "Im Baum findest du deinen Wertstrom mit den daran hängenden ARTs. Deine Schreibrechte gelten genau hier — außerhalb kannst du lesen, aber nichts ändern.",
+        "einVorhabenBeauftragen": "Ein Vorhaben beauftragen",
+        "neueEpicsDeinesWertstroms": "Neue Epics deines Wertstroms entstehen hier. Du legst an und benennst danach einen Epic Owner, der Hypothese und Business Case ausarbeitet.",
+        "woStehenDeineEpics": "Wo stehen deine Epics?",
+        "derReifegradFunnelZeigt": "Der Reifegrad-Funnel zeigt, was noch in Ausarbeitung ist und was schon läuft. Über die Filterzeile grenzt du auf deinen Wertstrom ein.",
+        "freigabenDieAufDich": "Freigaben, die auf dich warten",
+        "mittelAufDieArts": "Mittel auf die ARTs verteilen",
+        "derFinanzierungsrahmenDeinesWertstroms": "Der Finanzierungsrahmen deines Wertstroms wird im Controlling auf die ARTs heruntergebrochen. Die Detailansicht deines Wertstroms führt dich dorthin.",
+        "einRisikoMelden": "Ein Risiko melden",
+        "vorschlagenDarfJederDein": "Vorschlagen darf jeder. Dein Vorschlag geht an den Epic Owner, der ihn prüft und dokumentiert — erst dann bekommt er eine Nummer.",
+        "woDuAlsAbnehmer": "Wo du als Abnehmer eingetragen bist, erscheint die Entscheidung in „Meine Tasks\". Ohne Begründung geht nur die Zustimmung — eine Ablehnung verlangt einen Text."
+      },
+      "epicOwner": {
+        "mission": "Du arbeitest Epics aus: du formulierst, was das Vorhaben bringen soll, belegst es und reichst es zur Entscheidung ein.",
+        "dieBenefitHypotheseFormulieren": "Die Benefit-Hypothese formulieren und den Wechsel auf L1 beantragen.",
+        "denBusinessCaseAusarbeiten": "Den Business Case ausarbeiten und den Wechsel auf L3.1 beantragen — seine Abnahme ist die Freigabe.",
+        "risikenDeinesEpicsDokumentieren": "Risiken deines Epics dokumentieren, bewerten und ROAM-mäßig einordnen.",
+        "nachEinerAblehnungUeberarbeiten": "Nach einer Ablehnung überarbeiten und erneut beantragen.",
+        "duUebernimmstVomWertstrom": "Du übernimmst vom Wertstrom-Verantwortlichen: er beauftragt, du arbeitest aus.",
+        "duUebergibstAnPortfolio": "Du übergibst an Portfolio Manager und Freigeber — entscheiden darfst du über dein eigenes Epic bewusst nicht.",
+        "deineEpics": "Deine Epics",
+        "hierLiegenDieVorhaben": "Hier liegen die Vorhaben, für die du verantwortlich bist. Ein Klick auf ein Epic öffnet die Detailansicht — dort spielt sich deine eigentliche Arbeit ab.",
+        "einNeuesEpicAnlegen": "Ein neues Epic anlegen",
+        "titelUndWertstromGenuegen": "Titel und Wertstrom genügen zum Start. Alles Weitere — Hypothese, Business Case, Deliverables — entsteht danach Reiter für Reiter.",
+        "dieReiterSindDeine": "Die Reiter sind deine Reihenfolge",
+        "inEinemGeoeffnetenEpic": "In einem geöffneten Epic führt dich die Reiter-Leiste durch die Ausarbeitung: Überblick, Reifegrad-Timeline, Hypothese, Business Case, Deliverables, Abhängigkeiten, KPI & Nutzen. Der Reihe nach abarbeiten — auf schmalen Schirmen liegt die Leiste oben statt links.",
+        "benefitHypotheseZuerst": "Benefit-Hypothese zuerst",
+        "derDritteReiterDirekt": "Der dritte Reiter, direkt hinter der Reifegrad-Timeline. Ist sie ausgearbeitet, beantragst du den Wechsel auf L1; mit der Abnahme ist die Hypothese freigegeben — der Startschuss für den Business Case.",
+        "businessCaseBelegen": "Business Case belegen",
+        "kostenNutzenZeitraumSteht": "Kosten, Nutzen, Zeitraum. Steht der Inhalt, beantragst du den Wechsel auf L3.1 — die Abnahme durch die fünf Parteien ist die Freigabe des Business Case.",
+        "abnehmerBenennen": "Abnehmer benennen",
+        "beimAntragAufL": "Beim Antrag auf L3.1 legst du fest, wer für welche Partei zeichnet. Deine eigene Zustimmung ist nicht vorgesehen: wer ausarbeitet, entscheidet nicht.",
+        "risikenDokumentieren": "Risiken dokumentieren",
+        "vorschlagenDarfJederPruefen": "Vorschlagen darf jeder — prüfen und dokumentieren ist deine Aufgabe. Erst mit deiner Annahme bekommt ein Risiko seine Nummer und wird Teil des Registers.",
+        "dieRisikenDeinesEpics": "Die Risiken deines Epics bewerten",
+        "wahrscheinlichkeitMalAuswirkungErgibt": "Wahrscheinlichkeit mal Auswirkung ergibt die Exponierung. Jede Neubewertung bleibt als Spur erhalten, damit sichtbar wird, ob eure Maßnahmen wirken."
+      },
+      "rte": {
+        "mission": "Du orchestrierst deinen Agile Release Train: du hältst den Takt, planst die Umsetzung und räumst weg, was die Lieferung blockiert.",
+        "programIncrementsAnlegenStarten": "Program Increments anlegen, starten und abschließen.",
+        "dasFeatureBacklogDes": "Das Feature-Backlog des ART pflegen und den Lieferstatus setzen.",
+        "abhaengigkeitenZwischenVorhabenSichtbar": "Abhängigkeiten zwischen Vorhaben sichtbar machen und auflösen.",
+        "risikenUndBlockadenDer": "Risiken und Blockaden der Umsetzung dokumentieren und ROAM-mäßig einordnen.",
+        "duUebernimmstVomPortfolio": "Du übernimmst vom Portfolio: finanzierte Epics werden bei dir zu geplanter Arbeit.",
+        "duUebergibstZurueckAns": "Du übergibst zurück ans Portfolio: sobald das erste Feature in Umsetzung geht, ist das Epic reif für den beantragten Schritt auf L4.",
+        "derTagBeginntIn": "Der Tag beginnt in der Inbox",
+        "dasUmsetzungsCockpitIst": "Das Umsetzungs-Cockpit ist deine Zentrale",
+        "vierSichtenAufDieselben": "Vier Sichten auf dieselben Features: Board, Tabelle, Fahrplan, Netzwerk. Du wechselst je nach Frage — Board für den Fluss, Tabelle zum Pflegen.",
+        "woStehtDerZug": "Wo steht der Zug im PI?",
+        "derStreifenZeigtDie": "Der Streifen zeigt die kommenden Program Increments, das laufende hervorgehoben. Er ist dein Zeitgefühl für alles, was darunter steht.",
+        "dieTabellensichtZumPflegen": "Die Tabellensicht zum Pflegen",
+        "hierSiehstDuJedes": "Hier siehst du jedes Feature mit Titel, ART, PI, Status, WSJF und Blockern in einer Zeile. Das ist die Sicht, in der du tatsächlich änderst.",
+        "lieferstatusSetzen": "Lieferstatus setzen",
+        "inDerStatusSpalte": "In der Status-Spalte jeder Zeile wählst du direkt aus: freigegeben, in Umsetzung, blockiert, abgeschlossen, verworfen. Das erste gestartete Feature erfüllt das Kriterium, mit dem der Wechsel des Epics auf L4 beantragt wird.",
+        "abhaengigkeitenAufloesen": "Abhängigkeiten auflösen",
+        "gerichteteVerknuepfungenZwischenVorhaben": "Gerichtete Verknüpfungen zwischen Vorhaben, zyklusgeprüft. Über den Typ-Filter siehst du zuerst die echten Blocker — was hier offen bleibt, wird in der Planung teuer.",
+        "blockadenImBlickBehalten": "Blockaden im Blick behalten",
+        "dieKadenzPflegen": "Die Kadenz pflegen",
+        "eineTimelineIstDer": "Eine Timeline ist der gemeinsame PI-Takt, den mehrere ARTs abonnieren. Ohne sie gibt es keine PIs — deshalb ist sie die Voraussetzung für alles darüber.",
+        "risikenDerUmsetzung": "Risiken der Umsetzung",
+        "wasDieLieferungGefaehrdet": "Was die Lieferung gefährdet, gehört ins Register statt in den Kopf. Du darfst dokumentieren und ROAM setzen — die Annahme fremder Vorschläge liegt beim Epic Owner.",
+        "woDuAlsStakeholder": "Wo du als Stakeholder eingetragen bist, warten die Entscheidungen in „Meine Tasks\". Kurz durchsehen, bevor du ins Cockpit gehst — Freigaben blockieren sonst die Planung anderer.",
+        "risikenUndBlockadenLiegen": "Risiken und Blockaden liegen in einem Register. Die Leiste filtert nach Einordnung — offen, resolved, owned, accepted, mitigated. Was auf „offen\" stehen bleibt, hält am Ende deinen PI-Abschluss auf."
+      },
+      "featureOwner": {
+        "mission": "Du verantwortest die Vorhaben deines Zuges: was als Nächstes gebaut wird, in welcher Reihenfolge und mit welchem Nutzen.",
+        "featuresAnlegenUndFachlich": "Features anlegen und fachlich schärfen.",
+        "nachWsjfPriorisierenDie": "Nach WSJF priorisieren — die Reihenfolge ist deine Aussage.",
+        "denLieferstatusDeinerFeatures": "Den Lieferstatus deiner Features aktuell halten.",
+        "abhaengigkeitenDeinerFeaturesBenennen": "Abhängigkeiten deiner Features benennen.",
+        "risikenUndBlockadenMelden": "Risiken und Blockaden melden — einordnen tut sie der RTE.",
+        "duUebernimmstVomEpic": "Du übernimmst vom Epic Owner: ein finanziertes Epic wird bei dir in Features zerlegt.",
+        "duUebergibstAnDen": "Du übergibst an den RTE: er plant deine priorisierten Features in ein PI ein.",
+        "deinArbeitsplatz": "Dein Arbeitsplatz",
+        "dasCockpitZeigtDie": "Das Cockpit zeigt die Features deines Zuges in vier Sichten. Für die tägliche Pflege ist die Tabelle die richtige.",
+        "deinBacklogInEiner": "Dein Backlog in einer Zeile pro Feature",
+        "titelArtPiStatus": "Titel, ART, PI, Status, WSJF und Blocker nebeneinander. Ein Klick auf den Titel öffnet die Detailansicht mit Beschreibung und Abhängigkeiten.",
+        "nachWsjfPriorisieren": "Nach WSJF priorisieren",
+        "dieWsjfSpalteMacht": "Die WSJF-Spalte macht die Reihenfolge begründbar statt verhandelbar. Bewertet wird in der Detailansicht des Features; die Zahl in der Tabelle ist nur das Ergebnis.",
+        "lieferstatusAktuellHalten": "Lieferstatus aktuell halten",
+        "abhaengigkeitenBenennen": "Abhängigkeiten benennen",
+        "wasVonAnderenAbhaengt": "Was von anderen abhängt, gehört sichtbar gemacht — in der Netzwerk-Sicht des Cockpits oder im Detail des Features. Diese Übersicht zeigt den Gesamtstand.",
+        "einRisikoOderEine": "Ein Risiko oder eine Blockade melden",
+        "wasDuBeimBauen": "Was du beim Bauen siehst, weiß sonst niemand. Risiken und Blockaden gehen denselben Weg: ein Vorschlag kostet dich zwei Sätze, geprüft wird er vom Epic Owner. Einordnen und Schließen ist Sache des RTE — bewusst getrennt, damit Meldung und Lösung nicht dieselbe Hand sind.",
+        "dieStatusSpalteIst": "Die Status-Spalte ist deine Zusage an den Rest des Zuges. Ein Feature, das seit Wochen auf „in Umsetzung\" steht, kostet dich Glaubwürdigkeit in der Planung."
+      },
+      "viewer": {
+        "mission": "Du verfolgst, wie das Portfolio läuft — mit vollem Lesezugriff auf alles, was in deinem Workspace passiert.",
+        "portfolioFortschrittUndLieferstand": "Portfolio-Fortschritt und Lieferstand verfolgen.",
+        "risikenVorschlagenDasIst": "Risiken vorschlagen — das ist die eine Sache, die auch du schreiben darfst.",
+        "duUebergibstAnDen": "Du übergibst an den Epic Owner: ein von dir vorgeschlagenes Risiko prüft und dokumentiert er.",
+        "derGesamtstand": "Der Gesamtstand",
+        "dasBoardStelltAlle": "Das Board stellt alle Epics in ein Raster: Spalten sind die Reifegrade, Zeilen die Investitionshorizonte. Links das Unentschiedene, rechts das Laufende — das ist der schnellste Überblick, den es gibt.",
+        "dieRisikolage": "Die Risikolage",
+        "wahrscheinlichkeitGegenAuswirkungWas": "Wahrscheinlichkeit gegen Auswirkung. Was rechts oben liegt, sollte in eurem nächsten Steuerungstermin zur Sprache kommen.",
+        "dasEineWasAuch": "Das eine, was auch du schreiben darfst",
+        "einRisikoVorschlagenDer": "Ein Risiko vorschlagen. Der Epic Owner prüft es; erst mit seiner Annahme wird daraus ein nummerierter Eintrag im Register."
+      }
+    },
+    "fixture": {
+      "step1": "Erster Schritt",
+      "step1Body": "Hier fängt es an.",
+      "step2": "Zweiter Schritt",
+      "step2Body": "Und hier weiter."
     }
   },
   "org": {
@@ -1964,6 +2602,34 @@
       "valueStream": "Wertstrom",
       "art": "ART *",
       "status": "Status"
+    },
+    "horizonHelp": {
+      "h3": {
+        "blurb": "Evaluating / R&D — noch keine Solution, nur Ideen, Spikes und Prototypen.",
+        "epicArt": "Exploratory Epics (Machbarkeit, Prototypen, Patente)",
+        "budgetFokus": "Lernen & Validieren (reine OpEx)"
+      },
+      "h2": {
+        "blurb": "Emerging — eine neue Solution entsteht und wird als MVP am Markt getestet.",
+        "epicArt": "Emerging Epics (MVP-Bau, Markttest)",
+        "budgetFokus": "Markttest & Skalierung (fast nur Grow)"
+      },
+      "h1": {
+        "blurb": "Investing & Extracting — etablierte Kern-Solution, trägt den Hauptumsatz.",
+        "epicArt": "Business Epics (Erweiterung) + Enabler Epics (Umbau)",
+        "budgetFokus": "Ausbauen (Invest) bzw. effizient betreiben (Extract)"
+      },
+      "h0": {
+        "blurb": "Decommissioning — Solution am Lebensende, wird geordnet abgeschaltet.",
+        "epicArt": "Decommissioning Epics (Migration, Archivierung, Shutdown)",
+        "budgetFokus": "Run-Budget auf 0 senken (OpEx-Abwicklung)"
+      }
+    },
+    "concept": {
+      "solutionVsEpic": "Eine Solution ist das langlebige Produkt/System (erzeugt laufende Betriebskosten, Run). Ein Epic ist eine große, zeitlich begrenzte Veränderung an einer Solution (Grow). Die Primär-Solution bestimmt den Investitionshorizont des Epics — außer in H3: dort gibt es keine Solution, und das Vorhaben trägt seinen Horizont selbst.",
+      "grow": "Grow = Σ Umsetzungskosten der laufenden Epics dieser Solution (Investition in Weiterentwicklung).",
+      "run": "Run = Σ der Run-the-Business-Positionen, die dieser Solution zugerechnet sind, auf ein Jahr gerechnet (Wartung, Support, Infrastruktur). Gepflegt werden sie im Budgeting-Modul — je Position mit eigener Periode; wertstrom-übergreifende Positionen zählen in keine Solution.",
+      "primarySolution": "Die Primär-Solution eines Epics liefert seinen Investitionshorizont und seine Swimlane im Portfolio-Kanban — solange am Epic selbst keiner steht. Ein R&D-Vorhaben hat gar keine Solution und trägt ihn deshalb immer selbst."
     }
   },
   "platform": {
@@ -2167,7 +2833,23 @@
       "hierEntlang": "Hier entlang",
       "saetzeDieNichtStimmen": "Sätze, die nicht stimmen",
       "noGuides": "Für die freigeschalteten Module gibt es noch keine Anleitungen.",
-      "rolesTeaser": "Die acht Rollen mit Auftrag, Verantwortung und Übergaben — und die sieben Zuständigkeiten, die je Wertstrom besetzt werden."
+      "rolesTeaser": "Die acht Rollen mit Auftrag, Verantwortung und Übergaben — und die sieben Zuständigkeiten, die je Wertstrom besetzt werden.",
+      "onlyGerman": "Diese Anleitung liegt noch nicht auf Englisch vor — gezeigt wird die deutsche Fassung."
     }
+  },
+  "practices": {
+    "portfolioLevel": "Portfolio-Ebene (Wertströme, Epics)",
+    "programLevel": "Programm-Ebene (ARTs, PIs, Features)",
+    "stageGates": "Stage Gates (Investment-Funnel L0–L5)",
+    "wsjf": "WSJF-Priorisierung",
+    "multiPartyApproval": "Mehrparteien-Freigabe für Epics",
+    "featureQs": "Feature-QS",
+    "dependencies": "Abhängigkeiten",
+    "artEpics": "ART-Epics (kleine Vorhaben aus dem ART-Rahmen)"
+  },
+  "structure": {
+    "valueStreams": "Wertströme",
+    "arts": "ARTs",
+    "teams": "Teams"
   }
 }

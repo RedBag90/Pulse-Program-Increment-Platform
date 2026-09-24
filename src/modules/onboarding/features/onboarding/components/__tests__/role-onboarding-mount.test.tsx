@@ -34,10 +34,26 @@ vi.mock("@/modules/onboarding/features/onboarding/actions/role-onboarding", () =
  * Schritte **ohne** `anchor`: dann greift sofort die zentrierte Karte, und der
  * Test braucht weder `scrollIntoView` noch das Nachfassen per
  * `requestAnimationFrame`, das die Ankersuche sonst betreibt.
+ *
+ * **Die Schritte tragen echte Katalog-Schlüssel**, keine erfundenen. Die
+ * Test-Attrappe für `next-intl` wirft bei einem unbekannten Schlüssel (siehe
+ * `src/test/setup.ts`) — erfundene Fixtures fielen dort auf, und das ist
+ * richtig so: ein Schritt ohne Katalog-Eintrag wäre in der Anwendung eine
+ * leere Karte.
  */
 const STEPS: TourStep[] = [
-  { key: "s1", title: "Erster Schritt", body: "Hier fängt es an.", route: "/my-tasks" },
-  { key: "s2", title: "Zweiter Schritt", body: "Und hier weiter.", route: "/portfolio" },
+  {
+    key: "s1",
+    titleKey: "onboarding.fixture.step1",
+    bodyKey: "onboarding.fixture.step1Body",
+    route: "/my-tasks",
+  },
+  {
+    key: "s2",
+    titleKey: "onboarding.fixture.step2",
+    bodyKey: "onboarding.fixture.step2Body",
+    route: "/portfolio",
+  },
 ];
 
 describe("RoleOnboardingMount", () => {

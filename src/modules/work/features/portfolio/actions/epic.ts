@@ -58,8 +58,15 @@ export const createEpicAction = createServerAction({
       ...(input.primarySolutionId !== undefined && { primarySolutionId: input.primarySolutionId }),
     }),
   revalidate: "epic",
-  mapError: (e) =>
-    formatDomainError(e, { notFound: "Value stream not found", fallback: "Failed to create epic" }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      {
+        notFoundKey: "errors.action.valueStreamNotFound2",
+        fallbackKey: "errors.action.createEpic",
+      },
+      t,
+    ),
 });
 
 export const updateEpicAction = createServerAction({
@@ -99,8 +106,12 @@ export const updateEpicAction = createServerAction({
       ...(input.artId !== undefined && { artId: input.artId as ArtId }),
     }),
   revalidate: "epic",
-  mapError: (e) =>
-    formatDomainError(e, { notFound: "Epic not found", fallback: "Failed to update epic" }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      { notFoundKey: "errors.action.epicNotFound2", fallbackKey: "errors.action.updateEpic" },
+      t,
+    ),
 });
 
 /**
@@ -142,12 +153,7 @@ export const setEpicPlannedWindowAction = createServerAction({
       plannedEndAt: input.plannedEndAt ? new Date(`${input.plannedEndAt}T00:00:00.000Z`) : null,
     }),
   revalidate: "epic",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Epic nicht gefunden"
-        : "Zeitfenster konnte nicht gespeichert werden",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveTimeWindow" }, t),
 });
 
 /** Toggles a governance flag (steering / budgeting) on an Epic from the overview. */
@@ -168,8 +174,12 @@ export const setEpicFlagAction = createServerAction({
         : { stagedForBudgeting: input.value === "true" }),
     }),
   revalidate: "epic",
-  mapError: (e) =>
-    formatDomainError(e, { notFound: "Epic not found", fallback: "Failed to update epic" }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      { notFoundKey: "errors.action.epicNotFound2", fallbackKey: "errors.action.updateEpic" },
+      t,
+    ),
 });
 
 /**
@@ -188,8 +198,12 @@ export const setEpicHelpRequestedAction = createServerAction({
   service: (ctx, input) =>
     updateEpic(ctx, { id: input.id as EpicId, helpRequested: input.value === "true" }),
   revalidate: "epic",
-  mapError: (e) =>
-    formatDomainError(e, { notFound: "Epic not found", fallback: "Failed to update epic" }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      { notFoundKey: "errors.action.epicNotFound2", fallbackKey: "errors.action.updateEpic" },
+      t,
+    ),
 });
 
 export const deleteEpicAction = createServerAction({
@@ -210,8 +224,12 @@ export const deleteEpicAction = createServerAction({
       ...(input.children ? { children: input.children } : {}),
     }),
   revalidate: "epic",
-  mapError: (e) =>
-    formatDomainError(e, { notFound: "Epic not found", fallback: "Failed to delete epic" }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      { notFoundKey: "errors.action.epicNotFound2", fallbackKey: "errors.action.deleteEpic" },
+      t,
+    ),
 });
 
 /**
@@ -241,5 +259,5 @@ export const setPortfolioOverrideAction = createServerAction({
   service: (ctx, input) =>
     setPortfolioOverride(ctx, { epicId: input.epicId as EpicId, reason: input.reason }),
   revalidate: "epic",
-  mapError: (e) => formatDomainError(e, { fallback: "Ausnahme konnte nicht gesetzt werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.setException" }, t),
 });

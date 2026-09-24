@@ -311,11 +311,227 @@
   },
   "errors": {
     "unauthorized": "You are not authorized to perform this action",
-    "forbidden": "Access denied",
-    "notFound": "The requested resource was not found",
+    "forbidden": "Not permitted",
+    "notFound": "{resource} not found",
     "validationFailed": "Validation failed",
     "serverError": "An unexpected error occurred",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "resource": {
+      "art": "ART",
+      "budgetallocation": "Budget allocation",
+      "budgetcandidate": "Budget candidate",
+      "budgetgroup": "Budget group",
+      "budgetparticipant": "Budget participant",
+      "budgetround": "Budget round",
+      "dependency": "Dependency",
+      "epic": "Epic",
+      "feature": "Feature",
+      "goalcheckin": "Check-in",
+      "goalcomment": "Comment",
+      "goalcustomfielddef": "Custom field",
+      "impediment": "Impediment",
+      "initiative": "Initiative",
+      "issue": "Concern",
+      "issuemitigation": "Mitigation",
+      "keyresult": "Key result",
+      "kpi": "KPI",
+      "kpivalue": "KPI value",
+      "objective": "Objective",
+      "pi": "Program Increment",
+      "piobjective": "PI objective",
+      "pistandard": "PI standard",
+      "programincrement": "Program Increment",
+      "risk": "Risk",
+      "role": "Role",
+      "runthebusinessitem": "RTB item",
+      "savedfilter": "Saved filter",
+      "solution": "Solution",
+      "sprint": "Sprint",
+      "story": "Story",
+      "strategictheme": "Strategic theme",
+      "systemdemo": "System demo",
+      "systemdemoitem": "System demo item",
+      "task": "Task",
+      "team": "Team",
+      "tenant": "Tenant",
+      "timeline": "Timeline",
+      "transformationgoal": "Goal",
+      "user": "User",
+      "userroleassignment": "Role assignment",
+      "valuestream": "Value stream"
+    },
+    "tenantMismatch": "Tenant assignment does not match",
+    "validation": "Invalid input",
+    "pyramidViolated": "The KPI is already bound to another key result",
+    "moduleUnavailable": "This module is not available in this area",
+    "operationFailed": "Operation failed",
+    "notAuthenticated": "Not signed in",
+    "insufficientPermissions": "Insufficient permissions",
+    "action": {
+      "action": "The action failed",
+      "actionFailed": "The action failed",
+      "addStandardPis": "Could not add standard PIs",
+      "advanceCadence": "Could not advance the cadence",
+      "approve": "The sign-off failed",
+      "artOrTimelineNotFound": "ART or timeline not found",
+      "assign": "Could not assign",
+      "assignFeature": "Could not assign the feature",
+      "assignOwner": "Assigning the owner failed",
+      "assignRole": "Could not assign the role",
+      "bulkStatusChange": "Could not change the status for all of them",
+      "changeDependencyType": "Could not change the dependency type",
+      "changeEpicAssignment": "Could not change the epic assignment",
+      "changeLifecycle": "Could not change the lifecycle",
+      "changePrefix": "Changing the prefix failed",
+      "changeStatus": "Could not change the status",
+      "checkin": "Check-in failed",
+      "confirmRole": "Could not confirm the role",
+      "create": "Creating failed",
+      "createArt": "Could not create the ART",
+      "createEpic": "Could not create the epic",
+      "createFeature": "Could not create the feature",
+      "createField": "Could not create the field",
+      "createGoal": "Could not create the goal",
+      "createKeyResult": "Could not create the key result",
+      "createKpi": "Could not create the KPI",
+      "createPeriod": "Could not create the tile",
+      "createPi": "Could not create the PI",
+      "createPiStandard": "Could not create the PI standard",
+      "createSolution": "Could not create the solution",
+      "createTimeline": "Could not create the timeline",
+      "createTimelineFromStandard": "Could not create the timeline from the standard",
+      "delete": "Deleting failed",
+      "deleteArt": "Could not delete the ART",
+      "deleteComment": "Could not remove the comment",
+      "deleteEntry": "Could not remove the entry",
+      "deleteEpic": "Could not delete the epic",
+      "deleteFailed": "Deleting failed",
+      "deleteFeature": "Could not delete the feature",
+      "deleteField": "Could not delete the field",
+      "deleteFilter": "Could not delete the filter",
+      "deleteGoal": "Could not delete the goal",
+      "deleteKeyResult": "Could not delete the key result",
+      "deleteKpi": "Could not delete the KPI",
+      "deletePeriod": "Could not delete the tile",
+      "deletePi": "Could not delete the PI",
+      "deletePiStandard": "Could not delete the PI standard",
+      "deleteSolution": "Could not delete the solution",
+      "deleteTimeline": "Could not delete the timeline",
+      "distribute": "The distribution failed",
+      "document": "Documenting failed",
+      "epicNotFound": "Epic not found",
+      "epicNotFound2": "Epic not found",
+      "featureNotFound": "Feature not found",
+      "featureOrPiNotFound": "Feature or PI not found",
+      "hideGuide": "Could not hide the guide",
+      "hideHint": "Could not hide the hint",
+      "insertFeature": "Could not insert the feature",
+      "joinTimeline": "The ART could not join the timeline",
+      "leaveTimeline": "The ART could not leave the timeline",
+      "link": "Linking failed",
+      "linkArt": "Assigning the ART failed",
+      "linkDependency": "Could not link the dependency",
+      "linkEpic": "Linking the epic failed",
+      "linkValueStream": "Assigning the value stream failed",
+      "move": "Moving failed",
+      "noApprovalAssigned": "No sign-off is assigned to you for this request",
+      "notFoundPlain": "Not found",
+      "promote": "Could not promote",
+      "reassess": "Re-assessment failed",
+      "remove": "Removing failed",
+      "removeRole": "Could not remove the role",
+      "reparent": "Re-parenting failed",
+      "requestGate": "Could not request the maturity change",
+      "requestNotFound": "Request not found",
+      "resetTour": "Could not reset the tour",
+      "resolveDependency": "Could not resolve the dependency",
+      "revert": "Moving back failed",
+      "review": "The review failed",
+      "roam": "Setting ROAM failed",
+      "roamBulk": "The ROAM bulk change failed",
+      "roleAssignmentNotFound": "Role assignment not found",
+      "save": "Saving failed",
+      "saveAllocation": "Could not save the allocation",
+      "saveApprovers": "Could not save the approvers",
+      "saveBenefitHypothesis": "Could not save the benefit hypothesis",
+      "saveBusinessCase": "Could not save the business case",
+      "saveCapacity": "Could not save the capacity",
+      "saveComment": "Could not save the comment",
+      "saveFilter": "Could not save the filter",
+      "saveGuardrails": "Could not save the guardrail targets",
+      "saveKpi": "Could not save the KPI",
+      "saveLayout": "Could not save the layout",
+      "saveMeasurement": "Could not save the measurement",
+      "saveSettings": "Could not save the settings",
+      "saveSetupProgress": "Could not save the setup progress",
+      "saveShare": "Could not save the share",
+      "saveSolution": "Could not save the solution",
+      "saveTimeWindow": "Could not save the time window",
+      "saveTimeline": "Could not save the timeline",
+      "saveTourProgress": "Could not save the tour progress",
+      "saveView": "Could not save the view",
+      "sendInvite": "Could not send the invitation",
+      "setCustomField": "Could not set the custom field value",
+      "setException": "Could not set the exception",
+      "setOwner": "Could not set the owner",
+      "setRollup": "Could not change the rollup setting",
+      "setSolution": "Could not set the solution",
+      "setTeam": "Could not set the team",
+      "snapshot": "Could not create the snapshot",
+      "solutionNotFound": "Solution not found",
+      "startArt": "Could not start the ART",
+      "startFeature": "Could not start the feature",
+      "startPi": "Could not start the PI",
+      "suggest": "The proposal failed",
+      "timelineOrPiStandardNotFound": "Timeline or PI standard not found",
+      "unlink": "Unlinking failed",
+      "unlinkArt": "Detaching the ART failed",
+      "unlinkDependency": "Could not unlink the dependency",
+      "unlinkEpic": "Unlinking the epic failed",
+      "unlinkValueStream": "Detaching the value stream failed",
+      "update": "The update failed",
+      "updateArt": "Could not update the ART",
+      "updateComment": "Could not change the comment",
+      "updateEntry": "Could not change the entry",
+      "updateEpic": "Could not update the epic",
+      "updateFeature": "Could not update the feature",
+      "updateField": "Could not update the field",
+      "updateGoal": "Could not update the goal",
+      "updateKeyResult": "Could not update the key result",
+      "updatePi": "Could not update the PI",
+      "updateProgress": "Could not update the progress",
+      "updateTimeline": "Could not update the timeline",
+      "updateValueStream": "Could not update the value stream",
+      "updateWsjf": "Could not update the WSJF score",
+      "valueStreamNotFound": "Value stream not found",
+      "valueStreamNotFound2": "Value stream not found",
+      "valueStreamOrArtNotFound": "Value stream or ART not found",
+      "withdrawRequest": "Could not withdraw the request"
+    },
+    "invalidJsonBody": "The request body is not valid JSON",
+    "platformAdminRequired": "This requires a platform admin",
+    "hierarchy": {
+      "epicHasParent": "An epic (level 0) must not have a parent.",
+      "wrongParentLevel": "A {child} (level {childLevel}) must have a parent of level {expected} (level {expectedLevel}); got level {actual}."
+    },
+    "art": {
+      "hasProgramIncrements": "The ART has program increments and cannot be deleted."
+    },
+    "solution": {
+      "noSolutionInH3": "There are no solutions in H3 — that is where research happens. An R&D endeavour carries its horizon on the epic; a solution appears in H2 at the earliest.",
+      "artOtherValueStream": "The ART does not belong to the selected value stream.",
+      "onlyEmergingPromotes": "Only emerging solutions (H2) can be promoted to H1.",
+      "allCriteriaNeeded": "All four transition criteria must be confirmed.",
+      "noStep": "There is no step from “{from}” to “{to}”."
+    },
+    "setup": {
+      "onlyTenantAdmin": "Only a tenant admin may change the setup progress."
+    },
+    "systemDemo": {
+      "reorderIncomplete": "The new order must cover all {expected} items; {got} were supplied.",
+      "itemOtherDemo": "Item {id} does not belong to this demo."
+    },
+    "idempotencyKeyReused": "This idempotency key was already used with a different request body."
   },
   "goals": {
     "status": {
@@ -578,6 +794,10 @@
     },
     "network": {
       "loading": "Loading network view…"
+    },
+    "errors": {
+      "kpiAlreadyDrives": "This KPI already drives another goal — a KPI can drive only one.",
+      "cannotMoveUnderSelf": "A goal cannot be moved under itself or one of its descendants."
     }
   },
   "work": {
@@ -773,7 +993,8 @@
       "pflicht": "Required",
       "inKlaerungSchicken": "Send for clarification",
       "ablehnen": "Reject",
-      "zurueckstufen": "Move back"
+      "zurueckstufen": "Move back",
+      "blockReason": "Maturity {gate} requires: {criteria}."
     },
     "epic": {
       "keineNutzerImMandanten": "No users in this tenant.",
@@ -1210,6 +1431,182 @@
       "meineFreigaben": "My approvals",
       "alleFreigabenDieAktuell": "All approvals currently waiting on your decision.",
       "nichtsOffenesAlleFreigaben": "Nothing open — all approvals done."
+    },
+    "gateCriteria": {
+      "hypothesisDrafted": {
+        "label": "Benefit hypothesis is drafted",
+        "help": "The benefit hypothesis describes the expected benefit and the assumption behind it. Write it on the Hypothesis tab. It is approved with the sign-off of this step — there is no separate approval run before that."
+      },
+      "hypothesisApproved": {
+        "label": "Benefit hypothesis is approved",
+        "help": "The hypothesis was signed off with the step to L1. Without that stamp the epic never passed cleanly through L1."
+      },
+      "ownerNominated": {
+        "label": "Epic owner is named",
+        "help": "The epic owner is accountable for progress, business case and approvals. Name them on the Overview via the owner field."
+      },
+      "businessCaseDrafted": {
+        "label": "Business case is drafted",
+        "help": "The business case records cost, benefit and options. Maintain it on the Business case tab. It is approved with the sign-off of this step by the five parties — there is no separate approval run before that."
+      },
+      "deliverablesDrafted": {
+        "label": "Deliverables are cut",
+        "help": "The epic is broken down into child features. Cut them on the Deliverables tab — they later carry the implementation and the effort estimate."
+      },
+      "dependenciesMapped": {
+        "label": "Dependencies are recorded",
+        "help": "Dependencies on other initiatives are entered on the Dependencies tab. They determine what has to be finished before this epic."
+      },
+      "kpisDefined": {
+        "label": "KPIs are defined",
+        "help": "At least one metric with a baseline and a target exists on the KPI & benefit tab. The realised benefit is measured against it later."
+      },
+      "budgetAllocated": {
+        "label": "Budget is allocated (Σ > 0)",
+        "help": "Budget has been allocated to the epic through participatory budgeting (sum > 0). The allocation happens in the budgeting periods."
+      },
+      "featureStarted": {
+        "label": "At least one feature has started",
+        "help": "At least one child feature is in progress. Features are created on the Deliverables tab; their status is set in the delivery cockpit."
+      },
+      "featuresCompleted": {
+        "label": "All child features are completed",
+        "help": "All child features are completed — the usual indication that the implementation is done. The confirmation is made by the sign-off, not by the counter. You maintain the feature status in the delivery cockpit."
+      },
+      "implementationConfirmed": {
+        "label": "Implementation is confirmed as complete (L4.2)",
+        "help": "Completion of the implementation was requested and signed off (step L4.2). Only afterwards can the realised impact be confirmed (L5)."
+      }
+    },
+    "lifecycle": {
+      "detailing": {
+        "label": "Idea captured",
+        "description": "Epic created in the funnel, waiting to be reviewed.",
+        "milestoneLabel": "First review",
+        "milestoneApprover": "The VMO reviews the epic and names the epic owner"
+      },
+      "hypothesis": {
+        "label": "Work out the hypothesis",
+        "description": "Problem, target group, expected benefit, leading indicators.",
+        "milestoneLabel": "L1 · Hypothesis approved",
+        "milestoneApprover": "VMO — the sign-off is at the same time the release"
+      },
+      "analyzing": {
+        "label": "Schedule for analysis",
+        "description": "The value stream decides what gets effort.",
+        "milestoneLabel": "Selected for analysis",
+        "milestoneApprover": "VMO"
+      },
+      "businessCase": {
+        "label": "Work out the business case",
+        "description": "Create the lean business case and submit it for release.",
+        "milestoneLabel": "L2 · Business case approved",
+        "milestoneApprover": "Architect lead · business owner · finance · IRT · VMO · product manager"
+      },
+      "backlog": {
+        "label": "Allocate budget",
+        "description": "Prepare the investment decision.",
+        "milestoneLabel": "L3 · Budget allocated",
+        "milestoneApprover": "VMO and finance"
+      },
+      "implementationStarted": {
+        "label": "Start the implementation",
+        "description": "Get the first feature under way.",
+        "milestoneLabel": "L4.1 · Implementation started",
+        "milestoneApprover": "VMO — plus product manager for ART epics"
+      },
+      "implementation": {
+        "label": "Implement",
+        "description": "Deliver features until the initiative stands.",
+        "milestoneLabel": "L4.2 · Implementation done",
+        "milestoneApprover": "VMO"
+      },
+      "done": {
+        "label": "Measure the benefit",
+        "description": "Is the initiative working as promised?",
+        "milestoneLabel": "L5 · Impact realised",
+        "milestoneApprover": "Finance"
+      }
+    },
+    "nextStep": {
+      "waitingTitle": "Waiting for the sign-off of {gate}",
+      "waitingHint": "The maturity change has been requested. The named people decide next; until then the related content is locked.",
+      "toMyApprovals": "To my approvals",
+      "hypothesisTitle": "Work out the benefit hypothesis",
+      "hypothesisHint": "On the hypothesis tab, describe the problem, target group, expected benefit and leading indicators — so the approvers have a basis for their decision.",
+      "toHypothesis": "To the hypothesis",
+      "requestL1Title": "Request the change to L1",
+      "requestL1Hint": "The content is there. Request the maturity change to L1 — its sign-off is at the same time the release of the benefit hypothesis.",
+      "analysisTitle": "Get selected for analysis",
+      "analysisHint": "The hypothesis is released. Request selection for analysis — the value stream decides what gets effort. The maturity level stays at L1.",
+      "requestL2Title": "Request the change to L2",
+      "requestL2Hint": "The content is there. Request the change to L2 — the sign-off by the five parties is the release of the business case.",
+      "businessCaseTitle": "Work out the business case",
+      "businessCaseHint": "Detail the business case (cost, benefit, assumptions, risks) before you submit it for release.",
+      "toBusinessCase": "To the business case",
+      "investmentTitle": "Get the investment signed off",
+      "investmentHintBudgeting": "Budget is allocated. Request the change to L3 — that signs off the investment decision by name.",
+      "investmentHintPlain": "Request the change to L3 — that signs off the investment decision by name, by VMO and finance.",
+      "allocateTitle": "Allocate budget",
+      "allocateHint": "The business case is released. Now plan budget for this epic in controlling so the investment can be signed off.",
+      "toControlling": "To controlling",
+      "firstFeatureTitle": "Start the first feature",
+      "firstFeatureHint": "The investment is signed off. Create features on the deliverables tab and start the first one in a PI — that moves the epic to L4.",
+      "toDeliverables": "To the deliverables",
+      "impactTitle": "Get the impact confirmed",
+      "impactHint": "The implementation is confirmed as complete. Request the change to L5 — controlling signs off that the forecast benefit has arrived on the balance sheet or in the KPIs.",
+      "confirmTitle": "Get the implementation confirmed",
+      "confirmHint": "All features are completed. Request the step to L4.2 — that signs off the finished implementation and sets the actual date.",
+      "finishFeaturesTitle": "Complete features ({completed}/{total})",
+      "createFeaturesTitle": "Create and start features",
+      "finishFeaturesHint": "Implementation is running. Complete the remaining features — after that the finished implementation (L4.2) can be confirmed.",
+      "createFeaturesHint": "There are no child features on the epic yet. Create some on the deliverables tab and start them.",
+      "createMore": "Create {missing} more {what}",
+      "lowAdoption": "{practice}: low adoption ({detail})"
+    },
+    "errors": {
+      "endBeforeStart": "The planned time window ends before it starts.",
+      "featureOtherArt": "The feature belongs to a different ART",
+      "onlyAssignedApprover": "Only the assigned approver may decide this sign-off.",
+      "epicOtherValueStream": "The epic belongs to a different value stream than the feature's ART — pick an epic from the same value stream.",
+      "alreadyAtGate": "The epic is already at {gate}.",
+      "transitionPending": "A gate change has already been requested for this epic.",
+      "noApproverConfigured": "No approver is configured for the move to {gate} — set up the value stream's approvers first.",
+      "demotionNeedsReason": "A demotion requires a reason.",
+      "correctionGoesBack": "A correction moves backwards — {to} does not come before {from}.",
+      "oneStepPerCorrection": "No move from {from} to {to} — a correction covers one step at a time.",
+      "epicWithoutValueStream": "The epic has no value stream.",
+      "solutionsOtherValueStream": "Every solution must belong to the epic's value stream.",
+      "primarySolutionOtherValueStream": "The primary solution does not belong to the selected value stream.",
+      "epicNotBudgetReady": "This epic is not ready for budgeting — it needs an approved lean business case (L3.1).",
+      "valueStreamAndArtTogether": "Value stream and ART must be set together.",
+      "artOtherValueStream": "The ART does not belong to the selected value stream.",
+      "artNotOnTimeline": "The feature belongs to an ART that has not joined this timeline.",
+      "featureWithoutArt": "The feature has no ART, so the assignment cannot be checked.",
+      "solutionOtherValueStream": "The solution belongs to a different value stream than the feature's ART — pick a solution from the same value stream.",
+      "deliveryTransitionNotAllowed": "The delivery lifecycle has no transition from “{from}” to “{to}”.",
+      "onlyOwnerSetsGuardrails": "Only value stream owners or portfolio management may set guardrail targets.",
+      "stageGatesOff": "Stage gates are not enabled in the active target picture.",
+      "requestAlreadyDecided": "This request has already been decided.",
+      "youAlreadyDecided": "You have already decided this request.",
+      "requestOutOfDate": "The request refers to {expected}, but the epic has since moved to {actual}.",
+      "onlyOpenWithdraws": "Only an open request can be withdrawn."
+    },
+    "adoption": {
+      "featuresScored": "{n}/{total} features scored",
+      "featuresApproved": "{n}/{total} features approved",
+      "dependenciesLinked": "{n} linked",
+      "epicsBeyondFunnel": "{n}/{total} epics beyond L0",
+      "epicsInApproval": "{n}/{total} epics with a requested business-case sign-off"
+    },
+    "guardrail": {
+      "targetsNegative": "Targets must not be negative.",
+      "horizonSum": "Horizon targets add up to {sum}; 100 expected.",
+      "capacitySum": "Capacity targets add up to {sum}; 100 expected.",
+      "coverageRange": "The coverage target must be between 0 and 100.",
+      "responseDays": "The response time must be at least one day.",
+      "portfolioThreshold": "The portfolio threshold must be a number of 0 or more.",
+      "invalid": "The guardrail targets are invalid."
     }
   },
   "budgeting": {
@@ -1486,6 +1883,29 @@
       "budget": "Budget €",
       "demandJobSizeFeat": "Demand (Σ job size · # feat.)",
       "featuresDieZumSnapshot": "Features that were assigned to a PI in the cycle at snapshot time — grouped by epic in snapshot order."
+    },
+    "errors": {
+      "amountNotANumber": "The amount must be a number of 0 or more.",
+      "sumOverPot": "The total exceeds the pot by €{over}.",
+      "sumOverArtPot": "The total exceeds the ART pot by €{over}.",
+      "artEpicNotOnList": "“{title}” is an ART epic and is funded from its ART's pot — so it does not appear on the portfolio backlog.",
+      "listDraftOnly": "The portfolio backlog can only be curated while the round is a draft.",
+      "epicNotReadyEither": "This epic is not ready for budgeting — it needs either an approved benefit hypothesis or an approved lean business case.",
+      "onlyRunningRoundCloses": "Only a running round can be closed.",
+      "closeDistributionFirst": "Close the distribution before finalising.",
+      "onlyFinalisedReopens": "Only a finalised round can be reopened.",
+      "onlyGroupMembers": "Only members of this group may distribute.",
+      "onlySpokesperson": "Only the spokesperson (or a submitter) may submit the distribution.",
+      "participantsDraftOnly": "Participants can only be changed while the round is a draft.",
+      "groupsDraftOnly": "Groups can only be changed while the round is a draft.",
+      "membersDraftOnly": "Members can only be changed while the round is a draft.",
+      "onlyDraftStarts": "Only a draft round can be started.",
+      "potDraftOnly": "The pot can only be changed while the round is a draft.",
+      "endBeforeStart": "The end date is before the start date.",
+      "itemOtherValueStream": "One of the items belongs to a different value stream.",
+      "nothingAwarded": "Nothing has been awarded to this value stream for this half-year, so there is nothing to split.",
+      "artPotNeedsArt": "An ART reservation needs the ART it is reserved for.",
+      "artOtherValueStream": "This ART belongs to a different value stream."
     }
   },
   "drumbeat": {
@@ -1692,6 +2112,35 @@
       "noEntries": "No entries.",
       "entry": "Entry",
       "today": "Today"
+    },
+    "errors": {
+      "endBeforeStart": "The end date must be after the start date.",
+      "piOverlaps": "The PI dates overlap with “{other}”.",
+      "startTooFarBack": "The start date may be at most 30 days in the past.",
+      "piNameTaken": "The PI name “{name}” already exists on this timeline.",
+      "selfDependency": "An initiative cannot depend on itself.",
+      "typeUnchanged": "The type is already set to that.",
+      "cannotReopen": "A completed PI cannot be reopened.",
+      "useLifecycleAction": "Use the dedicated action to move a PI to “{status}”.",
+      "piWithoutTimelineEdit": "A PI without a timeline cannot be edited through the timeline path.",
+      "jobSizeNegative": "The job-size capacity must not be negative.",
+      "budgetOverrideNegative": "The budget override must not be negative.",
+      "onlyPlannedStarts": "Only a planned PI can be started; this one is “{status}”.",
+      "noTimelineStart": "The PI has no timeline and cannot be started.",
+      "otherPiActive": "The PI “{other}” is already active on this timeline; complete it first.",
+      "onlyActiveCompletes": "Only an active PI can be completed; this one is “{status}”.",
+      "closureBlocked": "The PI cannot be completed: {reasons}",
+      "onlyActiveAdvances": "Only an active PI can be advanced; this one is “{status}”.",
+      "noTimelineAdvance": "A PI without a timeline cannot be advanced.",
+      "cadenceUnknown": "The cadence cannot be derived.",
+      "onlyPlannedDeletes": "Only a planned PI can be deleted.",
+      "timelineHasArts": "This timeline still has {count} ART(s) attached; detach them first."
+    },
+    "closure": {
+      "openUnroamedIssues": "{count} open concerns without ROAM",
+      "systemDemoMissing": "System demo date missing",
+      "inspectAdaptMissing": "Inspect & Adapt date missing",
+      "retrospectiveMissing": "Retrospective notes missing"
     }
   },
   "risks": {
@@ -1803,6 +2252,10 @@
       "sortierung": "Sorting",
       "zeilenhoehe": "Row height",
       "art": "ART"
+    },
+    "errors": {
+      "noValueStreamAccess": "No access to this concern's value stream.",
+      "onlyProposalsReviewed": "Only proposals can be reviewed."
     }
   },
   "onboarding": {
@@ -1818,7 +2271,192 @@
       "dontShowAgain": "Don't show again",
       "notNow": "Not now",
       "view": "View",
-      "nothingUnlocked": "Nothing is enabled for this role in this workspace right now. As further modules are added, we will let you know here."
+      "nothingUnlocked": "Nothing is enabled for this role in this workspace right now. As further modules are added, we will let you know here.",
+      "newTasks": "As {role} this adds {count, plural, one {# task} other {# tasks}}."
+    },
+    "playbook": {
+      "platformAdmin": {
+        "mission": "You run Pulse across tenants: you provision workspaces, enable modules and keep operations healthy.",
+        "neueKundenWorkspacesBereitstellen": "Provision new customer workspaces and enable their modules.",
+        "mitgliedschaftenUndPlattformAdminrechte": "Manage memberships and platform admin rights across all tenants.",
+        "betriebsstoerungenErkennenBevorDie": "Spot operational trouble before customers report it.",
+        "duUebergibstAnDen": "You hand over to the tenant admin: once the workspace exists, they set up users, roles and the organisation.",
+        "deineArbeitLiegtAusserhalb": "Your work lies outside this workspace",
+        "alsEinzigeRolleArbeitest": "You are the only role working across tenants: provisioning workspaces, enabling modules, setting memberships. In here you are a guest — the entry point for the day is still this inbox.",
+        "stehtDerWorkspace": "Is the workspace up?",
+        "derStrukturbaumIstDein": "The structure tree is your fastest health check after provisioning: are there value streams and ARTs, or is the customer still stuck setting up?",
+        "nachvollziehenWasPassiertIst": "Tracing what happened",
+        "jedeZustandsaenderndeAktionLandet": "Every state-changing action lands here, role grants included. The filter bar gets you to the right event in seconds when questions come up."
+      },
+      "tenantAdmin": {
+        "mission": "You set up the workspace and keep it workable: the right people with the right rights, the organisation mapped correctly.",
+        "nutzerEinladenRollenVergeben": "Invite users, grant roles and set their visibility scopes.",
+        "getrenntDavonFestlegenWelche": "Separately, define which role holds which permission.",
+        "dieOrganisationAbbildenWertstroeme": "Map the organisation: create and maintain value streams and ARTs.",
+        "externeSystemeAnbindenJira": "Connect external systems (Jira, Azure DevOps).",
+        "beiRueckfragenAusAudit": "Answer questions from audit or compliance.",
+        "duUebernimmstVonDer": "You take over from the platform: the workspace exists, you bring it to life.",
+        "duUebergibstAnPortfolio": "You hand over to portfolio managers and RTEs: once structure and roles are in place, the real work starts.",
+        "derSetupGuideGibt": "The setup guide sets the order",
+        "werArbeitetInDiesem": "Who works in this workspace?",
+        "dieseListeIstDeine": "This list is your daily starting point: who is there, which role they hold, whether anyone is suspended. A click opens the detail pane with the roles on the right.",
+        "jemandenEinladen": "Invite someone",
+        "berechtigungenJeRolleNachschaerfen": "Sharpen permissions per role",
+        "werNutzerEinlaedtUnd": "Who invites users and who grants rights are deliberately two separate powers. On the left you pick the role, on the right you see every action and where it deviates from the default.",
+        "denErstenWertstromAnlegen": "Create the first value stream",
+        "wertstroemeFinanzierenEpicsOhne": "Value streams fund epics — without them the portfolio stays empty. The button sits in the header of the structure page; you create ARTs afterwards on the detail page of the respective value stream.",
+        "dieOrganisationImBlick": "The organisation at a glance",
+        "dieKarteZeigtJe": "The map shows one lane per value stream, the ARTs inside it as columns and their solutions as tiles. A click leads to the node's detail page — that is where you maintain the accountable people and create further ARTs.",
+        "dieKadenzEtablieren": "Establish the cadence",
+        "ohneWiederkehrendenPiTakt": "Without a recurring PI rhythm there is no planning. This milestone takes you to the timelines the ARTs subscribe to.",
+        "auskunftsfaehigBleiben": "Stay able to answer",
+        "beiRueckfragenAusAudit2": "When audit or compliance asks, you filter here by actor, action or period. Role grants are in there too.",
+        "achtMeilensteineVonWorkspace": "Eight milestones from “workspace alive” to “first PI running”. You set the pace, the order is fixed — and you are the only one who may tick things off here.",
+        "ueberEinladenOeffnestDu": "“Invite” opens the form on the right. After the assignment the invited person sees the same welcome dialog you have just seen — so your choice of role decides what gets explained to them."
+      },
+      "portfolioManager": {
+        "mission": "You lead the portfolio: you decide what gets worked on, fund it, and in the end demonstrate what it delivered.",
+        "denZielzustandUndDie": "Set the target state and the top goals of the organisation.",
+        "dieOrganisationAufbauenWertstroeme": "Build the organisation: create value streams and the ARTs inside them.",
+        "epicsDurchDenInvestment": "Steer epics through the investment funnel and request or sign off maturity changes.",
+        "denReifegradWechselAuf": "Sign off the maturity change to L1 — that releases the benefit hypothesis.",
+        "dasBudgetAufDie": "Distribute the budget across the epics.",
+        "denRealisiertenMehrwertIm": "Track the realised value in the portfolio review.",
+        "risikenFinalBewertenDu": "Assess risks finally — you are the only one allowed to delete one.",
+        "duUebernimmstVomEpic": "You take over from the epic owner: they submit the hypothesis and business case, you decide.",
+        "duUebergibstAnDen": "You hand over to the RTE: once an epic is funded, they plan the implementation in the ART.",
+        "derTagBeginntBei": "The day begins with the goals",
+        "hierStehenZielbildUnd": "The target picture and the top goals live here. Every epic later contributes to one of them — without maintained goals no value can be demonstrated at year end.",
+        "derPortfolioStandAuf": "The portfolio state at a glance",
+        "dasBoardStelltAlle": "The board arranges all epics in a grid: columns are the maturity levels L0–L5, rows the investment horizons H3 to H0. What piles up on the left is undecided; what stands on the right is already running.",
+        "derInvestmentFunnel": "The investment funnel",
+        "inDerEpicListe": "In the epic list you see where each epic stands in the investment funnel. A maturity change never happens by itself: it is requested on the epic and signed off by the people named for it.",
+        "deineEntscheidungenSammelnSich": "Your decisions gather here",
+        "denBudgetTopfSetzen": "Set the budget pot",
+        "jeHalbjahrEineKachel": "One tile per half-year, and the bar above names its state: current tile, pot, submissions, last state. The pot is the frame everything else is calculated against.",
+        "budgetAufEpicsVerteilen": "Distribute budget across epics",
+        "verteiltWirdInDer": "Distribution happens in the tile: the groups propose, the result sets the final amounts. An allocation greater than zero satisfies the blocking criterion for the step to L3.2 — the investment decision itself is the request plus the sign-off by VMO and finance.",
+        "derWiederkehrendeSteuerungstermin": "The recurring steering meeting",
+        "diePortfolioUebersichtIst": "The portfolio overview is the surface for that meeting: funding pot and goals at the top, the kanban with the state of the initiatives below, the risks at the bottom. Whatever stalls here belongs on the agenda.",
+        "dieRisikolageLesen": "Reading the risk picture",
+        "dieMatrixStelltEintrittswahrscheinlichkeit": "The matrix plots likelihood against impact — one mark per head issue, nested ones count in their head. Several marks in the top right corner are your signal to act before the next review.",
+        "risikenEinordnen": "Classify risks",
+        "beantragteReifegradWechselUnd": "Requested maturity changes and business cases wait in “My tasks”, stacked below your other work. Approve or reject with a reason — as long as you do nothing, the epic stands still.",
+        "ueberDerListeFiltert": "Above the list the ROAM bar filters by classification — open, resolved, owned, accepted, mitigated, each with a counter. “Open” is the set still to be decided. You are the only one who may also delete a risk."
+      },
+      "valueStreamOwner": {
+        "mission": "You are accountable for a value stream: which initiatives arise there, whether they hold up, and who works them out.",
+        "epicsInDeinemWertstrom": "Create and sharpen epics in your value stream.",
+        "einenEpicOwnerBenennen": "Name an epic owner who takes on the elaboration.",
+        "alsBenannterAbnehmerUeber": "Decide on maturity changes as a named approver.",
+        "dasWertstromBudgetAuf": "Distribute the value stream budget across the ARTs.",
+        "duUebernimmstVomPortfolio": "You take over from the portfolio manager: your value stream receives a funding frame.",
+        "duUebergibstAnDen": "You hand over to the epic owner: they work out what you commissioned.",
+        "deinWertstrom": "Your value stream",
+        "imBaumFindestDu": "In the tree you find your value stream with the ARTs hanging off it. Your write rights apply exactly here — outside you can read, but change nothing.",
+        "einVorhabenBeauftragen": "Commission an initiative",
+        "neueEpicsDeinesWertstroms": "New epics of your value stream are created here. You create them and then name an epic owner who works out the hypothesis and business case.",
+        "woStehenDeineEpics": "Where do your epics stand?",
+        "derReifegradFunnelZeigt": "The maturity funnel shows what is still being worked out and what is already running. The filter bar narrows it down to your value stream.",
+        "freigabenDieAufDich": "Approvals waiting on you",
+        "mittelAufDieArts": "Distribute funds across the ARTs",
+        "derFinanzierungsrahmenDeinesWertstroms": "Your value stream's funding frame is broken down onto the ARTs in controlling. Your value stream's detail page takes you there.",
+        "einRisikoMelden": "Report a risk",
+        "vorschlagenDarfJederDein": "Anyone may propose. Your proposal goes to the epic owner, who reviews and documents it — only then does it get a number.",
+        "woDuAlsAbnehmer": "Wherever you are named as an approver, the decision appears in “My tasks”. Only approval works without a reason — a rejection requires text."
+      },
+      "epicOwner": {
+        "mission": "You work out epics: you formulate what the initiative should deliver, back it up and submit it for a decision.",
+        "dieBenefitHypotheseFormulieren": "Formulate the benefit hypothesis and request the change to L1.",
+        "denBusinessCaseAusarbeiten": "Work out the business case and request the change to L3.1 — its sign-off is the release.",
+        "risikenDeinesEpicsDokumentieren": "Document, assess and ROAM-classify the risks of your epic.",
+        "nachEinerAblehnungUeberarbeiten": "Revise after a rejection and request again.",
+        "duUebernimmstVomWertstrom": "You take over from the value stream owner: they commission, you work it out.",
+        "duUebergibstAnPortfolio": "You hand over to portfolio managers and approvers — deliberately, you may not decide on your own epic.",
+        "deineEpics": "Your epics",
+        "hierLiegenDieVorhaben": "Here are the initiatives you are accountable for. A click on an epic opens the detail view — that is where your actual work happens.",
+        "einNeuesEpicAnlegen": "Create a new epic",
+        "titelUndWertstromGenuegen": "Title and value stream are enough to start. Everything else — hypothesis, business case, deliverables — follows tab by tab.",
+        "dieReiterSindDeine": "The tabs are your order of work",
+        "inEinemGeoeffnetenEpic": "Inside an opened epic the tab bar guides you through the elaboration: overview, maturity timeline, hypothesis, business case, deliverables, dependencies, KPI & benefit. Work through them in order — on narrow screens the bar sits at the top instead of the left.",
+        "benefitHypotheseZuerst": "Benefit hypothesis first",
+        "derDritteReiterDirekt": "The third tab, right behind the maturity timeline. Once it is worked out you request the change to L1; with the sign-off the hypothesis is released — the starting shot for the business case.",
+        "businessCaseBelegen": "Back up the business case",
+        "kostenNutzenZeitraumSteht": "Cost, benefit, timeframe. Once the content holds, you request the change to L3.1 — the sign-off by the five parties is the release of the business case.",
+        "abnehmerBenennen": "Name the approvers",
+        "beimAntragAufL": "When requesting L3.1 you set who signs for which party. Your own approval is not provided for: whoever works it out does not decide.",
+        "risikenDokumentieren": "Document risks",
+        "vorschlagenDarfJederPruefen": "Anyone may propose — reviewing and documenting is your job. Only with your acceptance does a risk get its number and become part of the register.",
+        "dieRisikenDeinesEpics": "Assess the risks of your epic",
+        "wahrscheinlichkeitMalAuswirkungErgibt": "Likelihood times impact gives the exposure. Every re-assessment is kept as a trace, so it becomes visible whether your measures work."
+      },
+      "rte": {
+        "mission": "You orchestrate your agile release train: you keep the rhythm, plan the implementation and clear away what blocks delivery.",
+        "programIncrementsAnlegenStarten": "Create, start and close program increments.",
+        "dasFeatureBacklogDes": "Maintain the ART's feature backlog and set the delivery status.",
+        "abhaengigkeitenZwischenVorhabenSichtbar": "Make dependencies between initiatives visible and resolve them.",
+        "risikenUndBlockadenDer": "Document and ROAM-classify risks and blockers of the implementation.",
+        "duUebernimmstVomPortfolio": "You take over from the portfolio: funded epics become planned work with you.",
+        "duUebergibstZurueckAns": "You hand back to the portfolio: once the first feature goes into implementation, the epic is ready for the requested step to L4.",
+        "derTagBeginntIn": "The day begins in the inbox",
+        "dasUmsetzungsCockpitIst": "The delivery cockpit is your control room",
+        "vierSichtenAufDieselben": "Four views on the same features: board, table, roadmap, network. You switch depending on the question — board for flow, table for maintaining.",
+        "woStehtDerZug": "Where does the train stand in the PI?",
+        "derStreifenZeigtDie": "The strip shows the coming program increments, the current one highlighted. It is your sense of time for everything below it.",
+        "dieTabellensichtZumPflegen": "The table view for maintaining",
+        "hierSiehstDuJedes": "Here you see every feature with title, ART, PI, status, WSJF and blockers in one row. This is the view in which you actually change things.",
+        "lieferstatusSetzen": "Set the delivery status",
+        "inDerStatusSpalte": "In the status column of each row you choose directly: approved, in progress, blocked, completed, cancelled. The first started feature satisfies the criterion with which the epic's change to L4 is requested.",
+        "abhaengigkeitenAufloesen": "Resolve dependencies",
+        "gerichteteVerknuepfungenZwischenVorhaben": "Directed links between initiatives, cycle-checked. The type filter shows you the real blockers first — whatever stays open here gets expensive in planning.",
+        "blockadenImBlickBehalten": "Keep blockers in view",
+        "dieKadenzPflegen": "Maintain the cadence",
+        "eineTimelineIstDer": "A timeline is the shared PI rhythm several ARTs subscribe to. Without it there are no PIs — which is why it is the prerequisite for everything above.",
+        "risikenDerUmsetzung": "Risks of the implementation",
+        "wasDieLieferungGefaehrdet": "What endangers delivery belongs in the register, not in your head. You may document and set ROAM — accepting other people's proposals is the epic owner's job.",
+        "woDuAlsStakeholder": "Wherever you are named as a stakeholder, the decisions wait in “My tasks”. Skim them before you go into the cockpit — otherwise approvals block other people's planning.",
+        "risikenUndBlockadenLiegen": "Risks and blockers sit in one register. The bar filters by classification — open, resolved, owned, accepted, mitigated. Whatever stays on “open” holds up your PI closing in the end."
+      },
+      "featureOwner": {
+        "mission": "You are accountable for the initiatives of your train: what gets built next, in which order and with what benefit.",
+        "featuresAnlegenUndFachlich": "Create features and sharpen them.",
+        "nachWsjfPriorisierenDie": "Prioritise by WSJF — the order is your statement.",
+        "denLieferstatusDeinerFeatures": "Keep the delivery status of your features current.",
+        "abhaengigkeitenDeinerFeaturesBenennen": "Name the dependencies of your features.",
+        "risikenUndBlockadenMelden": "Report risks and blockers — the RTE classifies them.",
+        "duUebernimmstVomEpic": "You take over from the epic owner: a funded epic is broken down into features with you.",
+        "duUebergibstAnDen": "You hand over to the RTE: they schedule your prioritised features into a PI.",
+        "deinArbeitsplatz": "Your workplace",
+        "dasCockpitZeigtDie": "The cockpit shows your train's features in four views. For daily maintenance the table is the right one.",
+        "deinBacklogInEiner": "Your backlog, one row per feature",
+        "titelArtPiStatus": "Title, ART, PI, status, WSJF and blockers side by side. A click on the title opens the detail view with description and dependencies.",
+        "nachWsjfPriorisieren": "Prioritise by WSJF",
+        "dieWsjfSpalteMacht": "The WSJF column makes the order justifiable rather than negotiable. The assessment happens in the feature's detail view; the number in the table is only the result.",
+        "lieferstatusAktuellHalten": "Keep the delivery status current",
+        "abhaengigkeitenBenennen": "Name dependencies",
+        "wasVonAnderenAbhaengt": "What depends on others belongs made visible — in the cockpit's network view or in the feature's detail. This overview shows the overall state.",
+        "einRisikoOderEine": "Report a risk or a blocker",
+        "wasDuBeimBauen": "What you see while building, nobody else knows. Risks and blockers take the same route: a proposal costs you two sentences, the epic owner reviews it. Classifying and closing is the RTE's job — deliberately separated so that report and resolution are not the same hand.",
+        "dieStatusSpalteIst": "The status column is your promise to the rest of the train. A feature that has been “in progress” for weeks costs you credibility in planning."
+      },
+      "viewer": {
+        "mission": "You follow how the portfolio is doing — with full read access to everything happening in your workspace.",
+        "portfolioFortschrittUndLieferstand": "Follow portfolio progress and delivery state.",
+        "risikenVorschlagenDasIst": "Propose risks — that is the one thing you may write, too.",
+        "duUebergibstAnDen": "You hand over to the epic owner: a risk you proposed is reviewed and documented by them.",
+        "derGesamtstand": "The overall state",
+        "dasBoardStelltAlle": "The board arranges all epics in a grid: columns are the maturity levels, rows the investment horizons. The undecided on the left, the running on the right — the fastest overview there is.",
+        "dieRisikolage": "The risk picture",
+        "wahrscheinlichkeitGegenAuswirkungWas": "Likelihood against impact. Whatever sits in the top right should come up in your next steering meeting.",
+        "dasEineWasAuch": "The one thing you may write too",
+        "einRisikoVorschlagenDer": "Propose a risk. The epic owner reviews it; only with their acceptance does it become a numbered entry in the register."
+      }
+    },
+    "fixture": {
+      "step1": "First step",
+      "step1Body": "This is where it starts.",
+      "step2": "Second step",
+      "step2Body": "And on it goes."
     }
   },
   "org": {
@@ -1964,6 +2602,34 @@
       "valueStream": "Value stream",
       "art": "ART *",
       "status": "Status"
+    },
+    "horizonHelp": {
+      "h3": {
+        "blurb": "Evaluating / R&D — no solution yet, only ideas, spikes and prototypes.",
+        "epicArt": "Exploratory epics (feasibility, prototypes, patents)",
+        "budgetFokus": "Learning & validating (pure OpEx)"
+      },
+      "h2": {
+        "blurb": "Emerging — a new solution takes shape and is tested in the market as an MVP.",
+        "epicArt": "Emerging epics (building the MVP, market test)",
+        "budgetFokus": "Market test & scaling (almost entirely grow)"
+      },
+      "h1": {
+        "blurb": "Investing & extracting — established core solution, carries the main revenue.",
+        "epicArt": "Business epics (extension) + enabler epics (rebuild)",
+        "budgetFokus": "Build out (invest) or run efficiently (extract)"
+      },
+      "h0": {
+        "blurb": "Decommissioning — solution at end of life, shut down in an orderly way.",
+        "epicArt": "Decommissioning epics (migration, archiving, shutdown)",
+        "budgetFokus": "Reduce the run budget to 0 (OpEx wind-down)"
+      }
+    },
+    "concept": {
+      "solutionVsEpic": "A solution is the long-lived product or system (it generates ongoing operating cost, run). An epic is a large, time-bounded change to a solution (grow). The primary solution determines the epic's investment horizon — except in H3: there is no solution there, and the initiative carries its horizon itself.",
+      "grow": "Grow = Σ implementation cost of this solution's running epics (investment in further development).",
+      "run": "Run = Σ of the run-the-business items attributed to this solution, calculated over one year (maintenance, support, infrastructure). They are maintained in the budgeting module — each item with its own period; items spanning value streams count towards no solution.",
+      "primarySolution": "An epic's primary solution supplies its investment horizon and its swimlane in the portfolio kanban — as long as none is set on the epic itself. An R&D initiative has no solution at all and therefore always carries it itself."
     }
   },
   "platform": {
@@ -2167,7 +2833,23 @@
       "hierEntlang": "This way",
       "saetzeDieNichtStimmen": "Sentences that are wrong",
       "noGuides": "There are no guides for the enabled modules yet.",
-      "rolesTeaser": "The eight roles with their remit, responsibility and handovers — and the seven responsibilities staffed per value stream."
+      "rolesTeaser": "The eight roles with their remit, responsibility and handovers — and the seven responsibilities staffed per value stream.",
+      "onlyGerman": "This guide is not available in English yet — the German version is shown."
     }
+  },
+  "practices": {
+    "portfolioLevel": "Portfolio level (value streams, epics)",
+    "programLevel": "Program level (ARTs, PIs, features)",
+    "stageGates": "Stage gates (investment funnel L0–L5)",
+    "wsjf": "WSJF prioritisation",
+    "multiPartyApproval": "Multi-party sign-off for epics",
+    "featureQs": "Feature QA",
+    "dependencies": "Dependencies",
+    "artEpics": "ART epics (small endeavours from the ART pot)"
+  },
+  "structure": {
+    "valueStreams": "Value streams",
+    "arts": "ARTs",
+    "teams": "Teams"
   }
 }

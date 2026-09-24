@@ -108,7 +108,7 @@ export async function softDeleteArt(
     if (existing._count.pis > 0) {
       return err({
         kind: "conflict" as const,
-        reason: "ART has Program Increments and cannot be deleted",
+        reason: "errors.art.hasProgramIncrements",
       });
     }
 

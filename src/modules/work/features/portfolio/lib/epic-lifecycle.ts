@@ -25,14 +25,14 @@ export interface LifecycleStepMeta {
   key: string;
   /** Reifegrad, auf dem das Epic **während** dieses Abschnitts steht. */
   gate: StageGate;
-  /** Der Prozess — was hier getan wird. */
-  label: string;
-  description: string;
+  /** Der Prozess — was hier getan wird. Katalog-Schlüssel. */
+  labelKey: string;
+  descriptionKey: string;
   /** Das Tor, das diesen Abschnitt schließt. */
   milestone: {
-    label: string;
+    labelKey: string;
     /** Wer zeichnet. */
-    approver: string;
+    approverKey: string;
     /**
      * Der Reifegrad-Schritt, den die Abnahme vollzieht. `null` heißt: dieses
      * Tor bewegt den Reifegrad **nicht** — es gibt genau eines davon, die
@@ -46,82 +46,94 @@ export const LIFECYCLE_STEPS: readonly LifecycleStepMeta[] = [
   {
     key: "detailing",
     gate: "L0",
-    label: "Idee erfasst",
-    description: "Epic im Funnel angelegt, wartet auf Sichtung.",
+    labelKey: "work.lifecycle.detailing.label",
+    descriptionKey: "work.lifecycle.detailing.description",
     milestone: {
-      label: "Erstsichtung",
-      approver: "Der VMO sichtet das Epic und benennt den Epic Owner",
+      labelKey: "work.lifecycle.detailing.milestoneLabel",
+      approverKey: "work.lifecycle.detailing.milestoneApprover",
       step: null,
     },
   },
   {
     key: "hypothesis",
     gate: "L0",
-    label: "Hypothese ausarbeiten",
-    description: "Problem, Zielgruppe, erwarteter Nutzen, Leading Indicators.",
+    labelKey: "work.lifecycle.hypothesis.label",
+    descriptionKey: "work.lifecycle.hypothesis.description",
     milestone: {
-      label: "L1 · Hypothese freigegeben",
-      approver: "VMO — die Abnahme ist zugleich die Freigabe",
+      labelKey: "work.lifecycle.hypothesis.milestoneLabel",
+      approverKey: "work.lifecycle.hypothesis.milestoneApprover",
       step: "L1",
     },
   },
   {
     key: "analyzing",
     gate: "L1",
-    label: "Für die Analyse einplanen",
-    description: "Der Wertstrom entscheidet, was Aufwand bekommt.",
+    labelKey: "work.lifecycle.analyzing.label",
+    descriptionKey: "work.lifecycle.analyzing.description",
     // Der einzige Meilenstein neben der Erstsichtung, der den Reifegrad nicht
     // bewegt — er wird aber beantragt und abgenommen, anders als jene.
-    milestone: { label: "Zur Analyse ausgewählt", approver: "VMO", step: "analysis" },
+    milestone: {
+      labelKey: "work.lifecycle.analyzing.milestoneLabel",
+      approverKey: "work.lifecycle.analyzing.milestoneApprover",
+      step: "analysis",
+    },
   },
   {
     key: "business_case",
     // Das Epic steht waehrend der Ausarbeitung noch auf L1 — die Analyse ist
     // beschlossen, der Business Case noch nicht freigegeben.
     gate: "L1",
-    label: "Business Case ausarbeiten",
-    description: "Lean Business Case erstellen und zur Freigabe stellen.",
+    labelKey: "work.lifecycle.businessCase.label",
+    descriptionKey: "work.lifecycle.businessCase.description",
     milestone: {
-      label: "L2 · Business Case freigegeben",
-      approver: "Architect Lead · Business Owner · Finance · IRT · VMO · Produkt-Manager",
+      labelKey: "work.lifecycle.businessCase.milestoneLabel",
+      approverKey: "work.lifecycle.businessCase.milestoneApprover",
       step: "L2",
     },
   },
   {
     key: "backlog",
     gate: "L2",
-    label: "Budget zuteilen",
-    description: "Die Investitionsentscheidung vorbereiten.",
+    labelKey: "work.lifecycle.backlog.label",
+    descriptionKey: "work.lifecycle.backlog.description",
     milestone: {
-      label: "L3 · Budget alloziert",
-      approver: "VMO und Finance",
+      labelKey: "work.lifecycle.backlog.milestoneLabel",
+      approverKey: "work.lifecycle.backlog.milestoneApprover",
       step: "L3",
     },
   },
   {
     key: "implementation_started",
     gate: "L3",
-    label: "Umsetzung starten",
-    description: "Erstes Feature auf den Weg bringen.",
+    labelKey: "work.lifecycle.implementationStarted.label",
+    descriptionKey: "work.lifecycle.implementationStarted.description",
     milestone: {
-      label: "L4.1 · Umsetzung gestartet",
-      approver: "VMO — plus Produkt-Manager bei ART-Epics",
+      labelKey: "work.lifecycle.implementationStarted.milestoneLabel",
+      approverKey: "work.lifecycle.implementationStarted.milestoneApprover",
       step: "L4",
     },
   },
   {
     key: "implementation",
     gate: "L4",
-    label: "Umsetzen",
-    description: "Features liefern, bis das Vorhaben steht.",
-    milestone: { label: "L4.2 · Umsetzung fertig", approver: "VMO", step: "L4.2" },
+    labelKey: "work.lifecycle.implementation.label",
+    descriptionKey: "work.lifecycle.implementation.description",
+    milestone: {
+      labelKey: "work.lifecycle.implementation.milestoneLabel",
+      approverKey: "work.lifecycle.implementation.milestoneApprover",
+      step: "L4.2",
+    },
   },
   {
     key: "done",
     gate: "L4",
-    label: "Nutzen messen",
-    description: "Wirkt das Vorhaben wie versprochen?",
-    milestone: { label: "L5 · Impact realisiert", approver: "Finance", step: "L5" },
+    labelKey: "work.lifecycle.done.label",
+    descriptionKey: "work.lifecycle.done.description",
+    milestone: {
+      labelKey: "work.lifecycle.done.milestoneLabel",
+      approverKey: "work.lifecycle.done.milestoneApprover",
+      step: "L5",
+    },
   },
 ];
 

@@ -252,14 +252,16 @@ export async function reorderSystemDemoItems(
     if (existingIds.size !== incomingIds.size) {
       return err({
         kind: "conflict" as const,
-        reason: `Reorder muss alle ${existingIds.size} Items abdecken, bekam ${incomingIds.size}`,
+        reason: "errors.systemDemo.reorderIncomplete",
+        values: { expected: existingIds.size, got: incomingIds.size },
       });
     }
     for (const id of orderedItemIds) {
       if (!existingIds.has(id)) {
         return err({
           kind: "conflict" as const,
-          reason: `Item ${id} gehoert nicht zu diesem Demo`,
+          reason: "errors.systemDemo.itemOtherDemo",
+          values: { id },
         });
       }
     }

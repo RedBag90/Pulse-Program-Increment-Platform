@@ -32,7 +32,7 @@ export const saveGoalFilterAction = createServerAction({
   }),
   service: (ctx, input) => saveSavedFilter(ctx, { ...input, scope: "goals" }),
   revalidate: "goalFilter",
-  mapError: (e) => formatDomainError(e, { fallback: "Filter konnte nicht gespeichert werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveFilter" }, t),
 });
 
 /** Löscht einen gespeicherten Ziele-Filter des aktuellen Nutzers. */
@@ -43,5 +43,5 @@ export const deleteGoalFilterAction = createServerAction({
   parseFormData: (fd) => ({ id: String(fd.get("id") ?? "") }),
   service: (ctx, input) => deleteSavedFilter(ctx, { id: input.id, scope: "goals" }),
   revalidate: "goalFilter",
-  mapError: (e) => formatDomainError(e, { fallback: "Filter konnte nicht gelöscht werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.deleteFilter" }, t),
 });

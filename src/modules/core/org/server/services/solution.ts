@@ -42,9 +42,7 @@ function rejectResearchHorizon(horizon: Horizon) {
     ? null
     : {
         kind: "conflict" as const,
-        reason:
-          "In H3 gibt es keine Solution — dort wird geforscht. " +
-          "Ein R&D-Vorhaben trägt seinen Horizont am Epic; eine Solution entsteht frühestens in H2.",
+        reason: "errors.solution.noSolutionInH3",
       };
 }
 import type { Prisma } from "@/generated/prisma";
@@ -100,7 +98,7 @@ async function assertArtInStream(
   if (!art) {
     return err({
       kind: "conflict" as const,
-      reason: "Der ART gehört nicht zum gewählten Value Stream.",
+      reason: "errors.solution.artOtherValueStream",
     });
   }
   return ok(undefined);
@@ -346,14 +344,14 @@ export async function promoteSolution(
     if (existing.horizon !== "h2") {
       return err({
         kind: "conflict" as const,
-        reason: "Nur Emerging-Solutions (H2) können nach H1 befördert werden.",
+        reason: "errors.solution.onlyEmergingPromotes",
       });
     }
     const allConfirmed = PROMOTION_CRITERIA.every((c) => criteria[c.key] === true);
     if (!allConfirmed) {
       return err({
         kind: "conflict" as const,
-        reason: "Alle vier Transition-Kriterien müssen bestätigt sein.",
+        reason: "errors.solution.allCriteriaNeeded",
       });
     }
 
@@ -418,7 +416,8 @@ export async function setSolutionLifecycle(
     if (from !== to && !SOLUTION_TRANSITIONS[from].some((t) => t.to === to)) {
       return err({
         kind: "conflict" as const,
-        reason: `Von „${from}" führt kein Schritt nach „${to}".`,
+        reason: "errors.solution.noStep",
+        values: { from, to },
       });
     }
 

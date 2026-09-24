@@ -21,20 +21,33 @@ describe("deriveNextSteps", () => {
   it("proposes creating the missing count for a structure dimension below target", () => {
     const gap: StructureGap = {
       ...emptyGap,
-      dimensions: [{ key: "arts", label: "ARTs", ist: 1, soll: 3, progress: 1 / 3 }],
+      dimensions: [{ key: "arts", labelKey: "structure.arts", ist: 1, soll: 3, progress: 1 / 3 }],
     };
     const steps = deriveNextSteps(gap, noAdoption);
     expect(steps).toHaveLength(1);
-    expect(steps[0]).toMatchObject({ key: "struct-arts", href: "/transformation/art-starten" });
-    expect(steps[0]?.title).toContain("2"); // 3 - 1
+    expect(steps[0]).toMatchObject({
+      key: "struct-arts",
+      href: "/transformation/art-starten",
+      titleKey: "work.nextStep.createMore",
+      // Die Zahl steht als Wert im Satz, nicht im Satz selbst — sonst wäre
+      // der fehlende Rest auf Englisch unübersetzbar (ADR-0024, Regel 2).
+      titleValues: { missing: 2 },
+      titleKeyValues: { what: "structure.arts" },
+    });
   });
 
   it("ignores dimensions that have no target or are already met", () => {
     const gap: StructureGap = {
       ...emptyGap,
       dimensions: [
-        { key: "valueStreams", label: "Wertströme", ist: 2, soll: null, progress: 1 },
-        { key: "teams", label: "Teams", ist: 5, soll: 5, progress: 1 },
+        {
+          key: "valueStreams",
+          labelKey: "structure.valueStreams",
+          ist: 2,
+          soll: null,
+          progress: 1,
+        },
+        { key: "teams", labelKey: "structure.teams", ist: 5, soll: 5, progress: 1 },
       ],
     };
     expect(deriveNextSteps(gap, noAdoption)).toEqual([]);
@@ -44,8 +57,20 @@ describe("deriveNextSteps", () => {
     const adoption: PracticeAdoption = {
       hasTarget: true,
       signals: [
-        { key: "wsjf", label: "WSJF", value: 0.2, detail: "1/5" },
-        { key: "featureQs", label: "Feature-QS", value: 0.9, detail: "9/10" },
+        {
+          key: "wsjf",
+          labelKey: "practices.wsjf",
+          value: 0.2,
+          detailKey: "work.adoption.featuresScored",
+          detailValues: { n: 1, total: 5 },
+        },
+        {
+          key: "featureQs",
+          labelKey: "practices.featureQs",
+          value: 0.9,
+          detailKey: "work.adoption.featuresApproved",
+          detailValues: { n: 9, total: 10 },
+        },
       ],
     };
     const steps = deriveNextSteps(emptyGap, adoption);
@@ -56,11 +81,19 @@ describe("deriveNextSteps", () => {
   it("orders structure shortfalls before practice gaps (sanity)", () => {
     const gap: StructureGap = {
       ...emptyGap,
-      dimensions: [{ key: "arts", label: "ARTs", ist: 0, soll: 2, progress: 0 }],
+      dimensions: [{ key: "arts", labelKey: "structure.arts", ist: 0, soll: 2, progress: 0 }],
     };
     const adoption: PracticeAdoption = {
       hasTarget: true,
-      signals: [{ key: "wsjf", label: "WSJF", value: 0, detail: "0/2" }],
+      signals: [
+        {
+          key: "wsjf",
+          labelKey: "practices.wsjf",
+          value: 0,
+          detailKey: "work.adoption.featuresScored",
+          detailValues: { n: 0, total: 2 },
+        },
+      ],
     };
     const keys = deriveNextSteps(gap, adoption).map((s) => s.key);
     expect(keys).toEqual(["struct-arts", "prac-wsjf"]);

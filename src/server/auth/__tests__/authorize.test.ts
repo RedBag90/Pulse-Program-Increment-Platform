@@ -67,7 +67,11 @@ describe("authorize — roles", () => {
   it("denies when the principal holds no granted role", () => {
     const d = authorize("epic.update", { tenantId: "t1" }, principal({ roles: [ROLES.VIEWER] }));
     expect(d.allow).toBe(false);
-    expect(d.reason).toContain("epic.update");
+    // `reason` ist das, was der Nutzer liest — ein Katalog-Schlüssel, und
+    // bewusst knapp. Der Name des Rechts und die Principal-Kennung stehen in
+    // `diagnostic`, das eine HTTP-Antwort nie verlässt.
+    expect(d.reason).toBe("errors.forbidden");
+    expect(d.diagnostic).toContain("epic.update");
   });
 
   it("allows an unscoped role grant regardless of resource", () => {

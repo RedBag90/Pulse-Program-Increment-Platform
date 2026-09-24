@@ -103,7 +103,7 @@ export async function saveValueStreamGuardrailTargets(
   if (!decision.ok) {
     return err({
       kind: "forbidden" as const,
-      reason: "Nur Wertstrom-Owner oder Portfolio-Management dürfen Guardrail-Ziele setzen.",
+      reason: "work.errors.onlyOwnerSetsGuardrails",
     });
   }
 
@@ -114,7 +114,13 @@ export async function saveValueStreamGuardrailTargets(
   const probe = parseGuardrailTargets(Object.fromEntries(axes));
   const check = validateGuardrailTargets(probe);
   if (!check.ok) {
-    return err({ kind: "conflict" as const, reason: check.reason ?? "Ungültige Ziele" });
+    // `exactOptionalPropertyTypes`: ein ausgelassenes Feld ist etwas anderes
+    // als eines mit `undefined`.
+    return err({
+      kind: "conflict" as const,
+      reason: check.reasonKey ?? "work.guardrail.invalid",
+      ...(check.reasonValues ? { values: check.reasonValues } : {}),
+    });
   }
 
   return withAuditedTransaction(mctx, async (tx) => {

@@ -219,7 +219,7 @@ export function RoleTourOverlay({ role, steps, onFinish }: Props) {
         role="dialog"
         aria-modal="false"
         aria-live="polite"
-        aria-label={`Tour-Schritt ${index + 1} von ${steps.length}: ${step.title}`}
+        aria-label={`Tour-Schritt ${index + 1} von ${steps.length}: ${t(step.titleKey)}`}
         tabIndex={-1}
         className="absolute rounded-lg bg-card p-4 shadow-lg outline-none ring-1 ring-foreground/10"
         style={{ top: placement.top, left: placement.left, width: placement.width }}
@@ -227,8 +227,8 @@ export function RoleTourOverlay({ role, steps, onFinish }: Props) {
         <p className="text-xs font-medium tabular-nums text-muted-foreground">
           Schritt {index + 1} von {steps.length}
         </p>
-        <h2 className="mt-1 font-heading text-base font-semibold">{step.title}</h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">{step.body}</p>
+        <h2 className="mt-1 font-heading text-base font-semibold">{t(step.titleKey)}</h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">{t(step.bodyKey)}</p>
 
         <div className="mt-4 flex items-center justify-between gap-2">
           <Button variant="ghost" size="sm" onClick={abort}>

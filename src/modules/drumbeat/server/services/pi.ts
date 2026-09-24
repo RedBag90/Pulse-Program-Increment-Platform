@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ArtId, PiId, TimelineId } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
@@ -94,7 +95,7 @@ export async function updatePi(ctx: RequestContext, input: UpdatePiInput): Promi
     }
 
     if (existing.status === "completed" && status !== "completed") {
-      return err({ kind: "conflict" as const, reason: "Cannot reopen a completed PI" });
+      return err({ kind: "conflict" as const, reason: "drumbeat.errors.cannotReopen" });
     }
 
     // Lifecycle transitions to active/completed go through startPi/completePi,
@@ -102,7 +103,8 @@ export async function updatePi(ctx: RequestContext, input: UpdatePiInput): Promi
     if (status !== undefined && status !== existing.status && status !== "planned") {
       return err({
         kind: "conflict" as const,
-        reason: `Use the ${status === "active" ? "start" : "complete"} action to move a PI to "${status}"`,
+        reason: "drumbeat.errors.useLifecycleAction",
+        values: { status },
       });
     }
 
@@ -120,8 +122,7 @@ export async function updatePi(ctx: RequestContext, input: UpdatePiInput): Promi
       if (!tlId) {
         return err({
           kind: "conflict" as const,
-          reason:
-            "PI ohne Timeline-Verknuepfung kann nicht ueber den Timeline-Pfad editiert werden",
+          reason: "drumbeat.errors.piWithoutTimelineEdit",
         });
       }
       const others = await tx.programIncrement.findMany({
@@ -181,10 +182,10 @@ export async function setPiCapacity(
   const { id, capacityJobSize, capacityAmount } = input;
 
   if (capacityJobSize !== undefined && capacityJobSize !== null && capacityJobSize < 0) {
-    return err({ kind: "conflict" as const, reason: "Job-Size-Kapazität darf nicht negativ sein" });
+    return err({ kind: "conflict" as const, reason: "drumbeat.errors.jobSizeNegative" });
   }
   if (capacityAmount !== undefined && capacityAmount !== null && capacityAmount < 0) {
-    return err({ kind: "conflict" as const, reason: "Budget-Override darf nicht negativ sein" });
+    return err({ kind: "conflict" as const, reason: "drumbeat.errors.budgetOverrideNegative" });
   }
 
   return withAuditedTransaction(mctx, async (tx) => {
@@ -241,14 +242,15 @@ export async function startPi(ctx: RequestContext, input: { id: PiId }): Promise
     if (!canTransition(existing.status as PiStatus, "active")) {
       return err({
         kind: "conflict" as const,
-        reason: `Only a planned PI can be started (current status: ${existing.status})`,
+        reason: "drumbeat.errors.onlyPlannedStarts",
+        values: { status: existing.status },
       });
     }
 
     if (!existing.timelineId) {
       return err({
         kind: "conflict" as const,
-        reason: "PI hat keine Timeline — kann nicht gestartet werden",
+        reason: "drumbeat.errors.noTimelineStart",
       });
     }
     const otherActive = await tx.programIncrement.findFirst({
@@ -262,7 +264,8 @@ export async function startPi(ctx: RequestContext, input: { id: PiId }): Promise
     if (otherActive) {
       return err({
         kind: "conflict" as const,
-        reason: `PI "${otherActive.name}" ist bereits in dieser Timeline aktiv; bitte zuerst abschließen`,
+        reason: "drumbeat.errors.otherPiActive",
+        values: { other: otherActive.name },
       });
     }
 
@@ -309,6 +312,11 @@ async function countOpenRoamIssues(
 export async function completePi(ctx: RequestContext, input: { id: PiId }): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
   const { id } = input;
+  // Der eine Fall, in dem ein Service selbst übersetzen muss: die
+  // Closure-Blocker sind eine **Liste**, und sie erscheinen als ein Satz.
+  // `values` trägt Zeichenketten, keine Schlüssel — der Aufzählungspunkt
+  // entsteht also hier, nicht in der Anzeigenaht.
+  const t = await getTranslations();
 
   return withAuditedTransaction(mctx, async (tx) => {
     const existing = await tx.programIncrement.findFirst({
@@ -322,7 +330,8 @@ export async function completePi(ctx: RequestContext, input: { id: PiId }): Prom
     if (!canTransition(existing.status as PiStatus, "completed")) {
       return err({
         kind: "conflict" as const,
-        reason: `Only an active PI can be completed (current status: ${existing.status})`,
+        reason: "drumbeat.errors.onlyActiveCompletes",
+        values: { status: existing.status },
       });
     }
 
@@ -338,7 +347,8 @@ export async function completePi(ctx: RequestContext, input: { id: PiId }): Prom
     if (!closure.ready) {
       return err({
         kind: "conflict" as const,
-        reason: `PI-Abschluss nicht möglich: ${closure.reasons.join(" · ")}`,
+        reason: "drumbeat.errors.closureBlocked",
+        values: { reasons: closure.reasons.map((r) => t(r.key, r.values)).join(" · ") },
       });
     }
 
@@ -380,13 +390,14 @@ export async function advanceCadence(
     if (active.status !== "active") {
       return err({
         kind: "conflict" as const,
-        reason: `Nur ein aktives PI kann fortgeschrieben werden (Status: ${active.status}).`,
+        reason: "drumbeat.errors.onlyActiveAdvances",
+        values: { status: active.status },
       });
     }
     if (!active.timelineId) {
       return err({
         kind: "conflict" as const,
-        reason: "PI ohne Timeline kann nicht fortgeschrieben werden.",
+        reason: "drumbeat.errors.noTimelineAdvance",
       });
     }
 
@@ -419,7 +430,7 @@ export async function advanceCadence(
     } else {
       const spec = nextPiFromCadence(siblings);
       if (!spec) {
-        return err({ kind: "conflict" as const, reason: "Kadenz nicht ableitbar." });
+        return err({ kind: "conflict" as const, reason: "drumbeat.errors.cadenceUnknown" });
       }
       // Bewusst NICHT über `createPi`: die Kadenz-Ableitung (`nextPiFromCadence`)
       // ist kontiguierlich per Konstruktion — die Datums-/Überlappungs-Validierung
@@ -478,7 +489,7 @@ export async function deletePi(ctx: RequestContext, input: { id: PiId }): Promis
       return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
     }
     if (pi.status !== "planned") {
-      return err({ kind: "conflict" as const, reason: "Only a planned PI can be deleted" });
+      return err({ kind: "conflict" as const, reason: "drumbeat.errors.onlyPlannedDeletes" });
     }
 
     // Features assigned to this PI fall back to the backlog.

@@ -183,7 +183,7 @@ describe("buildEpicsListModel", () => {
       budgetingEnabled: true,
     });
     const l0 = m.rows.find((r) => r.id === "l0")!;
-    expect(l0.nextStep?.title).toMatch(/Benefit Hypothese/i);
+    expect(l0.nextStep?.titleKey).toBe("work.nextStep.hypothesisTitle");
     expect(l0.nextStep?.cta).toMatchObject({
       kind: "link",
       href: expect.stringContaining("benefit-hypothesis"),

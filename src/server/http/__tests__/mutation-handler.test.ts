@@ -120,7 +120,7 @@ describe("createMutationHandler — platformOnly", () => {
     const service = vi.fn().mockResolvedValue(ok({ id: "x" }));
     const res = await makeHandler({ platformOnly: true, service })(makeRequest({ name: "Neu" }));
     expect(res.status).toBe(403);
-    expect(await res.json()).toMatchObject({ detail: "Plattform-Admin erforderlich" });
+    expect(await res.json()).toMatchObject({ detail: "Dafür braucht es einen Plattform-Admin" });
     expect(service).not.toHaveBeenCalled();
   });
 
@@ -173,7 +173,7 @@ describe("createMutationHandler — body parsing", () => {
 
 describe("createMutationHandler — authorization", () => {
   it("returns 403 when authorize denies", async () => {
-    mockAuthorize.mockReturnValue({ allow: false, reason: "insufficient role" });
+    mockAuthorize.mockReturnValue({ allow: false, reason: "errors.forbidden" });
     const res = await makeHandler()(makeRequest({ name: "PI 24.1" }));
     expect(res.status).toBe(403);
   });
@@ -195,23 +195,29 @@ describe("createMutationHandler — service error mapping", () => {
   });
 
   it("returns 409 when service returns conflict", async () => {
-    const service = vi.fn().mockResolvedValue(err({ kind: "conflict", reason: "already exists" }));
+    const service = vi
+      .fn()
+      .mockResolvedValue(err({ kind: "conflict", reason: "budgeting.errors.endBeforeStart" }));
     const res = await makeHandler({ service })(makeRequest({ name: "PI 24.1" }));
     expect(res.status).toBe(409);
   });
 
   it("returns 422 when service returns hierarchy_violation", async () => {
-    const service = vi
-      .fn()
-      .mockResolvedValue(
-        err({ kind: "hierarchy_violation", violatedConstraint: "depth", detail: "too deep" }),
-      );
+    const service = vi.fn().mockResolvedValue(
+      err({
+        kind: "hierarchy_violation",
+        violatedConstraint: "depth",
+        detail: "errors.hierarchy.epicHasParent",
+      }),
+    );
     const res = await makeHandler({ service })(makeRequest({ name: "PI 24.1" }));
     expect(res.status).toBe(422);
   });
 
   it("respects errorMap overrides", async () => {
-    const service = vi.fn().mockResolvedValue(err({ kind: "conflict", reason: "dupe" }));
+    const service = vi
+      .fn()
+      .mockResolvedValue(err({ kind: "conflict", reason: "budgeting.errors.endBeforeStart" }));
     const handler = createMutationHandler({
       schema: testSchema,
       action: "pi.create",

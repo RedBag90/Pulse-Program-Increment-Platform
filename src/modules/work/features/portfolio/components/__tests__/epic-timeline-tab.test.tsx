@@ -2,6 +2,9 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { EpicTimelineTab } from "@/modules/work/features/portfolio/components/epic-timeline-tab";
 import { epicLifecycleSteps } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
+import { catalogTranslate } from "@/test/helpers/catalog";
+
+const t = catalogTranslate("de");
 
 /**
  * **Die Zeitleiste zeigt den Verlauf; sie benennt niemanden.**
@@ -77,7 +80,7 @@ describe("EpicTimelineTab", () => {
 
     // Das ist, was vom weichen Tor bleibt, nachdem die Box weg ist — ohne diese
     // Zusicherung wäre der Rückbau nicht vom Einebnen zu unterscheiden.
-    expect(screen.getByText("Erstsichtung")).toBeInTheDocument();
+    expect(screen.getByText(t("work.lifecycle.detailing.milestoneLabel"))).toBeInTheDocument();
     expect(screen.getAllByText("Meilenstein")).toHaveLength(1);
     expect(screen.getAllByText("Gate").length).toBeGreaterThan(1);
   });

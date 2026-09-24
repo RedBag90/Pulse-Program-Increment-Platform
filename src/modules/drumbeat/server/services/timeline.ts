@@ -113,7 +113,8 @@ export async function deleteTimeline(
     if (existing._count.arts > 0) {
       return err({
         kind: "conflict" as const,
-        reason: `Diese Timeline hat noch ${existing._count.arts} ART(s) zugeordnet — bitte zuerst lösen.`,
+        reason: "drumbeat.errors.timelineHasArts",
+        values: { count: existing._count.arts },
       });
     }
     // Cascade on the FK handles the PIs (and their sprints via PI's own cascade).

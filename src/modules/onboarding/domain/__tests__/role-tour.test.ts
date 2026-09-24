@@ -134,14 +134,14 @@ describe("resolveTour — Filterung", () => {
 
   it("die Mission überlebt jede Filterung", () => {
     const coreOnly = resolveTour(ROLE_PLAYBOOKS[RTE], tenantWith([], RTE));
-    expect(coreOnly.mission).toBe(ROLE_PLAYBOOKS[RTE].mission);
+    expect(coreOnly.missionKey).toBe(ROLE_PLAYBOOKS[RTE].missionKey);
   });
 
   it("Leer-Fall: feature_owner in einem reinen Core-Tenant hat keine Schritte", () => {
     const tour = resolveTour(ROLE_PLAYBOOKS[FEATURE_OWNER], tenantWith([], FEATURE_OWNER));
     expect(tour.steps).toEqual([]);
     expect(tour.total).toBe(0);
-    expect(tour.mission).not.toBe("");
+    expect(tour.missionKey).not.toBe("");
   });
 
   it("die Reihenfolge bleibt die des Playbooks (Nummerierung ist lückenlos)", () => {

@@ -19,39 +19,39 @@ const base = (over: Partial<EpicNextStepInput> = {}): EpicNextStepInput => ({
 describe("epicNextStep", () => {
   it("L0 ohne Hypothese-Inhalt → Benefit Hypothese ausarbeiten", () => {
     const step = epicNextStep(base());
-    expect(step?.title).toBe("Benefit Hypothese ausarbeiten");
+    expect(step?.titleKey).toBe("work.nextStep.hypothesisTitle");
     expect(step?.cta).toEqual({
       kind: "link",
-      label: "Zur Hypothese",
+      labelKey: "work.nextStep.toHypothesis",
       href: "/portfolio/epics/epic-1?tab=benefit-hypothesis",
     });
   });
 
   it("L0 mit Hypothese-Inhalt → Wechsel auf L1 beantragen", () => {
     const step = epicNextStep(base({ hasHypothesis: true }));
-    expect(step?.title).toBe("Wechsel auf L1 beantragen");
+    expect(step?.titleKey).toBe("work.nextStep.requestL1Title");
     expect(step?.cta).toEqual({ kind: "gate-request", to: "L1" });
   });
 
   it("ein offener Antrag überstimmt jeden inhaltlichen Rat", () => {
     const step = epicNextStep(base({ hasHypothesis: true, openGateRequestTo: "L1" }));
-    expect(step?.title).toBe("Auf die Abnahme von L1 warten");
+    expect(step?.titleKey).toBe("work.nextStep.waitingTitle");
     expect(step?.cta).toEqual({
       kind: "link",
-      label: "Zu meinen Freigaben",
+      labelKey: "work.nextStep.toMyApprovals",
       href: "/my-approvals",
     });
   });
 
   it("L1 ohne Analyse-Entscheidung → sie beantragen", () => {
     const step = epicNextStep(base({ stageGate: "L1", hasHypothesis: true }));
-    expect(step?.title).toBe("Zur Analyse auswählen lassen");
+    expect(step?.titleKey).toBe("work.nextStep.analysisTitle");
     expect(step?.cta).toEqual({ kind: "gate-request", to: "analysis" });
   });
 
   it("L1 mit Analyse-Entscheidung, ohne BC-Inhalt → BC ausarbeiten", () => {
     const step = epicNextStep(base({ stageGate: "L1", selectedForAnalyzingAt: new Date() }));
-    expect(step?.title).toBe("Business Case ausarbeiten");
+    expect(step?.titleKey).toBe("work.nextStep.businessCaseTitle");
     expect(step?.cta).toMatchObject({
       kind: "link",
       href: expect.stringContaining("business-case"),
@@ -62,7 +62,7 @@ describe("epicNextStep", () => {
     const step = epicNextStep(
       base({ stageGate: "L1", selectedForAnalyzingAt: new Date(), hasBusinessCase: true }),
     );
-    expect(step?.title).toBe("Wechsel auf L2 beantragen");
+    expect(step?.titleKey).toBe("work.nextStep.requestL2Title");
     expect(step?.cta).toEqual({ kind: "gate-request", to: "L2" });
   });
 
@@ -70,15 +70,15 @@ describe("epicNextStep", () => {
     const step = epicNextStep(
       base({ stageGate: "L2", hasBusinessCase: true, openGateRequestTo: "L2" }),
     );
-    expect(step?.title).toBe("Auf die Abnahme von L2 warten");
+    expect(step?.titleKey).toBe("work.nextStep.waitingTitle");
   });
 
   it("L2 ohne Budget → Budget allozieren mit Link auf /budgeting", () => {
     const step = epicNextStep(base({ stageGate: "L2" }));
-    expect(step?.title).toBe("Budget allozieren");
+    expect(step?.titleKey).toBe("work.nextStep.allocateTitle");
     expect(step?.cta).toEqual({
       kind: "link",
-      label: "Zum Controlling",
+      labelKey: "work.nextStep.toControlling",
       href: "/budgeting/periods",
     });
   });
@@ -90,13 +90,13 @@ describe("epicNextStep", () => {
         budgetAllocated: true,
       }),
     );
-    expect(step?.title).toBe("Investition abnehmen lassen");
+    expect(step?.titleKey).toBe("work.nextStep.investmentTitle");
     expect(step?.cta).toEqual({ kind: "gate-request", to: "L3" });
   });
 
   it("L3 → Erstes Feature starten", () => {
     const step = epicNextStep(base({ stageGate: "L3", budgetAllocated: true }));
-    expect(step?.title).toBe("Erstes Feature starten");
+    expect(step?.titleKey).toBe("work.nextStep.firstFeatureTitle");
     expect(step?.cta).toMatchObject({ kind: "link", href: expect.stringContaining("breakdown") });
   });
 
@@ -108,7 +108,9 @@ describe("epicNextStep", () => {
         childFeatureStats: { total: 5, completed: 2 },
       }),
     );
-    expect(step?.title).toBe("Features abschließen (2/5)");
+    expect(step?.titleKey).toBe("work.nextStep.finishFeaturesTitle");
+    // Der Zähler steht jetzt als Platzhalter daneben, nicht mehr im Satz.
+    expect(step?.titleValues).toEqual({ completed: 2, total: 5 });
   });
 
   it("L4 / L4.2 → Impact bestätigen lassen (Gate-Antrag nach L5)", () => {
@@ -119,7 +121,7 @@ describe("epicNextStep", () => {
         childFeatureStats: { total: 3, completed: 3 },
       }),
     );
-    expect(step?.title).toBe("Impact bestätigen lassen");
+    expect(step?.titleKey).toBe("work.nextStep.impactTitle");
     // Kein eigener Impact-Dialog mehr: der Wechsel auf L5 wird beantragt und
     // vom Controlling abgenommen wie jeder andere Reifegrad-Wechsel.
     expect(step?.cta).toEqual({ kind: "gate-request", to: "L5" });
@@ -143,7 +145,7 @@ describe("epicNextStep — L2 ohne Budget-Modul", () => {
     const step = epicNextStep(
       base({ stageGate: "L2", budgetAllocated: false, budgetingEnabled: false }),
     );
-    expect(step?.title).toBe("Investition abnehmen lassen");
+    expect(step?.titleKey).toBe("work.nextStep.investmentTitle");
     expect(step?.cta).toEqual({ kind: "gate-request", to: "L3" });
     expect(JSON.stringify(step)).not.toContain("/budgeting");
   });
@@ -152,6 +154,6 @@ describe("epicNextStep — L2 ohne Budget-Modul", () => {
     const step = epicNextStep(
       base({ stageGate: "L2", budgetAllocated: false, budgetingEnabled: true }),
     );
-    expect(step?.title).toBe("Budget allozieren");
+    expect(step?.titleKey).toBe("work.nextStep.allocateTitle");
   });
 });

@@ -34,7 +34,7 @@ describe("ROLE_PLAYBOOKS — Vollständigkeit", () => {
       const pb = ROLE_PLAYBOOKS[role];
       expect(pb, `Playbook fehlt: ${role}`).toBeDefined();
       expect(pb.role).toBe(role);
-      expect(pb.mission.length).toBeGreaterThan(20);
+      expect(pb.missionKey.length).toBeGreaterThan(20);
       expect(pb.responsibilities.length).toBeGreaterThan(0);
       expect(pb.steps.length).toBeGreaterThan(0);
     }
@@ -137,7 +137,7 @@ describe("ROLE_PLAYBOOKS — Rechte decken die Aussagen", () => {
       const claims = [...ROLE_PLAYBOOKS[role].responsibilities, ...ROLE_PLAYBOOKS[role].handoffs];
       for (const c of claims) {
         if (c.capability && !roleMayPerform(role, c.capability)) {
-          overreach.push(`${role}: „${c.text.slice(0, 40)}…“ verlangt ${c.capability}`);
+          overreach.push(`${role}: „${c.textKey.slice(0, 40)}…“ verlangt ${c.capability}`);
         }
       }
     }
@@ -167,7 +167,7 @@ describe("ROLE_PLAYBOOKS — inhaltliche Leitplanken", () => {
     // im Free-Tenant etwas, das der Nutzer nicht sieht.
     const MODULE_WORDS = ["PI ", "Program Increment", "Budget", "Feature-Backlog", "Risk-Register"];
     const leaky = ALL_ROLES.filter((r) =>
-      MODULE_WORDS.some((w) => ROLE_PLAYBOOKS[r].mission.includes(w)),
+      MODULE_WORDS.some((w) => ROLE_PLAYBOOKS[r].missionKey.includes(w)),
     );
     expect(leaky).toEqual([]);
   });
@@ -179,16 +179,16 @@ describe("ROLE_PLAYBOOKS — inhaltliche Leitplanken", () => {
     const MODULE_CONCEPTS =
       /\b(Epics?|Features?|PIs?|Program Increments?|Impediments?|Abhängigkeiten|Budget\w*|Risiko|Risiken|Wertnachweis)\b/;
     const ungated = ALL_CLAIMS.filter(
-      (c) => MODULE_CONCEPTS.test(c.text) && !c.capability && !c.practice && !c.module,
-    ).map((c) => c.text.slice(0, 60));
+      (c) => MODULE_CONCEPTS.test(c.textKey) && !c.capability && !c.practice && !c.module,
+    ).map((c) => c.textKey.slice(0, 60));
     expect(ungated).toEqual([]);
   });
 
   it("Teams kommen nicht mehr vor (Team-Rückbau fd8164a)", () => {
     const texts = [
-      ...ALL_ROLES.map((r) => ROLE_PLAYBOOKS[r].mission),
-      ...ALL_CLAIMS.map((c) => c.text),
-      ...ALL_STEPS.flatMap((s) => [s.title, s.body]),
+      ...ALL_ROLES.map((r) => ROLE_PLAYBOOKS[r].missionKey),
+      ...ALL_CLAIMS.map((c) => c.textKey),
+      ...ALL_STEPS.flatMap((s) => [s.titleKey, s.bodyKey]),
     ];
     const hits = texts.filter((t) => /\bTeams?\b/.test(t));
     expect(hits).toEqual([]);

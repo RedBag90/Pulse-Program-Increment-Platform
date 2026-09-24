@@ -73,7 +73,7 @@ export function checkEpicLink(input: CheckEpicLinkInput): Result<EpicLinkPlan, D
     if (input.chosenKpiLinkedElsewhere) {
       return err({
         kind: "conflict" as const,
-        reason: "Diese KPI treibt bereits ein anderes Ziel — jede KPI kann nur ein Ziel treiben.",
+        reason: "goals.errors.kpiAlreadyDrives",
       });
     }
   }

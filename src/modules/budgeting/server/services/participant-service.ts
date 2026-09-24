@@ -22,7 +22,7 @@ export async function addParticipant(
     if (round.status !== "draft") {
       return err({
         kind: "conflict" as const,
-        reason: "Beteiligte sind nur im Status draft änderbar.",
+        reason: "budgeting.errors.participantsDraftOnly",
       });
     }
 
@@ -66,7 +66,7 @@ export async function removeParticipant(
     if (row.round.status !== "draft") {
       return err({
         kind: "conflict" as const,
-        reason: "Beteiligte sind nur im Status draft änderbar.",
+        reason: "budgeting.errors.participantsDraftOnly",
       });
     }
     await tx.budgetParticipant.delete({ where: { id: input.id } });

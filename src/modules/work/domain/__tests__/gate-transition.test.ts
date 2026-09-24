@@ -1,4 +1,13 @@
 import { describe, it, expect } from "vitest";
+import { catalogTranslate } from "@/test/helpers/catalog";
+
+/*
+ * Der echte Katalog, nicht `identityTranslate`: die Sperr-Meldung ist ein
+ * **zusammengesetzter Satz** („Reifegrad L3 verlangt: …"). Mit dem
+ * Schlüssel-Übersetzer käme nur die Vorlage heraus, und die Zusicherung
+ * sagte nichts darüber, welches Kriterium genannt wird.
+ */
+const t = catalogTranslate("de");
 import { currentGateStep, gateOfStep, type GateStep } from "@/modules/work/domain/stage-gate";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import {
@@ -117,6 +126,7 @@ function request(to: GateStep, over: Partial<Parameters<typeof planGateRequest>[
     actorId: ACTOR,
     hasOpenRequest: false,
     now: NOW,
+    t,
     ...over,
   });
 }
@@ -163,7 +173,7 @@ describe("planGateRequest — strukturelle Guards", () => {
     const r = request("L2", { hasOpenRequest: true });
     expect(isErr(r) && r.error.kind).toBe("conflict");
     if (!isErr(r) || r.error.kind !== "conflict") return;
-    expect(r.error.reason).toContain("bereits ein Reifegrad-Wechsel beantragt");
+    expect(r.error.reason).toBe("work.errors.transitionPending");
   });
 });
 
@@ -224,7 +234,7 @@ describe("planGateRequest — Besetzung", () => {
     const r = request("L2", { approvers: [] });
     expect(isErr(r)).toBe(true);
     if (!isErr(r) || r.error.kind !== "conflict") return;
-    expect(r.error.reason).toContain("keine abnehmende Person");
+    expect(r.error.reason).toBe("work.errors.noApproverConfigured");
   });
 
   it("ein abnahmepflichtiger Antrag stempelt noch nichts", () => {

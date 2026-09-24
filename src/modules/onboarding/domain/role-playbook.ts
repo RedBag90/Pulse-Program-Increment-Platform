@@ -20,6 +20,13 @@ import type { Action } from "@/server/auth/policies";
  * Rolle in `POLICIES` tatsächlich gewährt sein. Wer hier etwas ändert, ohne dass
  * die Rechte es hergeben, fliegt dort auf.
  *
+ * **Die Texte stehen im Katalog, nicht hier.** Seit Zug 4 trägt jedes Feld
+ * einen Schlüssel (`onboarding.playbook.<rolle>.<sache>`); die Wörter liegen in
+ * `messages/de.json` und `messages/en.json`. Die Struktur — welcher Schritt zu
+ * welcher Route gehört, welche Capability er braucht — bleibt hier, weil sie
+ * Logik ist und keine Sprache. Wer eine Formulierung ändert, fasst den Katalog
+ * an; wer einen Schritt hinzufügt, diese Datei.
+ *
  * Textquellen beim Schreiben: `docs/personas.md` (Ton), `docs/setup-guide.md`
  * (chronologische Spine), `epic-lifecycle-doc.ts` + `epic-next-step.ts` (die
  * Übergaben stehen dort bereits als deutsche Sätze),
@@ -40,9 +47,9 @@ export type DataRequirement = "valueStream" | "art" | "epic" | "feature" | "pi" 
 export interface TourStep {
   /** Stabil — landet in `RoleOnboarding.seenStepKeys`. Nie nachträglich umbenennen. */
   key: string;
-  title: string;
-  /** 1–3 Sätze: was du hier tust und warum es deine Aufgabe ist. */
-  body: string;
+  titleKey: string;
+  /** 1–3 Sätze: was du hier tust und warum es deine Aufgabe ist. Katalog-Schlüssel. */
+  bodyKey: string;
   /** Locale-loses Ziel. Muss statisch sein (kein `[param]`) — die Tour navigiert dorthin. */
   route: string;
   /** `data-tour`-Wert des hervorzuhebenden Elements. Fehlt er, zeigt die Tour eine zentrierte Karte. */
@@ -64,7 +71,8 @@ export interface TourStep {
  * Tenant gar nicht gibt.
  */
 export interface PlaybookClaim {
-  text: string;
+  /** Katalog-Schlüssel — die Domäne benennt, die Oberfläche übersetzt (ADR-0024). */
+  textKey: string;
   capability?: Action;
   practice?: Practice;
   /** Explizit, weil ein Bullet keine Route hat, aus der sich das Modul ableiten ließe. */
@@ -74,7 +82,7 @@ export interface PlaybookClaim {
 export interface RolePlaybook {
   role: Role;
   /** Ein Satz. MODULNEUTRAL — wird immer gezeigt, auch im reinen Core-Tenant. */
-  mission: string;
+  missionKey: string;
   responsibilities: readonly PlaybookClaim[];
   /** Woher die Arbeit kommt und wohin sie weitergeht. */
   handoffs: readonly PlaybookClaim[];
@@ -96,37 +104,36 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
   // ── Plattform ───────────────────────────────────────────────────────────
   [PLATFORM_ADMIN]: {
     role: PLATFORM_ADMIN,
-    mission:
-      "Du betreibst Pulse mandantenübergreifend: du legst Workspaces an, schaltest Module frei und hältst den Betrieb gesund.",
+    missionKey: "onboarding.playbook.platformAdmin.mission",
     responsibilities: [
-      { text: "Neue Kunden-Workspaces bereitstellen und ihre Module freischalten." },
-      { text: "Mitgliedschaften und Plattform-Adminrechte über alle Mandanten hinweg verwalten." },
-      { text: "Betriebsstörungen erkennen, bevor die Kunden sie melden." },
+      { textKey: "onboarding.playbook.platformAdmin.neueKundenWorkspacesBereitstellen" },
+      { textKey: "onboarding.playbook.platformAdmin.mitgliedschaftenUndPlattformAdminrechte" },
+      { textKey: "onboarding.playbook.platformAdmin.betriebsstoerungenErkennenBevorDie" },
     ],
     handoffs: [
       {
-        text: "Du übergibst an den Tenant-Admin: sobald der Workspace steht, richtet er Nutzer, Rollen und Organisation ein.",
+        textKey: "onboarding.playbook.platformAdmin.duUebergibstAnDen",
       },
     ],
     steps: [
       {
         key: "platform_admin.scope",
-        title: "Deine Arbeit liegt außerhalb dieses Workspaces",
-        body: "Als einzige Rolle arbeitest du mandantenübergreifend: Workspaces bereitstellen, Module freischalten, Mitgliedschaften setzen. Hier drin bist du Gast — der Einstieg für den Tag ist trotzdem diese Inbox.",
+        titleKey: "onboarding.playbook.platformAdmin.deineArbeitLiegtAusserhalb",
+        bodyKey: "onboarding.playbook.platformAdmin.alsEinzigeRolleArbeitest",
         route: "/my-tasks",
         anchor: "group:myTasks",
       },
       {
         key: "platform_admin.structure",
-        title: "Steht der Workspace?",
-        body: "Der Strukturbaum ist dein schnellster Gesundheitscheck nach der Bereitstellung: Gibt es Wertströme und ARTs, oder hängt der Kunde noch beim Einrichten fest?",
+        titleKey: "onboarding.playbook.platformAdmin.stehtDerWorkspace",
+        bodyKey: "onboarding.playbook.platformAdmin.derStrukturbaumIstDein",
         route: "/structure",
         anchor: "structure-tree",
       },
       {
         key: "platform_admin.audit",
-        title: "Nachvollziehen, was passiert ist",
-        body: "Jede zustandsändernde Aktion landet hier, inklusive Rollenvergaben. Über die Filterzeile kommst du bei Rückfragen in Sekunden an den richtigen Vorgang.",
+        titleKey: "onboarding.playbook.platformAdmin.nachvollziehenWasPassiertIst",
+        bodyKey: "onboarding.playbook.platformAdmin.jedeZustandsaenderndeAktionLandet",
         route: "/admin/audit-log",
         anchor: "audit-log-filter",
         capability: "admin.audit-log.read",
@@ -137,90 +144,92 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
   // ── Governance ──────────────────────────────────────────────────────────
   [TENANT_ADMIN]: {
     role: TENANT_ADMIN,
-    mission:
-      "Du richtest den Workspace ein und hältst ihn arbeitsfähig: die richtigen Leute mit den richtigen Rechten, die Organisation korrekt abgebildet.",
+    missionKey: "onboarding.playbook.tenantAdmin.mission",
     responsibilities: [
-      { text: "Nutzer einladen, Rollen vergeben und deren Sichtbarkeits-Scopes setzen." },
+      { textKey: "onboarding.playbook.tenantAdmin.nutzerEinladenRollenVergeben" },
       {
-        text: "Getrennt davon festlegen, welche Rolle welche Berechtigung hat.",
+        textKey: "onboarding.playbook.tenantAdmin.getrenntDavonFestlegenWelche",
         capability: "role.capability.manage",
       },
-      { text: "Die Organisation abbilden: Wertströme und ARTs anlegen und pflegen." },
-      { text: "Externe Systeme anbinden (Jira, Azure DevOps).", capability: "integration.manage" },
+      { textKey: "onboarding.playbook.tenantAdmin.dieOrganisationAbbildenWertstroeme" },
       {
-        text: "Bei Rückfragen aus Audit oder Compliance Auskunft geben.",
+        textKey: "onboarding.playbook.tenantAdmin.externeSystemeAnbindenJira",
+        capability: "integration.manage",
+      },
+      {
+        textKey: "onboarding.playbook.tenantAdmin.beiRueckfragenAusAudit",
         capability: "admin.audit-log.read",
       },
     ],
     handoffs: [
       {
-        text: "Du übernimmst von der Plattform: der Workspace existiert, du füllst ihn mit Leben.",
+        textKey: "onboarding.playbook.tenantAdmin.duUebernimmstVonDer",
       },
       {
-        text: "Du übergibst an Portfolio Manager und RTE: sobald Struktur und Rollen stehen, beginnt die Facharbeit.",
+        textKey: "onboarding.playbook.tenantAdmin.duUebergibstAnPortfolio",
       },
     ],
     steps: [
       {
         key: "tenant_admin.setup",
-        title: "Der Setup-Guide gibt die Reihenfolge vor",
-        body: 'Acht Meilensteine von „Workspace lebt" bis „erstes PI läuft". Das Tempo bestimmt ihr, die Reihenfolge ist fix — und du bist der Einzige, der hier abhaken darf.',
+        titleKey: "onboarding.playbook.tenantAdmin.derSetupGuideGibt",
+        bodyKey: "onboarding.playbook.tenantAdmin.achtMeilensteineVonWorkspace",
         route: "/setup",
         anchor: "setup-milestone-m1",
         capability: "tenant.users.manage",
       },
       {
         key: "tenant_admin.users",
-        title: "Wer arbeitet in diesem Workspace?",
-        body: "Diese Liste ist deine tägliche Anlaufstelle: Wer ist da, welche Rolle hat er, ist jemand gesperrt. Ein Klick öffnet rechts die Detailansicht mit den Rollen.",
+        titleKey: "onboarding.playbook.tenantAdmin.werArbeitetInDiesem",
+        bodyKey: "onboarding.playbook.tenantAdmin.dieseListeIstDeine",
         route: "/admin/users",
         anchor: "admin-user-list",
         capability: "admin.users.read",
       },
       {
         key: "tenant_admin.invite",
-        title: "Jemanden einladen",
-        body: 'Über „Einladen" öffnest du rechts das Formular. Nach der Zuweisung sieht der Eingeladene dasselbe Willkommensfenster, das du gerade gesehen hast — deine Rollenwahl bestimmt also, was er erklärt bekommt.',
+        titleKey: "onboarding.playbook.tenantAdmin.jemandenEinladen",
+        bodyKey: "onboarding.playbook.tenantAdmin.ueberEinladenOeffnestDu",
         route: "/admin/users?selected=invite",
         anchor: "admin-user-list",
         capability: "tenant.users.manage",
       },
       {
         key: "tenant_admin.roles",
-        title: "Berechtigungen je Rolle nachschärfen",
-        body: "Wer Nutzer einlädt und wer Rechte vergibt, sind bewusst zwei getrennte Befugnisse. Links wählst du die Rolle, rechts siehst du jede Aktion und wo ihr vom Standard abweicht.",
+        titleKey: "onboarding.playbook.tenantAdmin.berechtigungenJeRolleNachschaerfen",
+        bodyKey: "onboarding.playbook.tenantAdmin.werNutzerEinlaedtUnd",
         route: "/admin/roles",
         anchor: "admin-roles-nav",
         capability: "role.capability.manage",
       },
       {
         key: "tenant_admin.value_stream",
-        title: "Den ersten Wertstrom anlegen",
-        body: "Wertströme finanzieren Epics — ohne sie bleibt das Portfolio leer. Der Knopf steht im Kopf der Struktur-Seite; ARTs legst du danach auf der Detailseite des jeweiligen Wertstroms an.",
+        titleKey: "onboarding.playbook.tenantAdmin.denErstenWertstromAnlegen",
+        bodyKey: "onboarding.playbook.tenantAdmin.wertstroemeFinanzierenEpicsOhne",
         route: "/structure",
         anchor: "value-stream-create-button",
         capability: "value_stream.create",
       },
       {
         key: "tenant_admin.structure",
-        title: "Die Organisation im Blick",
-        body: "Die Karte zeigt je Wertstrom eine Bahn, darin die ARTs als Spalten und deren Solutions als Kacheln. Ein Klick führt auf die Detailseite des Knotens — dort pflegst du Verantwortliche und legst weitere ARTs an.",
+        titleKey: "onboarding.playbook.tenantAdmin.dieOrganisationImBlick",
+        bodyKey: "onboarding.playbook.tenantAdmin.dieKarteZeigtJe",
         route: "/structure",
         anchor: "structure-tree",
         requires: "valueStream",
       },
       {
         key: "tenant_admin.cadence",
-        title: "Die Kadenz etablieren",
-        body: "Ohne wiederkehrenden PI-Takt gibt es keine Planung. Dieser Meilenstein führt dich zu den Timelines, an die sich die ARTs anschließen.",
+        titleKey: "onboarding.playbook.tenantAdmin.dieKadenzEtablieren",
+        bodyKey: "onboarding.playbook.tenantAdmin.ohneWiederkehrendenPiTakt",
         route: "/setup",
         anchor: "setup-milestone-m3",
         capability: "tenant.users.manage",
       },
       {
         key: "tenant_admin.audit",
-        title: "Auskunftsfähig bleiben",
-        body: "Bei Rückfragen aus Audit oder Compliance filterst du hier nach Akteur, Aktion oder Zeitraum. Auch Rollenvergaben stehen darin.",
+        titleKey: "onboarding.playbook.tenantAdmin.auskunftsfaehigBleiben",
+        bodyKey: "onboarding.playbook.tenantAdmin.beiRueckfragenAusAudit2",
         route: "/admin/audit-log",
         anchor: "audit-log-filter",
         capability: "admin.audit-log.read",
@@ -231,49 +240,51 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
   // ── Portfolio ───────────────────────────────────────────────────────────
   [PORTFOLIO_MANAGER]: {
     role: PORTFOLIO_MANAGER,
-    mission:
-      "Du führst das Portfolio: du entscheidest, woran gearbeitet wird, finanzierst es und weist am Ende nach, was es gebracht hat.",
+    missionKey: "onboarding.playbook.portfolioManager.mission",
     responsibilities: [
       {
-        text: "Den Zielzustand und die Kopf-Ziele der Organisation setzen.",
+        textKey: "onboarding.playbook.portfolioManager.denZielzustandUndDie",
         capability: "target.manage",
       },
       {
-        text: "Die Organisation aufbauen: Wertströme anlegen und die ARTs darin.",
+        textKey: "onboarding.playbook.portfolioManager.dieOrganisationAufbauenWertstroeme",
         capability: "art.create",
       },
       {
-        text: "Epics durch den Investment-Funnel führen und Reifegrad-Wechsel beantragen bzw. abnehmen.",
+        textKey: "onboarding.playbook.portfolioManager.epicsDurchDenInvestment",
         capability: "epic.gate.request",
         practice: "stageGates",
       },
       {
-        text: "Den Reifegrad-Wechsel auf L1 abnehmen — damit ist die Benefit-Hypothese freigegeben.",
+        textKey: "onboarding.playbook.portfolioManager.denReifegradWechselAuf",
         capability: "epic.gate.decide",
         practice: "stageGates",
       },
-      { text: "Das Budget auf die Epics verteilen.", capability: "budget.manage" },
-      { text: "Den realisierten Mehrwert im Portfolio-Review nachhalten.", module: "work" },
       {
-        text: "Risiken final bewerten — du bist der Einzige, der eines löschen darf.",
+        textKey: "onboarding.playbook.portfolioManager.dasBudgetAufDie",
+        capability: "budget.manage",
+      },
+      { textKey: "onboarding.playbook.portfolioManager.denRealisiertenMehrwertIm", module: "work" },
+      {
+        textKey: "onboarding.playbook.portfolioManager.risikenFinalBewertenDu",
         capability: "risk.delete",
       },
     ],
     handoffs: [
       {
-        text: "Du übernimmst vom Epic Owner: er reicht Hypothese und Business Case ein, du entscheidest.",
+        textKey: "onboarding.playbook.portfolioManager.duUebernimmstVomEpic",
         module: "work",
       },
       {
-        text: "Du übergibst an den RTE: sobald ein Epic finanziert ist, plant er die Umsetzung im ART.",
+        textKey: "onboarding.playbook.portfolioManager.duUebergibstAnDen",
         module: "drumbeat",
       },
     ],
     steps: [
       {
         key: "portfolio_manager.goals",
-        title: "Der Tag beginnt bei den Zielen",
-        body: "Hier stehen Zielbild und Kopf-Ziele. Jedes Epic zahlt später auf eines davon ein — ohne gepflegte Ziele lässt sich am Jahresende kein Wertnachweis führen.",
+        titleKey: "onboarding.playbook.portfolioManager.derTagBeginntBei",
+        bodyKey: "onboarding.playbook.portfolioManager.hierStehenZielbildUnd",
         route: "/ziele",
         anchor: "goals-table",
         capability: "target.manage",
@@ -281,16 +292,16 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "portfolio_manager.overview",
-        title: "Der Portfolio-Stand auf einen Blick",
-        body: "Das Board stellt alle Epics in ein Raster: Spalten sind die Reifegrade L0–L5, Zeilen die Investitionshorizonte H3 bis H0. Was sich links staut, ist unentschieden; was rechts steht, läuft bereits.",
+        titleKey: "onboarding.playbook.portfolioManager.derPortfolioStandAuf",
+        bodyKey: "onboarding.playbook.portfolioManager.dasBoardStelltAlle",
         route: "/portfolio",
         anchor: "portfolio-kanban",
         practice: "portfolioLevel",
       },
       {
         key: "portfolio_manager.funnel",
-        title: "Der Investment-Funnel",
-        body: "In der Epic-Liste siehst du, wo jedes Epic im Investment-Funnel steht. Ein Reifegrad-Wechsel passiert nie von selbst: er wird am Epic beantragt und von den dafür benannten Personen abgenommen.",
+        titleKey: "onboarding.playbook.portfolioManager.derInvestmentFunnel",
+        bodyKey: "onboarding.playbook.portfolioManager.inDerEpicListe",
         route: "/portfolio/epics",
         anchor: "epics-funnel-bar",
         capability: "epic.gate.request",
@@ -298,8 +309,8 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "portfolio_manager.approvals",
-        title: "Deine Entscheidungen sammeln sich hier",
-        body: 'Beantragte Reifegrad-Wechsel und Business Cases warten in „Meine Tasks", gestapelt unter deinen übrigen Aufgaben. Zustimmen oder begründet ablehnen — solange du nichts tust, steht das Epic still.',
+        titleKey: "onboarding.playbook.portfolioManager.deineEntscheidungenSammelnSich",
+        bodyKey: "onboarding.playbook.portfolioManager.beantragteReifegradWechselUnd",
         route: "/my-approvals",
         anchor: "approvals-list",
         capability: "epic.gate.decide",
@@ -307,16 +318,16 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "portfolio_manager.budget_pool",
-        title: "Den Budget-Topf setzen",
-        body: "Je Halbjahr eine Kachel, und die Leiste oben nennt ihren Stand: laufende Kachel, Topf, Abgaben, letzter Stand. Der Topf ist der Rahmen, gegen den alles Weitere gerechnet wird.",
+        titleKey: "onboarding.playbook.portfolioManager.denBudgetTopfSetzen",
+        bodyKey: "onboarding.playbook.portfolioManager.jeHalbjahrEineKachel",
         route: "/budgeting/periods",
         anchor: "budget-pool",
         capability: "budget.manage",
       },
       {
         key: "portfolio_manager.budget_allocate",
-        title: "Budget auf Epics verteilen",
-        body: "Verteilt wird in der Kachel: die Gruppen schlagen vor, das Ergebnis setzt die Endbeträge. Eine Zuteilung größer null erfüllt das blockierende Kriterium für den Schritt auf L3.2 — die Investitionsentscheidung selbst ist der Antrag plus die Abnahme durch VMO und Finance.",
+        titleKey: "onboarding.playbook.portfolioManager.budgetAufEpicsVerteilen",
+        bodyKey: "onboarding.playbook.portfolioManager.verteiltWirdInDer",
         route: "/budgeting/periods",
         anchor: "budget-pool",
         capability: "budget.manage",
@@ -324,15 +335,15 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "portfolio_manager.review",
-        title: "Der wiederkehrende Steuerungstermin",
-        body: "Die Portfolio-Übersicht ist die Fläche des Termins: oben Fördertopf und Ziele, darunter das Kanban mit dem Stand der Vorhaben, ganz unten die Risiken. Was hier stockt, gehört auf die Tagesordnung.",
+        titleKey: "onboarding.playbook.portfolioManager.derWiederkehrendeSteuerungstermin",
+        bodyKey: "onboarding.playbook.portfolioManager.diePortfolioUebersichtIst",
         route: "/portfolio",
         practice: "portfolioLevel",
       },
       {
         key: "portfolio_manager.risk_matrix",
-        title: "Die Risikolage lesen",
-        body: "Die Matrix stellt Eintrittswahrscheinlichkeit gegen Auswirkung — ein Zeichen je Head-Issue, verschachtelte zählen in ihrem Head. Mehrere Zeichen in der rechten oberen Ecke sind dein Handlungssignal für den nächsten Review.",
+        titleKey: "onboarding.playbook.portfolioManager.dieRisikolageLesen",
+        bodyKey: "onboarding.playbook.portfolioManager.dieMatrixStelltEintrittswahrscheinlichkeit",
         // Die Matrix steht als Streifen über dem Register; der Schritt spricht über
         // ihren Inhalt und bringt sie deshalb aufgeklappt mit.
         route: "/issues?matrix=1",
@@ -341,8 +352,8 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "portfolio_manager.risk_roam",
-        title: "Risiken einordnen",
-        body: 'Über der Liste filtert die ROAM-Leiste nach Einordnung — offen, resolved, owned, accepted, mitigated, jeweils mit Zähler. „Offen" ist die Menge, über die noch zu entscheiden ist. Du bist der Einzige, der ein Risiko auch löschen darf.',
+        titleKey: "onboarding.playbook.portfolioManager.risikenEinordnen",
+        bodyKey: "onboarding.playbook.portfolioManager.ueberDerListeFiltert",
         route: "/issues",
         anchor: "issue-create-button",
         capability: "risk.roam",
@@ -352,16 +363,18 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
 
   [VALUE_STREAM_OWNER]: {
     role: VALUE_STREAM_OWNER,
-    mission:
-      "Du verantwortest einen Wertstrom: welche Vorhaben dort entstehen, ob sie fachlich tragen und wer sie ausarbeitet.",
+    missionKey: "onboarding.playbook.valueStreamOwner.mission",
     responsibilities: [
-      { text: "Epics in deinem Wertstrom anlegen und schärfen.", capability: "epic.create" },
       {
-        text: "Einen Epic Owner benennen, der die Ausarbeitung übernimmt.",
+        textKey: "onboarding.playbook.valueStreamOwner.epicsInDeinemWertstrom",
+        capability: "epic.create",
+      },
+      {
+        textKey: "onboarding.playbook.valueStreamOwner.einenEpicOwnerBenennen",
         capability: "epic.owner.assign",
       },
       {
-        text: "Als benannter Abnehmer über Reifegrad-Wechsel entscheiden.",
+        textKey: "onboarding.playbook.valueStreamOwner.alsBenannterAbnehmerUeber",
         capability: "epic.gate.decide",
       },
       // `art_budget.manage` stand hier bis September 2026 — eine Attrappe: die
@@ -371,22 +384,25 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       // traegt das Recht daran `rtb_item.manage`. Ein Versprechen an einer
       // Attrappe ist schlimmer als keines: wer es im Admin-UI entzieht, aendert
       // nichts, und der Rollen-Test hier haette es nie gemerkt.
-      { text: "Das Wertstrom-Budget auf die ARTs verteilen.", capability: "rtb_item.manage" },
+      {
+        textKey: "onboarding.playbook.valueStreamOwner.dasWertstromBudgetAuf",
+        capability: "rtb_item.manage",
+      },
     ],
     handoffs: [
       {
-        text: "Du übernimmst vom Portfolio Manager: dein Wertstrom bekommt einen Finanzierungsrahmen.",
+        textKey: "onboarding.playbook.valueStreamOwner.duUebernimmstVomPortfolio",
       },
       {
-        text: "Du übergibst an den Epic Owner: er arbeitet aus, was du beauftragt hast.",
+        textKey: "onboarding.playbook.valueStreamOwner.duUebergibstAnDen",
         module: "work",
       },
     ],
     steps: [
       {
         key: "value_stream_owner.structure",
-        title: "Dein Wertstrom",
-        body: "Im Baum findest du deinen Wertstrom mit den daran hängenden ARTs. Deine Schreibrechte gelten genau hier — außerhalb kannst du lesen, aber nichts ändern.",
+        titleKey: "onboarding.playbook.valueStreamOwner.deinWertstrom",
+        bodyKey: "onboarding.playbook.valueStreamOwner.imBaumFindestDu",
         route: "/structure",
         anchor: "structure-tree",
         capability: "value_stream.update",
@@ -394,39 +410,39 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "value_stream_owner.epic_create",
-        title: "Ein Vorhaben beauftragen",
-        body: "Neue Epics deines Wertstroms entstehen hier. Du legst an und benennst danach einen Epic Owner, der Hypothese und Business Case ausarbeitet.",
+        titleKey: "onboarding.playbook.valueStreamOwner.einVorhabenBeauftragen",
+        bodyKey: "onboarding.playbook.valueStreamOwner.neueEpicsDeinesWertstroms",
         route: "/portfolio/epics",
         anchor: "epic-create-button",
         capability: "epic.create",
       },
       {
         key: "value_stream_owner.funnel",
-        title: "Wo stehen deine Epics?",
-        body: "Der Reifegrad-Funnel zeigt, was noch in Ausarbeitung ist und was schon läuft. Über die Filterzeile grenzt du auf deinen Wertstrom ein.",
+        titleKey: "onboarding.playbook.valueStreamOwner.woStehenDeineEpics",
+        bodyKey: "onboarding.playbook.valueStreamOwner.derReifegradFunnelZeigt",
         route: "/portfolio/epics",
         anchor: "epics-funnel-bar",
         requires: "epic",
       },
       {
         key: "value_stream_owner.approvals",
-        title: "Freigaben, die auf dich warten",
-        body: 'Wo du als Abnehmer eingetragen bist, erscheint die Entscheidung in „Meine Tasks". Ohne Begründung geht nur die Zustimmung — eine Ablehnung verlangt einen Text.',
+        titleKey: "onboarding.playbook.valueStreamOwner.freigabenDieAufDich",
+        bodyKey: "onboarding.playbook.valueStreamOwner.woDuAlsAbnehmer",
         route: "/my-approvals",
         anchor: "approvals-list",
         capability: "epic.gate.decide",
       },
       {
         key: "value_stream_owner.art_budget",
-        title: "Mittel auf die ARTs verteilen",
-        body: "Der Finanzierungsrahmen deines Wertstroms wird im Controlling auf die ARTs heruntergebrochen. Die Detailansicht deines Wertstroms führt dich dorthin.",
+        titleKey: "onboarding.playbook.valueStreamOwner.mittelAufDieArts",
+        bodyKey: "onboarding.playbook.valueStreamOwner.derFinanzierungsrahmenDeinesWertstroms",
         route: "/budgeting",
         capability: "rtb_item.manage",
       },
       {
         key: "value_stream_owner.risk",
-        title: "Ein Risiko melden",
-        body: "Vorschlagen darf jeder. Dein Vorschlag geht an den Epic Owner, der ihn prüft und dokumentiert — erst dann bekommt er eine Nummer.",
+        titleKey: "onboarding.playbook.valueStreamOwner.einRisikoMelden",
+        bodyKey: "onboarding.playbook.valueStreamOwner.vorschlagenDarfJederDein",
         route: "/issues",
         anchor: "issue-create-button",
         capability: "risk.suggest",
@@ -436,38 +452,37 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
 
   [EPIC_OWNER]: {
     role: EPIC_OWNER,
-    mission:
-      "Du arbeitest Epics aus: du formulierst, was das Vorhaben bringen soll, belegst es und reichst es zur Entscheidung ein.",
+    missionKey: "onboarding.playbook.epicOwner.mission",
     responsibilities: [
       {
-        text: "Die Benefit-Hypothese formulieren und den Wechsel auf L1 beantragen.",
+        textKey: "onboarding.playbook.epicOwner.dieBenefitHypotheseFormulieren",
         capability: "epic.gate.request",
       },
       {
-        text: "Den Business Case ausarbeiten und den Wechsel auf L3.1 beantragen — seine Abnahme ist die Freigabe.",
+        textKey: "onboarding.playbook.epicOwner.denBusinessCaseAusarbeiten",
         capability: "epic.gate.request",
       },
       {
-        text: "Risiken deines Epics dokumentieren, bewerten und ROAM-mäßig einordnen.",
+        textKey: "onboarding.playbook.epicOwner.risikenDeinesEpicsDokumentieren",
         capability: "risk.document",
       },
       {
-        text: "Nach einer Ablehnung überarbeiten und erneut beantragen.",
+        textKey: "onboarding.playbook.epicOwner.nachEinerAblehnungUeberarbeiten",
         capability: "epic.gate.request",
       },
     ],
     handoffs: [
-      { text: "Du übernimmst vom Wertstrom-Verantwortlichen: er beauftragt, du arbeitest aus." },
+      { textKey: "onboarding.playbook.epicOwner.duUebernimmstVomWertstrom" },
       {
-        text: "Du übergibst an Portfolio Manager und Freigeber — entscheiden darfst du über dein eigenes Epic bewusst nicht.",
+        textKey: "onboarding.playbook.epicOwner.duUebergibstAnPortfolio",
         module: "work",
       },
     ],
     steps: [
       {
         key: "epic_owner.epics",
-        title: "Deine Epics",
-        body: "Hier liegen die Vorhaben, für die du verantwortlich bist. Ein Klick auf ein Epic öffnet die Detailansicht — dort spielt sich deine eigentliche Arbeit ab.",
+        titleKey: "onboarding.playbook.epicOwner.deineEpics",
+        bodyKey: "onboarding.playbook.epicOwner.hierLiegenDieVorhaben",
         route: "/portfolio/epics",
         anchor: "epics-funnel-bar",
         capability: "epic.update",
@@ -475,16 +490,16 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "epic_owner.create",
-        title: "Ein neues Epic anlegen",
-        body: "Titel und Wertstrom genügen zum Start. Alles Weitere — Hypothese, Business Case, Deliverables — entsteht danach Reiter für Reiter.",
+        titleKey: "onboarding.playbook.epicOwner.einNeuesEpicAnlegen",
+        bodyKey: "onboarding.playbook.epicOwner.titelUndWertstromGenuegen",
         route: "/portfolio/epics",
         anchor: "epic-create-button",
         capability: "epic.create",
       },
       {
         key: "epic_owner.tabs",
-        title: "Die Reiter sind deine Reihenfolge",
-        body: "In einem geöffneten Epic führt dich die Reiter-Leiste durch die Ausarbeitung: Überblick, Reifegrad-Timeline, Hypothese, Business Case, Deliverables, Abhängigkeiten, KPI & Nutzen. Der Reihe nach abarbeiten — auf schmalen Schirmen liegt die Leiste oben statt links.",
+        titleKey: "onboarding.playbook.epicOwner.dieReiterSindDeine",
+        bodyKey: "onboarding.playbook.epicOwner.inEinemGeoeffnetenEpic",
         route: "/portfolio/epics",
         anchor: "epics-funnel-bar",
         capability: "epic.update",
@@ -492,8 +507,8 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "epic_owner.hypothesis",
-        title: "Benefit-Hypothese zuerst",
-        body: "Der dritte Reiter, direkt hinter der Reifegrad-Timeline. Ist sie ausgearbeitet, beantragst du den Wechsel auf L1; mit der Abnahme ist die Hypothese freigegeben — der Startschuss für den Business Case.",
+        titleKey: "onboarding.playbook.epicOwner.benefitHypotheseZuerst",
+        bodyKey: "onboarding.playbook.epicOwner.derDritteReiterDirekt",
         route: "/portfolio/epics",
         anchor: "epics-funnel-bar",
         capability: "epic.gate.request",
@@ -501,32 +516,32 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "epic_owner.business_case",
-        title: "Business Case belegen",
-        body: "Kosten, Nutzen, Zeitraum. Steht der Inhalt, beantragst du den Wechsel auf L3.1 — die Abnahme durch die fünf Parteien ist die Freigabe des Business Case.",
+        titleKey: "onboarding.playbook.epicOwner.businessCaseBelegen",
+        bodyKey: "onboarding.playbook.epicOwner.kostenNutzenZeitraumSteht",
         route: "/portfolio/epics",
         anchor: "epics-funnel-bar",
         capability: "epic.gate.request",
       },
       {
         key: "epic_owner.approvers",
-        title: "Abnehmer benennen",
-        body: "Beim Antrag auf L3.1 legst du fest, wer für welche Partei zeichnet. Deine eigene Zustimmung ist nicht vorgesehen: wer ausarbeitet, entscheidet nicht.",
+        titleKey: "onboarding.playbook.epicOwner.abnehmerBenennen",
+        bodyKey: "onboarding.playbook.epicOwner.beimAntragAufL",
         route: "/portfolio/epics",
         anchor: "epics-funnel-bar",
         capability: "epic.gate.request",
       },
       {
         key: "epic_owner.risk_document",
-        title: "Risiken dokumentieren",
-        body: "Vorschlagen darf jeder — prüfen und dokumentieren ist deine Aufgabe. Erst mit deiner Annahme bekommt ein Risiko seine Nummer und wird Teil des Registers.",
+        titleKey: "onboarding.playbook.epicOwner.risikenDokumentieren",
+        bodyKey: "onboarding.playbook.epicOwner.vorschlagenDarfJederPruefen",
         route: "/issues",
         anchor: "issue-create-button",
         capability: "risk.document",
       },
       {
         key: "epic_owner.risk_matrix",
-        title: "Die Risiken deines Epics bewerten",
-        body: "Wahrscheinlichkeit mal Auswirkung ergibt die Exponierung. Jede Neubewertung bleibt als Spur erhalten, damit sichtbar wird, ob eure Maßnahmen wirken.",
+        titleKey: "onboarding.playbook.epicOwner.dieRisikenDeinesEpics",
+        bodyKey: "onboarding.playbook.epicOwner.wahrscheinlichkeitMalAuswirkungErgibt",
         // Die Matrix steht als Streifen über dem Register; der Schritt spricht über
         // ihren Inhalt und bringt sie deshalb aufgeklappt mit.
         route: "/issues?matrix=1",
@@ -540,58 +555,57 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
   // ── Programm ────────────────────────────────────────────────────────────
   [RTE]: {
     role: RTE,
-    mission:
-      "Du orchestrierst deinen Agile Release Train: du hältst den Takt, planst die Umsetzung und räumst weg, was die Lieferung blockiert.",
+    missionKey: "onboarding.playbook.rte.mission",
     responsibilities: [
       {
-        text: "Program Increments anlegen, starten und abschließen.",
+        textKey: "onboarding.playbook.rte.programIncrementsAnlegenStarten",
         capability: "pi.create",
         practice: "programLevel",
       },
       {
-        text: "Das Feature-Backlog des ART pflegen und den Lieferstatus setzen.",
+        textKey: "onboarding.playbook.rte.dasFeatureBacklogDes",
         capability: "feature.delivery.set",
       },
       {
-        text: "Abhängigkeiten zwischen Vorhaben sichtbar machen und auflösen.",
+        textKey: "onboarding.playbook.rte.abhaengigkeitenZwischenVorhabenSichtbar",
         capability: "dependency.link",
         practice: "dependencies",
       },
       {
-        text: "Risiken und Blockaden der Umsetzung dokumentieren und ROAM-mäßig einordnen.",
+        textKey: "onboarding.playbook.rte.risikenUndBlockadenDer",
         capability: "risk.roam",
       },
     ],
     handoffs: [
       {
-        text: "Du übernimmst vom Portfolio: finanzierte Epics werden bei dir zu geplanter Arbeit.",
+        textKey: "onboarding.playbook.rte.duUebernimmstVomPortfolio",
         module: "work",
       },
       {
-        text: "Du übergibst zurück ans Portfolio: sobald das erste Feature in Umsetzung geht, ist das Epic reif für den beantragten Schritt auf L4.",
+        textKey: "onboarding.playbook.rte.duUebergibstZurueckAns",
         module: "work",
       },
     ],
     steps: [
       {
         key: "rte.approvals",
-        title: "Der Tag beginnt in der Inbox",
-        body: 'Wo du als Stakeholder eingetragen bist, warten die Entscheidungen in „Meine Tasks". Kurz durchsehen, bevor du ins Cockpit gehst — Freigaben blockieren sonst die Planung anderer.',
+        titleKey: "onboarding.playbook.rte.derTagBeginntIn",
+        bodyKey: "onboarding.playbook.rte.woDuAlsStakeholder",
         route: "/my-approvals",
         anchor: "approvals-list",
       },
       {
         key: "rte.cockpit",
-        title: "Das Umsetzungs-Cockpit ist deine Zentrale",
-        body: "Vier Sichten auf dieselben Features: Board, Tabelle, Fahrplan, Netzwerk. Du wechselst je nach Frage — Board für den Fluss, Tabelle zum Pflegen.",
+        titleKey: "onboarding.playbook.rte.dasUmsetzungsCockpitIst",
+        bodyKey: "onboarding.playbook.rte.vierSichtenAufDieselben",
         route: "/umsetzung",
         anchor: "cockpit-view-tabs",
         practice: "programLevel",
       },
       {
         key: "rte.pi_strip",
-        title: "Wo steht der Zug im PI?",
-        body: "Der Streifen zeigt die kommenden Program Increments, das laufende hervorgehoben. Er ist dein Zeitgefühl für alles, was darunter steht.",
+        titleKey: "onboarding.playbook.rte.woStehtDerZug",
+        bodyKey: "onboarding.playbook.rte.derStreifenZeigtDie",
         route: "/umsetzung",
         anchor: "cockpit-pi-strip",
         practice: "programLevel",
@@ -599,8 +613,8 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "rte.table",
-        title: "Die Tabellensicht zum Pflegen",
-        body: "Hier siehst du jedes Feature mit Titel, ART, PI, Status, WSJF und Blockern in einer Zeile. Das ist die Sicht, in der du tatsächlich änderst.",
+        titleKey: "onboarding.playbook.rte.dieTabellensichtZumPflegen",
+        bodyKey: "onboarding.playbook.rte.hierSiehstDuJedes",
         route: "/umsetzung?view=table",
         anchor: "cockpit-table",
         practice: "programLevel",
@@ -608,8 +622,8 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "rte.delivery",
-        title: "Lieferstatus setzen",
-        body: "In der Status-Spalte jeder Zeile wählst du direkt aus: freigegeben, in Umsetzung, blockiert, abgeschlossen, verworfen. Das erste gestartete Feature erfüllt das Kriterium, mit dem der Wechsel des Epics auf L4 beantragt wird.",
+        titleKey: "onboarding.playbook.rte.lieferstatusSetzen",
+        bodyKey: "onboarding.playbook.rte.inDerStatusSpalte",
         route: "/umsetzung?view=table",
         anchor: "cockpit-table",
         capability: "feature.delivery.set",
@@ -617,8 +631,8 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "rte.dependencies",
-        title: "Abhängigkeiten auflösen",
-        body: "Gerichtete Verknüpfungen zwischen Vorhaben, zyklusgeprüft. Über den Typ-Filter siehst du zuerst die echten Blocker — was hier offen bleibt, wird in der Planung teuer.",
+        titleKey: "onboarding.playbook.rte.abhaengigkeitenAufloesen",
+        bodyKey: "onboarding.playbook.rte.gerichteteVerknuepfungenZwischenVorhaben",
         route: "/dependencies",
         anchor: "dependencies-funnel",
         capability: "dependency.link",
@@ -626,24 +640,24 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "rte.issues",
-        title: "Blockaden im Blick behalten",
-        body: 'Risiken und Blockaden liegen in einem Register. Die Leiste filtert nach Einordnung — offen, resolved, owned, accepted, mitigated. Was auf „offen" stehen bleibt, hält am Ende deinen PI-Abschluss auf.',
+        titleKey: "onboarding.playbook.rte.blockadenImBlickBehalten",
+        bodyKey: "onboarding.playbook.rte.risikenUndBlockadenLiegen",
         route: "/issues",
         anchor: "issues-funnel-bar",
         capability: "risk.roam",
       },
       {
         key: "rte.timelines",
-        title: "Die Kadenz pflegen",
-        body: "Eine Timeline ist der gemeinsame PI-Takt, den mehrere ARTs abonnieren. Ohne sie gibt es keine PIs — deshalb ist sie die Voraussetzung für alles darüber.",
+        titleKey: "onboarding.playbook.rte.dieKadenzPflegen",
+        bodyKey: "onboarding.playbook.rte.eineTimelineIstDer",
         route: "/structure/timelines",
         anchor: "structure-tree",
         practice: "programLevel",
       },
       {
         key: "rte.risk",
-        title: "Risiken der Umsetzung",
-        body: "Was die Lieferung gefährdet, gehört ins Register statt in den Kopf. Du darfst dokumentieren und ROAM setzen — die Annahme fremder Vorschläge liegt beim Epic Owner.",
+        titleKey: "onboarding.playbook.rte.risikenDerUmsetzung",
+        bodyKey: "onboarding.playbook.rte.wasDieLieferungGefaehrdet",
         route: "/issues",
         anchor: "issue-create-button",
         capability: "risk.document",
@@ -653,52 +667,54 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
 
   [FEATURE_OWNER]: {
     role: FEATURE_OWNER,
-    mission:
-      "Du verantwortest die Vorhaben deines Zuges: was als Nächstes gebaut wird, in welcher Reihenfolge und mit welchem Nutzen.",
+    missionKey: "onboarding.playbook.featureOwner.mission",
     responsibilities: [
-      { text: "Features anlegen und fachlich schärfen.", capability: "feature.create" },
       {
-        text: "Nach WSJF priorisieren — die Reihenfolge ist deine Aussage.",
+        textKey: "onboarding.playbook.featureOwner.featuresAnlegenUndFachlich",
+        capability: "feature.create",
+      },
+      {
+        textKey: "onboarding.playbook.featureOwner.nachWsjfPriorisierenDie",
         capability: "feature.wsjf.set",
         practice: "wsjf",
       },
       {
-        text: "Den Lieferstatus deiner Features aktuell halten.",
+        textKey: "onboarding.playbook.featureOwner.denLieferstatusDeinerFeatures",
         capability: "feature.delivery.set",
       },
       {
-        text: "Abhängigkeiten deiner Features benennen.",
+        textKey: "onboarding.playbook.featureOwner.abhaengigkeitenDeinerFeaturesBenennen",
         capability: "dependency.link",
         practice: "dependencies",
       },
       {
-        text: "Risiken und Blockaden melden — einordnen tut sie der RTE.",
+        textKey: "onboarding.playbook.featureOwner.risikenUndBlockadenMelden",
         capability: "risk.suggest",
       },
     ],
     handoffs: [
       {
-        text: "Du übernimmst vom Epic Owner: ein finanziertes Epic wird bei dir in Features zerlegt.",
+        textKey: "onboarding.playbook.featureOwner.duUebernimmstVomEpic",
         module: "work",
       },
       {
-        text: "Du übergibst an den RTE: er plant deine priorisierten Features in ein PI ein.",
+        textKey: "onboarding.playbook.featureOwner.duUebergibstAnDen",
         module: "drumbeat",
       },
     ],
     steps: [
       {
         key: "feature_owner.cockpit",
-        title: "Dein Arbeitsplatz",
-        body: "Das Cockpit zeigt die Features deines Zuges in vier Sichten. Für die tägliche Pflege ist die Tabelle die richtige.",
+        titleKey: "onboarding.playbook.featureOwner.deinArbeitsplatz",
+        bodyKey: "onboarding.playbook.featureOwner.dasCockpitZeigtDie",
         route: "/umsetzung",
         anchor: "cockpit-view-tabs",
         practice: "programLevel",
       },
       {
         key: "feature_owner.backlog",
-        title: "Dein Backlog in einer Zeile pro Feature",
-        body: "Titel, ART, PI, Status, WSJF und Blocker nebeneinander. Ein Klick auf den Titel öffnet die Detailansicht mit Beschreibung und Abhängigkeiten.",
+        titleKey: "onboarding.playbook.featureOwner.deinBacklogInEiner",
+        bodyKey: "onboarding.playbook.featureOwner.titelArtPiStatus",
         route: "/umsetzung?view=table",
         anchor: "cockpit-table",
         practice: "programLevel",
@@ -706,8 +722,8 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "feature_owner.wsjf",
-        title: "Nach WSJF priorisieren",
-        body: "Die WSJF-Spalte macht die Reihenfolge begründbar statt verhandelbar. Bewertet wird in der Detailansicht des Features; die Zahl in der Tabelle ist nur das Ergebnis.",
+        titleKey: "onboarding.playbook.featureOwner.nachWsjfPriorisieren",
+        bodyKey: "onboarding.playbook.featureOwner.dieWsjfSpalteMacht",
         route: "/umsetzung?view=table",
         anchor: "cockpit-table",
         capability: "feature.wsjf.set",
@@ -716,8 +732,8 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "feature_owner.delivery",
-        title: "Lieferstatus aktuell halten",
-        body: 'Die Status-Spalte ist deine Zusage an den Rest des Zuges. Ein Feature, das seit Wochen auf „in Umsetzung" steht, kostet dich Glaubwürdigkeit in der Planung.',
+        titleKey: "onboarding.playbook.featureOwner.lieferstatusAktuellHalten",
+        bodyKey: "onboarding.playbook.featureOwner.dieStatusSpalteIst",
         route: "/umsetzung?view=table",
         anchor: "cockpit-table",
         capability: "feature.delivery.set",
@@ -725,8 +741,8 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "feature_owner.dependencies",
-        title: "Abhängigkeiten benennen",
-        body: "Was von anderen abhängt, gehört sichtbar gemacht — in der Netzwerk-Sicht des Cockpits oder im Detail des Features. Diese Übersicht zeigt den Gesamtstand.",
+        titleKey: "onboarding.playbook.featureOwner.abhaengigkeitenBenennen",
+        bodyKey: "onboarding.playbook.featureOwner.wasVonAnderenAbhaengt",
         route: "/dependencies",
         anchor: "dependencies-funnel",
         capability: "dependency.link",
@@ -734,8 +750,8 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "feature_owner.risk",
-        title: "Ein Risiko oder eine Blockade melden",
-        body: "Was du beim Bauen siehst, weiß sonst niemand. Risiken und Blockaden gehen denselben Weg: ein Vorschlag kostet dich zwei Sätze, geprüft wird er vom Epic Owner. Einordnen und Schließen ist Sache des RTE — bewusst getrennt, damit Meldung und Lösung nicht dieselbe Hand sind.",
+        titleKey: "onboarding.playbook.featureOwner.einRisikoOderEine",
+        bodyKey: "onboarding.playbook.featureOwner.wasDuBeimBauen",
         route: "/issues",
         anchor: "issue-create-button",
         capability: "risk.suggest",
@@ -746,34 +762,33 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
   // ── Stakeholder ─────────────────────────────────────────────────────────
   [VIEWER]: {
     role: VIEWER,
-    mission:
-      "Du verfolgst, wie das Portfolio läuft — mit vollem Lesezugriff auf alles, was in deinem Workspace passiert.",
+    missionKey: "onboarding.playbook.viewer.mission",
     responsibilities: [
-      { text: "Portfolio-Fortschritt und Lieferstand verfolgen." },
+      { textKey: "onboarding.playbook.viewer.portfolioFortschrittUndLieferstand" },
       {
-        text: "Risiken vorschlagen — das ist die eine Sache, die auch du schreiben darfst.",
+        textKey: "onboarding.playbook.viewer.risikenVorschlagenDasIst",
         capability: "risk.suggest",
       },
     ],
     handoffs: [
       {
-        text: "Du übergibst an den Epic Owner: ein von dir vorgeschlagenes Risiko prüft und dokumentiert er.",
+        textKey: "onboarding.playbook.viewer.duUebergibstAnDen",
         capability: "risk.suggest",
       },
     ],
     steps: [
       {
         key: "viewer.portfolio",
-        title: "Der Gesamtstand",
-        body: "Das Board stellt alle Epics in ein Raster: Spalten sind die Reifegrade, Zeilen die Investitionshorizonte. Links das Unentschiedene, rechts das Laufende — das ist der schnellste Überblick, den es gibt.",
+        titleKey: "onboarding.playbook.viewer.derGesamtstand",
+        bodyKey: "onboarding.playbook.viewer.dasBoardStelltAlle",
         route: "/portfolio",
         anchor: "portfolio-kanban",
         practice: "portfolioLevel",
       },
       {
         key: "viewer.risk_matrix",
-        title: "Die Risikolage",
-        body: "Wahrscheinlichkeit gegen Auswirkung. Was rechts oben liegt, sollte in eurem nächsten Steuerungstermin zur Sprache kommen.",
+        titleKey: "onboarding.playbook.viewer.dieRisikolage",
+        bodyKey: "onboarding.playbook.viewer.wahrscheinlichkeitGegenAuswirkungWas",
         // Die Matrix steht als Streifen über dem Register; der Schritt spricht über
         // ihren Inhalt und bringt sie deshalb aufgeklappt mit.
         route: "/issues?matrix=1",
@@ -782,8 +797,8 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       {
         key: "viewer.risk_suggest",
-        title: "Das eine, was auch du schreiben darfst",
-        body: "Ein Risiko vorschlagen. Der Epic Owner prüft es; erst mit seiner Annahme wird daraus ein nummerierter Eintrag im Register.",
+        titleKey: "onboarding.playbook.viewer.dasEineWasAuch",
+        bodyKey: "onboarding.playbook.viewer.einRisikoVorschlagenDer",
         route: "/issues",
         anchor: "issue-create-button",
         capability: "risk.suggest",

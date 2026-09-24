@@ -130,10 +130,8 @@ export function RoleWelcomeDialog({ notice, onStartTour, onDismiss }: Props) {
           </DialogTitle>
           <DialogDescription>
             {isNewRole
-              ? notice.tour.mission
-              : `Als ${label} kommen dadurch ${notice.open.length} ${
-                  notice.open.length === 1 ? "Aufgabe" : "Aufgaben"
-                } dazu.`}
+              ? t(notice.tour.missionKey)
+              : t("onboarding.ui.newTasks", { role: label, count: notice.open.length })}
           </DialogDescription>
         </DialogHeader>
 
@@ -174,7 +172,7 @@ export function RoleWelcomeDialog({ notice, onStartTour, onDismiss }: Props) {
             {notice.open.map((s) => (
               <li key={s.key} className="flex gap-2 text-sm">
                 <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-                <span>{s.title}</span>
+                <span>{t(s.titleKey)}</span>
               </li>
             ))}
           </ul>

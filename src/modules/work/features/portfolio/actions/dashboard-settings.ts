@@ -124,6 +124,5 @@ export const savePortfolioDashboardSettingsAction = createServerAction({
     revalidatePath("/portfolio/guardrails", "page");
     revalidatePath("/pi-planning", "page");
   },
-  mapError: (e) =>
-    formatDomainError(e, { fallback: "Einstellungen konnten nicht gespeichert werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveSettings" }, t),
 });

@@ -84,7 +84,7 @@ export async function createEpic(
       if (!sol) {
         return err({
           kind: "conflict" as const,
-          reason: "Die Primär-Solution gehört nicht zum gewählten Value Stream.",
+          reason: "work.errors.primarySolutionOtherValueStream",
         });
       }
     }
@@ -247,7 +247,7 @@ export async function updateEpic(
     if (nextStart && nextEnd && nextStart > nextEnd) {
       return err({
         kind: "conflict" as const,
-        reason: "Endedatum des geplanten Zeitfensters liegt vor dem Startdatum",
+        reason: "work.errors.endBeforeStart",
       });
     }
 
@@ -258,8 +258,7 @@ export async function updateEpic(
     if (stagedForBudgeting === true && !isPbEligible(existing)) {
       return err({
         kind: "conflict" as const,
-        reason:
-          "Epic ist noch nicht budgeting-reif — es braucht einen freigegebenen Lean Business Case (L3.1).",
+        reason: "work.errors.epicNotBudgetReady",
       });
     }
 
@@ -272,7 +271,7 @@ export async function updateEpic(
       if (!nextVs || !nextArt) {
         return err({
           kind: "conflict" as const,
-          reason: "Wertstrom und ART müssen gemeinsam gesetzt sein.",
+          reason: "work.errors.valueStreamAndArtTogether",
         });
       }
       const art = await tx.art.findFirst({
@@ -282,7 +281,7 @@ export async function updateEpic(
       if (!art) {
         return err({
           kind: "conflict" as const,
-          reason: "Die ART gehört nicht zum gewählten Wertstrom.",
+          reason: "work.errors.artOtherValueStream",
         });
       }
       // Primär-Solution ist VS-gebunden (liefert Horizont/Swimlane): passt sie

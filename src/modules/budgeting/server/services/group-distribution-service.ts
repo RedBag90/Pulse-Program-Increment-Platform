@@ -70,7 +70,7 @@ export async function setGroupAmount(
     if (!g.members.some((m) => m.userId === mctx.actorId)) {
       return err({
         kind: "forbidden" as const,
-        reason: "Nur Mitglieder dieser Gruppe dürfen verteilen.",
+        reason: "budgeting.errors.onlyGroupMembers",
       });
     }
     const closed = windowClosedReason(g, now);
@@ -140,7 +140,7 @@ export async function submitGroupDistribution(
     if (!isSpokesperson && !isSubmitter) {
       return err({
         kind: "forbidden" as const,
-        reason: "Nur der Sprecher (oder ein Einreicher) darf die Verteilung einreichen.",
+        reason: "budgeting.errors.onlySpokesperson",
       });
     }
     const closed = windowClosedReason(g, now);

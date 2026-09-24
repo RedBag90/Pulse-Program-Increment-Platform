@@ -1,5 +1,6 @@
 "use server";
 
+import type { Translate } from "@/i18n/translate";
 import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
@@ -12,11 +13,15 @@ import {
 
 const MANAGE = "budget.round.manage" as const;
 const tenantResource = (_i: unknown, p: { tenantId: string }) => ({ tenantId: p.tenantId });
-const err = (e: Parameters<typeof formatDomainError>[0]) =>
-  formatDomainError(e, {
-    notFound: "Nicht gefunden",
-    fallback: "Kachel konnte nicht angelegt werden",
-  });
+const err = (e: Parameters<typeof formatDomainError>[0], t: Translate) =>
+  formatDomainError(
+    e,
+    {
+      notFoundKey: "errors.action.notFoundPlain",
+      fallbackKey: "errors.action.createPeriod",
+    },
+    t,
+  );
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const toDay = (d: Date): string => d.toISOString().slice(0, 10);
@@ -95,11 +100,15 @@ export const deletePeriodAction = createServerAction({
   service: (ctx, i) => deletePeriod(ctx, { id: i.id }),
   // Listen-Revalidation ohne die [id]-Detailseite (die es gleich nicht mehr gibt).
   revalidate: "budgetPeriodList",
-  mapError: (e) =>
-    formatDomainError(e, {
-      notFound: "Nicht gefunden",
-      fallback: "Kachel konnte nicht gelöscht werden",
-    }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      {
+        notFoundKey: "errors.action.notFoundPlain",
+        fallbackKey: "errors.action.deletePeriod",
+      },
+      t,
+    ),
 });
 
 /**

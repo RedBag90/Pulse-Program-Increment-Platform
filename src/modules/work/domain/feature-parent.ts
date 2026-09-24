@@ -65,9 +65,7 @@ export function planFeatureReparent(input: FeatureReparentInput): Result<Feature
   if (newParent.valueStreamId !== null && newParent.valueStreamId !== artValueStreamId) {
     return err({
       kind: "conflict" as const,
-      reason:
-        "Das Epic gehört zu einem anderen Wertstrom als das ART des Features — " +
-        "bitte ein Epic aus demselben Wertstrom wählen",
+      reason: "work.errors.epicOtherValueStream",
     });
   }
 

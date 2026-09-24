@@ -67,11 +67,15 @@ export const createSolutionAction = createServerAction({
     });
   },
   revalidate: "solution",
-  mapError: (e) =>
-    formatDomainError(e, {
-      notFound: "Value Stream nicht gefunden",
-      fallback: "Solution konnte nicht angelegt werden",
-    }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      {
+        notFoundKey: "errors.action.valueStreamNotFound",
+        fallbackKey: "errors.action.createSolution",
+      },
+      t,
+    ),
 });
 
 export const updateSolutionAction = createServerAction({
@@ -117,12 +121,7 @@ export const updateSolutionAction = createServerAction({
     });
   },
   revalidate: "solution",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Nicht gefunden"
-        : "Solution konnte nicht gespeichert werden",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveSolution" }, t),
 });
 
 export const deleteSolutionAction = createServerAction({
@@ -132,11 +131,15 @@ export const deleteSolutionAction = createServerAction({
   parseFormData: (fd) => ({ id: fields(fd).string("id") }),
   service: (ctx, input) => softDeleteSolution(ctx, { id: input.id }),
   revalidate: "solution",
-  mapError: (e) =>
-    formatDomainError(e, {
-      notFound: "Solution nicht gefunden",
-      fallback: "Solution konnte nicht gelöscht werden",
-    }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      {
+        notFoundKey: "errors.action.solutionNotFound",
+        fallbackKey: "errors.action.deleteSolution",
+      },
+      t,
+    ),
 });
 
 /**
@@ -161,12 +164,7 @@ export const setSolutionLifecycleAction = createServerAction({
     return setSolutionLifecycle(ctx, { id: input.id, horizon, investmentMode });
   },
   revalidate: "solution",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Nicht gefunden"
-        : "Lifecycle konnte nicht geändert werden",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.changeLifecycle" }, t),
 });
 
 export const promoteSolutionAction = createServerAction({
@@ -201,10 +199,5 @@ export const promoteSolutionAction = createServerAction({
       },
     }),
   revalidate: "solution",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Nicht gefunden"
-        : "Beförderung fehlgeschlagen",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.promote" }, t),
 });

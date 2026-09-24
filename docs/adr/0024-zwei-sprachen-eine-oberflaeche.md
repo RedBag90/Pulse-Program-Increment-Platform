@@ -94,12 +94,17 @@ angekündigt hat. Zwei Ausnahmen stehen benannt in der Testdatei:
 Einladungs-E-Mail (zwei Funktionen statt Platzhaltern — das Muster, das diese
 ADR selbst als richtig benennt).
 
-**Was der Wächter nicht sieht.** Er prüft JSX-Text und die Eigenschaften, die
-auf dem Bildschirm landen. Eine Konstanten-Tabelle in `domain/` sieht er
-nicht: die `help`-Prosa der Gate-Kriterien, `ROLE_PLAYBOOKS` und die
-Fehlermeldungen der Services stehen in gewöhnlichen Objekten. Ein grüner Lauf
-heisst deshalb **nicht**, dass die Anwendung fertig übersetzt ist — er heisst,
-dass keine Fläche zurückfallen kann.
+**Was der JSX-Wächter nicht sieht, sieht seit Zug 5 ein zweiter.** Er prüft
+Text zwischen Marken und sichtbare Eigenschaften; die Fehlermeldungen der
+Services entstehen in gewöhnlichen Objekten (`err({ kind: "conflict", reason:
+"…" })`) und erreichen den Nutzer trotzdem — über `state.error` einer
+Server-Action und über das `detail` einer 409-Antwort. 88 solcher Sätze lagen
+in 35 Dateien. `domain-error-keys.test.ts` prüft nun an der Fundstelle, dass
+`reason` und `detail` wie ein Katalog-Pfad aussehen.
+
+Nicht geprüft bleiben Konstanten-Tabellen in `domain/`. Ein grüner Lauf heisst
+deshalb **nicht**, dass die Anwendung fertig übersetzt ist — er heisst, dass
+keine Fläche und keine Fehlermeldung zurückfallen kann.
 
 **Der Wächter ist ein Test, keine ESLint-Regel.** `eslint-plugin-react` ist im
 Projekt nicht installiert, und das Repo hat für Quelltext-Regeln bereits ein
@@ -119,7 +124,44 @@ Namensraum-Ebene trägt das nicht mehr; die Konvention steht in `CONTEXT.md`.
 **Die Naht für alles ohne Bildschirm ist ein Parameter.** `Translate`
 (`src/i18n/translate.ts`) ist das kleinste Stück von `next-intl`s `t`, das
 trägt: ein Schlüssel, ein Wort. Der PDF-Bericht war der erste Fall, die
-E-Mail-Vorlagen und die Fehlermeldungen der Services sind die nächsten.
+Fehlermeldungen der Services der grösste.
+
+**`DomainError` trägt einen Schlüssel und seine Zahlen.** 22 der 88 Meldungen
+nennen einen Wert („Die Summe überschreitet den Rahmen um 4.200 €"). Ein
+Schlüssel mit Platzhaltern passt nicht in ein `reason: string`, und den Satz
+vorab zusammenzusetzen hiesse, ihn auf Deutsch festzulegen — deshalb hat der
+Typ ein optionales `values` bekommen. Ohne dieses eine Feld wäre die Umstellung
+an genau diesen 22 gescheitert.
+
+**Drei Funde, die beim Umbau aufgefallen sind** und für sich stehen, auch ohne
+Zweisprachigkeit:
+
+1. **Eine 403-Antwort verriet die Principal-Kennung.** `authorize()` legte
+   `Principal <id> lacks permission for <action>` in `reason` ab, und `reason`
+   ging an vier Stellen ungefiltert in den Rumpf. Die Entscheidung trennt
+   seither `reason` (was der Nutzer liest) von `diagnostic` (was beim
+   Nachsehen hilft, und eine HTTP-Antwort nie verlässt).
+2. **`forbidden` warf seinen Grund weg.** `formatDomainError` zeigte einen
+   Einheitssatz statt `e.reason` — weshalb drei Actions sich eine eigene
+   Verzweigung gebaut hatten, nur um ihn sichtbar zu machen. `forbidden` ist
+   jetzt symmetrisch zu `conflict`.
+3. **`resourceType` wurde in drei Schreibweisen geschrieben** — `ART`, `Art`,
+   `art`, dazu `EPIC` neben `Epic`: 45 Schreibweisen für 34 Ressourcen. Der
+   Katalog trug je eine davon, also rendert `next-intl` bei den übrigen still
+   den Schlüssel. Die Anzeigenaht schlägt seither kleingeschrieben nach.
+
+**Die REST-Naht übersetzt jetzt auch.** Eine Route unter `/api/v1/` hat kein
+`[locale]`-Segment; `getTranslations()` fiele dort still auf die Vorgabe
+zurück. `apiTranslate(request)` liest `Accept-Language` — sonst stünde in der
+`detail`-Zeile einer 409-Antwort `work.errors.epicNotInFunnel` statt eines
+Satzes, und RFC 7807 verlangt dort ausdrücklich etwas Lesbares.
+
+**41 handgeschriebene Fehlerabbildungen sind verschwunden.** 40 `mapError`
+bauten dieselbe Ternärkette nach, die `formatDomainError` bereits ist
+(`conflict → reason`, `not_found → "<Ding> nicht gefunden"`, sonst ein
+Auffangsatz) — mit dem Nebeneffekt, dass sie beim Nachbauen englisch blieben
+(„ART not found", „Failed to update ART"). Sie rufen jetzt die Naht auf. Die
+Umstellung hat sie nicht ersetzt, sie hat sie **gelöscht**.
 
 **Die Tests kosteten ein Fünftel dessen, was diese ADR befürchtet hat.** Am
 Ziele-Modul gemessen: von 27 Testdateien trugen 14 deutsche Zusicherungen, und

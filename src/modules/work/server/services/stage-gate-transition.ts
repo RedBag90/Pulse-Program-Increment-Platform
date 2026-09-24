@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import type { Prisma, PrismaClient } from "@/generated/prisma";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
@@ -297,7 +298,7 @@ async function requireStageGatePractice(
   if (!practices.stageGates) {
     return err({
       kind: "forbidden" as const,
-      reason: "Stage Gates sind im aktiven Zielbild nicht aktiviert",
+      reason: "work.errors.stageGatesOff",
     });
   }
   return ok(undefined);
@@ -470,6 +471,9 @@ export async function requestGateTransition(
   input: RequestGateTransitionInput,
 ): Promise<Result<RequestGateTransitionResult>> {
   const mctx = toMutationContext(ctx);
+  // Der Übersetzer für die Kriterien-Meldung — der Request trägt die Sprache,
+  // die Domäne nicht (siehe `PlanGateRequestInput.t`).
+  const t = await getTranslations();
   return withAuditedTransaction(
     mctx,
     async (tx) => {
@@ -517,6 +521,7 @@ export async function requestGateTransition(
         actorId: mctx.actorId,
         hasOpenRequest: open != null,
         now: new Date(),
+        t,
       });
       if (isErr(plan)) return plan;
       const { from, to, quorum, immediate, stamps, readiness } = plan.value;
@@ -665,13 +670,13 @@ export async function decideGateTransition(
     if (transition.status !== "pending") {
       return err({
         kind: "conflict" as const,
-        reason: "Dieser Antrag ist bereits entschieden.",
+        reason: "work.errors.requestAlreadyDecided",
       });
     }
     if (row.status !== "pending") {
       return err({
         kind: "conflict" as const,
-        reason: "Du hast diesen Antrag bereits entschieden.",
+        reason: "work.errors.youAlreadyDecided",
       });
     }
 
@@ -715,7 +720,8 @@ export async function decideGateTransition(
     if (outcome.kind === "stale") {
       return err({
         kind: "conflict" as const,
-        reason: `Der Antrag bezieht sich auf ${outcome.expected}, das Epic steht inzwischen auf ${outcome.actual}.`,
+        reason: "work.errors.requestOutOfDate",
+        values: { expected: outcome.expected, actual: outcome.actual },
       });
     }
 
@@ -820,7 +826,7 @@ export async function withdrawGateTransition(
     if (transition.status !== "pending") {
       return err({
         kind: "conflict" as const,
-        reason: "Nur ein offener Antrag kann zurückgezogen werden.",
+        reason: "work.errors.onlyOpenWithdraws",
       });
     }
 

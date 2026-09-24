@@ -28,5 +28,5 @@ export const inviteUserAction = createServerAction({
       role: input.role,
       locale: input.locale,
     }),
-  mapError: (e) => formatDomainError(e, { fallback: "Failed to send invitation" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.sendInvite" }, t),
 });

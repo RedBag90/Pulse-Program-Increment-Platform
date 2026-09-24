@@ -199,7 +199,7 @@ export async function saveRtbAwards(
     if (input.amounts.some((a) => !known.has(a.rtbItemId))) {
       return err({
         kind: "conflict" as const,
-        reason: "Eine der Positionen gehört nicht zu diesem Wertstrom.",
+        reason: "budgeting.errors.itemOtherValueStream",
       });
     }
 
@@ -216,8 +216,7 @@ export async function saveRtbAwards(
     if (candidate?.finalAmount == null) {
       return err({
         kind: "conflict" as const,
-        reason:
-          "Für dieses Halbjahr ist dem Wertstrom noch nichts zugesprochen — es gibt nichts aufzuteilen.",
+        reason: "budgeting.errors.nothingAwarded",
       });
     }
     const awarded = Number(candidate.finalAmount);

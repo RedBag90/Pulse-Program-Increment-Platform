@@ -209,7 +209,7 @@ export const createObjectiveAction = createServerAction({
       progressMode: input.progressMode ? input.progressMode : null,
     }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Ziel konnte nicht angelegt werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.createGoal" }, t),
 });
 
 /** Vereinheitlichter Alias — ein Erstellungspfad für jeden Goal-Knoten. */
@@ -278,7 +278,7 @@ export const updateObjectiveAction = createServerAction({
     });
   },
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Ziel konnte nicht aktualisiert werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.updateGoal" }, t),
 });
 
 /** Vereinheitlichter Alias — ein Update-Pfad für jeden Goal-Knoten. */
@@ -290,7 +290,7 @@ export const deleteObjectiveAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) => deleteObjective(ctx, { id: input.id }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Objective konnte nicht geloescht werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.deleteGoal" }, t),
 });
 
 /** Knoten (samt Subtree) unter einen neuen Parent verschieben; "" = oberste Ebene. */
@@ -313,7 +313,7 @@ export const reparentGoalNodeAction = createServerAction({
         : {}),
     }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Verschieben fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.move" }, t),
 });
 
 /** Verantwortliches Team am Ziel setzen/entfernen (Asana „Accountable team"). */
@@ -331,7 +331,7 @@ export const setGoalAccountableTeamAction = createServerAction({
         input.accountableTeamId && input.accountableTeamId !== "" ? input.accountableTeamId : null,
     }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Team konnte nicht gesetzt werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.setTeam" }, t),
 });
 
 /** Asana „Remove from automatic progress" — ein Unterziel aus dem Eltern-Rollup nehmen/aufnehmen. */
@@ -347,8 +347,7 @@ export const setGoalRollupInclusionAction = createServerAction({
   service: (ctx, input) =>
     updateObjective(ctx, { id: input.id, includeInParentRollup: input.include === "true" }),
   revalidate: "ziele",
-  mapError: (e) =>
-    formatDomainError(e, { fallback: "Rollup-Einstellung konnte nicht geändert werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.setRollup" }, t),
 });
 
 // ── KeyResult ──────────────────────────────────────────────────────────
@@ -391,7 +390,7 @@ export const createKeyResultAction = createServerAction({
       ownerId: input.ownerId ?? null,
     }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Key Result konnte nicht angelegt werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.createKeyResult" }, t),
 });
 
 export const updateKeyResultAction = createServerAction({
@@ -439,8 +438,7 @@ export const updateKeyResultAction = createServerAction({
         : {}),
     }),
   revalidate: "ziele",
-  mapError: (e) =>
-    formatDomainError(e, { fallback: "Key Result konnte nicht aktualisiert werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.updateKeyResult" }, t),
 });
 
 export const deleteKeyResultAction = createServerAction({
@@ -449,7 +447,7 @@ export const deleteKeyResultAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) => deleteKeyResult(ctx, { id: input.id }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Key Result konnte nicht geloescht werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.deleteKeyResult" }, t),
 });
 
 // ── Goal Check-in + Comment ────────────────────────────────────────────
@@ -481,7 +479,7 @@ export const checkInGoalAction = createServerAction({
       ...(input.entryDate ? { entryDate: new Date(input.entryDate) } : {}),
     }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Check-in fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.checkin" }, t),
 });
 
 export const updateGoalProgressAction = createServerAction({
@@ -500,8 +498,7 @@ export const updateGoalProgressAction = createServerAction({
       ...(input.entryDate ? { entryDate: new Date(input.entryDate) } : {}),
     }),
   revalidate: "ziele",
-  mapError: (e) =>
-    formatDomainError(e, { fallback: "Fortschritt konnte nicht aktualisiert werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.updateProgress" }, t),
 });
 
 export const addGoalCommentAction = createServerAction({
@@ -515,7 +512,7 @@ export const addGoalCommentAction = createServerAction({
   service: (ctx, input) =>
     addGoalComment(ctx, { target: input.target, id: input.id, body: input.body }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Kommentar konnte nicht gespeichert werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveComment" }, t),
 });
 
 /**
@@ -551,7 +548,7 @@ export const updateGoalCheckinAction = createServerAction({
       ...(input.sections !== undefined ? { sections: input.sections } : {}),
     }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Eintrag konnte nicht geändert werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.updateEntry" }, t),
 });
 
 export const deleteGoalCheckinAction = createServerAction({
@@ -566,7 +563,7 @@ export const deleteGoalCheckinAction = createServerAction({
       }),
     }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Eintrag konnte nicht entfernt werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.deleteEntry" }, t),
 });
 
 export const updateGoalCommentAction = createServerAction({
@@ -582,7 +579,7 @@ export const updateGoalCommentAction = createServerAction({
       }),
     }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Kommentar konnte nicht geändert werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.updateComment" }, t),
 });
 
 export const deleteGoalCommentAction = createServerAction({
@@ -597,7 +594,7 @@ export const deleteGoalCommentAction = createServerAction({
       }),
     }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Kommentar konnte nicht entfernt werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.deleteComment" }, t),
 });
 
 /**
@@ -638,7 +635,7 @@ export const linkEpicToGoalAction = createServerAction({
       ...(input.recurringInterval ? { recurringInterval: input.recurringInterval } : {}),
     }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Epic-Verknüpfung fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.linkEpic" }, t),
 });
 
 export const unlinkEpicFromGoalAction = createServerAction({
@@ -651,7 +648,7 @@ export const unlinkEpicFromGoalAction = createServerAction({
   service: (ctx, input) =>
     unlinkEpicFromGoal(ctx, { epicId: input.epicId, objectiveId: input.goalId }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Epic-Verknüpfung lösen fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.unlinkEpic" }, t),
 });
 
 /**
@@ -673,7 +670,7 @@ export const addGoalRelatedWorkAction = createServerAction({
       refId: input.refId,
     }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Verknüpfung fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.link" }, t),
 });
 
 export const removeGoalRelatedWorkAction = createServerAction({
@@ -691,7 +688,7 @@ export const removeGoalRelatedWorkAction = createServerAction({
       refId: input.refId,
     }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Verknüpfung lösen fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.unlink" }, t),
 });
 
 /**
@@ -705,7 +702,7 @@ export const linkGoalValueStreamAction = createServerAction({
   service: (ctx, input) =>
     linkGoalValueStream(ctx, { objectiveId: input.goalId, valueStreamId: input.valueStreamId }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Value-Stream-Zuordnung fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.linkValueStream" }, t),
 });
 
 export const unlinkGoalValueStreamAction = createServerAction({
@@ -715,8 +712,7 @@ export const unlinkGoalValueStreamAction = createServerAction({
   service: (ctx, input) =>
     unlinkGoalValueStream(ctx, { objectiveId: input.goalId, valueStreamId: input.valueStreamId }),
   revalidate: "ziele",
-  mapError: (e) =>
-    formatDomainError(e, { fallback: "Value-Stream-Zuordnung lösen fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.unlinkValueStream" }, t),
 });
 
 export const linkGoalArtAction = createServerAction({
@@ -725,7 +721,7 @@ export const linkGoalArtAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) => linkGoalArt(ctx, { objectiveId: input.goalId, artId: input.artId }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "ART-Zuordnung fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.linkArt" }, t),
 });
 
 export const unlinkGoalArtAction = createServerAction({
@@ -734,7 +730,7 @@ export const unlinkGoalArtAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) => unlinkGoalArt(ctx, { objectiveId: input.goalId, artId: input.artId }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "ART-Zuordnung lösen fehlgeschlagen" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.unlinkArt" }, t),
 });
 
 /**
@@ -757,6 +753,5 @@ export const setGoalCustomFieldValueAction = createServerAction({
       value: input.value,
     }),
   revalidate: "ziele",
-  mapError: (e) =>
-    formatDomainError(e, { fallback: "Custom-Field-Wert konnte nicht gesetzt werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.setCustomField" }, t),
 });

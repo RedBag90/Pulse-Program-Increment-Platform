@@ -11,6 +11,7 @@ import type { KpiId } from "@/modules/core/kpi/server/kpi";
 import { createServerAction } from "@/server/http/server-action";
 import type { ActionState } from "@/server/http/server-action";
 import type { EpicId } from "@/modules/core/kernel/domain/types";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 export type { ActionState as KpiActionState };
 
@@ -67,8 +68,7 @@ export const createKpiAction = createServerAction({
     });
   },
   revalidate: "epic",
-  mapError: (e) =>
-    e.kind === "not_found" ? "Epic nicht gefunden" : "KPI konnte nicht erstellt werden",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.createKpi" }, t),
 });
 
 /**
@@ -100,8 +100,7 @@ export const updateKpiDetailsAction = createServerAction({
     });
   },
   revalidate: "epic",
-  mapError: (e) =>
-    e.kind === "not_found" ? "KPI nicht gefunden" : "KPI konnte nicht gespeichert werden",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveKpi" }, t),
 });
 
 /** Sets a KPI's share of the recurring benefit (percent input; empty clears it). */
@@ -119,8 +118,7 @@ export const updateKpiWeightAction = createServerAction({
       benefitWeight: input.weightPercent !== undefined ? input.weightPercent / 100 : null,
     }),
   revalidate: "epic",
-  mapError: (e) =>
-    e.kind === "not_found" ? "KPI nicht gefunden" : "Anteil konnte nicht gespeichert werden",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveShare" }, t),
 });
 
 export const deleteKpiAction = createServerAction({
@@ -129,8 +127,7 @@ export const deleteKpiAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) => deleteKpi(ctx, { id: input.id as KpiId }),
   revalidate: "epic",
-  mapError: (e) =>
-    e.kind === "not_found" ? "KPI nicht gefunden" : "KPI konnte nicht gelöscht werden",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.deleteKpi" }, t),
 });
 
 export const recordKpiMeasurementAction = createServerAction({
@@ -145,6 +142,5 @@ export const recordKpiMeasurementAction = createServerAction({
   service: (ctx, input) =>
     recordKpiMeasurement(ctx, { id: input.id as KpiId, date: input.date, value: input.value }),
   revalidate: "epic",
-  mapError: (e) =>
-    e.kind === "not_found" ? "KPI nicht gefunden" : "Messwert konnte nicht gespeichert werden",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveMeasurement" }, t),
 });

@@ -15,6 +15,7 @@
  * Domain-Schicht (Type-Guards + isEpicType etc.).
  */
 
+import type { MessageValues } from "@/modules/core/kernel/domain/errors";
 import { makeTypeGuard } from "@/modules/core/kernel/domain/type-guards";
 import { HORIZONS, type Horizon } from "@/modules/core/org/domain/horizon";
 
@@ -47,8 +48,8 @@ export {
   HORIZONS,
   isHorizon,
   HORIZON_KEYS,
-  HORIZON_HELP,
-  CONCEPT_HELP,
+  HORIZON_HELP_KEYS,
+  CONCEPT_HELP_KEYS,
   type Horizon,
 } from "@/modules/core/org/domain/horizon";
 
@@ -360,35 +361,46 @@ export function parseGuardrailTargets(raw: unknown): GuardrailTargets {
  */
 export function validateGuardrailTargets(t: GuardrailTargets): {
   ok: boolean;
-  reason?: string;
+  /** Katalog-Schlüssel, kein Satz — das Formular übersetzt (ADR-0024, Regel 2). */
+  reasonKey?: string;
+  /** Die Zahl im Satz, wo einer sie nennt. */
+  reasonValues?: MessageValues;
 } {
   const allNonNeg =
     STATIONS.every((st) => t.horizon[st] >= 0) && CAPACITY_BUCKETS.every((b) => t.capacity[b] >= 0);
-  if (!allNonNeg) return { ok: false, reason: "Targets duerfen nicht negativ sein" };
+  if (!allNonNeg) return { ok: false, reasonKey: "work.guardrail.targetsNegative" };
 
   const horizonSum = STATIONS.reduce((sum, st) => sum + t.horizon[st], 0);
   if (Math.abs(horizonSum - 100) > 0.5) {
-    return { ok: false, reason: `Horizon-Targets summieren auf ${horizonSum}, erwartet 100` };
+    return {
+      ok: false,
+      reasonKey: "work.guardrail.horizonSum",
+      reasonValues: { sum: horizonSum },
+    };
   }
   const capSum = CAPACITY_BUCKETS.reduce((sum, b) => sum + t.capacity[b], 0);
   if (Math.abs(capSum - 100) > 0.5) {
-    return { ok: false, reason: `Capacity-Targets summieren auf ${capSum}, erwartet 100` };
+    return {
+      ok: false,
+      reasonKey: "work.guardrail.capacitySum",
+      reasonValues: { sum: capSum },
+    };
   }
 
   // Engagement ist kein Mix — hier gilt nur der Wertebereich, keine Summe.
   const { coverage, responseDays } = t.engagement;
   if (!(coverage >= 0 && coverage <= 100)) {
-    return { ok: false, reason: "Abdeckungs-Target muss zwischen 0 und 100 liegen" };
+    return { ok: false, reasonKey: "work.guardrail.coverageRange" };
   }
   if (!(responseDays >= 1)) {
-    return { ok: false, reason: "Reaktionszeit muss mindestens 1 Tag betragen" };
+    return { ok: false, reasonKey: "work.guardrail.responseDays" };
   }
 
   // Guardrail 3 ist ebenfalls kein Mix, sondern eine Schwelle: nur der
   // Wertebereich zählt, keine Summe.
   const { portfolioThreshold } = t.approval;
   if (!(Number.isFinite(portfolioThreshold) && portfolioThreshold >= 0)) {
-    return { ok: false, reason: "Portfolio-Limit muss eine Zahl ≥ 0 sein" };
+    return { ok: false, reasonKey: "work.guardrail.portfolioThreshold" };
   }
   return { ok: true };
 }

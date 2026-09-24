@@ -15,5 +15,5 @@ export const dismissZieleSetupAction = createServerAction({
   parseFormData: () => ({}),
   service: (ctx) => dismissZieleSetup(ctx),
   revalidate: "ziele",
-  mapError: () => "Anleitung konnte nicht ausgeblendet werden",
+  mapError: (_e, t) => t("errors.action.hideGuide"),
 });

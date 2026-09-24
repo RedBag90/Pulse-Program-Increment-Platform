@@ -39,7 +39,7 @@ export async function addGroup(
     if (round.status !== "draft") {
       return err({
         kind: "conflict" as const,
-        reason: "Gruppen sind nur im Status draft änderbar.",
+        reason: "budgeting.errors.groupsDraftOnly",
       });
     }
     const group = await tx.budgetGroup.create({
@@ -74,7 +74,7 @@ export async function updateGroup(
     if (ctxRound.status !== "draft") {
       return err({
         kind: "conflict" as const,
-        reason: "Gruppen sind nur im Status draft änderbar.",
+        reason: "budgeting.errors.groupsDraftOnly",
       });
     }
     await tx.budgetGroup.update({
@@ -108,7 +108,7 @@ export async function removeGroup(
     if (ctxRound.status !== "draft") {
       return err({
         kind: "conflict" as const,
-        reason: "Gruppen sind nur im Status draft änderbar.",
+        reason: "budgeting.errors.groupsDraftOnly",
       });
     }
     await tx.budgetGroup.delete({ where: { id: input.id } });
@@ -142,7 +142,7 @@ export async function addGroupMember(
     if (ctxRound.status !== "draft") {
       return err({
         kind: "conflict" as const,
-        reason: "Mitglieder sind nur im Status draft änderbar.",
+        reason: "budgeting.errors.membersDraftOnly",
       });
     }
     const member = await tx.budgetGroupMember.create({
@@ -182,7 +182,7 @@ export async function removeGroupMember(
     if (member.group.round.status !== "draft") {
       return err({
         kind: "conflict" as const,
-        reason: "Mitglieder sind nur im Status draft änderbar.",
+        reason: "budgeting.errors.membersDraftOnly",
       });
     }
     await tx.budgetGroupMember.delete({ where: { id: input.id } });

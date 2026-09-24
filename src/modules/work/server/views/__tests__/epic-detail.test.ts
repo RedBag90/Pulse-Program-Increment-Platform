@@ -143,8 +143,8 @@ describe("buildEpicDetailModel — degradation matrix", () => {
   });
 
   it("budgeting OFF: slice is {disabled:true} and nextStep uses budgetAllocated=false", () => {
-    // Der Hinweis auf L2 verzweigt an `budgetAllocated`: alloziert → mit
-    // „Budget ist alloziert." davor; sonst der schlichte Hinweis.
+    // Der Hinweis auf L2 verzweigt an `budgetAllocated`: alloziert → der
+    // Schlüssel mit dem „Budget ist alloziert."-Satz; sonst der schlichte.
     const off = buildEpicDetailModel(
       makeInputs({
         epic: makeEpic({ stageGate: "L2" }),
@@ -153,7 +153,7 @@ describe("buildEpicDetailModel — degradation matrix", () => {
       }),
     );
     expect(off.budgeting).toEqual({ disabled: true });
-    expect(off.nextStep?.hint.startsWith("Budget ist alloziert.")).toBe(false);
+    expect(off.nextStep?.hintKey).toBe("work.nextStep.investmentHintPlain");
 
     const on = buildEpicDetailModel(
       makeInputs({
@@ -167,7 +167,7 @@ describe("buildEpicDetailModel — degradation matrix", () => {
         },
       }),
     );
-    expect(on.nextStep?.hint.startsWith("Budget ist alloziert.")).toBe(true);
+    expect(on.nextStep?.hintKey).toBe("work.nextStep.investmentHintBudgeting");
   });
 
   it("exposes lifecycleSteps derived from the stage gate (L0 → Erstsichtung offen)", () => {
@@ -177,16 +177,16 @@ describe("buildEpicDetailModel — degradation matrix", () => {
     expect(m.lifecycleSteps).toHaveLength(8);
     expect(m.lifecycleSteps[0]!.key).toBe("detailing");
     expect(m.lifecycleSteps[0]!.status).toBe("current");
-    expect(m.lifecycleSteps[0]!.milestone.label).toBe("Erstsichtung");
+    expect(m.lifecycleSteps[0]!.milestone.labelKey).toBe("work.lifecycle.detailing.milestoneLabel");
     expect(m.lifecycleSteps.slice(1).every((s) => s.status === "upcoming")).toBe(true);
-    expect(m.lifecycleSteps.every((s) => s.description.length > 0)).toBe(true);
+    expect(m.lifecycleSteps.every((s) => s.descriptionKey.length > 0)).toBe(true);
   });
 
   it("lifecycleSteps stay coherent with the stage gate (L2 → Budget zuteilen)", () => {
     const m = buildEpicDetailModel(makeInputs({ epic: makeEpic({ stageGate: "L2" }) }));
     const currentStep = m.lifecycleSteps.find((s) => s.status === "current");
     expect(currentStep?.key).toBe("backlog");
-    expect(currentStep?.label).toBe("Budget zuteilen");
+    expect(currentStep?.labelKey).toBe("work.lifecycle.backlog.label");
   });
 
   it("risks slice is an entitlement gate (composed in the route)", () => {

@@ -28,7 +28,7 @@ export const createPiStandardAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) => createPiStandard(ctx, input),
   revalidate: "piStandard",
-  mapError: (e) => formatDomainError(e, { fallback: "Failed to create PI standard" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.createPiStandard" }, t),
 });
 
 export const deletePiStandardAction = createServerAction({
@@ -38,8 +38,7 @@ export const deletePiStandardAction = createServerAction({
   parseFormData: (fd) => ({ id: fields(fd).string("id") }),
   service: (ctx, input) => deletePiStandard(ctx, { id: input.id }),
   revalidate: "piStandard",
-  mapError: (e) =>
-    e.kind === "not_found" ? "PI standard not found" : "Failed to delete PI standard",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.deletePiStandard" }, t),
 });
 
 export const addStandardPisAction = createServerAction({
@@ -53,10 +52,13 @@ export const addStandardPisAction = createServerAction({
       year: new Date().getUTCFullYear(),
     }),
   revalidate: "pi",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Timeline or PI standard not found"
-        : "Failed to add standard PIs",
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      {
+        notFoundKey: "errors.action.timelineOrPiStandardNotFound",
+        fallbackKey: "errors.action.addStandardPis",
+      },
+      t,
+    ),
 });

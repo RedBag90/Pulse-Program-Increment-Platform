@@ -103,8 +103,7 @@ export const createFeatureAction = createServerAction({
     });
   },
   revalidate: "feature",
-  mapError: (e) =>
-    e.kind === "not_found" ? `${e.resourceType} not found` : "Failed to create feature",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.createFeature" }, t),
 });
 
 export const updateFeatureAction = createServerAction({
@@ -146,8 +145,12 @@ export const updateFeatureAction = createServerAction({
     });
   },
   revalidate: "feature",
-  mapError: (e) =>
-    formatDomainError(e, { notFound: "Feature not found", fallback: "Failed to update feature" }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      { notFoundKey: "errors.action.featureNotFound", fallbackKey: "errors.action.updateFeature" },
+      t,
+    ),
 });
 
 export const scoreFeatureAction = createServerAction({
@@ -170,7 +173,7 @@ export const scoreFeatureAction = createServerAction({
       wsjfJobSize: input.wsjfJobSize,
     }),
   revalidate: "feature",
-  mapError: (e) => formatDomainError(e, { fallback: "Failed to update WSJF score" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.updateWsjf" }, t),
 });
 
 export const deleteFeatureAction = createServerAction({
@@ -179,8 +182,12 @@ export const deleteFeatureAction = createServerAction({
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
   service: (ctx, input) => softDeleteFeature(ctx, { id: input.id as FeatureId }),
   revalidate: "feature",
-  mapError: (e) =>
-    formatDomainError(e, { notFound: "Feature not found", fallback: "Failed to delete feature" }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      { notFoundKey: "errors.action.featureNotFound", fallbackKey: "errors.action.deleteFeature" },
+      t,
+    ),
 });
 
 const DELIVERY_STATUS = z.enum(["approved", "in_progress", "blocked", "completed", "cancelled"]);
@@ -197,12 +204,7 @@ export const startFeatureAction = createServerAction({
   parseFormData: (fd) => ({ id: fields(fd).string("id") }),
   service: (ctx, input) => startFeature(ctx, { id: input.id as FeatureId }),
   revalidate: "feature",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Feature nicht gefunden"
-        : "Feature konnte nicht gestartet werden",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.startFeature" }, t),
 });
 
 /**
@@ -225,12 +227,7 @@ export const setFeatureDeliveryStatusAction = createServerAction({
       reason: input.reason,
     }),
   revalidate: "feature",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Feature nicht gefunden"
-        : "Status konnte nicht geändert werden",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.changeStatus" }, t),
 });
 
 /**
@@ -258,12 +255,7 @@ export const bulkSetFeatureDeliveryStatusAction = createServerAction({
     continueOnError: true,
   },
   revalidate: "feature",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Feature nicht gefunden"
-        : "Bulk-Status-Aenderung fehlgeschlagen",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.bulkStatusChange" }, t),
 });
 
 /**
@@ -291,11 +283,15 @@ export const setFeaturePiAction = createServerAction({
     foldWarnings: (out) => out.warnings,
   },
   revalidate: "feature",
-  mapError: (e) =>
-    formatDomainError(e, {
-      notFound: "Feature or PI not found",
-      fallback: "Failed to assign feature",
-    }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      {
+        notFoundKey: "errors.action.featureOrPiNotFound",
+        fallbackKey: "errors.action.assignFeature",
+      },
+      t,
+    ),
 });
 
 /**
@@ -320,8 +316,8 @@ export const setFeatureParentAction = createServerAction({
       parentId: input.parentId === "" ? null : input.parentId,
     }),
   revalidate: "feature",
-  mapError: (e) =>
-    e.kind === "conflict" ? e.reason : "Epic-Zuordnung konnte nicht geändert werden",
+  mapError: (e, t) =>
+    formatDomainError(e, { fallbackKey: "errors.action.changeEpicAssignment" }, t),
 });
 
 /**
@@ -344,7 +340,7 @@ export const setFeatureSolutionAction = createServerAction({
       solutionId: input.solutionId === "" ? null : input.solutionId,
     }),
   revalidate: "feature",
-  mapError: (e) => (e.kind === "conflict" ? e.reason : "Solution konnte nicht gesetzt werden"),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.setSolution" }, t),
 });
 
 export const assignFeatureOwnerAction = createServerAction({
@@ -360,5 +356,5 @@ export const assignFeatureOwnerAction = createServerAction({
   service: (ctx, input) =>
     assignFeatureOwner(ctx, { id: input.id, ownerId: input.ownerId === "" ? null : input.ownerId }),
   revalidate: "feature",
-  mapError: (e) => (e.kind === "forbidden" ? e.reason : "Owner konnte nicht gesetzt werden"),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.setOwner" }, t),
 });

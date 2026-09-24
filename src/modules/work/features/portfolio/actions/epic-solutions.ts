@@ -10,6 +10,7 @@ import { z } from "zod";
 import { setEpicSolutions } from "@/modules/work/server/services/epic-solutions";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 const tenantResource = (_i: unknown, p: { tenantId: string }) => ({ tenantId: p.tenantId });
 
@@ -40,10 +41,5 @@ export const setEpicSolutionsAction = createServerAction({
       primarySolutionId: input.primarySolutionId,
     }),
   revalidate: "solution",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Nicht gefunden"
-        : "Zuordnung fehlgeschlagen",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.assign" }, t),
 });

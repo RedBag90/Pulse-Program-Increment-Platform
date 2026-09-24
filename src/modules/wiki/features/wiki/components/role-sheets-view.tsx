@@ -112,7 +112,7 @@ function RoleCard({ sheet, index, own }: { sheet: RoleSheet; index: number; own:
           )}
         </div>
         <p className="max-w-[var(--reading-max-w)] text-prose leading-relaxed">
-          {inline(sheet.mission)}
+          {inline(t(sheet.missionKey))}
         </p>
       </div>
 
@@ -144,12 +144,12 @@ function ClaimList({ title, claims }: { title: string; claims: readonly RoleShee
       ) : (
         <ul className="mt-2 space-y-1.5">
           {claims.map((c) => (
-            <li key={c.text} className="flex gap-2 text-sm leading-relaxed">
+            <li key={t(c.textKey)} className="flex gap-2 text-sm leading-relaxed">
               <span
                 className="mt-[0.45rem] size-1 shrink-0 rounded-full bg-muted-foreground"
                 aria-hidden
               />
-              <span>{inline(c.text)}</span>
+              <span>{inline(t(c.textKey))}</span>
             </li>
           ))}
         </ul>

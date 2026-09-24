@@ -575,7 +575,7 @@ export async function setFeaturePi(
       ) {
         return err({
           kind: "conflict" as const,
-          reason: "Feature gehört zu einer ART, die diese Timeline nicht abonniert hat",
+          reason: "work.errors.artNotOnTimeline",
         });
       }
 
@@ -795,7 +795,7 @@ export async function setFeatureParent(
       // klare Ablehnung als eine ungeprüfte Zuordnung.
       return err({
         kind: "conflict" as const,
-        reason: "Dem Feature fehlt ein ART — die Zuordnung lässt sich nicht prüfen",
+        reason: "work.errors.featureWithoutArt",
       });
     }
 
@@ -905,9 +905,7 @@ export async function setFeatureSolution(
       if (vsId !== null && solution.valueStreamId !== vsId) {
         return err({
           kind: "conflict" as const,
-          reason:
-            "Die Solution gehört zu einem anderen Wertstrom als das ART des Features — " +
-            "bitte eine Solution aus demselben Wertstrom wählen",
+          reason: "work.errors.solutionOtherValueStream",
         });
       }
     }
@@ -1046,7 +1044,8 @@ export async function setFeatureDeliveryStatus(
     if (!canDeliveryTransition(feature.status, to)) {
       return err({
         kind: "conflict" as const,
-        reason: `Übergang von "${feature.status}" nach "${to}" ist im Delivery-Lebenszyklus nicht erlaubt`,
+        reason: "work.errors.deliveryTransitionNotAllowed",
+        values: { from: feature.status, to },
       });
     }
 

@@ -35,7 +35,7 @@ export const assignRoleAction = createServerAction({
       },
     }),
   onSuccess: () => revalidatePath("/admin/users"),
-  mapError: (e) => formatDomainError(e, { fallback: "Failed to assign role" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.assignRole" }, t),
 });
 
 export const removeRoleAction = createServerAction({
@@ -53,9 +53,13 @@ export const removeRoleAction = createServerAction({
       role: input.role,
     }),
   onSuccess: () => revalidatePath("/admin/users"),
-  mapError: (e) =>
-    formatDomainError(e, {
-      notFound: "Role assignment not found",
-      fallback: "Failed to remove role",
-    }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      {
+        notFoundKey: "errors.action.roleAssignmentNotFound",
+        fallbackKey: "errors.action.removeRole",
+      },
+      t,
+    ),
 });

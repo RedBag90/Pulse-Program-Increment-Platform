@@ -28,7 +28,7 @@ export const createValueStreamAction = createServerAction({
       description: input.description,
     }),
   revalidate: "valueStream",
-  mapError: (e) => formatDomainError(e, { fallback: "Failed to create" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.create" }, t),
 });
 
 export const updateValueStreamAction = createServerAction({
@@ -67,8 +67,7 @@ export const updateValueStreamAction = createServerAction({
       architectLeadId: input.architectLeadId,
     }),
   revalidate: "valueStream",
-  mapError: (e) =>
-    e.kind === "conflict" ? e.reason : e.kind === "not_found" ? "Not found" : "Failed to update",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.updateValueStream" }, t),
 });
 
 export const deleteValueStreamAction = createServerAction({
@@ -80,6 +79,10 @@ export const deleteValueStreamAction = createServerAction({
   parseFormData: (fd) => ({ id: fields(fd).string("id") }),
   service: (ctx, input) => softDeleteValueStream(ctx, { id: input.id as ValueStreamId }),
   revalidate: "valueStream",
-  mapError: (e) =>
-    formatDomainError(e, { notFound: "Value stream not found", fallback: "Failed to delete" }),
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      { notFoundKey: "errors.action.valueStreamNotFound2", fallbackKey: "errors.action.delete" },
+      t,
+    ),
 });

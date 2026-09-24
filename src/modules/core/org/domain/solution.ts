@@ -22,7 +22,7 @@ export const isInvestmentMode = makeTypeGuard(INVESTMENT_MODES);
  * daraus je ein Produkt wird, ist offen. Eine Solution entsteht frühestens in
  * H2 — siehe ADR-0020.
  *
- * Genau diese Trennung war bisher der Widerspruch im Modell: `HORIZON_HELP.h3`
+ * Genau diese Trennung war bisher der Widerspruch im Modell: `HORIZON_HELP_KEYS.h3`
  * sagt seit jeher „noch keine Solution", während der Status `rd` eine behauptete.
  */
 export type SolutionHorizon = Exclude<Horizon, "h3">;

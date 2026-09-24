@@ -532,9 +532,15 @@ Siehe **ADR-0024**. Kurz:
   E-Mail-Vorlagen und die Domäne haben beides nicht. Sie nehmen `Translate`
   (`src/i18n/translate.ts`) als gewöhnlichen Parameter; der Aufrufer sitzt
   immer in einer Komponente oder einem Request und reicht ihn herein.
-- **Der Wächter läuft projektweit** (`src/i18n/__tests__/translated-surfaces.test.ts`).
-  Er prüft JSX-Text und sichtbare Eigenschaften über ganz `src/`. Konstanten-
-  Tabellen in `domain/` sieht er nicht — dort helfen nur Schlüssel.
+- **Fehler sind Oberfläche.** Ein `DomainError` trägt in `reason`/`detail`
+  einen Katalog-Schlüssel und in `values` die Zahlen des Satzes;
+  `formatDomainError` (Server-Action) und `errorToResponse` (REST) lösen ihn
+  auf. Ein Service, der einen deutschen Satz ablegt, wird vom Wächter gemeldet.
+- **Zwei Wächter, zwei Fundorte** — beide projektweit über `src/`:
+  `translated-surfaces.test.ts` prüft JSX-Text und sichtbare Eigenschaften;
+  `domain-error-keys.test.ts` prüft die Gründe der `DomainError`, die in
+  gewöhnlichen Objekten liegen und dem ersten deshalb entgehen. Konstanten-
+  Tabellen in `domain/` sieht keiner von beiden — dort helfen nur Schlüssel.
 - **Im Test gibt es keinen Provider.** `src/test/setup.ts` ersetzt `next-intl`
   durch den echten Katalog — strenger als das Original, denn ein unbekannter
   Schlüssel wirft dort, statt sich als Text zu rendern. Kein Test braucht
@@ -563,12 +569,21 @@ budgeting.period.emptyState.title
 Die bestehenden neun Namensräume bleiben, wo sie sind — sie umzubenennen
 brächte nichts und bräche jede Fundstelle.
 
-### Der Wächter
+### Die Wächter
 
-`src/i18n/__tests__/translated-surfaces.test.ts` prüft die Flächen, die bereits
-übersetzt sind, auf rohe Texte. **Wer eine Fläche übersetzt, trägt sie dort
-ein.** Die Liste wächst mit der Umstellung — dasselbe Vorgehen wie beim
-ADR-0021-Wächter, und aus demselben Grund: ein Test über alles wäre heute rot.
+Vier Tests halten die Übersetzung zusammen. Sie greifen an vier verschiedenen
+Stellen, und das ist Absicht: **ein gerenderter Schlüssel ist typrichtig** —
+kein Compiler und keine einzelne Prüfung findet ihn.
 
-`src/i18n/__tests__/catalog-parity.test.ts` hält fest, dass beide Kataloge
-dieselben Schlüssel tragen und keiner leer ist.
+| Wächter                       | greift bei                                                                        |
+| ----------------------------- | --------------------------------------------------------------------------------- |
+| `translated-surfaces.test.ts` | rohem Text in JSX und sichtbaren Eigenschaften, über ganz `src/`                  |
+| `domain-error-keys.test.ts`   | ausgeschriebenen Gründen an einem `DomainError`                                   |
+| `catalog-parity.test.ts`      | Schlüsseln, die nur eine Sprache kennt — und leeren Werten                        |
+| `key-shape.test.ts`           | `useTranslations("auth")` mit vollqualifiziertem Schlüssel (ergibt `auth.auth.…`) |
+
+Dazu zwei Zusicherungen, die keine Quelltext-Prüfung sind: `catalogTranslate`
+**wirft** im Test bei einem unbekannten Schlüssel (`next-intl` täte das nicht —
+es rendert ihn), und `tests/e2e/sprache.spec.ts` prüft am laufenden Server,
+dass **kein schlüsselförmiger Text** auf dem Bildschirm steht. Die letzte hat
+sieben doppelt präfigierte Schlüssel gefunden, die alle anderen durchliessen.

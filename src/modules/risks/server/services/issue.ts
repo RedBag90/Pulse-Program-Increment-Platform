@@ -62,7 +62,7 @@ function assertIssueScope(principal: Principal, action: Action, vsId: string | n
     : authorize(action, { tenantId: principal.tenantId }, principal).allow;
   return allowed
     ? ok(undefined)
-    : err({ kind: "forbidden" as const, reason: "Kein Zugriff auf den Wertstrom dieses Issues." });
+    : err({ kind: "forbidden" as const, reason: "risks.errors.noValueStreamAccess" });
 }
 
 /** Next per-tenant number under an advisory lock (gapless, concurrency-safe). */
@@ -217,7 +217,7 @@ export async function reviewIssue(
     });
     if (!issue) return err({ kind: "not_found" as const, resourceType: "Issue", id: input.id });
     if (!canReview(issue.reviewStatus as "suggested" | "documented" | "rejected")) {
-      return err({ kind: "conflict" as const, reason: "Nur Vorschläge können reviewt werden." });
+      return err({ kind: "conflict" as const, reason: "risks.errors.onlyProposalsReviewed" });
     }
     const vs = await resolveInitiativeVs(tx, mctx.tenantId, issue.initiativeId);
     if (isErr(vs)) return vs;

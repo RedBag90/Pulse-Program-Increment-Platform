@@ -1,4 +1,14 @@
 import { describe, it, expect } from "vitest";
+import { catalogTranslate } from "@/test/helpers/catalog";
+
+/*
+ * Die Meldung ist ein **Satz**, kein Schlüssel: sie setzt sich aus einer
+ * Vorlage und den Etiketten der blockierenden Kriterien zusammen. Geprüft
+ * wird deshalb mit dem echten Katalog — sonst stünde hier eine Zusicherung
+ * auf `work.gate.blockReason`, die nichts darüber aussagt, ob der Satz
+ * zustande kommt.
+ */
+const t = catalogTranslate("de");
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import type { GateStep } from "@/modules/work/domain/stage-gate";
 import {
@@ -80,7 +90,9 @@ describe("gateReadiness — L1 (Selektion ins Detailing)", () => {
     for (const multi of [true, false]) {
       const f = facts("L0", { multiPartyApproval: multi, hasHypothesisContent: true });
       expect(gateReadiness(f, "L1").ready, String(multi)).toBe(true);
-      expect(gateReadiness(f, "L1").criteria[0]?.label).toBe("Benefit-Hypothese ist ausgearbeitet");
+      expect(gateReadiness(f, "L1").criteria[0]?.labelKey).toBe(
+        "work.gateCriteria.hypothesisDrafted.label",
+      );
     }
   });
 
@@ -205,7 +217,7 @@ describe("gateReadiness — L2 (Business-Case-Freigabe)", () => {
   it("zeigt das Kriterium dann gar nicht — ein Häkchen daran wäre gelogen", () => {
     const f = facts("L3", { budgetingEnabled: false });
     expect(gateReadiness(f, "L3").criteria).toEqual([]);
-    expect(readinessBlockReason(gateReadiness(f, "L3"))).toBeNull();
+    expect(readinessBlockReason(gateReadiness(f, "L3"), t)).toBeNull();
   });
 
   it("lässt die anderen Schritte unberührt — nur L3.2 kennt das Modul", () => {
@@ -271,20 +283,20 @@ describe("gateReadiness — L5 (Impact)", () => {
 
 describe("readinessBlockReason", () => {
   it("nennt nur die blockierenden, unerfüllten Kriterien", () => {
-    expect(readinessBlockReason(gateReadiness(facts("L1"), "analysis"))).toBe(
+    expect(readinessBlockReason(gateReadiness(facts("L1"), "analysis"), t)).toBe(
       "Reifegrad analysis verlangt: Benefit-Hypothese ist freigegeben.",
     );
-    expect(readinessBlockReason(gateReadiness(facts("L2"), "L3"))).toBe(
+    expect(readinessBlockReason(gateReadiness(facts("L2"), "L3"), t)).toBe(
       "Reifegrad L3 verlangt: Budget ist alloziert (Σ > 0).",
     );
   });
 
   it("ist null, wenn nur beratende Kriterien offen sind", () => {
-    expect(readinessBlockReason(gateReadiness(facts("L3"), "L4"))).toBeNull();
+    expect(readinessBlockReason(gateReadiness(facts("L3"), "L4"), t)).toBeNull();
   });
 
   it("ist null, wenn alles erfüllt ist", () => {
     const f = facts("L2", { hasBusinessCaseContent: true, budgetAllocationSum: 10 });
-    expect(readinessBlockReason(gateReadiness(f, "L2"))).toBeNull();
+    expect(readinessBlockReason(gateReadiness(f, "L2"), t)).toBeNull();
   });
 });

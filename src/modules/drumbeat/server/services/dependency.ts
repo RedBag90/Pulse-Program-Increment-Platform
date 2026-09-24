@@ -36,7 +36,7 @@ export async function linkDependency(
   const { fromId, toId, type } = input;
 
   if (fromId === toId) {
-    return err({ kind: "conflict" as const, reason: "An initiative cannot depend on itself" });
+    return err({ kind: "conflict" as const, reason: "drumbeat.errors.selfDependency" });
   }
 
   // Validates the endpoints, then delegates the cycle-check + edge write + audit
@@ -118,7 +118,7 @@ export async function changeDependencyType(
   const { fromId, toId, fromType, toType } = input;
 
   if (fromType === toType) {
-    return err({ kind: "conflict" as const, reason: "Type already matches" });
+    return err({ kind: "conflict" as const, reason: "drumbeat.errors.typeUnchanged" });
   }
 
   // Delegates to the edge primitive so the cycle-check lives in ONE place.

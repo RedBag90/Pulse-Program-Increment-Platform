@@ -22,7 +22,7 @@ export const createTimelineAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) => createTimeline(ctx, input),
   revalidate: "timeline",
-  mapError: (e) => formatDomainError(e, { fallback: "Timeline konnte nicht angelegt werden" }),
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.createTimeline" }, t),
 });
 
 export const updateTimelineAction = createServerAction({
@@ -46,12 +46,7 @@ export const updateTimelineAction = createServerAction({
       ...(input.name !== undefined ? { name: input.name } : {}),
     }),
   revalidate: "timeline",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Timeline nicht gefunden"
-        : "Timeline konnte nicht aktualisiert werden",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.updateTimeline" }, t),
 });
 
 export const createTimelineFromStandardAction = createServerAction({
@@ -61,12 +56,8 @@ export const createTimelineFromStandardAction = createServerAction({
   parseFormData: (fd) => ({ standardId: fields(fd).string("standardId") }),
   service: (ctx, input) => createTimelineFromStandard(ctx, { standardId: input.standardId }),
   revalidate: "timeline",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "PI-Standard nicht gefunden"
-        : "Timeline aus Standard konnte nicht angelegt werden",
+  mapError: (e, t) =>
+    formatDomainError(e, { fallbackKey: "errors.action.createTimelineFromStandard" }, t),
 });
 
 export const deleteTimelineAction = createServerAction({
@@ -76,12 +67,7 @@ export const deleteTimelineAction = createServerAction({
   parseFormData: (fd) => ({ id: fields(fd).string("id") }),
   service: (ctx, input) => deleteTimeline(ctx, { id: input.id as TimelineId }),
   revalidate: "timeline",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Timeline nicht gefunden"
-        : "Timeline konnte nicht gelöscht werden",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.deleteTimeline" }, t),
 });
 
 export const joinArtToTimelineAction = createServerAction({
@@ -94,12 +80,15 @@ export const joinArtToTimelineAction = createServerAction({
       timelineId: input.timelineId as TimelineId,
     }),
   revalidate: "timeline",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "ART oder Timeline nicht gefunden"
-        : "ART konnte nicht beitreten",
+  mapError: (e, t) =>
+    formatDomainError(
+      e,
+      {
+        notFoundKey: "errors.action.artOrTimelineNotFound",
+        fallbackKey: "errors.action.joinTimeline",
+      },
+      t,
+    ),
 });
 
 export const leaveArtFromTimelineAction = createServerAction({
@@ -109,6 +98,5 @@ export const leaveArtFromTimelineAction = createServerAction({
   parseFormData: (fd) => ({ artId: fields(fd).string("artId") }),
   service: (ctx, input) => leaveArtFromTimeline(ctx, { artId: input.artId as ArtId }),
   revalidate: "timeline",
-  mapError: (e) =>
-    e.kind === "not_found" ? "ART nicht gefunden" : "ART konnte Timeline nicht verlassen",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.leaveTimeline" }, t),
 });

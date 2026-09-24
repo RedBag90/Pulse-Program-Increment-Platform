@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect } from "vitest";
-import { GUIDES, guideBySlug } from "@/modules/wiki/domain/guides";
+import { GUIDES_DE as GUIDES, guideBySlug } from "@/modules/wiki/domain/guides";
 import { CADENCES } from "@/modules/wiki/domain/cadence";
 import { FIGURE_KINDS, type Block } from "@/modules/wiki/domain/blocks";
 import type { Station } from "@/modules/wiki/domain/guide";
@@ -93,8 +93,8 @@ describe("GUIDES — Aufbau", () => {
   });
 
   it("guideBySlug findet jede Anleitung und nur die", () => {
-    for (const g of GUIDES) expect(guideBySlug(g.slug)).toBe(g);
-    expect(guideBySlug("gibt-es-nicht")).toBeUndefined();
+    for (const g of GUIDES) expect(guideBySlug(g.slug, "de")?.guide).toBe(g);
+    expect(guideBySlug("gibt-es-nicht", "de")).toBeUndefined();
   });
 });
 
@@ -186,7 +186,7 @@ describe("GUIDES — Schluessel existieren wirklich", () => {
   it("jeder seeAlso-Slug zeigt auf eine existierende Anleitung — und nie auf sich selbst", () => {
     const bad = GUIDES.flatMap((g) =>
       g.seeAlso
-        .filter((s) => s === g.slug || guideBySlug(s) === undefined)
+        .filter((s) => s === g.slug || guideBySlug(s, "de")?.guide === undefined)
         .map((s) => `${g.slug} → ${s}`),
     );
     expect(bad).toEqual([]);

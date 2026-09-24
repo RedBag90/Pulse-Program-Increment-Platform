@@ -202,7 +202,7 @@ export function GuardrailTargetsForm({ targets }: Props) {
         </div>
         {!validation.ok && (
           <p role="alert" className="text-sm text-warning">
-            {validation.reason}
+            {validation.reasonKey ? t(validation.reasonKey, validation.reasonValues) : null}
           </p>
         )}
         {state.error && (

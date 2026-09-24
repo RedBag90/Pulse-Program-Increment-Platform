@@ -43,7 +43,7 @@ export async function toggleSetupCheck(
   if (!hasCapability(ctx.principal, "tenant.users.manage")) {
     return err({
       kind: "forbidden" as const,
-      reason: "Setup-Fortschritt darf nur der Tenant-Admin aendern",
+      reason: "errors.setup.onlyTenantAdmin",
     });
   }
 
