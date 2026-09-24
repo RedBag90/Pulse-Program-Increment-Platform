@@ -1,8 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
+import { STAGE_GATE_KEYS } from "@/components/detail/initiative-labels";
 import type { EpicListRow } from "@/modules/work/server/views/portfolio-epics-list";
 
 interface Props {
@@ -25,6 +26,7 @@ interface Props {
  * hätte nachgezogen werden müssen.
  */
 export function EpicsBulkActionBar({ selectedRows, onClear }: Props) {
+  const t = useTranslations();
   if (selectedRows.length === 0) return null;
 
   const gates = new Set(selectedRows.map((r) => r.stageGate));
@@ -42,7 +44,7 @@ export function EpicsBulkActionBar({ selectedRows, onClear }: Props) {
 
         <span className="text-xs text-muted-foreground">
           {sharedGate
-            ? `in ${STAGE_GATE_LABELS[sharedGate] ?? sharedGate}`
+            ? `in ${t(STAGE_GATE_KEYS[sharedGate] ?? sharedGate)}`
             : `über ${gates.size} Reifegrade verteilt`}
         </span>
 
@@ -51,7 +53,7 @@ export function EpicsBulkActionBar({ selectedRows, onClear }: Props) {
           size="icon"
           variant="ghost"
           onClick={onClear}
-          aria-label="Auswahl aufheben"
+          aria-label={t("work.epic.auswahlAufheben")}
           className="ml-auto size-8"
         >
           <X className="size-3.5" />

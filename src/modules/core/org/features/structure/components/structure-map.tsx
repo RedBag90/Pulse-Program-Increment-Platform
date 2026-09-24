@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -79,6 +80,7 @@ function StreamLane({
   showInvest: boolean;
   showRun: boolean;
 }) {
+  const t = useTranslations();
   const artCount = vs.arts.length;
   const columns: LaneColumn[] = vs.arts.map((art) => ({
     key: art.id,
@@ -124,9 +126,7 @@ function StreamLane({
         </>
       }
       columns={columns}
-      empty={
-        <p className="p-4 text-xs text-muted-foreground">Noch kein ART in diesem Wertstrom.</p>
-      }
+      empty={<p className="p-4 text-xs text-muted-foreground">{t("org.ui.nochKeinArtIn")}</p>}
     />
   );
 }
@@ -142,6 +142,7 @@ function ArtColumn({
   showInvest: boolean;
   showRun: boolean;
 }) {
+  const t = useTranslations();
   return (
     <>
       {/* Dieselbe Grammatik wie die Bahn-Kopfleiste: Name, dann das Typwort mit
@@ -167,7 +168,7 @@ function ArtColumn({
 
       {art.solutions.length === 0 ? (
         <p className="rounded-md border border-dashed bg-warning-surface/40 px-2 py-3.5 text-center text-meta text-warning">
-          keine Solution
+          {t("org.ui.keineSolution")}
         </p>
       ) : (
         art.solutions.map((s) => (
@@ -200,9 +201,10 @@ function LooseColumn({
   showInvest: boolean;
   showRun: boolean;
 }) {
+  const t = useTranslations();
   return (
     <>
-      <p className="text-xs font-semibold text-muted-foreground">Ohne ART</p>
+      <p className="text-xs font-semibold text-muted-foreground">{t("org.ui.ohneArt")}</p>
       {solutions.map((s) => (
         <SolutionTile
           key={s.id}
@@ -227,6 +229,7 @@ function SolutionTile({
   showInvest: boolean;
   showRun: boolean;
 }) {
+  const t = useTranslations();
   const tone = solution.horizon ? HORIZON_BADGE_CLASS[solution.horizon] : null;
   return (
     <Link
@@ -250,7 +253,7 @@ function SolutionTile({
           {solution.name}
         </span>
         <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
-          Solution
+          {t("org.ui.solution")}
         </span>
         <span
           className={cn(
@@ -261,7 +264,7 @@ function SolutionTile({
           <span
             className={cn("size-1.5 rounded-full", tone ? tone.dot : "bg-muted-foreground/50")}
           />
-          {solution.statusLabel}
+          {t(solution.statusLabelKey)}
         </span>
       </span>
       <StructureFigures

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type {
@@ -25,6 +26,7 @@ const btn =
  * schreibt die geänderten Zeilen; „Einreichen" (nur Sprecher) schließt ab.
  */
 export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
+  const t = useTranslations();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [amounts, setAmounts] = useState<Record<string, string>>(() =>
@@ -83,15 +85,17 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
           {model.deadline && (
             <span className="text-xs text-muted-foreground">
               Deadline: {model.deadline.toLocaleDateString("de-DE")}
-              {model.deadlinePassed && <span className="ml-1 text-destructive">· verstrichen</span>}
+              {model.deadlinePassed && (
+                <span className="ml-1 text-destructive">{t("budgeting.period.verstrichen")}</span>
+              )}
             </span>
           )}
         </div>
         <div className="mt-2 grid grid-cols-3 gap-3 text-xs">
-          <Stat label="Verteilbar" value={EUR(model.distributable)} />
-          <Stat label="Verteilt" value={EUR(total)} />
+          <Stat label={t("budgeting.period.verteilbar")} value={EUR(model.distributable)} />
+          <Stat label={t("budgeting.period.verteilt")} value={EUR(total)} />
           <Stat
-            label="Rest"
+            label={t("budgeting.period.rest")}
             value={EUR(remaining)}
             className={over ? "text-destructive" : "text-success"}
           />
@@ -106,7 +110,7 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
 
       {model.submitted && (
         <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
-          Diese Gruppe hat ihre Verteilung eingereicht.
+          {t("budgeting.period.dieseGruppeHatIhre")}
         </p>
       )}
 
@@ -148,7 +152,7 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
             {c.info && c.info.rows.length > 0 && (
               <details className="text-xs text-muted-foreground">
                 <summary className="cursor-pointer select-none">
-                  Budget-Info
+                  {t("budgeting.period.budgetInfo")}
                   <span className="ml-1 text-muted-foreground/70">
                     · {pbSourceLabel(c.info.source)}
                   </span>
@@ -165,7 +169,9 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
         empty="Noch keine Kandidaten — die Runde ist nicht gestartet."
       />
       {over && (
-        <p className="text-sm text-destructive">Die Summe überschreitet den verteilbaren Topf.</p>
+        <p className="text-sm text-destructive">
+          {t("budgeting.period.dieSummeUeberschreitetDen")}
+        </p>
       )}
       {error && <p className="text-sm text-destructive">{error}</p>}
 
@@ -181,7 +187,7 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
               disabled={pending || over}
               className="rounded-md bg-success px-3 py-1.5 text-sm font-medium text-background hover:bg-success/90 disabled:opacity-50"
             >
-              Einreichen
+              {t("budgeting.period.einreichen")}
             </button>
           )}
         </div>

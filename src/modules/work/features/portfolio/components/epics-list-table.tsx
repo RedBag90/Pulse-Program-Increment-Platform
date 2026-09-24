@@ -1,10 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Inbox } from "lucide-react";
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
-import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
+import { STAGE_GATE_KEYS } from "@/components/detail/initiative-labels";
 import { STICKY_THEAD } from "@/components/ui/table-chrome";
 import { EmptyState } from "@/components/ui/empty-state";
 import { EpicListRowComponent } from "@/modules/work/features/portfolio/components/epic-list-row";
@@ -49,12 +50,13 @@ export function EpicsListTable({
   onToggleSelect,
   onToggleSelectAll,
 }: Props) {
+  const t = useTranslations();
   if (rows.length === 0) {
     return (
       <EmptyState
         icon={<Inbox className="size-6" />}
-        title="Keine Epics gefunden"
-        body="Für diese Filter gibt es nichts zu zeigen. Passe die Auswahl an — oder lege ein neues Epic an."
+        title={t("work.epic.keineEpicsGefunden")}
+        body={t("work.epic.fuerDieseFilterGibt")}
       />
     );
   }
@@ -78,17 +80,17 @@ export function EpicsListTable({
                   checked={allVisibleSelected}
                   onChange={() => onToggleSelectAll?.(rows.map((r) => r.id))}
                   className="size-4 rounded-sm border-border"
-                  aria-label="Alle sichtbaren auswählen"
+                  aria-label={t("work.epic.alleSichtbarenAuswaehlen")}
                 />
               </th>
             )}
-            <th className="py-2 pr-3 text-left">Titel</th>
-            {!compact && <th className="py-2 pr-3 text-left">Owner</th>}
-            {!compact && <th className="py-2 pr-3 text-left">Wertstrom</th>}
-            {!compact && <th className="py-2 pr-3 text-right">Kosten</th>}
-            {!compact && <th className="py-2 pr-3 text-right">Nutzen</th>}
-            {!compact && <th className="py-2 pr-3 text-left">KPIs</th>}
-            <th className="py-2 pl-2 pr-3 text-right">Aktionen</th>
+            <th className="py-2 pr-3 text-left">{t("work.epic.titel")}</th>
+            {!compact && <th className="py-2 pr-3 text-left">{t("work.epic.owner")}</th>}
+            {!compact && <th className="py-2 pr-3 text-left">{t("work.epic.wertstrom")}</th>}
+            {!compact && <th className="py-2 pr-3 text-right">{t("work.epic.kosten")}</th>}
+            {!compact && <th className="py-2 pr-3 text-right">{t("work.epic.nutzen")}</th>}
+            {!compact && <th className="py-2 pr-3 text-left">{t("work.epic.kpis")}</th>}
+            <th className="py-2 pl-2 pr-3 text-right">{t("work.epic.aktionen")}</th>
           </tr>
         </thead>
         {group === "flat" ? (
@@ -137,6 +139,7 @@ function StageGroupedBody({
   onToggleSelect,
   compact,
 }: StageGroupProps) {
+  const t = useTranslations();
   // Open gates that hold filtered rows by default; collapse empty ones.
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(STAGE_GATES.map((g) => [g, rows.some((r) => r.stageGate === g)])),
@@ -169,7 +172,7 @@ function StageGroupedBody({
                     <ChevronRight className="size-4 text-muted-foreground" />
                   )}
                   <span className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                    {STAGE_GATE_LABELS[gate] ?? gate}
+                    {t(STAGE_GATE_KEYS[gate] ?? gate)}
                   </span>
                   <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-meta font-medium tabular-nums text-muted-foreground">
                     {gateRows.length}
@@ -180,7 +183,7 @@ function StageGroupedBody({
             {isOpen && gateRows.length === 0 && (
               <tr className="border-b">
                 <td colSpan={colCount} className="py-2 pl-9 text-meta text-muted-foreground">
-                  Keine Epics in diesem Gate
+                  {t("work.epic.keineEpicsInDiesem")}
                 </td>
               </tr>
             )}

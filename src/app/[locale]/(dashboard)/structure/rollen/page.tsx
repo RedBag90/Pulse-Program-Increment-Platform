@@ -1,3 +1,5 @@
+import type { Translate } from "@/i18n/translate";
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
@@ -22,7 +24,7 @@ import {
 } from "@/modules/core/org/features/structure/components/role-directory-view";
 import { listGateApproverRules } from "@/modules/work/server/services/stage-gate-transition";
 import { resolveGatePolicy, type GateApproverRole } from "@/modules/work/domain/gate-policy";
-import { GATE_STEPS, gateStepNumber } from "@/modules/work/domain/stage-gate";
+import { GATE_STEPS, gateStepNumberKey } from "@/modules/work/domain/stage-gate";
 
 /**
  * **Die Rollenverteilung** — wer ist in diesem Mandanten wofür benannt, und wer
@@ -64,6 +66,8 @@ const ROLE_TO_DUTY: Partial<Record<GateApproverRole, DutyKey>> = {
 function gateDutiesOf(
   valueStreamIds: readonly string[],
   rules: Awaited<ReturnType<typeof listGateApproverRules>>,
+  /** Die Marken sind Anzeigetext — reine Funktion, also hereingereicht. */
+  t: Translate,
 ): GateDuties {
   const out: GateDuties = {};
   for (const vsId of valueStreamIds) {
@@ -78,7 +82,7 @@ function gateDutiesOf(
         // `GateDuties` traegt reine Anzeigetexte — der rohe Schluessel stand
         // hier bis September 2026 buchstaeblich in der Zeile („L1 analysis L2
         // L3"), ein englisches Wort in einer deutschen Oberflaeche.
-        const mark = gateStepNumber(gate);
+        const mark = t(gateStepNumberKey(gate));
         // Der Wertstrom-Platzhalter und die gleichnamige Epic-Partei treffen
         // dieselbe Person — das Tor soll trotzdem nur einmal dastehen.
         if (!list.includes(mark)) list.push(mark);
@@ -90,6 +94,7 @@ function gateDutiesOf(
 }
 
 export default async function RollenPage() {
+  const t = await getTranslations();
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
@@ -108,6 +113,7 @@ export default async function RollenPage() {
     gateDutiesOf(
       tree.map((vs) => vs.id),
       rules,
+      t,
     ),
   );
 
@@ -168,13 +174,9 @@ export default async function RollenPage() {
   return (
     <Page>
       <PageHeader
-        eyebrow="Struktur"
-        title="Rollenverteilung"
-        subtitle={
-          canEditAnything
-            ? "Wer ist wofür benannt — und wen frage ich womit. Ein Klick auf eine Zeile benennt."
-            : "Wer ist wofür benannt — und wen frage ich womit."
-        }
+        eyebrow={t("org.page.struktur")}
+        title={t("org.page.rollenverteilung")}
+        subtitle={canEditAnything ? t("org.page.rolesSubtitleEdit") : t("org.page.rolesSubtitle")}
       />
 
       {/*
@@ -184,19 +186,20 @@ export default async function RollenPage() {
         große Zahl und übersähe genau das.
       */}
       <StatStrip>
-        <Stat label="Personen benannt" value={stats.people} />
+        <Stat label={t("org.page.personenBenannt")} value={stats.people} />
         <Stat
-          label="Plätze offen"
+          label={t("org.page.plaetzeOffen")}
           value={stats.unfilled}
           {...(stats.unfilled > 0 && {
             valueClassName: "text-warning",
           })}
         />
-        <Stat label="Wertströme" value={stats.streams} />
+        <Stat label={t("org.page.wertstroeme")} value={stats.streams} />
       </StatStrip>
 
       <p className="max-w-[var(--reading-max-w)] text-sm text-muted-foreground">
-        Das sind <strong className="font-medium text-foreground">Benennungen</strong>, keine
+        {t("org.page.dasSind")}{" "}
+        <strong className="font-medium text-foreground">{t("org.page.benennungen")}</strong>, keine
         App-Rollen: eine Rolle sagt, was jemand darf, eine Benennung sagt, wen man fragt. Niemand
         muss eine Rolle tragen, um benannt zu werden. Auf Portfolio-Ebene steht niemand — über dem
         Wertstrom gibt es in Pulse keine namentliche Benennung.

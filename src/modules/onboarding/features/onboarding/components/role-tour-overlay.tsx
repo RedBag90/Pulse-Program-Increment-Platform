@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ function readViewport() {
 }
 
 export function RoleTourOverlay({ role, steps, onFinish }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const [index, setIndex] = useState(0);
@@ -230,12 +232,12 @@ export function RoleTourOverlay({ role, steps, onFinish }: Props) {
 
         <div className="mt-4 flex items-center justify-between gap-2">
           <Button variant="ghost" size="sm" onClick={abort}>
-            Tour beenden
+            {t("onboarding.ui.tourBeenden")}
           </Button>
           <div className="flex gap-2">
             {index > 0 && (
               <Button variant="ghost" size="sm" onClick={() => setIndex((i) => i - 1)}>
-                Zurück
+                {t("onboarding.ui.zurueck")}
               </Button>
             )}
             <Button size="sm" onClick={goNext}>

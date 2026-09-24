@@ -46,7 +46,7 @@ export type FeatureType = (typeof FEATURE_TYPES)[number];
 export {
   HORIZONS,
   isHorizon,
-  HORIZON_LABEL,
+  HORIZON_KEYS,
   HORIZON_HELP,
   CONCEPT_HELP,
   type Horizon,
@@ -73,15 +73,15 @@ export const stationsOf = (h: Horizon): Station[] =>
 export const horizonOfStation = (st: Station): Horizon =>
   st === "h1.1" || st === "h1.2" ? "h1" : (st as Horizon);
 
-export const EPIC_TYPE_LABEL: Record<EpicType, string> = {
-  epic: "Epic",
-  enabler: "Enabler",
+export const EPIC_TYPE_KEYS: Record<EpicType, string> = {
+  epic: "work.epicType.epic",
+  enabler: "work.epicType.enabler",
 };
 
-export const FEATURE_TYPE_LABEL: Record<FeatureType, string> = {
-  feature: "Feature",
-  enabler: "Enabler",
-  maintenance: "Maintenance",
+export const FEATURE_TYPE_KEYS: Record<FeatureType, string> = {
+  feature: "work.featureType.feature",
+  enabler: "work.featureType.enabler",
+  maintenance: "work.featureType.maintenance",
 };
 
 export const isEpicType = makeTypeGuard(EPIC_TYPES);
@@ -95,10 +95,10 @@ export const isFeatureType = makeTypeGuard(FEATURE_TYPES);
 export const CAPACITY_BUCKETS = ["business", "enabler", "maintenance"] as const;
 export type CapacityBucket = (typeof CAPACITY_BUCKETS)[number];
 
-export const CAPACITY_BUCKET_LABEL: Record<CapacityBucket, string> = {
-  business: "Business-Features",
-  enabler: "Enabler-Features",
-  maintenance: "Maintenance-Features",
+export const CAPACITY_BUCKET_KEYS: Record<CapacityBucket, string> = {
+  business: "work.capacityBucket.business",
+  enabler: "work.capacityBucket.enabler",
+  maintenance: "work.capacityBucket.maintenance",
 };
 
 /**
@@ -400,10 +400,10 @@ export function validateGuardrailTargets(t: GuardrailTargets): {
 /** Woher ein Ziel-Set stammt — wird angezeigt, damit Vererbung sichtbar ist. */
 export type GuardrailTargetsSource = "value_stream" | "tenant" | "code_default";
 
-export const GUARDRAIL_SOURCE_LABELS: Record<GuardrailTargetsSource, string> = {
-  value_stream: "Wertstrom-Regel",
-  tenant: "Tenant-Default",
-  code_default: "Standard",
+export const GUARDRAIL_SOURCE_KEYS: Record<GuardrailTargetsSource, string> = {
+  value_stream: "work.guardrailSource.valueStream",
+  tenant: "work.guardrailSource.tenant",
+  code_default: "work.guardrailSource.codeDefault",
 };
 
 export interface ResolvedGuardrailTargets {

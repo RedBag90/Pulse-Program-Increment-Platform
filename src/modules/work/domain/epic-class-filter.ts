@@ -8,7 +8,7 @@
  * wissen, was die ARTs beitragen.
  */
 
-import { EPIC_CLASS_LABELS, type EpicClass } from "@/modules/work/domain/pb-submission";
+import { type EpicClass } from "@/modules/work/domain/pb-submission";
 
 /** Die Primär-Solution eines Epics — der Sammelpunkt der Zusammenfassung. */
 export interface SolutionRef {
@@ -33,14 +33,23 @@ export function isClassShown(cls: EpicClass | null, selected: readonly string[])
 }
 
 /**
- * Wie die zusammengefasste Menge heißt — `null`, wenn nichts verborgen ist
- * (keine Auswahl, oder beide Klassen gewählt).
+ * Wie die zusammengefasste Menge heißt — als **Schlüssel**, `null`, wenn
+ * nichts verborgen ist (keine Auswahl, oder beide Klassen gewählt).
+ *
+ * Bis September 2026 gab die Funktion einen fertigen Satz zurück: sie hängte
+ * an jedes Etikett ein `s` und verband die Teile mit `" und "`. Beides war
+ * deutsch fest verdrahtet — und schon im Deutschen falsch, denn
+ * „Portfolio-Epics" ist ein englischer Plural.
+ *
+ * Beim Umbau fiel auf, dass das Bindewort **nie** gebraucht wurde: es gibt
+ * zwei Klassen, und verborgen ist genau dann etwas, wenn eine davon gewählt
+ * ist — dann ist die andere verborgen, eine einzige. Die Liste war eine
+ * Vorkehrung für einen Fall, den die Funktion selbst ausschliesst. Jetzt ein
+ * Schlüssel oder keiner.
  */
-export function hiddenClassLabel(selected: readonly string[]): string | null {
-  if (selected.length === 0) return null;
-  const hidden = (["portfolio", "art"] as const).filter((c) => !selected.includes(c));
-  if (hidden.length === 0) return null;
-  return hidden.map((c) => `${EPIC_CLASS_LABELS[c]}s`).join(" und ");
+export function hiddenClassKey(selected: readonly string[]): string | null {
+  const hidden = hiddenClass(selected);
+  return hidden ? `work.epicClassPlural.${hidden}` : null;
 }
 
 /** Die Klasse, die zusammengefasst wird — treibt die Einfärbung (REQ-9). */

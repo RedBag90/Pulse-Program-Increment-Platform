@@ -31,10 +31,10 @@ export function rtbIntervalOrDefault(s: string | null | undefined): RtbInterval 
   return isRtbInterval(s) ? s : "half_yearly";
 }
 
-export const RTB_INTERVAL_LABELS: Record<RtbInterval, string> = {
-  monthly: "monatlich",
-  half_yearly: "je Halbjahr",
-  yearly: "jährlich",
+export const RTB_INTERVAL_KEYS: Record<RtbInterval, string> = {
+  monthly: "budgeting.rtbInterval.monthly",
+  half_yearly: "budgeting.rtbInterval.yearly",
+  yearly: "budgeting.rtbInterval.yearly",
 };
 
 /** Wie oft die Periode in ein Jahr passt. */

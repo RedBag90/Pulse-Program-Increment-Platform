@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import {
   roadmapAxis,
@@ -54,6 +55,7 @@ export function CockpitRoadmap({
   artId,
   canLinkDependency,
 }: Props) {
+  const t = useTranslations();
   const [edgeAnchor, setEdgeAnchor] = useState<EdgeAnchor | null>(null);
   const [addAnchor, setAddAnchor] = useState<AddAnchor | null>(null);
   const { error, callLink, callUnlink, callChangeType } = useDependencyEdgeEditing(
@@ -86,7 +88,9 @@ export function CockpitRoadmap({
   if (!featureWithRange) {
     return (
       <div className="grid h-[300px] place-items-center rounded-lg border bg-muted/10">
-        <p className="text-sm text-muted-foreground">Keine terminierten Features im Scope.</p>
+        <p className="text-sm text-muted-foreground">
+          {t("drumbeat.ui.keineTerminiertenFeaturesIm")}
+        </p>
       </div>
     );
   }

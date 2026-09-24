@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Target, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -39,6 +40,7 @@ function GoalBar({ progress, sub = false }: { progress: number; sub?: boolean })
  * niemand gefragt hat.
  */
 export function StrategicBlock({ data }: { data: PortfolioOverview }) {
+  const t = useTranslations();
   // In-flight = offen (on_track/at_risk/off_track) oder noch ohne Check-in
   // (null). Geschlossene Ziele (achieved/partial/missed/dropped) verschwinden
   // aus der Karte. Muss zum Builder-Prädikat `isInFlight = !isClosed` passen.
@@ -50,14 +52,14 @@ export function StrategicBlock({ data }: { data: PortfolioOverview }) {
     <Card className="space-y-3 p-4">
       <div className="flex items-center gap-2">
         <Target className="size-4 text-primary" />
-        <SectionLabel>Strategischer Bezug</SectionLabel>
+        <SectionLabel>{t("work.overview.strategischerBezug")}</SectionLabel>
       </div>
 
       {activeGoals.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Noch keine aktiven Ziele hinterlegt.{" "}
           <Link href="/ziele" className="text-primary hover:underline">
-            Ziele anlegen →
+            {t("work.overview.zieleAnlegen")}
           </Link>
         </p>
       ) : (
@@ -120,7 +122,7 @@ export function StrategicBlock({ data }: { data: PortfolioOverview }) {
         href="/ziele"
         className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
       >
-        Ziele <ArrowRight className="size-3" />
+        {t("work.overview.ziele")} <ArrowRight className="size-3" />
       </Link>
     </Card>
   );

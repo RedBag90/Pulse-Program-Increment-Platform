@@ -1,3 +1,7 @@
+import { useLocale } from "next-intl";
+import { formatDate } from "@/lib/formatting";
+import { isLocale, routing } from "@/i18n/routing";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import type {
   MyBudgetingTask,
@@ -22,12 +26,15 @@ export function BudgetingTasksSection({
   /** ARTs, deren Budget steht und noch nicht verteilt ist. */
   funding?: MyArtFundingTask[];
 }) {
+  const t = useTranslations();
+  const roh = useLocale();
+  const locale = isLocale(roh) ? roh : routing.defaultLocale;
   if (tasks.length === 0 && funding.length === 0) return null;
 
   return (
     <section className="space-y-2">
       <h2 className="text-sm font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        Budgeting
+        {t("budgeting.ui.budgeting")}
       </h2>
       <ul className="mt-2 space-y-2">
         {funding.map((f) => (
@@ -38,36 +45,38 @@ export function BudgetingTasksSection({
             <div className="text-sm">
               <span className="font-medium">💶 {f.artName}</span> — der ART-Rahmen für{" "}
               <span className="font-medium">{f.cycleLabel}</span> steht:{" "}
-              <span className="font-medium tabular-nums">{EUR(f.remaining)}</span> sind noch nicht
-              verteilt.
+              <span className="font-medium tabular-nums">{EUR(f.remaining)}</span>{" "}
+              {t("budgeting.ui.sindNochNichtVerteilt")}
             </div>
             <Link
               href={f.href}
               className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              Budget verteilen →
+              {t("budgeting.ui.budgetVerteilen")}
             </Link>
           </li>
         ))}
-        {tasks.map((t) => (
+        {tasks.map((task) => (
           <li
-            key={t.groupId}
+            key={task.groupId}
             className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-card shadow-card px-4 py-3"
           >
             <div className="text-sm">
-              <span className="font-medium">💰 {t.groupName}</span> verteilt das Budget für{" "}
-              <span className="font-medium">{t.cycleLabel}</span>.
-              {t.deadline && (
+              {t("budgeting.ui.distributesBudgetFor", {
+                group: `💰 ${task.groupName}`,
+                cycle: task.cycleLabel,
+              })}
+              {task.deadline && (
                 <span className="ml-1 text-xs text-muted-foreground">
-                  Deadline: {t.deadline.toLocaleDateString("de-DE")}
+                  {t("budgeting.ui.deadline", { date: formatDate(task.deadline, "date", locale) })}
                 </span>
               )}
             </div>
             <Link
-              href={t.href}
+              href={task.href}
               className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              Budget verteilen →
+              {t("budgeting.ui.budgetVerteilen")}
             </Link>
           </li>
         ))}

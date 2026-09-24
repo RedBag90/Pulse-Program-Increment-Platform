@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { Link } from "@/i18n/navigation";
@@ -105,6 +107,7 @@ export default async function BudgetingValueStreamPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ tab?: string; cycle?: string; art?: string }>;
 }) {
+  const t = await getTranslations();
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
@@ -195,7 +198,7 @@ export default async function BudgetingValueStreamPage({
       tabQuery={{ cycle: cycleKey }}
       headerActions={
         zeigtHalbjahr ? (
-          <nav className="flex items-center gap-1" aria-label="Halbjahr">
+          <nav className="flex items-center gap-1" aria-label={t("budgeting.page.halbjahr")}>
             {cycles.map((c) => (
               <Link
                 key={c.key}
@@ -637,12 +640,13 @@ async function KpiTab({
   /** Ohne Wertstrom-Recht entfällt die Summenzeile — wie in „Nachsehen" (REQ-3). */
   showTotals: boolean;
 }) {
+  const t = useTranslations();
   if (arts.length === 0) {
     return (
       <SectionCard title={`Wofür · eingeplant · ${halfYearLabel(cycleKey)}`}>
         <EmptyState
-          title="Noch kein ART"
-          body="Die Rechnung „Last gegen Deckung“ wird je ART geführt. Ohne ART gibt es nichts zu decken."
+          title={t("budgeting.page.nochKeinArt")}
+          body={t("budgeting.page.dieRechnungLastGegen")}
         />
       </SectionCard>
     );
@@ -657,8 +661,7 @@ async function KpiTab({
         <ArtCoverageCard key={a.artId} name={a.name} coverage={a.coverage} />
       ))}
       <p className="px-1 text-meta text-muted-foreground">
-        Betrieb zählt in keiner dieser Rechnungen mit — er bezahlt kein Feature. Was an einem ART
-        insgesamt landet, steht in seinem Business Case.
+        {t("budgeting.page.betriebZaehltInKeiner")}
       </p>
     </div>
   );

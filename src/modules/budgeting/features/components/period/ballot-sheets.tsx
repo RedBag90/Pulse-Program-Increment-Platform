@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { formatEUR } from "@/lib/formatting";
 import { CandidateWorksheet } from "@/modules/budgeting/features/components/period/candidate-worksheet";
 
@@ -28,6 +29,7 @@ export interface SheetModel {
  * Bogen an genau der Kachel, aus der er gedruckt wird.
  */
 export function Sheets({ model }: { model: SheetModel }) {
+  const t = useTranslations();
   const groups = model.groups.length > 0 ? model.groups : [{ id: "_", name: "Gruppe" }];
 
   return (
@@ -43,7 +45,7 @@ export function Sheets({ model }: { model: SheetModel }) {
           onClick={() => window.print()}
           className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
-          Drucken
+          {t("budgeting.period.drucken")}
         </button>
       </div>
 
@@ -59,11 +61,11 @@ export function Sheets({ model }: { model: SheetModel }) {
 
           <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
             <div>
-              <dt className="text-gray-500">Topf</dt>
+              <dt className="text-gray-500">{t("budgeting.period.topf")}</dt>
               <dd className="font-semibold tabular-nums">{formatEUR(model.poolTotal)}</dd>
             </div>
             <div>
-              <dt className="text-gray-500">Verteilbar</dt>
+              <dt className="text-gray-500">{t("budgeting.period.verteilbar")}</dt>
               <dd className="font-semibold tabular-nums">{formatEUR(model.distributable)}</dd>
             </div>
           </dl>

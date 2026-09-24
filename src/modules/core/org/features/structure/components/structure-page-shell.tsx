@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useMemo, type ReactNode } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Network } from "lucide-react";
@@ -139,10 +140,11 @@ export function StructurePageShell({
 }
 
 function EmptyPane() {
+  const t = useTranslations();
   return (
     <div className="rounded-lg border border-dashed p-8 text-center">
       <Network className="mx-auto h-6 w-6 text-muted-foreground" />
-      <p className="mt-2 text-sm text-muted-foreground">Wähle einen Knoten aus der Liste.</p>
+      <p className="mt-2 text-sm text-muted-foreground">{t("org.ui.waehleEinenKnotenAus")}</p>
     </div>
   );
 }

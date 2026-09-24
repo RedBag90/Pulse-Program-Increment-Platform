@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { TrendingUp, Lock } from "lucide-react";
 import { kpiOutcome, parsePlanSnapshot } from "@/modules/core/kpi/domain/kpi-outcome";
 import { parseKpiMeasurements } from "@/modules/core/kpi/domain/kpi";
@@ -60,6 +61,7 @@ const emptyBucket = (): Bucket => ({
 });
 
 export function EpicRealizedTile({ kpis, frozenAt = null }: Props) {
+  const t = useTranslations();
   const buckets: Record<BenefitKind, Bucket> = {
     one_time: emptyBucket(),
     recurring: emptyBucket(),
@@ -105,16 +107,20 @@ export function EpicRealizedTile({ kpis, frozenAt = null }: Props) {
       <header className="flex items-baseline gap-2">
         <TrendingUp className="h-4 w-4 shrink-0 text-success" aria-hidden />
         <h3 className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Realisierter Mehrwert
+          {t("work.epic.realisierterMehrwert")}
         </h3>
       </header>
 
       {buckets.one_time.valued > 0 && (
-        <BucketRow label="Einmalig" bucket={buckets.one_time} frozen={frozenAt != null} />
+        <BucketRow
+          label={t("work.epic.einmalig")}
+          bucket={buckets.one_time}
+          frozen={frozenAt != null}
+        />
       )}
       {buckets.recurring.valued > 0 && (
         <BucketRow
-          label="Wiederkehrend p.a."
+          label={t("work.epic.wiederkehrendPA")}
           suffix="/Jahr"
           bucket={buckets.recurring}
           frozen={frozenAt != null}
@@ -135,6 +141,7 @@ function BucketRow({
   bucket: Bucket;
   frozen: boolean;
 }) {
+  const t = useTranslations();
   const { realized, planned, quantityDelta, valueDelta, evaluated, valued } = bucket;
   const ratio = planned > 0 ? Math.max(0, Math.min(1, realized / planned)) : 0;
   const hasPlan = bucket.withPlan > 0;
@@ -148,10 +155,10 @@ function BucketRow({
           {frozen && (
             <span
               className="inline-flex items-center gap-1 text-label"
-              title="Die Umsetzung ist abgenommen (L4.2) — die gelieferte Menge steht fest."
+              title={t("work.epic.dieUmsetzungIstAbgenommen")}
             >
               <Lock className="h-3 w-3" aria-hidden />
-              festgeschrieben
+              {t("work.epic.festgeschrieben")}
             </span>
           )}
         </span>
@@ -166,7 +173,8 @@ function BucketRow({
         </p>
         {planned > 0 && (
           <p className="text-sm text-muted-foreground">
-            von <span className="font-medium">{formatCompactEUR(planned)}</span> Soll
+            {t("work.epic.von")} <span className="font-medium">{formatCompactEUR(planned)}</span>
+            {t("work.epic.soll")}
           </p>
         )}
       </div>
@@ -187,17 +195,15 @@ function BucketRow({
         // Ohne Schnappschuss misst sich der Plan an sich selbst — die Abweichung
         // wäre zwangsläufig null. Das ist etwas anderes als „keine Abweichung"
         // und muss unterscheidbar bleiben.
-        <p className="mt-2 text-label text-warning">
-          Kein Plan-Bezug — festgehalten wird er mit der Freigabe des Business Case (L2 → L3.1).
-        </p>
+        <p className="mt-2 text-label text-warning">{t("work.epic.keinPlanBezugFestgehalten")}</p>
       )}
       {hasPlan && hasDelta && (
         <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-label text-muted-foreground">
-          <dt>Menge (Zielerreichung)</dt>
+          <dt>{t("work.epic.mengeZielerreichung")}</dt>
           <dd className="text-right tabular-nums">
             <Delta value={quantityDelta} suffix={suffix} />
           </dd>
-          <dt>Wert (Umrechnungsfaktor)</dt>
+          <dt>{t("work.epic.wertUmrechnungsfaktor")}</dt>
           <dd className="text-right tabular-nums">
             <Delta value={valueDelta} suffix={suffix} />
           </dd>

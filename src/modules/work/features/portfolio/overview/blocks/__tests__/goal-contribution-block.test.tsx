@@ -44,7 +44,7 @@ const row = (n: number, valueStreamId = "vs1"): ContributionRow => ({
 
 const KEINE_FACETTE: ClassFilterState = {
   selected: [],
-  hiddenLabel: null,
+  hiddenLabelKey: null,
   hiddenClass: null,
   hiddenCount: 0,
 };

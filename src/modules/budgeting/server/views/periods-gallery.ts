@@ -20,7 +20,7 @@ import { periodPhases, phaseSummary } from "@/modules/budgeting/domain/period-ph
 import {
   appliedPeriod,
   periodValidity,
-  PERIOD_VALIDITY_LABEL,
+  PERIOD_VALIDITY_KEYS,
   type PeriodValidity,
 } from "@/modules/budgeting/domain/period-validity";
 import type { RoundStatus } from "@/modules/budgeting/domain/round-status";
@@ -33,7 +33,7 @@ export interface PeriodTile {
   status: string; // draft | running | decided | closed — die **Vorbereitung**
   /** Gilt dieses Budget? Die Hauptaussage der Kachel. */
   validity: PeriodValidity;
-  validityLabel: string;
+  validityLabelKey: string;
   /**
    * `true` = der Zeitraum ist vorbei, die Kachel gilt aber weiter, weil noch
    * keine nächste begonnen hat. Nur an der angewandten Kachel gesetzt.
@@ -109,7 +109,7 @@ function toTile(r: PeriodRoundInput, now: Date): PeriodTile {
     label: halfYearLabel(r.cycleKey),
     status: r.status,
     validity: periodValidity(r, now),
-    validityLabel: PERIOD_VALIDITY_LABEL[periodValidity(r, now)],
+    validityLabelKey: PERIOD_VALIDITY_KEYS[periodValidity(r, now)],
     extended: false,
     upcoming: r.startDate != null && r.startDate.getTime() > now.getTime(),
     poolTotal: r.poolTotal,
@@ -155,7 +155,7 @@ export function buildPeriodsGallery(
   for (const t of tiles) {
     if (applied && t.id === applied.period.id) {
       t.validity = "applied";
-      t.validityLabel = PERIOD_VALIDITY_LABEL.applied;
+      t.validityLabelKey = PERIOD_VALIDITY_KEYS.applied;
       t.extended = applied.extended;
     }
   }

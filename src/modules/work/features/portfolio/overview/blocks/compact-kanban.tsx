@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { ArrowRight, Flag } from "lucide-react";
@@ -57,6 +58,7 @@ const CELL_LIMIT = 4;
  * sie zählen weiter alle Epics der Spalte.
  */
 export function CompactKanban({ data }: { data: PortfolioOverview }) {
+  const t = useTranslations();
   return (
     <section className="space-y-2" data-tour="portfolio-kanban">
       <div className="flex items-center justify-between">
@@ -67,7 +69,7 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
           href="/portfolio/epics"
           className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
         >
-          Im Editor öffnen <ArrowRight className="size-3" />
+          {t("work.overview.imEditorOeffnen")} <ArrowRight className="size-3" />
         </Link>
       </div>
 
@@ -185,20 +187,24 @@ function FlatRow({ data }: { data: PortfolioOverview }) {
 
 /** Drei Budget-Werte des laufenden Zyklus unter dem Horizont-Badge. */
 function HorizonBudget({ budget }: { budget: HorizonBudgetFigures }) {
+  const t = useTranslations();
   return (
     <div className="leading-tight">
-      <p className="text-xs font-semibold tabular-nums" title="Budgetiert (laufender Zyklus)">
+      <p
+        className="text-xs font-semibold tabular-nums"
+        title={t("work.overview.budgetiertLaufenderZyklus")}
+      >
         {formatCompactEUR(budget.budgetiert)}
       </p>
       <p
         className="text-label tabular-nums text-muted-foreground"
-        title="Davon in Umsetzung (Implementing / L4)"
+        title={t("work.overview.davonInUmsetzungImplementing")}
       >
         ▸ Umsetzung {formatCompactEUR(budget.umsetzung)}
       </p>
       <p
         className="text-label tabular-nums text-muted-foreground"
-        title="Davon umgesetzt (Done / L5)"
+        title={t("work.overview.davonUmgesetztDoneL")}
       >
         ✓ umgesetzt {formatCompactEUR(budget.umgesetzt)}
       </p>
@@ -318,6 +324,7 @@ function SolutionCard({ rollup, cls }: { rollup: SolutionRollup; cls: EpicClass 
 }
 
 function KanbanCard({ epic }: { epic: OverviewEpicCard }) {
+  const t = useTranslations();
   return (
     <li
       className={cn(
@@ -330,7 +337,7 @@ function KanbanCard({ epic }: { epic: OverviewEpicCard }) {
         {epic.needsSteeringAttention && (
           <Flag
             className="size-3 shrink-0 text-amber-600 dark:text-amber-400"
-            aria-label="Steering"
+            aria-label={t("work.overview.steering")}
           />
         )}
         <Link

@@ -31,7 +31,7 @@ const item = (n: number): DueSoonItem => ({
 
 const KEINE_FACETTE: ClassFilterState = {
   selected: [],
-  hiddenLabel: null,
+  hiddenLabelKey: null,
   hiddenClass: null,
   hiddenCount: 0,
 };
@@ -122,7 +122,7 @@ describe("DueSoonBlock — Sammelzeilen der Klassen-Facette", () => {
     ];
     const { container } = block([...sichtbar, ...versteckt], {
       selected: ["portfolio"],
-      hiddenLabel: "ART-Epic",
+      hiddenLabelKey: "work.epicClassPlural.art",
       hiddenClass: "art",
       hiddenCount: 1,
     });

@@ -21,10 +21,10 @@
 export const PERIOD_VALIDITIES = ["in_preparation", "applied", "expired"] as const;
 export type PeriodValidity = (typeof PERIOD_VALIDITIES)[number];
 
-export const PERIOD_VALIDITY_LABEL: Record<PeriodValidity, string> = {
-  in_preparation: "In Ausarbeitung",
-  applied: "Angewandtes Budget",
-  expired: "Abgelaufener Budget-Zeitraum",
+export const PERIOD_VALIDITY_KEYS: Record<PeriodValidity, string> = {
+  in_preparation: "budgeting.periodValidity.inPreparation",
+  applied: "budgeting.periodValidity.applied",
+  expired: "budgeting.periodValidity.expired",
 };
 
 /**

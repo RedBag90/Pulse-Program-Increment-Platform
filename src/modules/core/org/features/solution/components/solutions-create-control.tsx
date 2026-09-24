@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -11,6 +12,7 @@ import { CreateSolutionDialog } from "./create-solution-dialog";
  * Aufruf über das „+"-Menü (`?create=solution`), öffnet er automatisch.
  */
 export function SolutionsCreateControl() {
+  const t = useTranslations();
   const params = useSearchParams();
   const [open, setOpen] = useState(false);
 
@@ -22,7 +24,7 @@ export function SolutionsCreateControl() {
     <>
       <Button onClick={() => setOpen(true)}>
         <Plus className="mr-1.5 size-4" />
-        Solution
+        {t("org.ui.solution")}
       </Button>
       <CreateSolutionDialog open={open} onOpenChange={setOpen} />
     </>

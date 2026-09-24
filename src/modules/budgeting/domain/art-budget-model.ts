@@ -30,9 +30,9 @@ export type AllocationSource = "portfolio" | "art";
  * **Rahmen**, aus dem ein ART seine ART-Epics bezahlt, heisst ab jetzt überall
  * „ART-Rahmen" (Spec `art-budget-consolidation.md` §2.5).
  */
-export const ALLOCATION_SOURCE_LABELS: Record<AllocationSource, string> = {
-  portfolio: "Portfolio-Budget",
-  art: "ART-Rahmen",
+export const ALLOCATION_SOURCE_KEYS: Record<AllocationSource, string> = {
+  portfolio: "budgeting.allocationSource.portfolio",
+  art: "budgeting.allocationSource.art",
 };
 
 /**
@@ -48,8 +48,8 @@ export const ALLOCATION_SOURCE_LABELS: Record<AllocationSource, string> = {
  */
 export type UnfundedReason = "ballot";
 
-export const UNFUNDED_REASON_LABELS: Record<UnfundedReason, string> = {
-  ballot: "Auf der PB-Liste ohne Zuteilung geblieben",
+export const UNFUNDED_REASON_KEYS: Record<UnfundedReason, string> = {
+  ballot: "budgeting.unfundedReason.ballot",
 };
 
 export const UNFUNDED_REMEDIES: Record<UnfundedReason, string> = {

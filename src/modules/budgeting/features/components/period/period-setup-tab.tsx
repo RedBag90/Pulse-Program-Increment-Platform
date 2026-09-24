@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { Link } from "@/i18n/navigation";
 import type {
@@ -43,6 +44,7 @@ const day = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : ""
  * steht am Ende und nennt seine Vorbedingung.
  */
 export function PeriodSetupTab({ model }: { model: PeriodDetailModel }) {
+  const t = useTranslations();
   const draft = model.round.status === "draft";
   const r = model.round;
   const staffedGroups = model.groups.filter((g) => g.members.length > 0).length;
@@ -63,7 +65,7 @@ export function PeriodSetupTab({ model }: { model: PeriodDetailModel }) {
     <ol className="divide-y rounded-lg bg-card shadow-card">
       <Step
         n={1}
-        title="Rahmen"
+        title={t("budgeting.period.rahmen")}
         desc="Topf, Zeitraum und Abgabe-Deadline dieser Kachel."
         done={r.poolTotal > 0 && r.startDate != null && r.endDate != null}
         state={draft ? "offen" : "festgeschrieben"}
@@ -73,7 +75,7 @@ export function PeriodSetupTab({ model }: { model: PeriodDetailModel }) {
 
       <Step
         n={2}
-        title="PB-Liste"
+        title={t("budgeting.period.pbListe")}
         desc="Was zur Abstimmung steht: vorgemerkte Epics plus die aktiven Run-the-Business-Positionen, die beim Start dazukommen."
         done={candidates > 0}
         state={
@@ -87,7 +89,7 @@ export function PeriodSetupTab({ model }: { model: PeriodDetailModel }) {
 
       <Step
         n={3}
-        title="Beteiligte & Gruppen"
+        title={t("budgeting.period.beteiligteGruppen")}
         desc="Wer verteilt, und in welcher Gruppe."
         done={staffedGroups > 0}
         state={`${model.participants.length} Beteiligte · ${model.groups.length} Gruppen`}
@@ -101,7 +103,7 @@ export function PeriodSetupTab({ model }: { model: PeriodDetailModel }) {
 
       <Step
         n={4}
-        title="Runde starten"
+        title={t("budgeting.period.rundeStarten")}
         desc="Friert die PB-Liste ein (inklusive der Run-the-Business-Positionen) und schaltet die Gruppen-Verteilung frei."
         done={!draft}
         state={draft ? "ausstehend" : "gestartet"}
@@ -157,20 +159,24 @@ function Step({
 }
 
 function Frame({ model, draft }: { model: PeriodDetailModel; draft: boolean }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(updatePeriodFrameAction, {});
   const r = model.round;
   return (
     <div>
       <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs md:grid-cols-3">
-        <Stat label="Topf" value={EUR(r.poolTotal)} />
-        <Stat label="Verteilbar" value={EUR(model.distributable)} />
-        <Stat label="Zeitraum" value={`${day(r.startDate) || "—"} – ${day(r.endDate) || "—"}`} />
+        <Stat label={t("budgeting.period.topf")} value={EUR(r.poolTotal)} />
+        <Stat label={t("budgeting.period.verteilbar")} value={EUR(model.distributable)} />
+        <Stat
+          label={t("budgeting.period.zeitraum")}
+          value={`${day(r.startDate) || "—"} – ${day(r.endDate) || "—"}`}
+        />
       </dl>
       {draft && model.canManage && (
         <form action={action} className="mt-3 flex flex-wrap items-end gap-2">
           <input type="hidden" name="id" value={r.id} />
           <label className="text-xs">
-            Topf (€)
+            {t("budgeting.period.topf2")}
             <input
               name="poolTotal"
               type="number"
@@ -181,7 +187,7 @@ function Frame({ model, draft }: { model: PeriodDetailModel; draft: boolean }) {
             />
           </label>
           <label className="text-xs">
-            Abgabe-Deadline
+            {t("budgeting.period.abgabeDeadline")}
             <input
               name="submissionDeadline"
               type="date"
@@ -215,6 +221,7 @@ function StartRound({
   /** Epics **und** Run-the-Business-Positionen — siehe `PeriodSetupTab`. */
   candidates: number;
 }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(startPeriodAction, {});
 
   if (!draft) {
@@ -225,7 +232,9 @@ function StartRound({
     );
   }
   if (!model.canManage) {
-    return <p className="text-xs text-muted-foreground">Starten darf, wer die Kachel verwaltet.</p>;
+    return (
+      <p className="text-xs text-muted-foreground">{t("budgeting.period.startenDarfWerDie")}</p>
+    );
   }
 
   const blocked =
@@ -248,6 +257,7 @@ function StartRound({
 }
 
 function PbList({ model, draft }: { model: PeriodDetailModel; draft: boolean }) {
+  const t = useTranslations();
   const [addState, addAction] = useActionState(addEpicCandidateAction, {});
   const [, removeAction] = useActionState(removeCandidateAction, {});
   const all = [...model.epicCandidates, ...model.rtbCandidates];
@@ -270,7 +280,7 @@ function PbList({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
             <form action={removeAction}>
               <input type="hidden" name="id" value={c.id} />
               <button type="submit" className={`${btnGhost} text-destructive`}>
-                entfernen
+                {t("budgeting.period.entfernen")}
               </button>
             </form>
           ) : null
@@ -291,7 +301,7 @@ function PbList({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
         </span>
         {model.rtbIsPreview && model.rtbCandidates.length > 0 && (
           <Link href="/budgeting/run-the-business" className="text-primary hover:underline">
-            Run-the-Business-Positionen pflegen →
+            {t("budgeting.period.runTheBusinessPositionen")}
           </Link>
         )}
       </p>
@@ -300,10 +310,10 @@ function PbList({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
         <form action={addAction} className="mt-3 flex flex-wrap items-end gap-2 border-t pt-3">
           <input type="hidden" name="roundId" value={model.round.id} />
           <label className="text-xs">
-            Epic aufnehmen
+            {t("budgeting.period.epicAufnehmen")}
             <select name="epicId" required defaultValue="" className={`block ${input} w-64`}>
               <option value="" disabled>
-                Budgeting-reifes Epic wählen…
+                {t("budgeting.period.budgetingReifesEpicWaehlen")}
               </option>
               {model.eligibleEpics.map((e) => (
                 <option key={e.id} value={e.id}>
@@ -313,7 +323,7 @@ function PbList({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
             </select>
           </label>
           <button type="submit" className={btnGhost}>
-            + auf die PB-Liste
+            {t("budgeting.period.aufDiePbListe")}
           </button>
           {addState.error && <span className="text-xs text-destructive">{addState.error}</span>}
           {model.artEpicsFilteredOut > 0 && (
@@ -329,13 +339,16 @@ function PbList({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
 }
 
 function Participants({ model, draft }: { model: PeriodDetailModel; draft: boolean }) {
+  const t = useTranslations();
   const [addState, addAction] = useActionState(addParticipantAction, {});
   const [, removeAction] = useActionState(removeParticipantAction, {});
   const participantIds = new Set(model.participants.map((p) => p.userId));
 
   return (
     <div>
-      <h3 className="text-xs font-medium text-muted-foreground">Beteiligte</h3>
+      <h3 className="text-xs font-medium text-muted-foreground">
+        {t("budgeting.period.beteiligte")}
+      </h3>
       <ul className="mt-1.5 flex flex-wrap gap-1.5">
         {model.participants.map((p) => (
           <li
@@ -354,7 +367,9 @@ function Participants({ model, draft }: { model: PeriodDetailModel; draft: boole
           </li>
         ))}
         {model.participants.length === 0 && (
-          <li className="text-xs text-muted-foreground">Noch keine Beteiligten.</li>
+          <li className="text-xs text-muted-foreground">
+            {t("budgeting.period.nochKeineBeteiligten")}
+          </li>
         )}
       </ul>
 
@@ -363,7 +378,7 @@ function Participants({ model, draft }: { model: PeriodDetailModel; draft: boole
           <input type="hidden" name="roundId" value={model.round.id} />
           <select name="userId" required defaultValue="" className={`${input} w-64`}>
             <option value="" disabled>
-              Person (E-Mail) hinzufügen…
+              {t("budgeting.period.personEMailHinzufuegen")}
             </option>
             {model.users
               .filter((u) => !participantIds.has(u.id))
@@ -374,7 +389,7 @@ function Participants({ model, draft }: { model: PeriodDetailModel; draft: boole
               ))}
           </select>
           <button type="submit" className={btnGhost}>
-            + Beteiligte
+            {t("budgeting.period.beteiligte2")}
           </button>
           {addState.error && <span className="text-xs text-destructive">{addState.error}</span>}
         </form>
@@ -384,10 +399,11 @@ function Participants({ model, draft }: { model: PeriodDetailModel; draft: boole
 }
 
 function Groups({ model, draft }: { model: PeriodDetailModel; draft: boolean }) {
+  const t = useTranslations();
   const [addState, addAction] = useActionState(addGroupAction, {});
   return (
     <div>
-      <h3 className="text-xs font-medium text-muted-foreground">Gruppen</h3>
+      <h3 className="text-xs font-medium text-muted-foreground">{t("budgeting.period.gruppen")}</h3>
       <div className="mt-1.5 space-y-3">
         {model.groups.map((g) => (
           <GroupCard key={g.id} group={g} model={model} draft={draft} />
@@ -397,11 +413,16 @@ function Groups({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
         <form action={addAction} className="mt-3 flex items-end gap-2 border-t pt-3">
           <input type="hidden" name="roundId" value={model.round.id} />
           <label className="text-xs">
-            Neue Gruppe
-            <input name="name" required placeholder="z. B. Gruppe A" className={`block ${input}`} />
+            {t("budgeting.period.neueGruppe")}
+            <input
+              name="name"
+              required
+              placeholder={t("budgeting.period.zBGruppeA")}
+              className={`block ${input}`}
+            />
           </label>
           <button type="submit" className={btn}>
-            Gruppe hinzufügen
+            {t("budgeting.period.gruppeHinzufuegen")}
           </button>
           {addState.error && <span className="text-xs text-destructive">{addState.error}</span>}
         </form>
@@ -419,6 +440,7 @@ function Groups({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
  * damit unsichtbar geworden. Sie steht jetzt dort, wo die Gruppen entstehen.
  */
 function GroupCutWarnings({ model }: { model: PeriodDetailModel }) {
+  const t = useTranslations();
   if (model.groups.length === 0) return null;
   const warnings = checkGroupCut(
     model.groups.map((g) => ({ id: g.id, name: g.name, spokespersonId: g.spokespersonId })),
@@ -429,7 +451,7 @@ function GroupCutWarnings({ model }: { model: PeriodDetailModel }) {
   if (warnings.length === 0) {
     return (
       <p className="text-xs text-emerald-700 dark:text-emerald-300">
-        ✓ Der Gruppen-Schnitt ist ausgewogen.
+        {t("budgeting.period.derGruppenSchnittIst")}
       </p>
     );
   }
@@ -451,6 +473,7 @@ function GroupCard({
   model: PeriodDetailModel;
   draft: boolean;
 }) {
+  const t = useTranslations();
   const [, renameAction] = useActionState(updateGroupAction, {});
   const [, spokesAction] = useActionState(updateGroupAction, {});
   const [, delAction] = useActionState(removeGroupAction, {});
@@ -468,7 +491,7 @@ function GroupCard({
             <input type="hidden" name="spokespersonId" value={group.spokespersonId ?? ""} />
             <input name="name" defaultValue={group.name} className={`${input} w-40`} />
             <button type="submit" className={btnGhost}>
-              umbenennen
+              {t("budgeting.period.umbenennen")}
             </button>
           </form>
         ) : (
@@ -478,7 +501,7 @@ function GroupCard({
           <form action={delAction}>
             <input type="hidden" name="id" value={group.id} />
             <button type="submit" className={`${btnGhost} text-destructive`}>
-              Gruppe entfernen
+              {t("budgeting.period.gruppeEntfernen")}
             </button>
           </form>
         )}
@@ -487,13 +510,13 @@ function GroupCard({
       {draft && model.canManage && (
         <form action={spokesAction} className="mt-2 flex items-center gap-1.5">
           <input type="hidden" name="id" value={group.id} />
-          <label className="text-xs text-muted-foreground">Sprecher</label>
+          <label className="text-xs text-muted-foreground">{t("budgeting.period.sprecher")}</label>
           <select
             name="spokespersonId"
             defaultValue={group.spokespersonId ?? ""}
             className={`${input} w-56`}
           >
-            <option value="">— kein Sprecher —</option>
+            <option value="">{t("budgeting.period.keinSprecher")}</option>
             {group.members.map((m) => (
               <option key={m.id} value={m.userId}>
                 {m.label}
@@ -501,7 +524,7 @@ function GroupCard({
             ))}
           </select>
           <button type="submit" className={btnGhost}>
-            setzen
+            {t("budgeting.period.setzen")}
           </button>
         </form>
       )}
@@ -513,10 +536,12 @@ function GroupCard({
               {m.label}
               {group.spokespersonId === m.userId && (
                 <span className="ml-1 rounded-sm bg-violet-100 px-1 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
-                  Sprecher
+                  {t("budgeting.period.sprecher")}
                 </span>
               )}
-              {m.hasRead && <span className="ml-1 text-success">✓ gelesen</span>}
+              {m.hasRead && (
+                <span className="ml-1 text-success">{t("budgeting.period.gelesen")}</span>
+              )}
             </span>
             {draft && model.canManage && (
               <form action={delMemberAction}>
@@ -529,7 +554,9 @@ function GroupCard({
           </li>
         ))}
         {group.members.length === 0 && (
-          <li className="text-xs text-muted-foreground">Noch keine Mitglieder.</li>
+          <li className="text-xs text-muted-foreground">
+            {t("budgeting.period.nochKeineMitglieder")}
+          </li>
         )}
       </ul>
 
@@ -538,7 +565,7 @@ function GroupCard({
           <input type="hidden" name="groupId" value={group.id} />
           <select name="userId" required defaultValue="" className={`${input} w-56`}>
             <option value="" disabled>
-              Beteiligte zuweisen…
+              {t("budgeting.period.beteiligteZuweisen")}
             </option>
             {model.participants
               .filter((p) => !memberUserIds.has(p.userId))
@@ -549,7 +576,7 @@ function GroupCard({
               ))}
           </select>
           <button type="submit" className={btnGhost}>
-            + Mitglied
+            {t("budgeting.period.mitglied")}
           </button>
           {memberState.error && (
             <span className="text-xs text-destructive">{memberState.error}</span>

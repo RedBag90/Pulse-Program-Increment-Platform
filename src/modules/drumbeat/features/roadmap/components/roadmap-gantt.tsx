@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@/i18n/navigation";
 import {
@@ -8,7 +9,7 @@ import {
   type RoadmapRow,
   type RoadmapRowAccent,
 } from "@/modules/work/domain/roadmap";
-import { DEPENDENCY_TYPE_LABELS } from "@/modules/drumbeat/domain/status";
+import { DEPENDENCY_TYPE_KEYS } from "@/modules/drumbeat/domain/status";
 
 // RoadmapRow now lives in the domain roadmap view-model; re-exported so existing
 // importers of the component keep working.
@@ -70,7 +71,7 @@ const EDGE_DASH: Record<GanttDependencyType, string | undefined> = {
 };
 
 // Ein Dependency-Vokabular (SSOT `domain/status`): kein „haengt ab" mehr.
-const EDGE_LABEL = DEPENDENCY_TYPE_LABELS;
+const EDGE_LABEL = DEPENDENCY_TYPE_KEYS;
 
 const HIGHLIGHT_OPACITY = 1;
 const DIM_OPACITY = 0.45;
@@ -101,6 +102,7 @@ export function RoadmapGantt({
   onDependencyClick,
   onAddDependencyFrom,
 }: Props) {
+  const t = useTranslations();
   const [hoverRowId, setHoverRowId] = useState<string | null>(null);
 
   const trackWidth = axis.months.length * MONTH_PX;
@@ -189,7 +191,7 @@ export function RoadmapGantt({
   }, [offScopeByFeature]);
 
   if (rows.length === 0) {
-    return <p className="text-sm text-muted-foreground">Keine Einträge.</p>;
+    return <p className="text-sm text-muted-foreground">{t("drumbeat.ui.noEntries")}</p>;
   }
 
   return (
@@ -206,11 +208,11 @@ export function RoadmapGantt({
               text-muted-foreground"
             style={{ width: LABEL_W }}
           >
-            <span>Eintrag</span>
+            <span>{t("drumbeat.ui.entry")}</span>
             {dependencies !== undefined && (
               <span
                 className="text-label font-normal text-muted-foreground/80"
-                title="Dependencies im aktuellen Scope"
+                title={t("drumbeat.ui.depsInScope")}
               >
                 {renderableDeps.length === 0 && offScopeCount === 0
                   ? "keine Deps"
@@ -238,7 +240,7 @@ export function RoadmapGantt({
                 style={{ left: `calc(${todayPct}% + 4px)` }}
                 title={`Heute · ${todayLabel}`}
               >
-                Heute
+                {t("drumbeat.ui.today")}
               </div>
             )}
           </div>
@@ -403,7 +405,7 @@ export function RoadmapGantt({
                         width: 14,
                         height: 14,
                       }}
-                      title="Dependency anlegen"
+                      title={t("drumbeat.ui.newDependency")}
                     >
                       +
                     </button>
@@ -427,10 +429,10 @@ export function RoadmapGantt({
               }}
             >
               <defs>
-                {(["blocks", "depends_on", "relates_to"] as GanttDependencyType[]).map((t) => (
+                {(["blocks", "depends_on", "relates_to"] as GanttDependencyType[]).map((typ) => (
                   <marker
-                    key={`marker-${t}`}
-                    id={`gantt-arrow-${t}`}
+                    key={`marker-${typ}`}
+                    id={`gantt-arrow-${typ}`}
                     viewBox="0 0 8 8"
                     refX="7"
                     refY="4"
@@ -438,14 +440,14 @@ export function RoadmapGantt({
                     markerHeight="8"
                     orient="auto-start-reverse"
                   >
-                    <path d="M 0 0 L 8 4 L 0 8 z" fill={EDGE_COLOR[t]} />
+                    <path d="M 0 0 L 8 4 L 0 8 z" fill={EDGE_COLOR[typ]} />
                   </marker>
                 ))}
               </defs>
               {renderableDeps.map((d) => {
                 const s = rowMeta.barById.get(d.fromId)!;
-                const t = rowMeta.barById.get(d.toId)!;
-                const path = elbowPath(s, t);
+                const ziel = rowMeta.barById.get(d.toId)!;
+                const path = elbowPath(s, ziel);
                 const highlighted = hoverRowId === d.fromId || hoverRowId === d.toId;
                 const opacity =
                   hoverRowId === null
@@ -478,7 +480,7 @@ export function RoadmapGantt({
                       cursor: clickable ? "pointer" : undefined,
                     }}
                   >
-                    <title>{`${EDGE_LABEL[d.type]}`}</title>
+                    <title>{t(EDGE_LABEL[d.type])}</title>
                   </path>
                 );
               })}
@@ -498,8 +500,9 @@ interface OffScopeMarkerProps {
 }
 
 function OffScopeMarker({ side, pct, deps, featureLabel }: OffScopeMarkerProps) {
+  const t = useTranslations();
   const labels = deps
-    .map((d) => `${EDGE_LABEL[d.type]}: ${d.offScopeLabel ?? "(ausserhalb des Scopes)"}`)
+    .map((d) => `${t(EDGE_LABEL[d.type])}: ${d.offScopeLabel ?? t("drumbeat.ui.offScope")}`)
     .join("\n");
   const dominantType = deps[0]!.type;
   return (

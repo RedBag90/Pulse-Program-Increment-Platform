@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
@@ -25,6 +26,7 @@ export function StructureToolbar({
   view: "karte" | "tabelle";
   grouping: "struktur" | "horizont";
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -53,7 +55,7 @@ export function StructureToolbar({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Segmented
-        label="Darstellung"
+        label={t("org.ui.darstellung")}
         options={[
           { value: "karte", label: "Karte" },
           { value: "tabelle", label: "Tabelle" },
@@ -65,7 +67,7 @@ export function StructureToolbar({
 
       {view === "tabelle" && (
         <Segmented
-          label="Gruppierung"
+          label={t("org.ui.gruppierung")}
           options={[
             { value: "struktur", label: "nach Struktur" },
             { value: "horizont", label: "nach Horizont" },
@@ -83,8 +85,8 @@ export function StructureToolbar({
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Suche…"
-          aria-label="Struktur durchsuchen"
+          placeholder={t("org.ui.suche")}
+          aria-label={t("org.ui.strukturDurchsuchen")}
           className="h-8 w-44 pl-8 text-xs"
         />
       </div>

@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { formatCompactEUR } from "@/lib/formatting";
 
 /**
@@ -27,6 +28,7 @@ export function SolutionGrowRunTiles({
   /** Das Halbjahr, auf dem **beide** Beträge stehen; `null` ohne Budgeting. */
   cycleLabel: string | null;
 }) {
+  const t = useTranslations();
   const total = (grow ?? 0) + (run ?? 0);
   const growPct = total > 0 ? Math.round(((grow ?? 0) / total) * 100) : 0;
 
@@ -34,7 +36,7 @@ export function SolutionGrowRunTiles({
     <section className="grid gap-4 md:grid-cols-3">
       <div className="rounded-lg bg-card p-4 shadow-card">
         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Grow · zugeteilt
+          {t("org.ui.growZugeteilt")}
         </div>
         <div className="mt-1 text-2xl font-semibold tabular-nums">
           {grow == null ? "—" : grow > 0 ? formatCompactEUR(grow) : "—"}
@@ -48,7 +50,7 @@ export function SolutionGrowRunTiles({
 
       <div className="rounded-lg bg-card p-4 shadow-card">
         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Run · Betrieb
+          {t("org.ui.runBetrieb")}
         </div>
         <div className="mt-1 text-2xl font-semibold tabular-nums">
           {run == null ? "—" : run > 0 ? formatCompactEUR(run) : "—"}
@@ -62,7 +64,7 @@ export function SolutionGrowRunTiles({
 
       <div className="rounded-lg bg-card p-4 shadow-card">
         <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <span>Grow : Run</span>
+          <span>{t("org.ui.growRun")}</span>
           {run != null && grow != null && (
             <span className="normal-case text-muted-foreground">
               {growPct}% / {100 - growPct}%

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import { useActionResult } from "@/lib/hooks/use-action-result";
 import { updateArtAction } from "@/modules/core/org/features/art/actions/art";
@@ -28,6 +29,7 @@ interface EditArtDialogProps {
  * `updateArtAction`.
  */
 export function EditArtDialog({ id, name, description }: EditArtDialogProps) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const [state, action, isPending] = useActionState(updateArtAction, {});
 
@@ -36,26 +38,26 @@ export function EditArtDialog({ id, name, description }: EditArtDialogProps) {
   return (
     <>
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-        Bearbeiten
+        {t("org.ui.bearbeiten")}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>ART bearbeiten</DialogTitle>
+            <DialogTitle>{t("org.ui.artBearbeiten")}</DialogTitle>
           </DialogHeader>
           <form action={action} className="space-y-4">
             <input type="hidden" name="id" value={id} />
 
             <div className="space-y-1.5">
               <Label htmlFor="edit-art-name">
-                Name <span className="text-destructive">*</span>
+                {t("org.ui.name")} <span className="text-destructive">*</span>
               </Label>
               <Input id="edit-art-name" name="name" required defaultValue={name} />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="edit-art-description">Beschreibung</Label>
+              <Label htmlFor="edit-art-description">{t("org.ui.beschreibung")}</Label>
               <Textarea
                 id="edit-art-description"
                 name="description"
@@ -72,7 +74,7 @@ export function EditArtDialog({ id, name, description }: EditArtDialogProps) {
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Abbrechen
+                {t("org.ui.abbrechen")}
               </Button>
               <Button type="submit" disabled={isPending}>
                 {isPending ? "Speichere…" : "Speichern"}

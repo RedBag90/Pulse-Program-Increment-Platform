@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useActionState, startTransition } from "react";
 import { AlertTriangle } from "lucide-react";
 import {
@@ -15,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatEUR } from "@/lib/formatting";
 import { setPortfolioOverrideAction } from "@/modules/work/features/portfolio/actions/epic";
-import { EPIC_CLASS_LABELS, type ClassificationDrift } from "@/modules/work/domain/pb-submission";
+import { EPIC_CLASS_KEYS, type ClassificationDrift } from "@/modules/work/domain/pb-submission";
 
 export interface DriftInfo {
   drift: ClassificationDrift;
@@ -54,6 +55,7 @@ export function ClassificationDriftDialog({
   /** Weiter zum Antrag — die abgeleitete Klasse gilt. */
   onProceed: () => void;
 }) {
+  const t = useTranslations();
   const [reason, setReason] = useState("");
   const [state, submitOverride, busy] = useActionState(setPortfolioOverrideAction, {});
   const mayInsist = info.drift === "down" && info.canOverride;
@@ -75,50 +77,45 @@ export function ClassificationDriftDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="size-4 text-warning" aria-hidden />
-            Die Einordnung ändert sich
+            {t("work.gate.dieEinordnungAendertSich")}
           </DialogTitle>
           <DialogDescription>
             Angelegt wurde dieses Epic als{" "}
-            <strong className="font-medium">{EPIC_CLASS_LABELS[info.intended]}</strong>. Der
-            Business Case beziffert die Umsetzung auf{" "}
+            <strong className="font-medium">
+              {t(EPIC_CLASS_KEYS[info.intended] ?? info.intended)}
+            </strong>
+            . Der Business Case beziffert die Umsetzung auf{" "}
             <strong className="font-medium tabular-nums">
               {info.cost != null ? formatEUR(info.cost) : "—"}
             </strong>{" "}
             {info.drift === "up" ? "über" : "unter"} dem Portfolio-Limit von{" "}
             <span className="tabular-nums">{formatEUR(info.threshold)}</span> — damit wird es zum{" "}
-            <strong className="font-medium">{EPIC_CLASS_LABELS[info.derived]}</strong>.
+            <strong className="font-medium">
+              {t(EPIC_CLASS_KEYS[info.derived] ?? info.derived)}
+            </strong>
+            .
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 text-sm">
           {info.drift === "up" ? (
-            <p className="text-muted-foreground">
-              Daran lässt sich nichts ändern: was über dem Limit liegt, braucht eine
-              Portfolio-Entscheidung und läuft über eine Budget-Kachel. Ein ART-Rahmen könnte es
-              nicht tragen.
-            </p>
+            <p className="text-muted-foreground">{t("work.gate.daranLaesstSichNichts")}</p>
           ) : mayInsist ? (
             <>
-              <p className="text-muted-foreground">
-                Es hängt künftig am ART-Rahmen seines ARTs statt an der PB-Liste. Wenn es aus
-                anderen Gründen Portfolio-Sache bleiben soll, halte den Grund fest.
-              </p>
+              <p className="text-muted-foreground">{t("work.gate.esHaengtKuenftigAm")}</p>
               <div className="space-y-1.5">
-                <Label htmlFor="drift-reason">Begründung für die Ausnahme</Label>
+                <Label htmlFor="drift-reason">{t("work.gate.begruendungFuerDieAusnahme")}</Label>
                 <Textarea
                   id="drift-reason"
                   rows={3}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  placeholder="z. B. strategische Abhängigkeit zu einem anderen Wertstrom"
+                  placeholder={t("work.gate.zBStrategischeAbhaengigkeit")}
                 />
               </div>
             </>
           ) : (
-            <p className="text-muted-foreground">
-              Es hängt künftig am ART-Rahmen seines ARTs statt an der PB-Liste. Eine Ausnahme davon
-              kann nur das Portfolio erklären.
-            </p>
+            <p className="text-muted-foreground">{t("work.gate.esHaengtKuenftigAm2")}</p>
           )}
 
           {state?.error && (
@@ -130,7 +127,7 @@ export function ClassificationDriftDialog({
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Abbrechen
+            {t("work.gate.abbrechen")}
           </Button>
           {mayInsist && (
             <Button
@@ -139,11 +136,11 @@ export function ClassificationDriftDialog({
               disabled={busy || reason.trim() === ""}
               onClick={insist}
             >
-              Portfolio-Sache bleiben
+              {t("work.gate.portfolioSacheBleiben")}
             </Button>
           )}
           <Button type="button" onClick={onProceed}>
-            Verstanden, beantragen
+            {t("work.gate.verstandenBeantragen")}
           </Button>
         </DialogFooter>
       </DialogContent>

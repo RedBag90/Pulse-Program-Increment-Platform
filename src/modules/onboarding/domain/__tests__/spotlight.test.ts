@@ -21,10 +21,7 @@ describe("spotlightRect", () => {
   });
 
   it("wächst nicht über den sichtbaren Bereich hinaus", () => {
-    const hole = spotlightRect(
-      { top: 790, left: 1190, width: 400, height: 400 },
-      VIEWPORT,
-    );
+    const hole = spotlightRect({ top: 790, left: 1190, width: 400, height: 400 }, VIEWPORT);
     expect(hole.left + hole.width).toBeLessThanOrEqual(VIEWPORT.width);
     expect(hole.top + hole.height).toBeLessThanOrEqual(VIEWPORT.height);
   });

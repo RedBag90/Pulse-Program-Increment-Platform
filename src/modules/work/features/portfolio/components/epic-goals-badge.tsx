@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import type { EpicGoalLinkRow } from "@/modules/core/goals/server/views/epic-goal-contributions";
 import { SectionCard } from "@/components/ui/section-card";
@@ -26,18 +27,19 @@ interface Props {
 }
 
 export function EpicGoalsBadge({ goalLinks = [], atGate = false }: Props) {
+  const t = useTranslations();
   if (goalLinks.length === 0) return null;
 
   return (
     <SectionCard
-      title="Strategische Beiträge"
+      title={t("work.epic.strategischeBeitraege")}
       atGate={atGate}
       action={
         <Link
           href={"/ziele" as never}
           className="text-meta text-muted-foreground hover:text-foreground hover:underline"
         >
-          → Ziele-Modul
+          {t("work.epic.zieleModul")}
         </Link>
       }
     >
@@ -60,7 +62,7 @@ export function EpicGoalsBadge({ goalLinks = [], atGate = false }: Props) {
             <Link
               href={`/ziele?entity=objective&id=${l.objectiveId}` as never}
               className="text-label text-muted-foreground hover:text-foreground hover:underline"
-              title="Im Strategie-Modul oeffnen"
+              title={t("work.epic.imStrategieModulOeffnen")}
             >
               →
             </Link>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useMemo } from "react";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import { useUrlSelection } from "@/lib/hooks/use-url-selection";
@@ -73,6 +74,7 @@ function parseDensity(raw: string | null): "comfortable" | "compact" {
  * `/portfolio` board surface here too.
  */
 export function EpicsListShell({ model, canEdit, canSelect, tenantId }: Props) {
+  const t = useTranslations();
   useKanbanRealtime(tenantId);
   const { params, push: pushParam } = useUrlState();
   const { selectedIds, toggleSelect, toggleSelectAll, clearSelected } = useUrlSelection();
@@ -160,8 +162,8 @@ export function EpicsListShell({ model, canEdit, canSelect, tenantId }: Props) {
     // (`docs/design-tokens.md`) und nicht aus vier Klassen an dieser Stelle.
     <Page>
       <PageHeader
-        title="Epics"
-        subtitle="Das Portfolio-Backlog — Stage Gates, Ökonomie und Freigabe-Status auf einen Blick."
+        title={t("work.epic.epics")}
+        subtitle={t("work.epic.dasPortfolioBacklogStage")}
         {...(canEdit && {
           actions: (
             <CreateEpicDialog

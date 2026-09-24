@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   createContext,
   memo,
@@ -40,7 +41,7 @@ import { toast } from "sonner";
 import { detectCycle } from "@/modules/core/kernel/domain/dependency-graph";
 import {
   FEATURE_TYPES,
-  FEATURE_TYPE_LABEL,
+  FEATURE_TYPE_KEYS,
   isFeatureType,
   type FeatureType,
 } from "@/modules/work/domain/portfolio-guardrails";
@@ -225,6 +226,7 @@ function QuickAddForm({
   onClose: () => void;
   busy: boolean;
 }) {
+  const t = useTranslations();
   const [title, setTitle] = useState(defaultTitle ?? "");
   const [featureType, setFeatureType] = useState<FeatureType>("feature");
 
@@ -239,7 +241,7 @@ function QuickAddForm({
     >
       <div className="space-y-1">
         <Label htmlFor="quick-add-title" className="text-xs">
-          Titel
+          {t("drumbeat.ui.titel")}
         </Label>
         <Input
           id="quick-add-title"
@@ -248,13 +250,13 @@ function QuickAddForm({
           autoFocus
           required
           maxLength={200}
-          placeholder="z. B. Auth-Refresh-Endpoint"
+          placeholder={t("drumbeat.ui.zBAuthRefresh")}
           className="h-8"
         />
       </div>
       <div className="space-y-1">
         <Label htmlFor="quick-add-type" className="text-xs">
-          Typ
+          {t("drumbeat.ui.typ")}
         </Label>
         <select
           id="quick-add-type"
@@ -262,19 +264,17 @@ function QuickAddForm({
           onChange={(e) => setFeatureType(e.target.value as FeatureType)}
           className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
         >
-          {FEATURE_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {FEATURE_TYPE_LABEL[t]}
+          {FEATURE_TYPES.map((wert) => (
+            <option key={wert} value={wert}>
+              {t(FEATURE_TYPE_KEYS[wert] ?? wert)}
             </option>
           ))}
         </select>
       </div>
-      <p className="text-label text-muted-foreground">
-        WSJF wird auf 3/3/3/3 vorbelegt — verfeinerst du im Detail-Tab.
-      </p>
+      <p className="text-label text-muted-foreground">{t("drumbeat.ui.wsjfWirdAufVorbelegt")}</p>
       <div className="flex justify-end gap-1.5 pt-1">
         <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={busy}>
-          Abbrechen
+          {t("drumbeat.ui.abbrechen")}
         </Button>
         <Button type="submit" size="sm" disabled={busy || title.trim().length === 0}>
           {busy ? "Anlegen…" : "Anlegen"}
@@ -312,6 +312,7 @@ function QuickAddPopover({
 }
 
 function QuickEditPopover({ node }: { node: FeatureNodeData }) {
+  const t = useTranslations();
   const ctx = useBreakdownInteraction();
   const onSubmit = useMemo(
     () => ctx.onEditFeature(node.id, node.artId),
@@ -335,7 +336,7 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
         render={
           <button
             type="button"
-            aria-label="Feature bearbeiten"
+            aria-label={t("drumbeat.ui.featureBearbeiten")}
             className="absolute -right-2 -top-2 z-10 flex size-5 items-center justify-center rounded-full border border-border bg-card text-muted-foreground opacity-0 shadow-sm transition hover:bg-primary hover:text-primary-foreground group-hover:opacity-100"
           >
             <Pencil className="size-3" />
@@ -355,7 +356,7 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
         >
           <div className="space-y-1">
             <Label htmlFor={`edit-title-${node.id}`} className="text-xs">
-              Titel
+              {t("drumbeat.ui.titel")}
             </Label>
             <Input
               id={`edit-title-${node.id}`}
@@ -369,7 +370,7 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
           </div>
           <div className="space-y-1">
             <Label htmlFor={`edit-type-${node.id}`} className="text-xs">
-              Typ
+              {t("drumbeat.ui.typ")}
             </Label>
             <select
               id={`edit-type-${node.id}`}
@@ -377,10 +378,10 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
               onChange={(e) => setFeatureType(e.target.value as FeatureType | "")}
               className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
             >
-              <option value="">— ungesetzt</option>
-              {FEATURE_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {FEATURE_TYPE_LABEL[t]}
+              <option value="">{t("drumbeat.ui.ungesetzt")}</option>
+              {FEATURE_TYPES.map((wert) => (
+                <option key={wert} value={wert}>
+                  {t(FEATURE_TYPE_KEYS[wert] ?? wert)}
                 </option>
               ))}
             </select>
@@ -392,16 +393,16 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
               current={node.wsjf}
               renderTrigger={({ onClick }) => (
                 <Button type="button" variant="outline" size="sm" onClick={onClick}>
-                  WSJF verfeinern
+                  {t("drumbeat.ui.wsjfVerfeinern")}
                 </Button>
               )}
             />
             <div className="ml-auto flex gap-1.5">
               <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
-                Abbrechen
+                {t("drumbeat.ui.abbrechen")}
               </Button>
               <Button type="submit" size="sm">
-                Speichern
+                {t("drumbeat.ui.speichern")}
               </Button>
             </div>
           </div>
@@ -412,6 +413,7 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
 }
 
 const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
+  const t = useTranslations();
   const node = data as unknown as FeatureNodeData;
   const type = normalizeType(node.featureType);
   const router = useRouter();
@@ -450,7 +452,7 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
         </div>
         <div className="flex items-center gap-1.5 text-label">
           <span className={`rounded-full px-1.5 py-0.5 ${TYPE_BADGE[type]}`}>
-            {type === "" ? "ohne Typ" : FEATURE_TYPE_LABEL[type]}
+            {type === "" ? "ohne Typ" : t(FEATURE_TYPE_KEYS[type] ?? type)}
           </span>
           <span className={`rounded-full px-1.5 py-0.5 ${TIER_BADGE[node.wsjfTier]}`}>
             WSJF {formatWsjf(node.wsjfComputed)}
@@ -475,6 +477,7 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
 });
 
 function NodeAddPlusButton({ node }: { node: FeatureNodeData }) {
+  const t = useTranslations();
   const ctx = useBreakdownInteraction();
   const onAdd = useMemo(() => ctx.onAddSuccessor(node.id, node.artId), [ctx, node.id, node.artId]);
   return (
@@ -482,7 +485,7 @@ function NodeAddPlusButton({ node }: { node: FeatureNodeData }) {
       <QuickAddPopover onSubmit={onAdd} busy={false}>
         <button
           type="button"
-          aria-label="Folge-Feature anlegen"
+          aria-label={t("drumbeat.ui.folgeFeatureAnlegen")}
           className="flex size-5 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition hover:bg-primary hover:text-primary-foreground"
         >
           <Plus className="size-3" />
@@ -493,6 +496,7 @@ function NodeAddPlusButton({ node }: { node: FeatureNodeData }) {
 }
 
 const InsertableEdge = memo(function InsertableEdge(props: EdgeProps) {
+  const t = useTranslations();
   const {
     id,
     source,
@@ -582,7 +586,7 @@ const InsertableEdge = memo(function InsertableEdge(props: EdgeProps) {
               <EdgeTypePopover currentType={type} onChange={onChangeType} onDelete={onDeleteEdge}>
                 <button
                   type="button"
-                  aria-label="Abhängigkeitstyp ändern"
+                  aria-label={t("drumbeat.ui.abhaengigkeitstypAendern")}
                   className="rounded-sm bg-card px-1 text-label transition-colors hover:bg-muted"
                   style={{ color: EDGE_COLOR[type] }}
                 >
@@ -601,7 +605,7 @@ const InsertableEdge = memo(function InsertableEdge(props: EdgeProps) {
             <QuickAddPopover onSubmit={onInsert} busy={false}>
               <button
                 type="button"
-                aria-label="Feature zwischenfügen"
+                aria-label={t("drumbeat.ui.featureZwischenfuegen")}
                 className="flex size-5 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition hover:bg-primary hover:text-primary-foreground"
               >
                 <Plus className="size-3" />
@@ -684,6 +688,7 @@ const EDGE_TYPES = { insertable: InsertableEdge };
  * gerendert werden, idealerweise im `<Panel>`).
  */
 function ExportButton({ epicTitle }: { epicTitle: string }) {
+  const t = useTranslations();
   const { getNodes } = useReactFlow();
   const onExport = async () => {
     const nodes = getNodes();
@@ -732,12 +737,12 @@ function ExportButton({ epicTitle }: { epicTitle: string }) {
     <button
       type="button"
       onClick={onExport}
-      title="Netzplan als PNG exportieren"
-      aria-label="Netzplan exportieren"
+      title={t("drumbeat.ui.netzplanAlsPngExportieren")}
+      aria-label={t("drumbeat.ui.netzplanExportieren")}
       className="flex items-center gap-1 rounded-md bg-card px-2 py-1 text-meta shadow-card transition hover:bg-muted"
     >
       <Download className="size-3.5" />
-      <span>Export PNG</span>
+      <span>{t("drumbeat.ui.exportPng")}</span>
     </button>
   );
 }
@@ -753,6 +758,7 @@ export function BreakdownNetworkView({
   canCreateFeature,
   savedPositions,
 }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -930,7 +936,7 @@ export function BreakdownNetworkView({
               ...edge,
               animated: s.animated,
               style: s.style,
-              label: EDGE_LABEL[next],
+              label: t(EDGE_LABEL[next]),
               markerEnd: s.marker,
               data: {
                 ...(data ?? { type: next, showPlus: false }),
@@ -1016,6 +1022,7 @@ export function BreakdownNetworkView({
 
   const baseGraph = useMemo(() => {
     const layoutCtx: LayoutCtx = {
+      t,
       canLinkDependency,
       canCreateFeature,
       canEditFeature: canCreateFeature,
@@ -1115,7 +1122,7 @@ export function BreakdownNetworkView({
         source: conn.source,
         target: conn.target,
         type: "insertable",
-        label: EDGE_LABEL[connectType],
+        label: t(EDGE_LABEL[connectType]),
         animated: s.animated,
         style: s.style,
         markerEnd: s.marker,
@@ -1186,8 +1193,8 @@ export function BreakdownNetworkView({
       <EmptyState
         className="h-64"
         icon={<Network className="size-6" />}
-        title="Noch keine Deliverables"
-        body="Ohne Deliverables gibt es nichts zu verknüpfen. Lege das erste an, dann baut sich der Netzplan auf."
+        title={t("drumbeat.ui.nochKeineDeliverables")}
+        body={t("drumbeat.ui.ohneDeliverablesGibtEs")}
         action={
           canCreateFeature ? (
             <CreateFeatureDialog
@@ -1219,18 +1226,18 @@ export function BreakdownNetworkView({
         <Input
           value={queryDraft}
           onChange={(e) => setQueryDraft(e.target.value)}
-          placeholder="Suche im Titel…"
-          aria-label="Suche im Netzplan"
+          placeholder={t("drumbeat.ui.sucheImTitel")}
+          aria-label={t("drumbeat.ui.sucheImNetzplan")}
           className="h-7 w-48 text-xs"
         />
         <ToggleGroup
-          ariaLabel="Typ-Filter"
+          ariaLabel={t("drumbeat.ui.typFilter")}
           className="bg-card text-xs"
           value={urlType}
           onChange={setUrlType}
           options={[
             { id: "all", label: "Alle Typen" },
-            ...FEATURE_TYPES.map((t) => ({ id: t, label: FEATURE_TYPE_LABEL[t] })),
+            ...FEATURE_TYPES.map((typ) => ({ id: typ, label: t(FEATURE_TYPE_KEYS[typ] ?? typ) })),
           ]}
         />
         {hasFilter && (
@@ -1239,16 +1246,16 @@ export function BreakdownNetworkView({
               {matchedIds?.size ?? 0} von {features.length} sichtbar
             </span>
             <button type="button" onClick={clearFilter} className="text-primary hover:underline">
-              Filter zurücksetzen
+              {t("drumbeat.ui.filterZuruecksetzen")}
             </button>
           </>
         )}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="inline-flex items-center gap-1.5">
-          <span className="text-muted-foreground">Layout:</span>
+          <span className="text-muted-foreground">{t("drumbeat.ui.layout")}</span>
           <ToggleGroup
-            ariaLabel="Layout-Modus"
+            ariaLabel={t("drumbeat.ui.layoutModus")}
             className="bg-card text-xs"
             value={layoutMode}
             onChange={setLayoutMode}
@@ -1272,25 +1279,25 @@ export function BreakdownNetworkView({
           </p>
           {canLinkDependency && (
             <div className="inline-flex items-center gap-1.5">
-              <span className="text-muted-foreground">Neue Edge:</span>
+              <span className="text-muted-foreground">{t("drumbeat.ui.neueEdge")}</span>
               {/* Der Farbhinweis sass vorher als `style.color` auf dem Knopf
                   und war der Grund fuer den Eigenbau. Als Punkt in der
                   Beschriftung traegt ihn die geteilte Leiste mit. */}
               <ToggleGroup
-                ariaLabel="Connection-Typ"
+                ariaLabel={t("drumbeat.ui.connectionTyp")}
                 className="bg-card text-xs"
                 value={connectType}
                 onChange={setConnectType}
-                options={(["depends_on", "blocks", "relates_to"] as const).map((t) => ({
-                  id: t,
+                options={(["depends_on", "blocks", "relates_to"] as const).map((typ) => ({
+                  id: typ,
                   label: (
                     <span className="inline-flex items-center gap-1.5">
                       <span
                         aria-hidden
                         className="size-1.5 rounded-full"
-                        style={{ background: EDGE_COLOR[t] }}
+                        style={{ background: EDGE_COLOR[typ] }}
                       />
-                      {EDGE_LABEL[t]}
+                      {t(EDGE_LABEL[typ])}
                     </span>
                   ),
                 }))}
@@ -1330,7 +1337,7 @@ export function BreakdownNetworkView({
             <MiniMap
               pannable
               zoomable
-              ariaLabel="Netzplan-Übersicht"
+              ariaLabel={t("drumbeat.ui.netzplanUebersicht")}
               nodeColor={(n) => {
                 // PI-Header und Ghost-Nodes bekommen ein neutrales grau,
                 // damit die minimap nicht durch headerflaechen "geblockt"

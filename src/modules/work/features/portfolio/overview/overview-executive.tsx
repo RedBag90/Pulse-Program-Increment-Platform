@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 import { TopRisksBlock } from "@/modules/work/features/portfolio/overview/blocks/top-risks-block";
 import { PipelineBarsBlock } from "@/modules/work/features/portfolio/overview/blocks/pipeline-bars-block";
@@ -27,6 +28,7 @@ function germanDate(d: Date): string {
  * and the structural next-steps. Reads like a weekly status report.
  */
 export function OverviewExecutive({ data }: { data: PortfolioOverview }) {
+  const t = useTranslations();
   const activeGoalCount = data.goals.filter((g) => g.status === "active").length;
   return (
     <div className="space-y-6">
@@ -36,7 +38,7 @@ export function OverviewExecutive({ data }: { data: PortfolioOverview }) {
 
       <div className="space-y-2 rounded-md border bg-muted/20 p-4">
         <p className="text-sm">
-          <span className="mr-2 font-semibold">🎯 STRATEGIE</span>
+          <span className="mr-2 font-semibold">{t("work.overview.strategie")}</span>
           {activeGoalCount === 0
             ? "Keine aktiven Ziele hinterlegt"
             : `${data.goalsOnTrack} von ${activeGoalCount} Zielen on track · Ø KPI-Erreichung ${pct(
@@ -44,13 +46,13 @@ export function OverviewExecutive({ data }: { data: PortfolioOverview }) {
               )}`}
         </p>
         <p className="text-sm">
-          <span className="mr-2 font-semibold">💰 FUNDING</span>
+          <span className="mr-2 font-semibold">{t("work.overview.funding")}</span>
           {data.budgets.length === 0
             ? "Noch keine Budgets verteilt"
             : `${eur(data.poolAllocated)} alloziert · ${data.valueStreamCount} Wertström${data.valueStreamCount === 1 ? "" : "e"}`}
         </p>
         <p className="text-sm">
-          <span className="mr-2 font-semibold">⏱ ZEITKONTEXT</span>
+          <span className="mr-2 font-semibold">{t("work.overview.zeitkontext")}</span>
           {data.activePis.length === 0
             ? "Aktuell keine aktive PI"
             : `${data.activePis.length} PI${data.activePis.length === 1 ? "" : "s"} aktiv${

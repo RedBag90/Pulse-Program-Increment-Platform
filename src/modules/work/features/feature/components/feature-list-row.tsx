@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, startTransition } from "react";
 import { ClipboardList, MoreHorizontal, ShieldAlert } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -7,7 +8,7 @@ import {
   STATUS_DOT,
   STATUS_LABELS,
   WSJF_TIER_CLASS,
-  WSJF_TIER_LABELS,
+  WSJF_TIER_KEYS,
 } from "@/components/detail/initiative-labels";
 import {
   deleteFeatureAction,
@@ -53,6 +54,7 @@ export function FeatureListRowComponent({
   onToggleSelect,
   compact,
 }: Props) {
+  const t = useTranslations();
   const [deleteState, del, deleting] = useActionState(deleteFeatureAction, {});
   const [moveState, move, moving] = useActionState(setFeaturePiAction, {});
   const busy = deleting || moving;
@@ -155,7 +157,7 @@ export function FeatureListRowComponent({
           <span
             className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-meta tabular-nums ${WSJF_TIER_CLASS[row.wsjfTier]}`}
           >
-            {row.wsjfTier === "none" ? "—" : WSJF_TIER_LABELS[row.wsjfTier]}
+            {row.wsjfTier === "none" ? "—" : t(WSJF_TIER_KEYS[row.wsjfTier] ?? row.wsjfTier)}
             <span className="text-foreground/80">{pctFromWsjf(row.wsjfComputed)}</span>
           </span>
         </td>

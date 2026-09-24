@@ -1,11 +1,12 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { SectionLabel } from "@/components/ui/section-label";
-import { ROAM_LABELS, ROAM_DOT, type RoamStatus } from "@/modules/core/kernel/domain/roam";
+import { ROAM_KEYS, ROAM_DOT, type RoamStatus } from "@/modules/core/kernel/domain/roam";
 // Dieselbe Skala wie im Register: `low` war hier Schiefer statt Smaragd und
 // `critical` Rosé statt Rot — dieselbe Größe in zwei Farbwelten.
-import { EXPOSURE_LABEL, EXPOSURE_TONE } from "@/modules/core/kernel/domain/exposure";
+import { EXPOSURE_KEYS, EXPOSURE_TONE } from "@/modules/core/kernel/domain/exposure";
 import {
   groupRisksByRoam,
   type PortfolioOverview,
@@ -35,12 +36,13 @@ const COLLAPSED_LIMIT = 5;
  * formt sie, Work rechnet nicht an `risks`).
  */
 export function RisksBlock({ data }: { data: PortfolioOverview }) {
+  const t = useTranslations();
   const byRoam = groupRisksByRoam(data.risks);
 
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <SectionLabel>Risiken</SectionLabel>
+        <SectionLabel>{t("work.overview.risiken")}</SectionLabel>
         {data.risks.length > 0 && (
           <span className="font-mono text-xs tabular-nums text-muted-foreground">
             {data.risks.length}
@@ -121,6 +123,7 @@ function RoamCard({
   /** Positionierung von aussen — die Offen-Spalte nimmt sich damit aus dem Fluss. */
   className?: string;
 }) {
+  const t = useTranslations();
   const shown = limit != null ? risks.slice(0, limit) : risks;
   const rest = limit != null ? risks.slice(limit) : [];
   return (
@@ -128,13 +131,13 @@ function RoamCard({
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5">
           <span className={`size-1.5 rounded-full ${ROAM_DOT[status]}`} />
-          <SectionLabel>{ROAM_LABELS[status]}</SectionLabel>
+          <SectionLabel>{t(ROAM_KEYS[status])}</SectionLabel>
         </span>
         <span className="font-mono text-xs tabular-nums text-muted-foreground">{risks.length}</span>
       </div>
 
       {risks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Keine Risiken in diesem Zustand.</p>
+        <p className="text-sm text-muted-foreground">{t("work.overview.keineRisikenInDiesem")}</p>
       ) : (
         /* Beide Listen teilen sich **einen** Scrollkasten: aufgeklappt wächst
            die Liste innerhalb der Karte, nicht die Seite — sonst spränge das
@@ -171,15 +174,16 @@ function RoamCard({
  * Titel, der vorher abbrach.
  */
 function RiskRow({ risk: r }: { risk: OverviewRisk }) {
+  const t = useTranslations();
   return (
     <li className="flex items-start gap-2">
       <span
         className={`mt-0.5 shrink-0 rounded-sm px-1.5 py-0.5 text-label font-medium uppercase tracking-[0.1em] ${
           r.band ? EXPOSURE_TONE[r.band].badge : "bg-muted text-muted-foreground"
         }`}
-        title={r.band ? `Exposure: ${EXPOSURE_LABEL[r.band]} (${r.score})` : "unbewertet"}
+        title={r.band ? `Exposure: ${t(EXPOSURE_KEYS[r.band])} (${r.score})` : "unbewertet"}
       >
-        {r.band ? EXPOSURE_LABEL[r.band] : "—"}
+        {r.band ? t(EXPOSURE_KEYS[r.band]) : "—"}
       </span>
       <div className="min-w-0 flex-1">
         <Link

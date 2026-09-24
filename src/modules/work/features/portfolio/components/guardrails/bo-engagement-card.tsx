@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import {
   Card,
@@ -26,6 +27,7 @@ import { GuardrailStatusBadge } from "./guardrail-status-badge";
  * stuende sonst grundlos auf Rot.
  */
 export function BoEngagementCard({ model }: { model: EngagementGuardrailModel }) {
+  const t = useTranslations();
   const {
     scopeCount,
     coveredCount,
@@ -42,7 +44,7 @@ export function BoEngagementCard({ model }: { model: EngagementGuardrailModel })
   return (
     <Card className="gap-3">
       <CardHeader>
-        <CardTitle>Business-Owner-Engagement</CardTitle>
+        <CardTitle>{t("work.guardrails.businessOwnerEngagement")}</CardTitle>
         <CardDescription className="text-xs">
           Guardrail 4 · {scopeCount} Epics im Freigabelauf
         </CardDescription>
@@ -53,14 +55,14 @@ export function BoEngagementCard({ model }: { model: EngagementGuardrailModel })
       <CardContent>
         {scopeCount === 0 ? (
           <EmptyState
-            title="Noch keine Epics im Freigabelauf"
-            body="Die Messung startet, sobald das erste Epic seinen Business Case einreicht."
+            title={t("work.guardrails.nochKeineEpicsIm")}
+            body={t("work.guardrails.dieMessungStartetSobald")}
             className="p-6"
           />
         ) : (
           <div className="space-y-4">
             <Quote
-              label="Abdeckung"
+              label={t("work.guardrails.abdeckung")}
               ratio={coverageRatio}
               target={coverageTarget / 100}
               targetLabel={`Ziel ${coverageTarget} %`}
@@ -80,7 +82,7 @@ export function BoEngagementCard({ model }: { model: EngagementGuardrailModel })
 
             <div className="border-t pt-3">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <SectionLabel>Überfällig</SectionLabel>
+                <SectionLabel>{t("work.guardrails.ueberfaellig")}</SectionLabel>
                 <span className="font-mono text-xs tabular-nums text-muted-foreground">
                   {overdue.length}
                 </span>

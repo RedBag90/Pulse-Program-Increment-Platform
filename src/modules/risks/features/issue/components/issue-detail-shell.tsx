@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import { Trash2, Plus, X } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
@@ -19,7 +20,7 @@ import type { ActionState } from "@/server/http/server-action";
 import type { IssueListRow } from "@/modules/risks/server/views/issues-list";
 import { RISK_LEVELS } from "@/modules/risks/domain/risk-matrix";
 import { RISK_CATEGORIES, type RiskCategory } from "@/modules/risks/domain/risk-category";
-import { ROAM_STATUSES, ROAM_LABELS, type RoamStatus } from "@/modules/core/kernel/domain/roam";
+import { ROAM_STATUSES, ROAM_KEYS, type RoamStatus } from "@/modules/core/kernel/domain/roam";
 import { ExposureBadge, RoamBadge } from "@/modules/risks/features/lib/issue-badges";
 import {
   updateIssueAction,
@@ -31,8 +32,8 @@ import {
   deleteIssueAction,
   linkIssueToInitiativeAction,
 } from "@/modules/risks/features/issue/actions/issue";
-import { CATEGORY_LABELS } from "@/modules/risks/features/risk/components/labels";
-import { LEVEL_LABEL } from "@/modules/core/kernel/domain/exposure";
+import { CATEGORY_KEYS } from "@/modules/risks/features/risk/components/labels";
+import { LEVEL_KEYS } from "@/modules/core/kernel/domain/exposure";
 
 const SELECT =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -86,6 +87,7 @@ export function IssueDetailShell({
   backHref,
   backLabel,
 }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const active = resolveTab(TABS, activeTab);
   const band = issue.band;
@@ -100,7 +102,7 @@ export function IssueDetailShell({
   );
 
   const metaBits = [
-    issue.category ? CATEGORY_LABELS[issue.category as RiskCategory] : null,
+    issue.category ? t(CATEGORY_KEYS[issue.category as RiskCategory]) : null,
     issue.ownerLabel ? `Owner: ${issue.ownerLabel}` : "ohne Owner",
     issue.initiative?.title ?? null,
     issue.displayNumber ?? null,
@@ -157,6 +159,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function DeleteButton({ id, onDone }: { id: string; onDone: () => void }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(deleteIssueAction, initial);
   const [confirm, setConfirm] = useState(false);
   if (state.success) onDone();
@@ -164,7 +167,7 @@ function DeleteButton({ id, onDone }: { id: string; onDone: () => void }) {
     <form action={action} className="flex items-center gap-1">
       <input type="hidden" name="id" value={id} />
       <Button type="submit" size="sm" variant="destructive" disabled={pending}>
-        Wirklich löschen
+        {t("risks.ui.wirklichLoeschen")}
       </Button>
       <Button type="button" size="sm" variant="ghost" onClick={() => setConfirm(false)}>
         <X className="size-4" />
@@ -173,23 +176,24 @@ function DeleteButton({ id, onDone }: { id: string; onDone: () => void }) {
   ) : (
     <Button type="button" size="sm" variant="ghost" onClick={() => setConfirm(true)}>
       <Trash2 className="mr-1 size-4" />
-      Löschen
+      {t("risks.ui.loeschen")}
     </Button>
   );
 }
 
 function EditSection({ issue }: { issue: IssueListRow }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(updateIssueAction, initial);
   return (
-    <Section title="Details">
+    <Section title={t("risks.ui.details")}>
       <form action={action} className="space-y-3">
         <input type="hidden" name="id" value={issue.id} />
         <div className="space-y-1.5">
-          <Label>Titel</Label>
+          <Label>{t("risks.ui.titel")}</Label>
           <Input name="title" defaultValue={issue.title} maxLength={300} />
         </div>
         <div className="space-y-1.5">
-          <Label>Beschreibung</Label>
+          <Label>{t("risks.ui.beschreibung")}</Label>
           <Textarea
             name="description"
             rows={3}
@@ -199,18 +203,18 @@ function EditSection({ issue }: { issue: IssueListRow }) {
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1.5">
-            <Label>Kategorie</Label>
+            <Label>{t("risks.ui.kategorie")}</Label>
             <select name="category" defaultValue={issue.category ?? ""} className={SELECT}>
               <option value="">—</option>
               {RISK_CATEGORIES.map((c) => (
                 <option key={c} value={c}>
-                  {CATEGORY_LABELS[c]}
+                  {t(CATEGORY_KEYS[c])}
                 </option>
               ))}
             </select>
           </div>
           <div className="space-y-1.5">
-            <Label>Zieltermin</Label>
+            <Label>{t("risks.ui.zieltermin")}</Label>
             <Input
               type="date"
               name="targetResolutionDate"
@@ -220,7 +224,7 @@ function EditSection({ issue }: { issue: IssueListRow }) {
         </div>
         {state.error && <p className="text-xs text-destructive">{state.error}</p>}
         <Button type="submit" size="sm" disabled={pending}>
-          Speichern
+          {t("risks.ui.speichern")}
         </Button>
       </form>
     </Section>
@@ -234,9 +238,10 @@ function OwnerSection({
   issue: IssueListRow;
   userLabels: Record<string, string>;
 }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(assignIssueOwnerAction, initial);
   return (
-    <Section title="Owner">
+    <Section title={t("risks.ui.owner")}>
       <form action={action} className="flex items-center gap-2">
         <input type="hidden" name="id" value={issue.id} />
         <div className="min-w-0 flex-1">
@@ -244,13 +249,13 @@ function OwnerSection({
             name="ownerId"
             defaultValue={issue.ownerId ?? ""}
             options={Object.entries(userLabels).map(([uid, label]) => ({ value: uid, label }))}
-            ariaLabel="Owner"
-            placeholder="— kein Owner —"
-            emptyLabel="— kein Owner —"
+            ariaLabel={t("risks.ui.owner")}
+            placeholder={t("risks.ui.keinOwner")}
+            emptyLabel={t("risks.ui.keinOwner")}
           />
         </div>
         <Button type="submit" size="sm" variant="outline" disabled={pending}>
-          Setzen
+          {t("risks.ui.setzen")}
         </Button>
       </form>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}
@@ -259,15 +264,16 @@ function OwnerSection({
 }
 
 function RoamSection({ issue }: { issue: IssueListRow }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(setIssueRoamAction, initial);
   return (
-    <Section title="ROAM-Disposition">
+    <Section title={t("risks.ui.roamDisposition")}>
       <form action={action} className="space-y-2">
         <input type="hidden" name="id" value={issue.id} />
         <select name="roamStatus" defaultValue={issue.roamStatus} className={SELECT}>
           {ROAM_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {ROAM_LABELS[s]}
+              {t(ROAM_KEYS[s])}
             </option>
           ))}
         </select>
@@ -275,12 +281,12 @@ function RoamSection({ issue }: { issue: IssueListRow }) {
           name="roamRationale"
           rows={2}
           defaultValue={issue.roamRationale ?? ""}
-          placeholder="Begründung / Maßnahmenplan"
+          placeholder={t("risks.ui.begruendungMassnahmenplan")}
           maxLength={5000}
         />
         {state.error && <p className="text-xs text-destructive">{state.error}</p>}
         <Button type="submit" size="sm" disabled={pending}>
-          ROAM setzen
+          {t("risks.ui.roamSetzen")}
         </Button>
       </form>
     </Section>
@@ -288,9 +294,10 @@ function RoamSection({ issue }: { issue: IssueListRow }) {
 }
 
 function ReassessSection({ issue }: { issue: IssueListRow }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(reassessIssueAction, initial);
   return (
-    <Section title="Neubewertung">
+    <Section title={t("risks.ui.neubewertung")}>
       <p className="text-xs text-muted-foreground">
         {issue.assessments.length > 0
           ? `${issue.assessments.length} Bewertung(en) im Verlauf — jüngste zählt.`
@@ -301,29 +308,29 @@ function ReassessSection({ issue }: { issue: IssueListRow }) {
         <div className="grid grid-cols-2 gap-2">
           <select name="probability" defaultValue="" required className={SELECT}>
             <option value="" disabled>
-              Wahrscheinlichkeit
+              {t("risks.ui.wahrscheinlichkeit")}
             </option>
             {RISK_LEVELS.map((l) => (
               <option key={l} value={l}>
-                {LEVEL_LABEL[l]}
+                {t(LEVEL_KEYS[l])}
               </option>
             ))}
           </select>
           <select name="impact" defaultValue="" required className={SELECT}>
             <option value="" disabled>
-              Auswirkung
+              {t("risks.ui.auswirkung")}
             </option>
             {RISK_LEVELS.map((l) => (
               <option key={l} value={l}>
-                {LEVEL_LABEL[l]}
+                {t(LEVEL_KEYS[l])}
               </option>
             ))}
           </select>
         </div>
-        <Input name="note" placeholder="Notiz (optional)" maxLength={5000} />
+        <Input name="note" placeholder={t("risks.ui.notizOptional")} maxLength={5000} />
         {state.error && <p className="text-xs text-destructive">{state.error}</p>}
         <Button type="submit" size="sm" variant="outline" disabled={pending}>
-          Neu bewerten
+          {t("risks.ui.neuBewerten")}
         </Button>
       </form>
     </Section>
@@ -331,10 +338,11 @@ function ReassessSection({ issue }: { issue: IssueListRow }) {
 }
 
 function MitigationSection({ issue, canEdit }: { issue: IssueListRow; canEdit: boolean }) {
+  const t = useTranslations();
   const [addState, add, adding] = useActionState(addIssueMitigationAction, initial);
   const [, remove] = useActionState(removeIssueMitigationAction, initial);
   return (
-    <Section title="Maßnahmen">
+    <Section title={t("risks.ui.massnahmen")}>
       <ul className="space-y-1">
         {issue.mitigations.map((m) => (
           <li
@@ -353,13 +361,18 @@ function MitigationSection({ issue, canEdit }: { issue: IssueListRow; canEdit: b
           </li>
         ))}
         {issue.mitigations.length === 0 && (
-          <li className="text-xs text-muted-foreground">Keine Maßnahmen.</li>
+          <li className="text-xs text-muted-foreground">{t("risks.ui.keineMassnahmen")}</li>
         )}
       </ul>
       {canEdit && (
         <form action={add} className="flex items-center gap-2">
           <input type="hidden" name="issueId" value={issue.id} />
-          <Input name="description" placeholder="Maßnahme hinzufügen…" maxLength={5000} required />
+          <Input
+            name="description"
+            placeholder={t("risks.ui.massnahmeHinzufuegen")}
+            maxLength={5000}
+            required
+          />
           <Button type="submit" size="sm" variant="outline" disabled={adding}>
             <Plus className="size-4" />
           </Button>
@@ -377,6 +390,7 @@ function LinkSection({
   issue: IssueListRow;
   featureOptions?: { id: string; title: string }[];
 }) {
+  const t = useTranslations();
   const [, link] = useActionState(linkIssueToInitiativeAction, initial);
   const [epicId, setEpicId] = useState("");
   const epicResult = useEntityOptions<{ id: string; title?: string; name?: string }>(
@@ -388,7 +402,7 @@ function LinkSection({
     label: e.title ?? e.name ?? e.id,
   }));
   return (
-    <Section title="Verknüpftes Arbeitselement">
+    <Section title={t("risks.ui.verknuepftesArbeitselement")}>
       {issue.initiative ? (
         <div className="flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-sm">
           <span>
@@ -406,7 +420,7 @@ function LinkSection({
           </form>
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">Nicht verknüpft.</p>
+        <p className="text-xs text-muted-foreground">{t("risks.ui.nichtVerknuepft")}</p>
       )}
 
       {featureOptions && featureOptions.length > 0 && (
@@ -414,7 +428,7 @@ function LinkSection({
           <input type="hidden" name="id" value={issue.id} />
           <select name="initiativeId" defaultValue="" className={SELECT}>
             <option value="" disabled>
-              Feature wählen…
+              {t("risks.ui.featureWaehlen")}
             </option>
             {featureOptions.map((f) => (
               <option key={f.id} value={f.id}>
@@ -423,7 +437,7 @@ function LinkSection({
             ))}
           </select>
           <Button type="submit" size="sm" variant="outline">
-            Feature
+            {t("risks.ui.feature")}
           </Button>
         </form>
       )}
@@ -436,13 +450,13 @@ function LinkSection({
             value={epicId}
             onChange={setEpicId}
             options={epicOptions}
-            placeholder="Epic suchen …"
-            searchPlaceholder="Epic suchen …"
-            ariaLabel="Epic suchen"
+            placeholder={t("risks.ui.epicSuchen")}
+            searchPlaceholder={t("risks.ui.epicSuchen")}
+            ariaLabel={t("risks.ui.epicSuchen2")}
           />
         </div>
         <Button type="submit" size="sm" variant="outline" disabled={!epicId}>
-          Epic
+          {t("risks.ui.epic")}
         </Button>
       </form>
     </Section>
@@ -450,18 +464,21 @@ function LinkSection({
 }
 
 function HistoryTab({ issue }: { issue: IssueListRow }) {
+  const t = useTranslations();
   if (issue.assessments.length === 0) {
-    return <p className="text-sm text-muted-foreground">Noch kein Bewertungs-Verlauf.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">{t("risks.ui.nochKeinBewertungsVerlauf")}</p>
+    );
   }
   return (
-    <Section title="Bewertungs-Verlauf">
+    <Section title={t("risks.ui.bewertungsVerlauf")}>
       <ul className="divide-y rounded-lg border">
         {issue.assessments.map((a, i) => (
           <li key={i} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
             <span>
-              {LEVEL_LABEL[a.probability as keyof typeof LEVEL_LABEL] ?? a.probability}
+              {t(LEVEL_KEYS[a.probability as keyof typeof LEVEL_KEYS]) ?? a.probability}
               <span className="mx-1.5 text-muted-foreground/60">×</span>
-              {LEVEL_LABEL[a.impact as keyof typeof LEVEL_LABEL] ?? a.impact}
+              {t(LEVEL_KEYS[a.impact as keyof typeof LEVEL_KEYS]) ?? a.impact}
               {a.note && <span className="ml-2 text-muted-foreground">— {a.note}</span>}
             </span>
             <span className="shrink-0 text-xs text-muted-foreground">

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { OVERVIEW_VIEWS, type OverviewView } from "./view-switcher-config";
@@ -14,6 +15,7 @@ export type { OverviewView } from "./view-switcher-config";
  */
 export function ViewSwitcher({ current }: { current: OverviewView }) {
   const router = useRouter();
+  const t = useTranslations();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -27,7 +29,7 @@ export function ViewSwitcher({ current }: { current: OverviewView }) {
 
   return (
     <nav
-      aria-label="Übersicht-Variante"
+      aria-label={t("work.common.viewVariant")}
       className="flex items-center gap-1 rounded-md border bg-muted/30 p-0.5 text-xs"
     >
       {OVERVIEW_VIEWS.map((v) => {

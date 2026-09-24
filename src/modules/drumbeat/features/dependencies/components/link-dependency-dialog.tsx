@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import { useCreateDialogState } from "@/features/create/use-create-dialog-state";
 import { Link2 } from "lucide-react";
@@ -38,6 +39,7 @@ const TYPES: { value: DependencyType; label: string }[] = [
 ];
 
 export function LinkDependencyDialog({ fromId, artId, candidates }: Props) {
+  const t = useTranslations();
   const [open, setOpen] = useCreateDialogState("dependency");
   const [toId, setToId] = useState("");
   const [type, setType] = useState<DependencyType>("blocks");
@@ -53,25 +55,25 @@ export function LinkDependencyDialog({ fromId, artId, candidates }: Props) {
     <>
       <Button size="sm" onClick={() => setOpen(true)}>
         <Link2 className="size-4 mr-1.5" />
-        Link dependency
+        {t("drumbeat.ui.linkDependency")}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Link a dependency</DialogTitle>
+            <DialogTitle>{t("drumbeat.ui.linkADependency")}</DialogTitle>
           </DialogHeader>
 
           {candidates.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">
-              No other features in this ART to depend on.
+              {t("drumbeat.ui.noOtherFeaturesIn")}
             </p>
           ) : (
             <form action={formAction} className="space-y-4">
               <input type="hidden" name="fromId" value={fromId} />
               <input type="hidden" name="artId" value={artId} />
               <div className="space-y-1.5">
-                <Label htmlFor="dep-type">This feature…</Label>
+                <Label htmlFor="dep-type">{t("drumbeat.ui.thisFeature")}</Label>
                 <select
                   id="dep-type"
                   name="type"
@@ -88,7 +90,7 @@ export function LinkDependencyDialog({ fromId, artId, candidates }: Props) {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="dep-target">Target feature</Label>
+                <Label htmlFor="dep-target">{t("drumbeat.ui.targetFeature")}</Label>
                 <select
                   id="dep-target"
                   name="toId"
@@ -96,7 +98,7 @@ export function LinkDependencyDialog({ fromId, artId, candidates }: Props) {
                   onChange={(e) => setToId(e.target.value)}
                   className={SELECT_CLASS}
                 >
-                  <option value="">Select a feature…</option>
+                  <option value="">{t("drumbeat.ui.selectAFeature")}</option>
                   {candidates.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.title}
@@ -113,7 +115,7 @@ export function LinkDependencyDialog({ fromId, artId, candidates }: Props) {
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                  Cancel
+                  {t("drumbeat.ui.cancel")}
                 </Button>
                 <Button type="submit" disabled={isPending || !toId}>
                   {isPending ? "Linking…" : "Link"}

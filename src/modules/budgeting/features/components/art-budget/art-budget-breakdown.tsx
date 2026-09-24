@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { ChevronRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import type { PeriodAmounts } from "@/modules/budgeting/domain/period-map";
@@ -53,14 +54,15 @@ interface Props {
 }
 
 export function ArtBudgetBreakdown({ model, artHref, cycleKey, visibleArtIds, showTotals }: Props) {
+  const t = useTranslations();
   const { periods } = model;
 
   if (model.isEmpty) {
     return (
-      <SectionCard title="Zugeteilt je ART">
+      <SectionCard title={t("budgeting.art.zugeteiltJeArt")}>
         <EmptyState
-          title="Noch kein ART"
-          body="Ohne ART gibt es nichts, worauf sich ein Budget verteilen liesse. ARTs entstehen unter „Organisation“."
+          title={t("budgeting.art.nochKeinArt")}
+          body={t("budgeting.art.ohneArtGibtEs")}
         />
       </SectionCard>
     );
@@ -68,8 +70,8 @@ export function ArtBudgetBreakdown({ model, artHref, cycleKey, visibleArtIds, sh
 
   return (
     <SectionCard
-      title="Zugeteilt je ART"
-      description="Je Halbjahr das Veränderungsgeld eines ARTs — Zuteilung aus der Kachel und zugesprochener ART-Rahmen zusammen —, darunter klein die Feature-Last. Eine Zeile führt in den Reiter ihres ARTs; eine Zelle nimmt ihr Halbjahr mit."
+      title={t("budgeting.art.zugeteiltJeArt")}
+      description={t("budgeting.art.jeHalbjahrDasVeraenderungsgeld")}
       bleed
       contentClassName="space-y-3"
     >
@@ -77,7 +79,7 @@ export function ArtBudgetBreakdown({ model, artHref, cycleKey, visibleArtIds, sh
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-surface-frame text-meta uppercase tracking-[0.1em] text-muted-foreground">
-              <th className="p-2 text-left font-medium">ART</th>
+              <th className="p-2 text-left font-medium">{t("budgeting.ui.art")}</th>
               {periods.map((p) => (
                 <th
                   key={p.key}
@@ -90,7 +92,7 @@ export function ArtBudgetBreakdown({ model, artHref, cycleKey, visibleArtIds, sh
                   {p.label}
                 </th>
               ))}
-              <th className="p-2 text-right font-medium">Backlog</th>
+              <th className="p-2 text-right font-medium">{t("budgeting.art.backlog")}</th>
               <th className="p-2 text-right font-medium">Σ</th>
               {/*
                 **Betrieb steht neben der Rechnung, nicht darin.** Das Geld
@@ -122,7 +124,7 @@ export function ArtBudgetBreakdown({ model, artHref, cycleKey, visibleArtIds, sh
                   Zwei Zahlen unter einem Namen ist der Fehler, den §2.5
                   abstellt.
                 */}
-                <td className="p-2">Wertstrom · Veränderung</td>
+                <td className="p-2">{t("budgeting.art.wertstromVeraenderung")}</td>
                 {periods.map((p) => (
                   <td
                     key={p.key}
@@ -227,7 +229,7 @@ export function ArtBudgetBreakdown({ model, artHref, cycleKey, visibleArtIds, sh
                   rechnet sie; die Zahl stand im Modell und wurde nie gezeigt.
                 */}
                 <tr className="border-t text-xs text-muted-foreground">
-                  <td className="p-2">Nicht zugeordnet</td>
+                  <td className="p-2">{t("budgeting.art.nichtZugeordnet")}</td>
                   {periods.map((p) => (
                     <td
                       key={p.key}
@@ -253,7 +255,7 @@ export function ArtBudgetBreakdown({ model, artHref, cycleKey, visibleArtIds, sh
                 </tr>
                 <tr className="border-t">
                   <td className="p-2 align-top text-xs font-medium text-muted-foreground">
-                    Auslastung
+                    {t("budgeting.art.auslastung")}
                   </td>
                   {periods.map((p) => (
                     <td
@@ -278,7 +280,7 @@ export function ArtBudgetBreakdown({ model, artHref, cycleKey, visibleArtIds, sh
       <p className="px-3 text-meta text-muted-foreground">
         Abgeleitet aus der Finalisierung der Budgeting-Zeiträume.{" "}
         <Link href="/budgeting/periods" className="text-primary hover:underline">
-          Zu den Zeiträumen →
+          {t("budgeting.art.zuDenZeitraeumen")}
         </Link>
       </p>
     </SectionCard>

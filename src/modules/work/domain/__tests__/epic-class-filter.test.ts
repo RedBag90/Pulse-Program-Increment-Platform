@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   isClassShown,
   hiddenClass,
-  hiddenClassLabel,
+  hiddenClassKey,
   rollUpBySolution,
   NO_SOLUTION_LABEL,
 } from "@/modules/work/domain/epic-class-filter";
@@ -38,19 +38,19 @@ describe("isClassShown", () => {
   });
 });
 
-describe("hiddenClass / hiddenClassLabel", () => {
+describe("hiddenClass / hiddenClassKey", () => {
   it("nennt die zusammengefasste Klasse", () => {
     expect(hiddenClass(["portfolio"])).toBe("art");
-    expect(hiddenClassLabel(["portfolio"])).toBe("ART-Epics");
+    expect(hiddenClassKey(["portfolio"])).toBe("work.epicClassPlural.art");
     expect(hiddenClass(["art"])).toBe("portfolio");
-    expect(hiddenClassLabel(["art"])).toBe("Portfolio-Epics");
+    expect(hiddenClassKey(["art"])).toBe("work.epicClassPlural.portfolio");
   });
 
   it("verbirgt nichts, wenn nichts oder alles gewählt ist", () => {
     expect(hiddenClass([])).toBeNull();
-    expect(hiddenClassLabel([])).toBeNull();
+    expect(hiddenClassKey([])).toBeNull();
     expect(hiddenClass(["portfolio", "art"])).toBeNull();
-    expect(hiddenClassLabel(["portfolio", "art"])).toBeNull();
+    expect(hiddenClassKey(["portfolio", "art"])).toBeNull();
   });
 });
 

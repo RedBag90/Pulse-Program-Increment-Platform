@@ -21,9 +21,9 @@ export const RTB_KINDS = ["run", "art_change"] as const;
 export type RtbKind = (typeof RTB_KINDS)[number];
 
 /** Siehe `art-budget-model.ts`: der Rahmen heisst überall „ART-Rahmen". */
-export const RTB_KIND_LABELS: Record<RtbKind, string> = {
-  run: "Betrieb",
-  art_change: "ART-Rahmen",
+export const RTB_KIND_KEYS: Record<RtbKind, string> = {
+  run: "budgeting.rtbKind.run",
+  art_change: "budgeting.rtbKind.artChange",
 };
 
 /** Unbekanntes oder fehlendes Kind → Betrieb; das ist der Bestand. */

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import type { SolutionDetailModel } from "@/modules/core/org/server/views/solution-detail";
 import {
@@ -9,7 +10,7 @@ import {
 import {
   PROMOTION_CRITERIA,
   SOLUTION_STATUSES,
-  SOLUTION_STATUS_STEP_LABEL,
+  SOLUTION_STATUS_STEP_KEYS,
   SOLUTION_TRANSITIONS,
   solutionStatusOf,
   solutionStatusToHorizonMode,
@@ -55,6 +56,7 @@ export function SolutionLifecycleBar({
   model: SolutionDetailModel;
   canManage: boolean;
 }) {
+  const t = useTranslations();
   const [, lifecycleAction] = useActionState(setSolutionLifecycleAction, {});
   const [gateOpen, setGateOpen] = useState(false);
 
@@ -79,7 +81,7 @@ export function SolutionLifecycleBar({
                   )}
                 >
                   <span className={cn("size-1.5 shrink-0 rounded-full", tone.dot)} />
-                  {SOLUTION_STATUS_STEP_LABEL[st]}
+                  {t(SOLUTION_STATUS_STEP_KEYS[st])}
                 </span>
               </div>
               {i < SOLUTION_STATUSES.length - 1 && <div className="h-px w-4 shrink-0 bg-border" />}
@@ -124,6 +126,7 @@ function TransitionGateDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(promoteSolutionAction, {});
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const allChecked = PROMOTION_CRITERIA.every((c) => checked[c.key]);
@@ -132,12 +135,9 @@ function TransitionGateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Solution nach H1.1 befördern</DialogTitle>
+          <DialogTitle>{t("org.ui.solutionNachHBefoerdern")}</DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          Alle Kriterien bestätigen, um die Solution zur dauerhaften Kern-Solution zu machen. Sie
-          landet auf H1.1 · Investing.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("org.ui.alleKriterienBestaetigenUm")}</p>
         <form action={action} className="mt-2 space-y-2">
           <input type="hidden" name="id" value={solutionId} />
           {PROMOTION_CRITERIA.map((c) => (
@@ -155,7 +155,7 @@ function TransitionGateDialog({
           {state.error && <p className="text-sm text-destructive">{state.error}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Abbrechen
+              {t("org.ui.abbrechen")}
             </Button>
             <Button type="submit" disabled={!allChecked || pending}>
               {pending ? "…" : "Befördern"}

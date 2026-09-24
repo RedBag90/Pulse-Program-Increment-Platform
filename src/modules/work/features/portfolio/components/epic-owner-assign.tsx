@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, startTransition } from "react";
 import { Check, Plus } from "lucide-react";
 import { assignEpicOwnerAction } from "@/modules/work/features/portfolio/actions/timeline";
@@ -50,6 +51,7 @@ interface Props {
  * hat stattgefunden.
  */
 export function EpicOwnerAssign({ epicId, ownerId, canAssignOwner, approvers, userLabels }: Props) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(assignEpicOwnerAction, {});
   const [open, setOpen] = useState(false);
   const saved = useTransientFlag(state.success === true);
@@ -74,9 +76,9 @@ export function EpicOwnerAssign({ epicId, ownerId, canAssignOwner, approvers, us
             label: userLabel(u.userId, userLabels),
             ...(u.roles.length ? { hint: u.roles.join(", ") } : {}),
           }))}
-          ariaLabel="Epic Owner"
-          placeholder="Nicht zugewiesen"
-          emptyLabel="— Niemand —"
+          ariaLabel={t("work.epic.epicOwner")}
+          placeholder={t("work.epic.nichtZugewiesen")}
+          emptyLabel={t("work.epic.niemand")}
           disabled={pending}
         />
         <button
@@ -84,7 +86,7 @@ export function EpicOwnerAssign({ epicId, ownerId, canAssignOwner, approvers, us
           onClick={() => setOpen(false)}
           className="text-meta text-muted-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          Abbrechen
+          {t("work.epic.abbrechen")}
         </button>
       </div>
     );

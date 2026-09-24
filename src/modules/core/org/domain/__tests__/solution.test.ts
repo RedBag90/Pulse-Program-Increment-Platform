@@ -4,7 +4,7 @@ import {
   solutionStatusToHorizonMode,
   investmentModeForHorizon,
   SOLUTION_STATUSES,
-  SOLUTION_STATUS_STEP_LABEL,
+  SOLUTION_STATUS_STEP_KEYS,
   SOLUTION_TRANSITIONS,
   isSolutionHorizon,
   type SolutionStatus,
@@ -53,11 +53,11 @@ describe("Solution-Status ↔ (Horizont, Modus)", () => {
 
 describe("Die Leiter — vier Stufen, eine dreiwertige Achse", () => {
   it("beschriftet jede der vier Stufen", () => {
-    expect(SOLUTION_STATUSES.map((s) => SOLUTION_STATUS_STEP_LABEL[s])).toEqual([
-      "H2 · Emerging",
-      "H1.1 · Investing",
-      "H1.2 · Extracting",
-      "H0 · Decommissioning",
+    expect(SOLUTION_STATUSES.map((s) => SOLUTION_STATUS_STEP_KEYS[s])).toEqual([
+      "org.solutionStep.emerging",
+      "org.solutionStep.investing",
+      "org.solutionStep.extracting",
+      "org.solutionStep.decommissioning",
     ]);
   });
 

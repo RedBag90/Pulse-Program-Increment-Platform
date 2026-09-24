@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +32,7 @@ export function AddStandardPisControl({
   standards: PiStandardOption[];
   existingPis: ExistingPi[];
 }) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
 
   if (standards.length === 0) return null;
@@ -38,7 +40,7 @@ export function AddStandardPisControl({
   return (
     <>
       <Button type="button" size="sm" variant="outline" onClick={() => setOpen(true)}>
-        Standard anwenden…
+        {t("drumbeat.ui.standardAnwenden")}
       </Button>
       <StandardPreviewDialog
         open={open}

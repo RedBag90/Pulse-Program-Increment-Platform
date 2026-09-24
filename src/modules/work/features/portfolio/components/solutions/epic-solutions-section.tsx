@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, startTransition } from "react";
 import { Star, Link2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -31,6 +32,7 @@ export function EpicSolutionsSection({
   primaryId: string | null;
   canEdit: boolean;
 }) {
+  const t = useTranslations();
   const [state, submit, pending] = useActionState(setEpicSolutionsAction, {});
   const [selected, setSelected] = useState<Set<string>>(new Set(linkedIds));
   const [primary, setPrimary] = useState<string | null>(primaryId);
@@ -67,7 +69,7 @@ export function EpicSolutionsSection({
             href="/structure/solutions?create=solution"
             className="text-primary hover:underline"
           >
-            Solution anlegen
+            {t("work.solutions.solutionAnlegen")}
           </Link>
         )}
       </div>
@@ -76,9 +78,7 @@ export function EpicSolutionsSection({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted-foreground">
-        Ein ★ markiert die Primär-Solution (liefert den Horizont).
-      </p>
+      <p className="text-xs text-muted-foreground">{t("work.solutions.einMarkiertDiePrimaer")}</p>
       <ul className="divide-y divide-border rounded-lg border">
         {solutions.map((s) => {
           const isLinked = selected.has(s.id);
@@ -99,7 +99,7 @@ export function EpicSolutionsSection({
               </label>
               <button
                 type="button"
-                aria-label="Als primär setzen"
+                aria-label={t("work.solutions.alsPrimaerSetzen")}
                 disabled={!canEdit || !isLinked}
                 onClick={() => setPrimary(s.id)}
                 className={
@@ -115,7 +115,9 @@ export function EpicSolutionsSection({
         })}
       </ul>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state.success && <p className="text-sm text-success">Zuordnung gespeichert.</p>}
+      {state.success && (
+        <p className="text-sm text-success">{t("work.solutions.zuordnungGespeichert")}</p>
+      )}
       {canEdit && (
         <Button size="sm" onClick={save} disabled={pending}>
           {pending ? "Speichern…" : "Zuordnung speichern"}

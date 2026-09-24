@@ -59,15 +59,21 @@ const JSX_TEXT_RE = />\s*([^<>{}\n][^<>{}]*?[A-Za-zÄÖÜäöüß]{2,}[^<>{}]*?)
  * als unübersetzten Text. Diese Merkmale kommen in Oberflächentext nicht vor
  * und in Code ständig.
  *
- * Beim Umbau des Ziele-Moduls kamen drei weitere Formen dazu, die der Wächter
- * sonst bis zum Schluss als offene Stellen gemeldet hätte: eine Typzeile in
- * einem mehrzeiligen Generic (`void,` gefolgt von `userLabels: Record`), ein
- * Kurzschluss-Ausdruck (`0 && todayFrac`) und ein blosser Eigenschaftszugriff
- * (`a.at`). Keine davon ist ein Satz — alle drei tragen Merkmale, die in
- * Oberflächentext nicht vorkommen.
+ * Beim Umbau des Ziele- und des Portfolio-Moduls kamen acht weitere Formen
+ * dazu, die der Wächter sonst bis zum Schluss als offene Stellen gemeldet
+ * hätte: Typzeilen in mehrzeiligen Generics (`void,` · `| null,` · `[st, 0]))
+ * as Record`), Kurzschluss- und Bedingungs-Ausdrücke (`0 && todayFrac`,
+ * `0.05 ? "text-destructive"`), ein Konstruktoraufruf (`new Map`), ein
+ * schliessendes Klammerpaar mit Komma (`),`) und ein blosser
+ * Eigenschaftszugriff (`a.at`).
+ *
+ * Zwei Merkmale tragen dabei am weitesten: das doppelte Anführungszeichen —
+ * deutscher wie englischer Oberflächentext benutzt „…" bzw. “…”, nie `"` —
+ * und die Klammer unmittelbar hinter einem Wortzeichen (`formatEUR(`), die in
+ * Oberflächentext nie ohne Leerzeichen davor steht.
  */
 const CODE =
-  /[;=<]|^[(,)]|=>|&&|\|\||,\s*$|^(?:void|string|number|boolean|Record|Partial|readonly|null|undefined)\b|^\w+\.\w+$/;
+  /[;=<"]|^[(,)[|]|=>|&&|\|\||\),|,\s*$|\w\(|\?\s*\(|^\d+\s*,|^new\b|^(?:ReturnType|Awaited|Parameters|Promise|Array|Set|Map)\b|^(?:void|string|number|boolean|Record|Partial|readonly|null|undefined)\b|^\w+\.\w+$/;
 
 /**
  * Was literal stehenbleiben darf.

@@ -1,15 +1,16 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import { RISK_LEVELS, type RiskLevel, type ExposureBand } from "@/modules/risks/domain/risk-matrix";
 import {
   ROAM_HEX,
-  ROAM_LABELS,
+  ROAM_KEYS,
   ROAM_STATUSES,
   normalizeRoamStatus,
 } from "@/modules/core/kernel/domain/roam";
-import { EXPOSURE_LABEL, EXPOSURE_TONE, LEVEL_LABEL } from "@/modules/core/kernel/domain/exposure";
+import { EXPOSURE_KEYS, EXPOSURE_TONE, LEVEL_KEYS } from "@/modules/core/kernel/domain/exposure";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { RoamStatus } from "@/modules/core/kernel/domain/roam";
 
@@ -87,6 +88,7 @@ function push<T>(map: Map<string, T[]>, key: string, value: T) {
  * (ROAM-Farbe) = aktuell. Reines CSS-Grid — kein SVG.
  */
 export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risiken." }: Props) {
+  const t = useTranslations();
   const { push: pushUrl } = useUrlState();
   const [hovered, setHovered] = useState<string | null>(null);
   const [overlay, setOverlay] = useState<Overlay | null>(null);
@@ -164,12 +166,12 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
         <div className="flex min-w-[22rem] gap-1.5">
           <div className="flex items-center">
             <span className="rotate-180 font-mono text-label tracking-[0.1em] text-muted-foreground [writing-mode:vertical-rl]">
-              Wahrscheinlichkeit →
+              {t("risks.ui.wahrscheinlichkeit")}
             </span>
           </div>
           <div
             role="img"
-            aria-label="Risiko-Matrix (Eintrittswahrscheinlichkeit × Auswirkung)"
+            aria-label={t("risks.ui.risikoMatrixEintrittswahrscheinlichkeitAuswirkung")}
             className="grid flex-1 gap-1.5"
             style={{ gridTemplateColumns: `auto repeat(${N}, minmax(0, 1fr))` }}
           >
@@ -181,7 +183,7 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
               style={{ gridColumn: `2 / span ${N}` }}
               className="pb-0.5 text-center font-mono text-label tracking-[0.1em] text-muted-foreground"
             >
-              Auswirkung →
+              {t("risks.ui.auswirkung")}
             </div>
 
             {/* Das Eck der Skalen-Zeile bleibt leer: die Titel stehen jetzt aussen. */}
@@ -191,14 +193,14 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
                 key={`x-${impact}`}
                 className="pb-0.5 text-center font-mono text-label leading-tight text-muted-foreground"
               >
-                {LEVEL_LABEL[impact]}
+                {t(LEVEL_KEYS[impact])}
               </div>
             ))}
 
             {rows.map((probability) => (
               <Fragment key={`row-${probability}`}>
                 <div className="flex items-center justify-end pr-1.5 font-mono text-label text-muted-foreground">
-                  {LEVEL_LABEL[probability]}
+                  {t(LEVEL_KEYS[probability])}
                 </div>
                 {RISK_LEVELS.map((impact) => {
                   const key = cellKey(probability, impact);
@@ -314,7 +316,7 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
               className={`size-2.5 ${ROAM_SHAPE[s]}`}
               style={{ color: ROAM_HEX[s], backgroundColor: ROAM_HEX[s] }}
             />
-            {ROAM_LABELS[s]}
+            {t(ROAM_KEYS[s])}
           </span>
         ))}
       </div>
@@ -335,6 +337,7 @@ function MatrixTooltip({
   overlay: Overlay;
   cellByKey: Map<string, MatrixCellCount>;
 }) {
+  const t = useTranslations();
   const p = overlay.plot;
   const cur = p.trail[p.trail.length - 1];
   const band = cur ? cellByKey.get(cellKey(cur.probability, cur.impact))?.band : undefined;
@@ -359,13 +362,13 @@ function MatrixTooltip({
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
         <span className="inline-flex items-center gap-1">
           <span className="size-2 rounded-full" style={{ backgroundColor: ROAM_HEX[roam] }} />
-          {ROAM_LABELS[roam]}
+          {t(ROAM_KEYS[roam])}
         </span>
-        {band && <span>· {EXPOSURE_LABEL[band]}</span>}
+        {band && <span>· {t(EXPOSURE_KEYS[band])}</span>}
       </div>
       {cur && (
         <p className="mt-0.5 text-muted-foreground">
-          {LEVEL_LABEL[cur.probability]} × {LEVEL_LABEL[cur.impact]}
+          {t(LEVEL_KEYS[cur.probability])} × {t(LEVEL_KEYS[cur.impact])}
         </p>
       )}
       {p.trail.length > 1 && (

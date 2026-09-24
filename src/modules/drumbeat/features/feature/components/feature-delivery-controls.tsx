@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, startTransition } from "react";
 import {
   startFeatureAction,
@@ -59,6 +60,7 @@ function transitionsFor(status: string): Transition[] {
 }
 
 export function FeatureDeliveryControls({ featureId, status, piAssigned, parentEpicReady }: Props) {
+  const t = useTranslations();
   const [startState, startAction, startPending] = useActionState(startFeatureAction, {});
   const [statusState, statusAction, statusPending] = useActionState(
     setFeatureDeliveryStatusAction,
@@ -92,7 +94,7 @@ export function FeatureDeliveryControls({ featureId, status, piAssigned, parentE
           onChange={(e) => setReason(e.target.value)}
           rows={3}
           maxLength={2000}
-          placeholder="Begründung (erforderlich)"
+          placeholder={t("drumbeat.ui.begruendungErforderlich")}
           className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
         />
         <div className="flex justify-end gap-2">
@@ -105,7 +107,7 @@ export function FeatureDeliveryControls({ featureId, status, piAssigned, parentE
               setReason("");
             }}
           >
-            Abbrechen
+            {t("drumbeat.ui.abbrechen")}
           </button>
           <button
             type="button"
@@ -128,8 +130,8 @@ export function FeatureDeliveryControls({ featureId, status, piAssigned, parentE
   }
 
   const buttons: Array<{ key: Transition; node: React.ReactNode }> = [];
-  for (const t of ts) {
-    if (t === "start") {
+  for (const aktion of ts) {
+    if (aktion === "start") {
       buttons.push({
         key: "start",
         node: (
@@ -144,7 +146,7 @@ export function FeatureDeliveryControls({ featureId, status, piAssigned, parentE
           </button>
         ),
       });
-    } else if (t === "resume") {
+    } else if (aktion === "resume") {
       buttons.push({
         key: "resume",
         node: (
@@ -154,11 +156,11 @@ export function FeatureDeliveryControls({ featureId, status, piAssigned, parentE
             className={PRIMARY}
             onClick={() => dispatch(statusAction, { id: featureId, to: "in_progress" })}
           >
-            Fortsetzen
+            {t("drumbeat.ui.fortsetzen")}
           </button>
         ),
       });
-    } else if (t === "complete") {
+    } else if (aktion === "complete") {
       buttons.push({
         key: "complete",
         node: (
@@ -168,11 +170,11 @@ export function FeatureDeliveryControls({ featureId, status, piAssigned, parentE
             className={OUTLINE}
             onClick={() => dispatch(statusAction, { id: featureId, to: "completed" })}
           >
-            Abschließen
+            {t("drumbeat.ui.abschliessen")}
           </button>
         ),
       });
-    } else if (t === "block") {
+    } else if (aktion === "block") {
       buttons.push({
         key: "block",
         node: (
@@ -182,11 +184,11 @@ export function FeatureDeliveryControls({ featureId, status, piAssigned, parentE
             className={OUTLINE}
             onClick={() => setReasonOpen({ to: "blocked", label: "Pausieren" })}
           >
-            Pausieren
+            {t("drumbeat.ui.pausieren")}
           </button>
         ),
       });
-    } else if (t === "cancel") {
+    } else if (aktion === "cancel") {
       buttons.push({
         key: "cancel",
         node: (
@@ -196,7 +198,7 @@ export function FeatureDeliveryControls({ featureId, status, piAssigned, parentE
             className={DANGER}
             onClick={() => setReasonOpen({ to: "cancelled", label: "Abbrechen" })}
           >
-            Abbrechen
+            {t("drumbeat.ui.abbrechen")}
           </button>
         ),
       });

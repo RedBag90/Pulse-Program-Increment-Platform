@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -32,6 +33,7 @@ export function MultiUserSelect({
   onToggle: (userId: string) => void;
   userLabels: Record<string, string>;
 }) {
+  const t = useTranslations();
   const summary =
     selected.size === 0
       ? "— Personen wählen —"
@@ -47,7 +49,9 @@ export function MultiUserSelect({
       </PopoverTrigger>
       <PopoverContent align="start" className="max-h-72 w-72 overflow-y-auto p-1">
         {options.length === 0 ? (
-          <p className="p-2 text-xs text-muted-foreground">Keine Nutzer im Mandanten.</p>
+          <p className="p-2 text-xs text-muted-foreground">
+            {t("work.epic.keineNutzerImMandanten")}
+          </p>
         ) : (
           <ul className="space-y-0.5">
             {options.map((u) => {
@@ -109,16 +113,17 @@ export function GatePartyPicker({
   onToggle: (role: string, userId: string) => void;
   userLabels: Record<string, string>;
 }) {
+  const t = useTranslations();
   return (
     <div className="space-y-2">
-      <SectionLabel>Abnahme durch</SectionLabel>
+      <SectionLabel>{t("work.epic.abnahmeDurch")}</SectionLabel>
       <div className="grid gap-2 sm:grid-cols-2">
-        {staffing.roles.map(({ role, label }) => (
+        {staffing.roles.map(({ role, labelKey }) => (
           <div
             key={role}
             className="flex items-center gap-2 rounded-lg bg-card px-3 py-2 shadow-card"
           >
-            <span className="w-28 shrink-0 text-xs font-medium">{label}</span>
+            <span className="w-28 shrink-0 text-xs font-medium">{t(labelKey)}</span>
             <MultiUserSelect
               options={approvers}
               selected={selected[role] ?? new Set()}
@@ -129,8 +134,7 @@ export function GatePartyPicker({
         ))}
       </div>
       <p className="text-meta text-muted-foreground">
-        Die gewählten Personen nehmen den Wechsel ab — ihre Zustimmung ist die Freigabe des Business
-        Case. Parteien ohne Person bleiben unbesetzt.
+        {t("work.epic.dieGewaehltenPersonenNehmen")}
       </p>
     </div>
   );

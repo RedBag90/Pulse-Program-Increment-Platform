@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Trash2 } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { useCallback } from "react";
@@ -21,6 +22,7 @@ interface Props {
  * nur das gelöschte PI ist fort.
  */
 export function DeletePiButton({ piId, artId, name }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const onSuccess = useCallback(() => router.replace(`/umsetzung?art=${artId}`), [router, artId]);
 
@@ -28,7 +30,7 @@ export function DeletePiButton({ piId, artId, name }: Props) {
     <ConfirmMutateForm
       action={deletePiAction}
       fields={{ id: piId, artId }}
-      label="PI löschen"
+      label={t("drumbeat.ui.piLoeschen")}
       pendingLabel="Löscht…"
       confirmPrompt={`„${name}" wirklich löschen? Seine Sprints und Objectives werden mit entfernt; zugeordnete Features gehen zurück in den Backlog.`}
       variant="outline"

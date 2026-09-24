@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, startTransition } from "react";
 import { Pencil, X } from "lucide-react";
 import { updateTimelineAction } from "@/modules/drumbeat/features/cadence/actions/timeline";
@@ -18,6 +19,7 @@ const initialState: ActionState = {};
  * bleibt er offen und zeigt den Fehler.
  */
 export function EditTimelineForm({ timelineId, name }: Props) {
+  const t = useTranslations();
   const [editing, setEditing] = useState(false);
   const [state, action, pending] = useActionState(updateTimelineAction, initialState);
   const [draftName, setDraftName] = useState(name);
@@ -31,10 +33,10 @@ export function EditTimelineForm({ timelineId, name }: Props) {
           setEditing(true);
         }}
         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-        aria-label="Timeline bearbeiten"
+        aria-label={t("drumbeat.ui.timelineBearbeiten")}
       >
         <Pencil className="size-3.5" />
-        Bearbeiten
+        {t("drumbeat.ui.bearbeiten")}
       </button>
     );
   }
@@ -55,7 +57,7 @@ export function EditTimelineForm({ timelineId, name }: Props) {
       <div className="flex flex-wrap items-end gap-2">
         <div className="flex-1 min-w-[200px] space-y-1">
           <label htmlFor="tl-name" className="text-xs text-muted-foreground">
-            Name
+            {t("drumbeat.ui.name")}
           </label>
           <input
             id="tl-name"
@@ -91,7 +93,7 @@ export function EditTimelineForm({ timelineId, name }: Props) {
           className="inline-flex items-center gap-1 h-7 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
         >
           <X className="size-3.5" />
-          Abbrechen
+          {t("drumbeat.ui.abbrechen")}
         </button>
         {state?.error && <span className="text-xs text-destructive">{state.error}</span>}
       </div>

@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import type { FundingPhase } from "@/modules/budgeting/domain/art-funding-phases";
 
@@ -39,9 +40,10 @@ export function ArtFundingRail({
   /** Auf welcher Fläche die Leiste sitzt — entscheidet über „Sie" vs. „wartet auf". */
   surface: FundingPhase["actor"];
 }) {
+  const t = useTranslations();
   return (
     <nav
-      aria-label="ART-Budget — Schritte"
+      aria-label={t("budgeting.ui.artBudgetSchritte")}
       className="flex overflow-x-auto rounded-lg bg-card shadow-card"
     >
       {phases.map((p, i) => {

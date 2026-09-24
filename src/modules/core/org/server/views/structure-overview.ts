@@ -50,7 +50,7 @@ export interface OverviewSolution {
   /** Emerging / Investing / Extracting / Decommissioning — die Gruppierungsachse. */
   status: SolutionStatus | null;
   /** „H1 · Extracting" — dieselbe Regel wie das Horizont-Abzeichen. */
-  statusLabel: string;
+  statusLabelKey: string;
   money: StructureMoney | null;
 }
 
@@ -122,7 +122,7 @@ function toSolution(sol: {
     status: horizon ? solutionStatusOf(horizon, mode) : null,
     // Ein unbekannter Horizont steht roh da statt still auf H1 zu fallen — eine
     // falsche Auskunft wäre schlimmer als eine unschöne.
-    statusLabel: horizon ? horizonLabel(horizon, mode) : sol.horizon,
+    statusLabelKey: horizon ? horizonLabel(horizon, mode) : sol.horizon,
     money: null,
   };
 }
@@ -249,7 +249,8 @@ export function flattenSolutions(overview: StructureOverview): FlatSolution[] {
 
 export interface SolutionStatusGroup {
   status: SolutionStatus | null;
-  label: string;
+  /** Katalog-Schlüssel — der Server-View beschriftet nicht (ADR-0024). */
+  labelKey: string;
   rows: FlatSolution[];
 }
 
@@ -265,23 +266,23 @@ export interface SolutionStatusGroup {
 export function groupByStatus(rows: readonly FlatSolution[]): SolutionStatusGroup[] {
   const groups: SolutionStatusGroup[] = SOLUTION_STATUSES.map((status) => ({
     status,
-    label: statusLabelOf(rows, status),
+    labelKey: statusLabelOf(rows, status),
     rows: rows.filter((r) => r.solution.status === status),
   })).filter((g) => g.rows.length > 0);
 
   const rest = rows.filter((r) => r.solution.status == null);
-  if (rest.length > 0) groups.push({ status: null, label: "Ohne Horizont", rows: rest });
+  if (rest.length > 0) groups.push({ status: null, labelKey: "org.horizon.none", rows: rest });
   return groups;
 }
 
 /**
- * Die Überschrift einer Gruppe kommt aus den Zeilen selbst (`statusLabel`),
+ * Die Überschrift einer Gruppe kommt aus den Zeilen selbst (`statusLabelKey`),
  * nicht aus einer zweiten Etikettenliste, die neben `horizonLabel` veralten
  * könnte. Der Rückfall greift nur für eine Gruppe ohne Zeilen — und die wird
  * ohnehin weggefiltert.
  */
 function statusLabelOf(rows: readonly FlatSolution[], status: SolutionStatus): string {
-  return rows.find((r) => r.solution.status === status)?.solution.statusLabel ?? status;
+  return rows.find((r) => r.solution.status === status)?.solution.statusLabelKey ?? status;
 }
 
 /**

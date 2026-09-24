@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, useEffect } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { updateFeatureAction } from "@/modules/work/features/feature/actions/feature";
@@ -18,6 +19,7 @@ interface Props {
  * server-seitig auf Zeilen splittet.
  */
 export function FeatureAcceptanceTab({ featureId, artId, initialCriteria, canEdit }: Props) {
+  const t = useTranslations();
   const [text, setText] = useState(() => initialCriteria.join("\n"));
   const [state, dispatch, pending] = useActionState(updateFeatureAction, {});
 
@@ -31,16 +33,14 @@ export function FeatureAcceptanceTab({ featureId, artId, initialCriteria, canEdi
   if (!artId) {
     return (
       <section className="rounded-lg bg-card p-6 shadow-card">
-        <p className="text-sm text-muted-foreground">
-          Feature ohne ART-Zuordnung — Acceptance Criteria sind aktuell nicht editierbar.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("drumbeat.ui.featureOhneArtZuordnung")}</p>
       </section>
     );
   }
 
   return (
     <section className="rounded-lg bg-card p-6 shadow-card">
-      <h2 className="text-lg font-medium">Acceptance Criteria</h2>
+      <h2 className="text-lg font-medium">{t("drumbeat.ui.acceptanceCriteria")}</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Eine Zeile = ein Kriterium. Leere Zeilen werden verworfen.
       </p>
@@ -68,7 +68,7 @@ export function FeatureAcceptanceTab({ featureId, artId, initialCriteria, canEdi
         )}
         {state.success && (
           <p role="status" className="inline-flex items-center gap-1.5 text-sm text-success">
-            <CheckCircle2 className="size-4" /> Acceptance Criteria gespeichert.
+            <CheckCircle2 className="size-4" /> {t("drumbeat.ui.acceptanceCriteriaGespeichert")}
           </p>
         )}
 

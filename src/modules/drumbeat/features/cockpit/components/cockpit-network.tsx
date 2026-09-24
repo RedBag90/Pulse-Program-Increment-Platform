@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import dagre from "@dagrejs/dagre";
@@ -24,7 +25,7 @@ import type {
 } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { useDependencyEdgeEditing } from "@/modules/drumbeat/features/dependencies/hooks/use-dependency-edge-editing";
 import { formatWsjf } from "@/modules/core/kernel/domain/wsjf";
-import { FEATURE_STATUS_LABELS as STATUS_LABEL } from "@/modules/drumbeat/domain/status";
+import { FEATURE_STATUS_KEYS as STATUS_LABEL } from "@/modules/drumbeat/domain/status";
 import { EdgeTypeMenu } from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";
 import { FeaturePickerPopover } from "@/modules/drumbeat/features/dependencies/components/feature-picker-popover";
 import type { DependencyEdgeType } from "@/modules/drumbeat/server/views/breakdown-network-view";
@@ -222,6 +223,7 @@ export function CockpitNetwork({
   pis,
   selectedPiId,
 }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -289,8 +291,8 @@ export function CockpitNetwork({
   if (features.length === 0) {
     return (
       <EmptyState
-        title="Keine Features im Zeitfenster"
-        body="In den PIs dieses Fensters liegt nichts, das sich verknüpfen ließe. Verschiebe das Fenster im PI-Streifen oder nimm die Filter heraus."
+        title={t("drumbeat.ui.keineFeaturesImZeitfenster")}
+        body={t("drumbeat.ui.inDenPisDieses")}
         className="h-[420px]"
       />
     );
@@ -310,7 +312,7 @@ export function CockpitNetwork({
           value={layout}
           options={LAYOUT_TABS}
           onChange={setLayout}
-          ariaLabel="Anordnung des Netzes"
+          ariaLabel={t("drumbeat.ui.anordnungDesNetzes")}
           className="h-8 bg-card text-xs"
         />
       </div>
@@ -320,9 +322,9 @@ export function CockpitNetwork({
           type="button"
           onClick={() => setAddState({ sourceId: "", anchorX: 24, anchorY: 64 })}
           className="absolute right-3 top-3 z-20 rounded-md bg-card px-2.5 py-1 text-xs font-medium shadow-card hover:bg-muted/40"
-          title="Cross-ART-Dependency anlegen"
+          title={t("drumbeat.ui.crossArtDependencyAnlegen")}
         >
-          + Cross-ART
+          {t("drumbeat.ui.crossArt")}
         </button>
       )}
       <ReactFlow

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, startTransition, useState, type ReactNode } from "react";
 import { Check, Plus } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -187,6 +188,7 @@ function Picker({
   slot: Slot;
   className?: string;
 }) {
+  const t = useTranslations();
   return (
     <div className={className}>
       <UserPicker
@@ -194,8 +196,8 @@ function Picker({
         onChange={slot.save}
         options={users}
         ariaLabel={entry.role}
-        placeholder="Nicht benannt"
-        emptyLabel="— Niemand —"
+        placeholder={t("org.ui.nichtBenannt")}
+        emptyLabel={t("org.ui.niemand")}
         disabled={slot.busy}
       />
       <button
@@ -203,7 +205,7 @@ function Picker({
         onClick={() => slot.setOpen(false)}
         className="mt-1 text-meta text-muted-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
-        Abbrechen
+        {t("org.ui.abbrechen")}
       </button>
     </div>
   );

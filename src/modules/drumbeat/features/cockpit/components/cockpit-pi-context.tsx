@@ -1,8 +1,9 @@
+import { useTranslations } from "next-intl";
 import { PiTransitionButton } from "@/modules/drumbeat/features/cockpit/components/pi-transition-button";
 import { AdvanceCadenceButton } from "@/modules/drumbeat/features/cockpit/components/advance-cadence-button";
 import { DeletePiButton } from "@/modules/drumbeat/features/cockpit/components/delete-pi-button";
 import type { CockpitPiSlot } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
-import { PI_STATUS_LABELS } from "@/modules/drumbeat/domain/status";
+import { PI_STATUS_KEYS } from "@/modules/drumbeat/domain/status";
 
 /**
  * PI-Kontext-Leiste des Cockpits — ersetzt die frühere eigenständige
@@ -36,8 +37,9 @@ const STATUS_BADGE: Record<string, string> = {
  * rohe englische Wert („planned") in der deutschen Oberfläche stand.
  */
 function piStatusLabel(status: string): string {
-  return status in PI_STATUS_LABELS
-    ? PI_STATUS_LABELS[status as keyof typeof PI_STATUS_LABELS]
+  const t = useTranslations();
+  return status in PI_STATUS_KEYS
+    ? t(PI_STATUS_KEYS[status as keyof typeof PI_STATUS_KEYS] ?? status)
     : status;
 }
 

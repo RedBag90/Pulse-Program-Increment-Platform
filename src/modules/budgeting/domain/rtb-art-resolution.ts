@@ -175,10 +175,10 @@ export type RtbAssignmentGroup = "stream" | "art" | "solution";
  * Kopien geworden, und die erste, die jemand ändert, hätte die anderen zu
  * Lügen gemacht. Sie stehen hier, wo die Einteilung selbst wohnt.
  */
-export const RTB_ASSIGNMENT_GROUP_LABELS: Record<RtbAssignmentGroup, string> = {
-  stream: "Wertstrom-übergreifend",
-  art: "ART-übergreifend",
-  solution: "Solution-individuell",
+export const RTB_ASSIGNMENT_GROUP_KEYS: Record<RtbAssignmentGroup, string> = {
+  stream: "budgeting.rtbAssignmentGroup.stream",
+  art: "budgeting.rtbAssignmentGroup.art",
+  solution: "budgeting.rtbAssignmentGroup.solution",
 };
 
 /** Von der breitesten Zurechnung zur engsten — die Lesereihenfolge der Flächen. */

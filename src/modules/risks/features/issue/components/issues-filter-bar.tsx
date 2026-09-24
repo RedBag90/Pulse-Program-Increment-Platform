@@ -1,21 +1,22 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { ChevronsDownUp, ChevronsUpDown, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { SearchSelect } from "@/components/ui/search-select";
-import { CATEGORY_LABELS } from "@/modules/risks/features/risk/components/labels";
+import { CATEGORY_KEYS } from "@/modules/risks/features/risk/components/labels";
 import {
   ISSUE_GROUP_AXES,
-  ISSUE_GROUP_LABELS,
+  ISSUE_GROUP_KEYS,
   type IssueGroupAxis,
 } from "@/modules/risks/domain/issue-grouping";
 import type { RiskCategory } from "@/modules/risks/domain/risk-category";
 import {
   EXPOSURE_BANDS,
-  EXPOSURE_LABEL,
+  EXPOSURE_KEYS,
   EXPOSURE_TONE,
 } from "@/modules/core/kernel/domain/exposure";
 
@@ -86,6 +87,7 @@ function toggle(list: string[], value: string): string[] {
  * (a11y-Popover) statt nativer `<select>` — Mehrfach-Filter ist damit möglich.
  */
 export function IssuesFilterBar(p: Props) {
+  const t = useTranslations();
   const [draft, setDraft] = useState(p.query);
   useEffect(() => setDraft(p.query), [p.query]);
   useEffect(() => {
@@ -119,19 +121,19 @@ export function IssuesFilterBar(p: Props) {
           type="search"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Issue suchen …"
-          aria-label="Issue suchen"
+          placeholder={t("risks.ui.issueSuchen")}
+          aria-label={t("risks.ui.issueSuchen2")}
           className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm shadow-xs focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>
 
       <MultiSelectFilter
-        label="Kategorie"
+        label={t("risks.ui.kategorie")}
         sections={[
           {
             options: p.categoryOptions.map((c) => ({
               value: c,
-              label: CATEGORY_LABELS[c as RiskCategory] ?? c,
+              label: t(CATEGORY_KEYS[c as RiskCategory]) ?? c,
             })),
           },
         ]}
@@ -142,7 +144,7 @@ export function IssuesFilterBar(p: Props) {
       />
 
       <MultiSelectFilter
-        label="Owner"
+        label={t("risks.ui.owner")}
         sections={[{ options: p.ownerOptions.map((o) => ({ value: o.id, label: o.label })) }]}
         selected={new Set(p.owners)}
         onToggle={(v) => p.onOwnersChange(toggle(p.owners, v))}
@@ -153,12 +155,12 @@ export function IssuesFilterBar(p: Props) {
       {/* „Exposure", nicht „Band": die Spalte daneben, die Sortierung und die
           Matrix-Legende sagen alle Exposure — ein Wort je Größe. */}
       <MultiSelectFilter
-        label="Exposure"
+        label={t("risks.ui.exposure")}
         sections={[
           {
             options: EXPOSURE_BANDS.map((b) => ({
               value: b,
-              label: EXPOSURE_LABEL[b],
+              label: t(EXPOSURE_KEYS[b]),
               color: EXPOSURE_TONE[b].hex,
             })),
           },
@@ -169,7 +171,7 @@ export function IssuesFilterBar(p: Props) {
       />
 
       <MultiSelectFilter
-        label="Wertstrom"
+        label={t("risks.ui.wertstrom")}
         sections={[{ options: p.valueStreamOptions.map((o) => ({ value: o.id, label: o.label })) }]}
         selected={new Set(p.valueStreams)}
         onToggle={(v) => p.onValueStreamsChange(toggle(p.valueStreams, v))}
@@ -178,7 +180,7 @@ export function IssuesFilterBar(p: Props) {
       />
 
       <MultiSelectFilter
-        label="ART"
+        label={t("risks.ui.art")}
         sections={[{ options: p.artOptions.map((o) => ({ value: o.id, label: o.label })) }]}
         selected={new Set(p.arts)}
         onToggle={(v) => p.onArtsChange(toggle(p.arts, v))}
@@ -189,7 +191,7 @@ export function IssuesFilterBar(p: Props) {
       {hasActiveFilter && (
         <Button type="button" variant="ghost" size="sm" onClick={clearAll}>
           <X className="mr-1 size-3.5" />
-          Zurücksetzen
+          {t("risks.ui.zuruecksetzen")}
         </Button>
       )}
 
@@ -202,8 +204,8 @@ export function IssuesFilterBar(p: Props) {
               size="sm"
               onClick={p.tree.onAlleAuf}
               disabled={p.tree.alleAuf}
-              aria-label="Alle aufklappen"
-              title="Alle aufklappen"
+              aria-label={t("risks.ui.alleAufklappen")}
+              title={t("risks.ui.alleAufklappen")}
             >
               <ChevronsUpDown className="size-3.5" />
             </Button>
@@ -213,8 +215,8 @@ export function IssuesFilterBar(p: Props) {
               size="sm"
               onClick={p.tree.onAlleZu}
               disabled={p.tree.alleZu}
-              aria-label="Alle zuklappen"
-              title="Alle zuklappen"
+              aria-label={t("risks.ui.alleZuklappen")}
+              title={t("risks.ui.alleZuklappen")}
             >
               <ChevronsDownUp className="size-3.5" />
             </Button>
@@ -225,10 +227,10 @@ export function IssuesFilterBar(p: Props) {
           onChange={(v) => p.onGroupChange(v as IssueGroupAxis)}
           options={ISSUE_GROUP_AXES.map((a) => ({
             value: a,
-            label: `Gruppen: ${ISSUE_GROUP_LABELS[a]}`,
+            label: `Gruppen: ${t(ISSUE_GROUP_KEYS[a])}`,
           }))}
-          placeholder="Gruppierung"
-          ariaLabel="Gruppierung"
+          placeholder={t("risks.ui.gruppierung")}
+          ariaLabel={t("risks.ui.gruppierung")}
           className="w-48"
         />
         <SearchSelect
@@ -238,8 +240,8 @@ export function IssuesFilterBar(p: Props) {
             value: k,
             label: SORT_LABELS[k],
           }))}
-          placeholder="Sortieren"
-          ariaLabel="Sortierung"
+          placeholder={t("risks.ui.sortieren")}
+          ariaLabel={t("risks.ui.sortierung")}
           className="w-44"
         />
         <ToggleGroup
@@ -249,7 +251,7 @@ export function IssuesFilterBar(p: Props) {
             { id: "compact", label: "Kompakt" },
           ]}
           onChange={p.onDensityChange}
-          ariaLabel="Zeilenhöhe"
+          ariaLabel={t("risks.ui.zeilenhoehe")}
         />
       </div>
     </div>

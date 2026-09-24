@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import { ChevronDown, Gauge, Target } from "lucide-react";
 import {
@@ -143,6 +144,7 @@ function KpiItem({
   initiativeId: string;
   canEdit: boolean;
 }) {
+  const t = useTranslations();
   const [delState, delAction, delPending] = useActionState(deleteKpiAction, {});
   const [measState, measAction, measPending] = useActionState(recordKpiMeasurementAction, {});
   const [weightState, weightAction, weightPending] = useActionState(updateKpiWeightAction, {});
@@ -185,7 +187,8 @@ function KpiItem({
       <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <p className="text-2xl font-semibold tabular-nums">{fmt(kpi.latest)}</p>
         <p className="text-sm text-muted-foreground">
-          von <span className="font-medium text-foreground">{fmt(kpi.target)}</span>
+          {t("work.epic.von")}{" "}
+          <span className="font-medium text-foreground">{fmt(kpi.target)}</span>
           {kpi.unit ? ` ${kpi.unit}` : ""}
         </p>
         {total != null && (
@@ -216,20 +219,26 @@ function KpiItem({
             <input type="hidden" name="id" value={kpi.id} />
             <input type="hidden" name="initiativeId" value={initiativeId} />
             <label className="flex flex-col gap-1 text-xs font-medium">
-              Messwert erfassen
+              {t("work.epic.messwertErfassen")}
               <div className="flex items-center gap-2">
-                <Input type="date" name="date" required aria-label="Datum" className="w-40" />
+                <Input
+                  type="date"
+                  name="date"
+                  required
+                  aria-label={t("work.epic.datum")}
+                  className="w-40"
+                />
                 <Input
                   type="number"
                   step="any"
                   name="value"
                   required
-                  placeholder="Wert"
-                  aria-label="Messwert"
+                  placeholder={t("work.epic.wert")}
+                  aria-label={t("work.epic.messwert")}
                   className="w-32"
                 />
                 <Button type="submit" variant="secondary" size="sm" disabled={measPending}>
-                  Erfassen
+                  {t("work.epic.erfassen")}
                 </Button>
               </div>
             </label>
@@ -240,20 +249,20 @@ function KpiItem({
             <input type="hidden" name="id" value={kpi.id} />
             <input type="hidden" name="initiativeId" value={initiativeId} />
             <label className="flex flex-col gap-1 text-xs font-medium">
-              Nutzen-Anteil %
+              {t("work.epic.nutzenAnteil")}
               <Input
                 type="number"
                 step="any"
                 min={0}
                 name="weightPercent"
                 defaultValue={kpi.weight != null ? kpi.weight * 100 : ""}
-                placeholder="auto"
-                aria-label="Nutzen-Anteil in Prozent"
+                placeholder={t("work.epic.auto")}
+                aria-label={t("work.epic.nutzenAnteilInProzent")}
                 className="w-24"
               />
             </label>
             <Button type="submit" variant="secondary" size="sm" disabled={weightPending}>
-              Speichern
+              {t("work.epic.speichern")}
             </Button>
           </form>
 
@@ -262,12 +271,12 @@ function KpiItem({
             <input type="hidden" name="id" value={kpi.id} />
             <input type="hidden" name="initiativeId" value={initiativeId} />
             <label className="flex flex-col gap-1 text-xs font-medium">
-              Kalkulations-Notiz
+              {t("work.epic.kalkulationsNotiz")}
               <Textarea
                 name="calculationNote"
                 rows={2}
                 defaultValue={kpi.calculationNote ?? ""}
-                placeholder="Wie wird dieser Wert hergeleitet?"
+                placeholder={t("work.epic.wieWirdDieserWert")}
                 className="resize-y"
               />
             </label>
@@ -278,14 +287,14 @@ function KpiItem({
               disabled={detPending}
               className="self-start"
             >
-              Notiz speichern
+              {t("work.epic.notizSpeichern")}
             </Button>
           </form>
 
           {/* Verlauf */}
           {history.length > 0 && (
             <div>
-              <SectionLabel className="mb-1">Verlauf</SectionLabel>
+              <SectionLabel className="mb-1">{t("work.epic.verlauf")}</SectionLabel>
               <ul className="space-y-0.5 text-xs tabular-nums">
                 {history.map((m, i) => (
                   <li key={`${m.date}-${i}`} className="flex justify-between gap-4">
@@ -308,7 +317,7 @@ function KpiItem({
               disabled={delPending}
               className="text-xs text-destructive hover:underline disabled:opacity-50"
             >
-              KPI entfernen
+              {t("work.epic.kpiEntfernen")}
             </button>
           </form>
         </div>
@@ -325,6 +334,7 @@ function KpiItem({
 
 /** KPI-Erfassung als Pop-up (entlastet die volle Detailseite). */
 function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(createKpiAction, {});
   useCreateResult(state, () => setOpen(false));
@@ -332,41 +342,46 @@ function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
   return (
     <>
       <Button size="sm" onClick={() => setOpen(true)}>
-        KPI hinzufügen
+        {t("work.epic.kpiHinzufuegen")}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>KPI hinzufügen</DialogTitle>
+            <DialogTitle>{t("work.epic.kpiHinzufuegen")}</DialogTitle>
           </DialogHeader>
           <form action={action} className="space-y-3">
             <input type="hidden" name="initiativeId" value={initiativeId} />
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-xs font-medium">
-                Name
+                {t("work.epic.name")}
                 <Input name="name" required />
               </label>
               <label className="flex flex-col gap-1 text-xs font-medium">
-                Einheit
+                {t("work.epic.einheit")}
                 <Input name="unit" />
               </label>
               <label className="flex flex-col gap-1 text-xs font-medium">
-                Baseline
+                {t("work.epic.baseline")}
                 <Input type="number" step="any" name="baseline" />
               </label>
               <label className="flex flex-col gap-1 text-xs font-medium">
-                Ziel
+                {t("work.epic.ziel")}
                 <Input type="number" step="any" name="target" />
               </label>
               <label className="flex flex-col gap-1 text-xs font-medium">
-                Nutzen-Anteil %
-                <Input type="number" step="any" min={0} name="weightPercent" placeholder="auto" />
+                {t("work.epic.nutzenAnteil")}
+                <Input
+                  type="number"
+                  step="any"
+                  min={0}
+                  name="weightPercent"
+                  placeholder={t("work.epic.auto")}
+                />
               </label>
             </div>
             <p className="text-xs text-muted-foreground">
-              Die Nutzenbewertung (€/Einheit, Benefit-Art, Intervall) wird beim Verknüpfen mit einem
-              Ziel gepflegt.
+              {t("work.epic.dieNutzenbewertungEinheitBenefit")}
             </p>
             {state?.error && (
               <p role="alert" className="text-xs text-destructive">
@@ -375,7 +390,7 @@ function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
             )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Abbrechen
+                {t("work.epic.abbrechen")}
               </Button>
               <Button type="submit" disabled={pending}>
                 {pending ? "Speichern…" : "KPI hinzufügen"}
@@ -410,6 +425,7 @@ function LinkOutcome({
     metricUnit: string | null;
   };
 }) {
+  const t = useTranslations();
   const o = link.outcome;
 
   if (o.planned === 0 && o.realized === 0) return null;
@@ -421,7 +437,7 @@ function LinkOutcome({
   return (
     <div className="mt-3 border-t pt-2">
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-label text-muted-foreground">
-        <dt>Plan (bei Freigabe)</dt>
+        <dt>{t("work.epic.planBeiFreigabe")}</dt>
         <dd className="text-right tabular-nums">
           {formatMetricValue(o.planned, goalSpec)}
           {unit}
@@ -430,9 +446,7 @@ function LinkOutcome({
         <dt className="inline-flex items-center gap-1">
           Ist
           {o.frozen && (
-            <span title="Die Umsetzung ist abgenommen (L4.2) — die gelieferte Menge steht fest.">
-              (festgeschrieben)
-            </span>
+            <span title={t("work.epic.dieUmsetzungIstAbgenommen")}>(festgeschrieben)</span>
           )}
         </dt>
         <dd className="text-right tabular-nums">
@@ -451,11 +465,11 @@ function LinkOutcome({
         </dd>
         {hasPlan && measured && (
           <>
-            <dt>Menge (Zielerreichung)</dt>
+            <dt>{t("work.epic.mengeZielerreichung")}</dt>
             <dd className="text-right tabular-nums">
               <LinkDelta value={o.quantityDelta} goalSpec={goalSpec} suffix={unit + perYear} />
             </dd>
-            <dt>Wert (Umrechnungsfaktor)</dt>
+            <dt>{t("work.epic.wertUmrechnungsfaktor")}</dt>
             <dd className="text-right tabular-nums">
               <LinkDelta value={o.valueDelta} goalSpec={goalSpec} suffix={unit + perYear} />
             </dd>
@@ -463,10 +477,7 @@ function LinkOutcome({
         )}
       </dl>
       {!hasPlan && (
-        <p className="mt-1 text-label text-warning">
-          Kein Plan-Bezug — festgehalten wird er mit der Freigabe des Business Case (L2 → L3.1). Bis
-          dahin ist jede Änderung des Faktors sofort auch der Plan.
-        </p>
+        <p className="mt-1 text-label text-warning">{t("work.epic.keinPlanBezugFestgehalten")}</p>
       )}
     </div>
   );
@@ -514,6 +525,7 @@ function LinkedGoalRow({
   kpis: KpiRow[];
   canEdit: boolean;
 }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(linkEpicToGoalAction, {});
   const chosen = kpis.find((k) => k.id === link.kpiId) ?? null;
   const [kind, setKind] = useState<string>(link.impactKind || "recurring");
@@ -562,7 +574,7 @@ function LinkedGoalRow({
           </>
         ) : (
           <p className="text-sm text-amber-700 dark:text-amber-300">
-            Noch keine treibende KPI / kein Faktor gesetzt
+            {t("work.epic.nochKeineTreibendeKpi")}
           </p>
         )}
       </div>
@@ -586,9 +598,7 @@ function LinkedGoalRow({
       {isSet && <LinkOutcome link={link} goalSpec={goalSpec} />}
 
       {canEdit && kpis.length === 0 && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Lege zuerst eine KPI an, um die Umrechnung zu diesem Ziel zu definieren.
-        </p>
+        <p className="mt-2 text-xs text-muted-foreground">{t("work.epic.legeZuerstEineKpi")}</p>
       )}
 
       {/* Umrechnungs-Formular (Default eingeklappt) */}
@@ -597,9 +607,9 @@ function LinkedGoalRow({
           <input type="hidden" name="epicId" value={initiativeId} />
           <input type="hidden" name="goalId" value={link.objectiveId} />
           <label className="flex flex-col gap-1 text-xs font-medium">
-            KPI
+            {t("work.common.kpi")}
             <select name="kpiId" defaultValue={link.kpiId ?? ""} className={`${selectCls} w-48`}>
-              <option value="">— wählen —</option>
+              <option value="">{t("work.epic.waehlen")}</option>
               {kpis.map((k) => (
                 <option key={k.id} value={k.id}>
                   {k.name}
@@ -615,12 +625,12 @@ function LinkedGoalRow({
               step="any"
               name="conversionFactor"
               defaultValue={link.conversionFactor ?? ""}
-              placeholder="z. B. 10000"
+              placeholder={t("work.common.example10000")}
               className="w-32"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium">
-            Wirkung
+            {t("work.epic.wirkung")}
             <select
               name="impactKind"
               value={kind}
@@ -633,7 +643,7 @@ function LinkedGoalRow({
           </label>
           {kind === "recurring" && (
             <label className="flex flex-col gap-1 text-xs font-medium">
-              Intervall
+              {t("work.epic.intervall")}
               <select
                 name="recurringInterval"
                 defaultValue={recurringIntervalOrDefault(link.recurringInterval)}
@@ -645,7 +655,7 @@ function LinkedGoalRow({
             </label>
           )}
           <Button type="submit" variant="secondary" size="sm" disabled={pending}>
-            Speichern
+            {t("work.epic.speichern")}
           </Button>
         </form>
       )}
@@ -670,17 +680,15 @@ function LinkedGoalsSection({
   kpis: KpiRow[];
   canEdit: boolean;
 }) {
+  const t = useTranslations();
   return (
     <section className="space-y-3">
-      <SectionLabel>Verknüpfte Ziele</SectionLabel>
-      <p className="text-xs text-muted-foreground">
-        Pro Ziel legst du fest, welche KPI es treibt und wie viel Ziel-Einheit eine KPI-Einheit
-        bewegt (z. B. 10000 €/Wagon). Verknüpfung erfolgt im Ziele-Modul („Related work").
-      </p>
+      <SectionLabel>{t("work.epic.verknuepfteZiele")}</SectionLabel>
+      <p className="text-xs text-muted-foreground">{t("work.epic.proZielLegstDu")}</p>
       {goalLinks.length === 0 ? (
         <EmptyState
           icon={<Target className="size-6" />}
-          title="Noch kein Ziel verknüpft"
+          title={t("work.epic.nochKeinZielVerknuepft")}
           body={
             "Verknüpfe dieses Vorhaben mit einem Portfolio-Ziel, damit sein Nutzen dort erscheint. Die Verknüpfung selbst entsteht im Ziele-Modul unter „Related work“."
           }
@@ -704,23 +712,21 @@ function LinkedGoalsSection({
 
 /** KPIs tab — read-first tiles per KPI with edit-on-demand + linked-goal cascade. */
 export function EpicKpisTab({ initiativeId, kpis, canEdit, goalLinks }: Props) {
+  const t = useTranslations();
   return (
     <div className="space-y-6">
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <SectionLabel>KPIs</SectionLabel>
+          <SectionLabel>{t("work.epic.kpis")}</SectionLabel>
           {canEdit && <CreateKpiForm initiativeId={initiativeId} />}
         </div>
-        <p className="text-xs text-muted-foreground">
-          Der „Nutzen-Anteil" je KPI bestimmt, welchen Teil des wiederkehrenden Nutzens diese KPI
-          realisiert. Ohne Anteil tragen alle KPIs gleichmäßig bei.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("work.epic.derNutzenAnteilJe")}</p>
 
         {kpis.length === 0 ? (
           <EmptyState
             icon={<Gauge className="size-6" />}
-            title="Noch keine KPI erfasst"
-            body="KPIs tragen den Nutzen dieses Vorhabens: Baseline, Ziel und der €-Wert je Einheit ergeben den Betrag, mit dem Business Case und Rechnung arbeiten."
+            title={t("work.epic.nochKeineKpiErfasst")}
+            body={t("work.epic.kpisTragenDenNutzen")}
           />
         ) : (
           <div className="space-y-3">

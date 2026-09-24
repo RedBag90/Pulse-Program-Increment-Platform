@@ -6,7 +6,16 @@ import type {
   OverviewRisk,
   PortfolioOverview,
 } from "@/modules/work/server/views/portfolio-overview";
-import { ROAM_LABELS, type RoamStatus } from "@/modules/core/kernel/domain/roam";
+import { ROAM_KEYS, type RoamStatus } from "@/modules/core/kernel/domain/roam";
+import { catalogTranslate } from "@/test/helpers/catalog";
+
+/*
+ * Die Fläche zeigt das **Wort**, die Tabelle führt den **Schlüssel**. Der
+ * Übersetzer kommt deshalb aus dem echten Katalog — er wirft, wenn ein
+ * Schlüssel dort fehlt, und deckt damit nebenbei ab, was der Paritätstest in
+ * `src/i18n` nicht sieht: dass diese Fläche nur vorhandene Schlüssel anfasst.
+ */
+const t = catalogTranslate("de");
 
 /**
  * Die Kachel hatte **keinen** Test — und war genau deshalb still kaputt: eine
@@ -35,7 +44,7 @@ const data = (risks: OverviewRisk[]): PortfolioOverview => ({ risks }) as Portfo
 
 /** Die Karte zu einer Disposition, über ihre Überschrift gefunden. */
 const cardOf = (status: RoamStatus): HTMLElement => {
-  const heading = screen.getByText(ROAM_LABELS[status]);
+  const heading = screen.getByText(t(ROAM_KEYS[status]));
   const card = heading.closest("div.flex")?.parentElement;
   if (!card) throw new Error(`Keine Karte für ${status}`);
   return card as HTMLElement;
@@ -56,7 +65,7 @@ describe("RisksBlock", () => {
       />,
     );
     for (const s of ["open", "owned", "resolved", "accepted", "mitigated"] as const) {
-      expect(screen.getByText(ROAM_LABELS[s])).toBeTruthy();
+      expect(screen.getByText(t(ROAM_KEYS[s]))).toBeTruthy();
     }
     expect(within(cardOf("open")).getByText("2")).toBeTruthy();
     // Die Gesamtzahl steht im Kopf der Sektion.
@@ -69,7 +78,7 @@ describe("RisksBlock", () => {
    */
   it("zeigt eine leere Disposition mit Leertext statt sie wegzulassen", () => {
     render(<RisksBlock data={data([risk("r1", "open")])} />);
-    expect(screen.getByText(ROAM_LABELS.resolved)).toBeTruthy();
+    expect(screen.getByText(t(ROAM_KEYS.resolved))).toBeTruthy();
     expect(screen.getAllByText("Keine Risiken in diesem Zustand.")).toHaveLength(4);
   });
 

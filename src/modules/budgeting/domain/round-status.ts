@@ -11,7 +11,12 @@
 
 export type RoundStatus = "draft" | "running" | "decided" | "closed";
 
-export const ROUND_STATUSES = ["draft", "running", "decided", "closed"] as const satisfies readonly RoundStatus[];
+export const ROUND_STATUSES = [
+  "draft",
+  "running",
+  "decided",
+  "closed",
+] as const satisfies readonly RoundStatus[];
 
 export const ROUND_TRANSITIONS: Record<RoundStatus, readonly RoundStatus[]> = {
   draft: ["running"],

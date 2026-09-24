@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { cookies } from "next/headers";
 import { Link } from "@/i18n/navigation";
 import { notFound, redirect } from "next/navigation";
@@ -45,6 +46,7 @@ interface Props {
 }
 
 export default async function ArtNodePage({ params, searchParams }: Props) {
+  const t = await getTranslations();
   const { id } = await params;
   const { tab } = await searchParams;
 
@@ -106,11 +108,8 @@ export default async function ArtNodePage({ params, searchParams }: Props) {
 
       {!inScope && (
         <div className="mb-4 rounded-lg border border-dashed bg-muted/40 p-4 text-sm">
-          <p className="font-medium">Dieser ART liegt außerhalb deines Bereichs.</p>
-          <p className="mt-1 text-muted-foreground">
-            Name und Verantwortliche stehen unten. Budget und Verlauf bleiben zu. Im Baum bleibt er
-            sichtbar, damit die Landkarte vollständig ist.
-          </p>
+          <p className="font-medium">{t("org.page.dieserArtLiegtAusserhalb")}</p>
+          <p className="mt-1 text-muted-foreground">{t("org.page.nameUndVerantwortlicheStehen")}</p>
         </div>
       )}
 
@@ -124,7 +123,7 @@ export default async function ArtNodePage({ params, searchParams }: Props) {
                 href={`/budgeting/value-streams/${art.valueStream.id}?tab=art:${art.id}`}
                 className="font-medium text-primary hover:underline"
               >
-                Budget dieses ARTs →
+                {t("org.page.budgetDiesesArts")}
               </Link>
             </p>
           )}
@@ -145,6 +144,7 @@ export default async function ArtNodePage({ params, searchParams }: Props) {
 /* eslint-disable @typescript-eslint/no-explicit-any -- siehe Wertstrom-Knoten. */
 
 async function OverviewTab({ db, art, principal, canEdit, canDelete }: any) {
+  const t = await getTranslations();
   const [approvers, userLabels] = await Promise.all([
     listTenantApprovers(db, principal.tenantId),
     listTenantUserLabels(db, principal.tenantId),
@@ -175,31 +175,31 @@ async function OverviewTab({ db, art, principal, canEdit, canDelete }: any) {
         <dl className="max-w-xl space-y-3 text-sm">
           <div>
             <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Name
+              {t("org.page.name")}
             </dt>
             <dd className="mt-0.5">{art.name}</dd>
           </div>
           <div>
             <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Wertstrom
+              {t("org.page.wertstrom")}
             </dt>
             <dd className="mt-0.5">{art.valueStream.name}</dd>
           </div>
           <div>
             <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Beschreibung
+              {t("org.page.beschreibung")}
             </dt>
             <dd className="mt-0.5">{art.description ?? "—"}</dd>
           </div>
           <div>
             <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              RTE
+              {t("org.page.rte")}
             </dt>
             <dd className="mt-0.5">{art.rteId ? userLabel(art.rteId, userLabels) : "—"}</dd>
           </div>
           <div>
             <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              ART Technical Lead
+              {t("org.page.artTechnicalLead")}
             </dt>
             <dd className="mt-0.5">
               {art.technicalLeadId ? userLabel(art.technicalLeadId, userLabels) : "—"}
@@ -210,10 +210,8 @@ async function OverviewTab({ db, art, principal, canEdit, canDelete }: any) {
 
       {canDelete && (
         <section>
-          <h2 className="mb-2 text-sm font-medium">ART löschen</h2>
-          <p className="mb-2 text-xs text-muted-foreground">
-            Entfernt den ART aus der Struktur. Seine Solutions bleiben — sie gehören dem Wertstrom.
-          </p>
+          <h2 className="mb-2 text-sm font-medium">{t("org.page.artLoeschen")}</h2>
+          <p className="mb-2 text-xs text-muted-foreground">{t("org.page.entferntDenArtAus")}</p>
           <DeleteArtButton id={art.id} name={art.name} />
         </section>
       )}
@@ -222,10 +220,11 @@ async function OverviewTab({ db, art, principal, canEdit, canDelete }: any) {
 }
 
 async function HistoryTab({ db, tenantId, id }: any) {
+  const t = await getTranslations();
   const history = await listAuditHistory(db, tenantId, "art", id);
   return (
     <section>
-      <h2 className="mb-3 text-lg font-medium">Verlauf</h2>
+      <h2 className="mb-3 text-lg font-medium">{t("org.page.verlauf")}</h2>
       <AuditTimeline
         events={history.map((e: { id: string; action: string; occurredAt: Date }) => ({
           id: e.id,

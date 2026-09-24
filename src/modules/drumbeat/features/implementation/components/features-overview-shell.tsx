@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { FeaturesOverviewModel } from "@/modules/work/server/views/features-overview";
 import { FeaturesListView } from "@/modules/work/features/feature/components/features-table";
 import { Page, PageHeader } from "@/components/layout";
@@ -25,11 +26,12 @@ interface Props {
  * geteilten Komponente herein.
  */
 export function FeaturesOverviewShell({ model }: Props) {
+  const t = useTranslations();
   return (
     <Page>
       <PageHeader
-        title="Features-Übersicht"
-        subtitle="Alle Features im Zugriff — über Wertströme, ARTs und PIs hinweg."
+        title={t("drumbeat.ui.featuresUebersicht")}
+        subtitle={t("drumbeat.ui.alleFeaturesImZugriff")}
       />
       <FeaturesListView model={model} />
     </Page>

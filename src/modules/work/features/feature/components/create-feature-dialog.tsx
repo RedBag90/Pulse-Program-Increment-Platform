@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { createFeatureAction } from "@/modules/work/features/feature/actions/feature";
@@ -19,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { SearchSelect, type SearchSelectOption } from "@/components/ui/search-select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { FEATURE_TYPES, FEATURE_TYPE_LABEL } from "@/modules/work/domain/portfolio-guardrails";
+import { FEATURE_TYPES, FEATURE_TYPE_KEYS } from "@/modules/work/domain/portfolio-guardrails";
 
 const FIBONACCI = [1, 2, 3, 5, 8, 13, 20] as const;
 
@@ -103,6 +104,7 @@ export function CreateFeatureDialog({
   epics,
   context,
 }: CreateFeatureDialogProps) {
+  const t = useTranslations();
   const isControlled = open !== undefined;
   const [selfOpen, setSelfOpen] = useState(false);
   const dialogOpen = open ?? selfOpen;
@@ -356,9 +358,9 @@ export function CreateFeatureDialog({
                 className={SELECT_CLASS}
               >
                 <option value="">— ungesetzt</option>
-                {FEATURE_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {FEATURE_TYPE_LABEL[t]}
+                {FEATURE_TYPES.map((wert) => (
+                  <option key={wert} value={wert}>
+                    {t(FEATURE_TYPE_KEYS[wert] ?? wert)}
                   </option>
                 ))}
               </select>

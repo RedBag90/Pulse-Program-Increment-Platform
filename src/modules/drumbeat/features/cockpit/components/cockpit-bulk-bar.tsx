@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type {
   CockpitPiSlot,
@@ -34,6 +35,7 @@ export function CockpitBulkBar({
   onApply,
   onClear,
 }: Props) {
+  const t = useTranslations();
   const [piChoice, setPiChoice] = useState<string>(NO_PI);
   const [statusChoice, setStatusChoice] = useState<string>(NO_STATUS);
 
@@ -65,8 +67,8 @@ export function CockpitBulkBar({
             onChange={(e) => setPiChoice(e.target.value)}
             className="rounded-md border bg-background px-2 py-1 text-xs disabled:opacity-50"
           >
-            <option value={NO_PI}>— keine Aenderung —</option>
-            <option value="__backlog__">Backlog</option>
+            <option value={NO_PI}>{t("drumbeat.ui.keineAenderung")}</option>
+            <option value="__backlog__">{t("drumbeat.ui.backlog")}</option>
             {pis.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -76,14 +78,14 @@ export function CockpitBulkBar({
         </label>
 
         <label className="flex items-center gap-1 text-xs">
-          <span className="text-muted-foreground">Status</span>
+          <span className="text-muted-foreground">{t("drumbeat.ui.status")}</span>
           <select
             disabled={!canSetDelivery}
             value={statusChoice}
             onChange={(e) => setStatusChoice(e.target.value)}
             className="rounded-md border bg-background px-2 py-1 text-xs disabled:opacity-50"
           >
-            <option value={NO_STATUS}>— keine Aenderung —</option>
+            <option value={NO_STATUS}>{t("drumbeat.ui.keineAenderung")}</option>
             {statusOptions.map((s) => (
               <option key={s.value} value={s.value}>
                 {s.label}
@@ -99,14 +101,14 @@ export function CockpitBulkBar({
             onClick={apply}
             className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
           >
-            Anwenden
+            {t("drumbeat.ui.anwenden")}
           </button>
           <button
             type="button"
             onClick={onClear}
             className="rounded-md border px-3 py-1.5 text-xs hover:bg-muted/40"
           >
-            Auswahl loeschen
+            {t("drumbeat.ui.auswahlLoeschen")}
           </button>
         </div>
       </div>

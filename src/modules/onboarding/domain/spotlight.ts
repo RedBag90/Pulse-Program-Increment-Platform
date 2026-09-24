@@ -70,9 +70,7 @@ export function cardPlacement(
   const below = hole.top + hole.height + CARD_GAP;
   const fitsBelow = below + cardHeight + EDGE <= viewport.height;
   const side: CardPlacement["side"] = fitsBelow ? "below" : "above";
-  const top = fitsBelow
-    ? below
-    : Math.max(EDGE, hole.top - CARD_GAP - cardHeight);
+  const top = fitsBelow ? below : Math.max(EDGE, hole.top - CARD_GAP - cardHeight);
 
   const desiredLeft = hole.left + hole.width / 2 - width / 2;
   const left = Math.min(Math.max(EDGE, desiredLeft), Math.max(EDGE, viewport.width - width - EDGE));

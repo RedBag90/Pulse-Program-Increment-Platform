@@ -2,7 +2,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Principal } from "@/server/auth/principal";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
-import { GATE_APPROVER_ROLE_LABELS, isGateApproverRole } from "@/modules/work/domain/gate-policy";
+import { GATE_APPROVER_ROLE_KEYS, isGateApproverRole } from "@/modules/work/domain/gate-policy";
 
 /**
  * „Meine Freigaben" — der persönliche Posteingang.
@@ -31,7 +31,7 @@ interface MyApprovalRowBase {
     fromGate?: StageGate | undefined;
     toGate?: StageGate | undefined;
     /** Wofür ich zeichne („Business Owner", „Finance", …), sofern benannt. */
-    roleLabel?: string | undefined;
+    roleLabelKey?: string | undefined;
   };
   requestedAt: Date;
 }
@@ -86,8 +86,8 @@ export async function listMyApprovals(
 
   const rows: MyApprovalRow[] = gateApprovals.map((g) => {
     const epic = g.transition.initiative;
-    const roleLabel =
-      g.role && isGateApproverRole(g.role) ? GATE_APPROVER_ROLE_LABELS[g.role] : undefined;
+    const roleLabelKey =
+      g.role && isGateApproverRole(g.role) ? GATE_APPROVER_ROLE_KEYS[g.role] : undefined;
     return {
       id: g.id,
       kind: "epic_gate" as const,
@@ -97,7 +97,7 @@ export async function listMyApprovals(
         valueStreamName: epic.valueStream?.name ?? null,
         fromGate: g.transition.fromGate as StageGate,
         toGate: g.transition.toGate as StageGate,
-        ...(roleLabel !== undefined && { roleLabel }),
+        ...(roleLabelKey !== undefined && { roleLabelKey }),
       },
       target: { transitionId: g.transition.id },
       requestedAt: g.requestedAt,

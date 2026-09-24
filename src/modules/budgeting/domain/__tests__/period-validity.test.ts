@@ -4,7 +4,7 @@ import {
   appliedPeriod,
   timeframeEditability,
   timeframeEditDeniedReason,
-  PERIOD_VALIDITY_LABEL,
+  PERIOD_VALIDITY_KEYS,
   type PeriodFacts,
 } from "@/modules/budgeting/domain/period-validity";
 
@@ -26,10 +26,15 @@ const tile = (
 describe("periodValidity", () => {
   const done = (start: string, end: string) => tile("t", "closed", start, end);
 
-  it("nennt die drei Zustände in Nutzersprache", () => {
-    expect(PERIOD_VALIDITY_LABEL.in_preparation).toBe("In Ausarbeitung");
-    expect(PERIOD_VALIDITY_LABEL.applied).toBe("Angewandtes Budget");
-    expect(PERIOD_VALIDITY_LABEL.expired).toBe("Abgelaufener Budget-Zeitraum");
+  /*
+   * Seit September 2026 nennt die Tabelle Schlüssel, keine Wörter. Dass es zu
+   * jedem in beiden Sprachen einen Text gibt, sichert der Paritätstest in
+   * `src/i18n`; hier zählt, dass die drei Zustände je einen eigenen tragen.
+   */
+  it("nennt die drei Zustände mit je einem eigenen Schlüssel", () => {
+    expect(PERIOD_VALIDITY_KEYS.in_preparation).toBe("budgeting.periodValidity.inPreparation");
+    expect(PERIOD_VALIDITY_KEYS.applied).toBe("budgeting.periodValidity.applied");
+    expect(PERIOD_VALIDITY_KEYS.expired).toBe("budgeting.periodValidity.expired");
   });
 
   it("gilt zwischen Start und Ende", () => {

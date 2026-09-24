@@ -1,10 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, startTransition } from "react";
 import { Undo2 } from "lucide-react";
 import { revertStageGateAction } from "@/modules/work/features/portfolio/actions/stage-gate";
 import { GATE_STEPS, type GateStep } from "@/modules/work/domain/stage-gate";
-import { gateStepLabel } from "@/modules/work/domain/stage-gate";
+import { gateStepKey } from "@/modules/work/domain/stage-gate";
 
 /**
  * Rückstufung um genau einen Reifegrad.
@@ -15,6 +16,7 @@ import { gateStepLabel } from "@/modules/work/domain/stage-gate";
  * die Historie eingreift.
  */
 export function GateRevertDialog({ epicId, current }: { epicId: string; current: GateStep }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(revertStageGateAction, {});
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
@@ -40,7 +42,7 @@ export function GateRevertDialog({ epicId, current }: { epicId: string; current:
         className="inline-flex items-center gap-1.5 rounded-md border border-input px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted"
       >
         <Undo2 className="size-3.5" />
-        Zurückstufen
+        {t("work.gate.zurueckstufen")}
       </button>
     );
   }
@@ -48,7 +50,7 @@ export function GateRevertDialog({ epicId, current }: { epicId: string; current:
   return (
     <div className="w-full space-y-2 rounded-md border border-warning/40 bg-warning-surface/60 p-2.5">
       <p className="text-xs font-medium">
-        Zurückstufen auf {gateStepLabel(target)} — bitte begründen
+        Zurückstufen auf {t(gateStepKey(target))} — bitte begründen
       </p>
       <p className="text-xs text-muted-foreground">
         Die Freigabe-Stempel des verlassenen Reifegrads werden dabei zurückgesetzt; ein offener
@@ -59,7 +61,7 @@ export function GateRevertDialog({ epicId, current }: { epicId: string; current:
         onChange={(e) => setReason(e.target.value)}
         rows={3}
         maxLength={1000}
-        placeholder="Begründung (erforderlich)"
+        placeholder={t("work.gate.begruendungErforderlich")}
         className="w-full rounded-md border border-input px-2 py-1 text-xs"
       />
       <div className="flex gap-2">
@@ -80,7 +82,7 @@ export function GateRevertDialog({ epicId, current }: { epicId: string; current:
           }}
           className="rounded-md border border-input px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
         >
-          Abbrechen
+          {t("work.gate.abbrechen")}
         </button>
       </div>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}

@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
@@ -13,6 +14,7 @@ import { Page, PageHeader } from "@/components/layout";
  * Nav-Eintrag "Budget-Plan" ohne id-Wissen verlinkt werden kann.
  */
 export default async function BudgetPlanIndexPage() {
+  const t = await getTranslations();
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
@@ -30,11 +32,13 @@ export default async function BudgetPlanIndexPage() {
   return (
     <Page>
       <PageHeader
-        title="Budget-Plan"
-        subtitle="Eingefrorene Halbjahres-Sicht auf die teilnehmende Budgetierung — Epic-Reihenfolge, Allokationen, Wertstrom- und ART-Roll-up, Features im Zyklus."
+        title={t("budgeting.page.budgetPlan")}
+        subtitle={t("budgeting.page.eingefroreneHalbjahresSichtAuf")}
       />
       <div className="rounded-lg border-2 border-dashed bg-muted/30 px-6 py-12 text-center">
-        <p className="text-sm text-muted-foreground">Noch keine Revision erfasst.</p>
+        <p className="text-sm text-muted-foreground">
+          {t("budgeting.page.nochKeineRevisionErfasst")}
+        </p>
         {canCapture && (
           <div className="mt-4 flex justify-center">
             <CaptureRevisionButton cycleLabel={cycleLabel} variant="primary" />

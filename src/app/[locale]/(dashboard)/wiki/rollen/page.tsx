@@ -1,10 +1,11 @@
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getTenantPractices } from "@/server/services/target-model";
 import { ALL_ROLES, ROLE_LABELS, type Role } from "@/modules/core/kernel/domain/roles";
 import { moduleForAction, type ModuleKey } from "@/modules/core/kernel/domain/modules";
-import { ALL_DUTIES, DUTY_LEVEL_LABEL } from "@/modules/core/org/domain/role-directory";
+import { ALL_DUTIES, DUTY_LEVEL_KEYS } from "@/modules/core/org/domain/role-directory";
 import { ROLE_PLAYBOOKS, type PlaybookClaim } from "@/modules/onboarding/domain/role-playbook";
 import {
   visibleRoleSheets,
@@ -34,6 +35,7 @@ import { Page } from "@/components/layout";
  * Gefiltert wird je Satz: was der Mandant nicht gebucht hat, wird nicht erklärt.
  */
 export default async function WikiRolesPage() {
+  const t = await getTranslations();
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
@@ -50,7 +52,7 @@ export default async function WikiRolesPage() {
     key: d.key,
     duty: d.duty,
     role: d.role,
-    levelLabel: DUTY_LEVEL_LABEL[d.level],
+    levelLabel: t(DUTY_LEVEL_KEYS[d.level]),
   }));
 
   return (

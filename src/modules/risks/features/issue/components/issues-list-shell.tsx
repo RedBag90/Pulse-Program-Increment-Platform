@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import { Button } from "@/components/ui/button";
@@ -96,6 +97,7 @@ export function IssuesListShell({
   embedded,
   savedFilters = [],
 }: Props) {
+  const t = useTranslations();
   const { params, push } = useUrlState();
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -270,7 +272,7 @@ export function IssuesListShell({
           onDrop={rootZone.onDrop}
           className={`sticky top-2 z-10 ${dropZoneClass(rootZone.isOver)}`}
         >
-          Auf oberste Ebene (aus dem Head lösen) — hier ablegen
+          {t("risks.ui.aufObersteEbeneAus")}
         </div>
       )}
 
@@ -287,7 +289,7 @@ export function IssuesListShell({
         <div data-tour="risk-matrix">
           <CollapsibleStrip
             urlKey="matrix"
-            label="Risk-Matrix"
+            label={t("risks.ui.riskMatrix")}
             note={`${filteredPlots.length} Head-Issue${filteredPlots.length === 1 ? "" : "s"}${
               criticalPlots > 0 ? ` · ${criticalPlots} kritisch` : ""
             }`}
@@ -311,7 +313,7 @@ export function IssuesListShell({
       {caps.canReview && model.suggestions.length > 0 && (
         <CollapsibleStrip
           urlKey="vorschlaege"
-          label="Vorschläge"
+          label={t("risks.ui.vorschlaege")}
           note={`${model.suggestions.length} warte${model.suggestions.length === 1 ? "t" : "n"} auf Prüfung`}
           open={params.get("vorschlaege") === "1"}
           onToggle={(next) => push({ vorschlaege: next ? "1" : null })}
@@ -433,7 +435,7 @@ export function IssuesListShell({
   return (
     <Page>
       <PageHeader
-        title="Issues · Risiko-Register"
+        title={t("risks.ui.issuesRisikoRegister")}
         subtitle={`${countLabel} — Risiken & Impedimente je ART/Epic, verschachtelbar unter einem Head-Issue.`}
         actions={createAction}
       />
@@ -445,6 +447,7 @@ export function IssuesListShell({
 const initialState: ActionState = {};
 
 function ReviewButtons({ id }: { id: string }) {
+  const t = useTranslations();
   const [, action, pending] = useActionState(reviewIssueAction, initialState);
   return (
     <div className="flex items-center gap-2">
@@ -452,14 +455,14 @@ function ReviewButtons({ id }: { id: string }) {
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="decision" value="accept" />
         <Button type="submit" size="sm" disabled={pending}>
-          Dokumentieren
+          {t("risks.ui.dokumentieren")}
         </Button>
       </form>
       <form action={action}>
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="decision" value="reject" />
         <Button type="submit" size="sm" variant="outline" disabled={pending}>
-          Ablehnen
+          {t("risks.ui.ablehnen")}
         </Button>
       </form>
     </div>

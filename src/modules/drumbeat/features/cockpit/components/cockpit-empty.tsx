@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Inbox } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
@@ -18,6 +19,7 @@ import type { CockpitFilters } from "@/modules/drumbeat/server/views/umsetzung-c
  * Existenz; angekommen war er hier nie.
  */
 export function CockpitEmpty({ filters }: { filters: CockpitFilters }) {
+  const t = useTranslations();
   const { setParams } = useUrlState();
 
   const active =
@@ -31,8 +33,8 @@ export function CockpitEmpty({ filters }: { filters: CockpitFilters }) {
     return (
       <EmptyState
         icon={<Inbox className="size-6" />}
-        title="Noch keine Features"
-        body="In diesem ART und Zeitraum ist noch nichts angelegt. Ein Feature entsteht über „Feature anlegen“ oben rechts."
+        title={t("drumbeat.ui.nochKeineFeatures")}
+        body={t("drumbeat.ui.inDiesemArtUnd")}
         className="h-[420px]"
       />
     );
@@ -41,7 +43,7 @@ export function CockpitEmpty({ filters }: { filters: CockpitFilters }) {
   return (
     <EmptyState
       icon={<Inbox className="size-6" />}
-      title="Nichts passt zu diesen Filtern"
+      title={t("drumbeat.ui.nichtsPasstZuDiesen")}
       body={`${active} ${active === 1 ? "Filter ist" : "Filter sind"} aktiv. Es gibt Features in diesem Scope — nur keines, das durchkommt.`}
       action={
         <button
@@ -51,7 +53,7 @@ export function CockpitEmpty({ filters }: { filters: CockpitFilters }) {
           }
           className="rounded-md border bg-background px-3 py-1.5 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          Filter zurücksetzen
+          {t("drumbeat.ui.filterZuruecksetzen")}
         </button>
       }
       className="h-[420px]"

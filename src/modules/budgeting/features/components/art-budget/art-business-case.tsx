@@ -1,7 +1,8 @@
+import { useTranslations } from "next-intl";
 import { formatEUR } from "@/lib/formatting";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import {
-  ORIGIN_GROUP_LABELS,
+  ORIGIN_GROUP_KEYS,
   type ArtBudgetOrigin,
   type OriginGroup,
 } from "@/modules/budgeting/domain/art-budget-origin";
@@ -44,6 +45,7 @@ export function ArtBusinessCase({
   /** Steht im Titel: er ist die oberste Karte des ART-Reiters und benennt ihn. */
   artName: string;
 }) {
+  const t = useTranslations();
   const hj = halfYearLabel(origin.cycleKey);
   const titel = `Business Case · ${artName}`;
 
@@ -52,7 +54,7 @@ export function ArtBusinessCase({
       <SectionCard title={titel}>
         <EmptyState
           title={`An diesem ART landet in ${hj} kein Geld`}
-          body="Weder aus einer Budget-Kachel, noch aus einem ART-Rahmen, noch aus einer Betriebsposition. Sobald eine Kachel für dieses Halbjahr festgeschrieben ist, steht die Herkunft hier."
+          body={t("budgeting.art.wederAusEinerBudget")}
         />
       </SectionCard>
     );
@@ -73,7 +75,7 @@ export function ArtBusinessCase({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-surface-frame text-meta uppercase tracking-[0.1em] text-muted-foreground">
-              <th className="p-2 text-left font-medium">Herkunft</th>
+              <th className="p-2 text-left font-medium">{t("budgeting.art.herkunft")}</th>
               <th className="p-2 text-right font-medium">
                 {hj}
                 <span className="ml-1 normal-case tracking-normal">
@@ -81,8 +83,10 @@ export function ArtBusinessCase({
                 </span>
               </th>
               <th className="p-2 text-right font-medium">
-                Anteil
-                <span className="ml-1 normal-case tracking-normal">· an Σ gesamt</span>
+                {t("budgeting.art.anteil")}
+                <span className="ml-1 normal-case tracking-normal">
+                  {t("budgeting.art.anGesamt")}
+                </span>
               </th>
               {/*
                 Die halbe Spalte bleibt leer, und das ist keine Datenlücke:
@@ -91,7 +95,9 @@ export function ArtBusinessCase({
               */}
               <th className="border-l p-2 text-right font-medium">
                 p. a.
-                <span className="ml-1 normal-case tracking-normal">· nur Betrieb, geplant</span>
+                <span className="ml-1 normal-case tracking-normal">
+                  {t("budgeting.art.nurBetriebGeplant")}
+                </span>
               </th>
             </tr>
           </thead>
@@ -106,7 +112,7 @@ export function ArtBusinessCase({
               />
             ))}
             <tr className="border-t-2 font-semibold">
-              <td className="p-2">Σ gesamt</td>
+              <td className="p-2">{t("budgeting.art.gesamt")}</td>
               <td className="p-2 text-right tabular-nums">{formatEUR(origin.total)}</td>
               <td className="p-2 text-right tabular-nums">100 %</td>
               <td className="border-l p-2" />
@@ -139,6 +145,7 @@ function ArtBusinessCaseGroup({
   subtotal: number;
   prozent: (share: number) => string;
 }) {
+  const t = useTranslations();
   return (
     <>
       <tr className="border-b bg-surface-frame/60">
@@ -149,7 +156,7 @@ function ArtBusinessCaseGroup({
           **Versal**-Mikrolabel und war hier zwei Stufen zu klein.
         */}
         <td colSpan={4} className="px-2 pb-1.5 pt-3 text-sm font-semibold">
-          {ORIGIN_GROUP_LABELS[group]}
+          {t(ORIGIN_GROUP_KEYS[group])}
           <span className="ml-2 text-meta font-normal text-muted-foreground">
             — {GROUP_NOTE[group]}
           </span>
@@ -163,7 +170,7 @@ function ArtBusinessCaseGroup({
               // Ein gleichmässiger Schlüssel ist keine Messung. Ohne das Wort
               // hält jemand die Zahl für zugeordnet — und rechnet mit ihr weiter.
               <span className="ml-2 rounded-sm bg-muted px-1.5 py-0.5 text-meta text-muted-foreground">
-                geschätzt
+                {t("budgeting.art.geschaetzt")}
               </span>
             )}
           </td>
@@ -175,7 +182,7 @@ function ArtBusinessCaseGroup({
         </tr>
       ))}
       <tr className="border-b font-medium">
-        <td className="p-2 pl-4">Σ {ORIGIN_GROUP_LABELS[group]}</td>
+        <td className="p-2 pl-4">Σ {t(ORIGIN_GROUP_KEYS[group])}</td>
         <td className="p-2 text-right tabular-nums">{formatEUR(subtotal)}</td>
         <td className="p-2" />
         <td className="border-l p-2" />

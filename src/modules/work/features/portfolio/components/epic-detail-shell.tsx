@@ -2,7 +2,7 @@ import { resolveTab, type DetailTab } from "@/components/detail/entity-detail-sh
 
 // Re-exported for existing importers; canonical definition is shared across the
 // Epic and Feature detail pages.
-export { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
+export { STAGE_GATE_KEYS } from "@/components/detail/initiative-labels";
 
 /**
  * Tab set of the Epic detail page. Adding a tab = one entry here + one branch in the page.

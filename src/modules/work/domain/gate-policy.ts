@@ -80,20 +80,20 @@ export function isGateApproverRole(value: string): value is GateApproverRole {
 }
 
 /** Anzeige-Kurzform je Platzhalter — die UI beschriftet damit die Status-Pills. */
-export const GATE_APPROVER_ROLE_LABELS: Record<GateApproverRole, string> = {
-  "value_stream.finance_approver": "Finance",
-  "value_stream.vmo": "VMO",
-  "value_stream.business_owner": "Business Owner",
-  "value_stream.architect_lead": "Architect Lead",
-  "epic.owner": "Epic Owner",
-  // Beide Hälften des Paares tragen dasselbe Etikett — wie beim Business Owner.
-  "epic.party.architect": "Architect Lead",
-  "epic.party.mgmt": "MGMT",
-  "epic.party.business_owner": "Business Owner",
-  "epic.party.finance": "Finance",
-  "epic.party.irt_owner": "IRT-Owner",
-  "epic.party.lace_vmo": "LACE/VMO",
-  "solution.product_manager": "Produkt-Manager",
+export const GATE_APPROVER_ROLE_KEYS: Record<GateApproverRole, string> = {
+  "value_stream.finance_approver": "work.gateApproverRole.financeApprover",
+  "value_stream.vmo": "work.gateApproverRole.vmo",
+  "value_stream.business_owner": "work.gateApproverRole.businessOwner",
+  "value_stream.architect_lead": "work.gateApproverRole.architectLead",
+  "epic.owner": "work.gateApproverRole.epicOwner",
+  // Beide Hälften des Paares tragen denselben Schlüssel — wie beim Business Owner.
+  "epic.party.architect": "work.gateApproverRole.architectLead",
+  "epic.party.mgmt": "work.gateApproverRole.mgmt",
+  "epic.party.business_owner": "work.gateApproverRole.businessOwner",
+  "epic.party.finance": "work.gateApproverRole.financeApprover",
+  "epic.party.irt_owner": "work.gateApproverRole.irtOwner",
+  "epic.party.lace_vmo": "work.gateApproverRole.laceVmo",
+  "solution.product_manager": "work.gateApproverRole.productManager",
 };
 
 /**

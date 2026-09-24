@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { CockpitModel } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import type { CockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 import { PageHeader } from "@/components/layout";
@@ -33,6 +34,7 @@ interface Props {
 }
 
 export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
+  const t = useTranslations();
   const {
     availableArts,
     selectedArt,
@@ -63,7 +65,7 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
         <PageHeader
           eyebrow={selectedArt?.valueStreamName ?? "Umsetzung"}
           title={selectedArt ? selectedArt.name : "Delivery-Cockpit"}
-          subtitle="Board, Tabelle, Fahrplan und Netzwerk in einer Fläche."
+          subtitle={t("drumbeat.ui.boardTabelleFahrplanUnd")}
           actions={
             <>
               <CockpitArtPicker availableArts={availableArts} selectedArt={selectedArt} />
@@ -105,8 +107,8 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
       <main className="flex-1 px-6 pb-6 pt-4">
         {!selectedArt ? (
           <EmptyState
-            title="Kein ART im Scope"
-            body="Dir ist noch kein ART zugeordnet. Bitte wende dich an deinen Tenant-Admin."
+            title={t("drumbeat.ui.keinArtImScope")}
+            body={t("drumbeat.ui.dirIstNochKein")}
             className="h-[420px]"
           />
         ) : features.length === 0 ? (

@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   FEATURE_STATUSES,
-  FEATURE_STATUS_LABELS,
-  PI_STATUS_LABELS,
+  FEATURE_STATUS_KEYS,
+  PI_STATUS_KEYS,
   needsReasonForStatus,
 } from "@/modules/drumbeat/domain/status";
 
@@ -34,7 +34,7 @@ describe("needsReasonForStatus", () => {
 describe("Beschriftungen", () => {
   it("hat für jeden Feature-Status ein deutsches Wort", () => {
     for (const s of FEATURE_STATUSES) {
-      expect(FEATURE_STATUS_LABELS[s], s).toBeTruthy();
+      expect(FEATURE_STATUS_KEYS[s], s).toBeTruthy();
     }
   });
 
@@ -44,7 +44,7 @@ describe("Beschriftungen", () => {
    */
   it("hat für jeden PI-Status ein deutsches Wort", () => {
     for (const s of ["planned", "active", "completed"] as const) {
-      expect(PI_STATUS_LABELS[s], s).toBeTruthy();
+      expect(PI_STATUS_KEYS[s], s).toBeTruthy();
     }
   });
 });

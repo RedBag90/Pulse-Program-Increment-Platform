@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
@@ -32,7 +33,7 @@ import { saveViewPreferenceAction } from "@/modules/core/kernel/features/actions
 import {
   CONTRIBUTION_AXES,
   CONTRIBUTION_AXIS_COLUMNS,
-  CONTRIBUTION_AXIS_LABELS,
+  CONTRIBUTION_AXIS_KEYS,
   groupContributions,
   sumUnits,
   type ContributionAxis,
@@ -132,12 +133,13 @@ function PerformanceCell({
   hint?: string;
   emphasised: boolean;
 }) {
+  const t = useTranslations();
   const perf = assessable ? benefitPerformance({ planned, realized }) : null;
   if (perf == null) {
     // Der Strich einer Summenzeile bekommt seinen Grund gleich mit: „0 von 6
     // bewertbar" ist eine Auskunft, ein blosser Strich eine Leerstelle.
     return (
-      <span className="block text-muted-foreground" title="Erst ab L4.2 bewertbar">
+      <span className="block text-muted-foreground" title={t("work.overview.erstAbLBewertbar")}>
         —{hint && <span className="block text-label">{hint}</span>}
       </span>
     );
@@ -204,6 +206,7 @@ function SolutionRow({
   emphasis: Emphasis;
   grouped: boolean;
 }) {
+  const t = useTranslations();
   const tone = rollupCellTone(classFilter.hiddenClass);
   return (
     <tr className="border-b last:border-0">
@@ -218,7 +221,9 @@ function SolutionRow({
       ) : (
         <>
           <td className={`px-3 py-2 ${tone}`} />
-          <td className={`px-3 py-2 text-label ${tone}`}>{classFilter.hiddenLabel}</td>
+          <td className={`px-3 py-2 text-label ${tone}`}>
+            {classFilter.hiddenLabelKey && t(classFilter.hiddenLabelKey)}
+          </td>
         </>
       )}
       <td className={`px-3 py-2 text-right ${tone}`}>
@@ -283,6 +288,7 @@ export function GoalContributionBlock({
    */
   initialView: ContributionView;
 }) {
+  const t = useTranslations();
   const [axis, setAxis] = useState<ContributionAxis>(initialView.axis);
   const [sort, setSort] = useState<{ key: SortKey; asc: boolean }>({
     key: initialView.sortKey,
@@ -342,7 +348,7 @@ export function GoalContributionBlock({
 
   const axisOptions = CONTRIBUTION_AXES.map((id) => ({
     id,
-    label: CONTRIBUTION_AXIS_LABELS[id],
+    label: t(CONTRIBUTION_AXIS_KEYS[id] ?? id),
   }));
 
   const visible = useMemo(
@@ -441,20 +447,20 @@ export function GoalContributionBlock({
   return (
     <Card className="space-y-3 p-4">
       <div className="flex items-center justify-between gap-2">
-        <SectionLabel>Epic-Beitrag zu Kopf-Zielen</SectionLabel>
+        <SectionLabel>{t("work.overview.epicBeitragZuKopf")}</SectionLabel>
         <div className="flex shrink-0 items-center gap-2">
           <CollapsingToggle
             value={axis}
             options={axisOptions}
             onSelect={pickAxis}
-            label="Zusammenfassen nach"
+            label={t("work.overview.zusammenfassenNach")}
             className="text-meta"
           />
           <CollapsingToggle
             value={sort.key}
             options={sortOptions}
             onSelect={pickSort}
-            label="Sortiert nach"
+            label={t("work.overview.sortiertNach")}
             className="text-meta"
           />
           {shownCount > 0 && (
@@ -469,7 +475,7 @@ export function GoalContributionBlock({
         <p className="text-sm text-muted-foreground">
           Noch keine Epic-Ziel-Beiträge berechnet.{" "}
           <Link href="/ziele" className="text-primary hover:underline">
-            Ziele verknüpfen →
+            {t("work.overview.zieleVerknuepfen")}
           </Link>
         </p>
       ) : (
@@ -488,23 +494,29 @@ export function GoalContributionBlock({
                   // Horizont und Solution sind Eigenschaften **eines** Epics und
                   // haben in einer Summenzeile nichts zu suchen; an ihrer Stelle
                   // steht, aus wie vielen Epics die Summe kommt.
-                  <th className="px-3 py-2 text-right font-medium">Epics</th>
+                  <th className="px-3 py-2 text-right font-medium">{t("work.overview.epics")}</th>
                 ) : (
                   <>
-                    <th className="px-3 py-2 text-left font-medium">Horizont</th>
                     <th className="px-3 py-2 text-left font-medium">
-                      Wertstrom
-                      <span className="block font-normal normal-case">Solution</span>
+                      {t("work.overview.horizont")}
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium">
+                      {t("work.overview.wertstrom")}
+                      <span className="block font-normal normal-case">
+                        {t("work.overview.solution")}
+                      </span>
                     </th>
                   </>
                 )}
                 <th className="px-3 py-2 text-right font-medium">
-                  Wiederkehrend
-                  <span className="block font-normal normal-case">pro Jahr</span>
+                  {t("work.overview.wiederkehrend")}
+                  <span className="block font-normal normal-case">
+                    {t("work.overview.proJahr")}
+                  </span>
                 </th>
-                <th className="px-3 py-2 text-right font-medium">Einmalig</th>
+                <th className="px-3 py-2 text-right font-medium">{t("work.overview.einmalig")}</th>
                 <th className="px-3 py-2 text-right font-medium">
-                  Ist vs. Plan
+                  {t("work.overview.istVsPlan")}
                   <span className="block font-normal normal-case">ab L4.2</span>
                 </th>
               </tr>
@@ -584,7 +596,8 @@ export function GoalContributionBlock({
                       <span
                         className={`inline-block size-2 shrink-0 rounded-[2px] border ${rollupTone(classFilter.hiddenClass)}`}
                       />
-                      {classFilter.hiddenLabel} je Solution · je Einheit summiert
+                      {classFilter.hiddenLabelKey && t(classFilter.hiddenLabelKey)}{" "}
+                      {t("work.overview.rollupPerUnit")}
                     </span>
                   </th>
                 </tr>

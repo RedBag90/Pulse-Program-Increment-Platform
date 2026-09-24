@@ -59,7 +59,6 @@ describe("softDeleteArt — deletion test", () => {
     const row = await db.art.findUnique({ where: { id } });
     expect(row?.deletedAt).toBeNull();
   });
-
 });
 
 describe("partial unique index — ART name reuse after delete", () => {

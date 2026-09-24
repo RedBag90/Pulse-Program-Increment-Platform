@@ -7,11 +7,12 @@
  * a11y: jedes Badge trägt sein **Text-Label** (nicht nur Farbe).
  */
 
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
-  FEATURE_STATUS_LABELS,
-  DEPENDENCY_TYPE_LABELS,
+  FEATURE_STATUS_KEYS,
+  DEPENDENCY_TYPE_KEYS,
   type FeatureStatus,
   type DependencyType,
 } from "@/modules/drumbeat/domain/status";
@@ -56,9 +57,10 @@ export const DEPENDENCY_TYPE_CLASS: Record<DependencyType, string> = {
 };
 
 export function StatusBadge({ status, className }: { status: FeatureStatus; className?: string }) {
+  const t = useTranslations();
   return (
     <Badge className={cn("border-transparent", FEATURE_STATUS_CLASS[status], className)}>
-      {FEATURE_STATUS_LABELS[status]}
+      {t(FEATURE_STATUS_KEYS[status])}
     </Badge>
   );
 }
@@ -73,9 +75,10 @@ export function DependencyBadge({
   count?: number;
   className?: string;
 }) {
+  const t = useTranslations();
   return (
     <Badge className={cn("border-transparent", DEPENDENCY_TYPE_CLASS[type], className)}>
-      {DEPENDENCY_TYPE_LABELS[type]}
+      {t(DEPENDENCY_TYPE_KEYS[type])}
       {count != null ? ` ${count}` : ""}
     </Badge>
   );

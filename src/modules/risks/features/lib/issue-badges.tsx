@@ -11,14 +11,15 @@
  * die Bausteine, die sie anziehen.
  */
 
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
-  EXPOSURE_LABEL,
+  EXPOSURE_KEYS,
   EXPOSURE_TONE,
   type ExposureBand,
 } from "@/modules/core/kernel/domain/exposure";
-import { ROAM_LABELS, type RoamStatus } from "@/modules/core/kernel/domain/roam";
+import { ROAM_KEYS, type RoamStatus } from "@/modules/core/kernel/domain/roam";
 
 /**
  * ROAM als Pille — kühle Palette, deckungsgleich zu `ROAM_DOT`/`ROAM_HEX`
@@ -37,17 +38,19 @@ export const ROAM_CLASS: Record<RoamStatus, string> = {
 };
 
 export function ExposureBadge({ band, className }: { band: ExposureBand; className?: string }) {
+  const t = useTranslations();
   return (
     <Badge className={cn("border-transparent", EXPOSURE_TONE[band].badge, className)}>
-      {EXPOSURE_LABEL[band]}
+      {t(EXPOSURE_KEYS[band])}
     </Badge>
   );
 }
 
 export function RoamBadge({ status, className }: { status: RoamStatus; className?: string }) {
+  const t = useTranslations();
   return (
     <Badge className={cn("border-transparent", ROAM_CLASS[status], className)}>
-      {ROAM_LABELS[status]}
+      {t(ROAM_KEYS[status])}
     </Badge>
   );
 }

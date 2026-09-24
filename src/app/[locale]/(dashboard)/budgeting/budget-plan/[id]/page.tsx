@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
@@ -21,6 +22,7 @@ interface Props {
  * Auflösung der `capturedBy`-UUID.
  */
 export default async function BudgetPlanRevisionDetailPage({ params }: Props) {
+  const t = await getTranslations();
   const { id } = await params;
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
@@ -41,7 +43,7 @@ export default async function BudgetPlanRevisionDetailPage({ params }: Props) {
       {/* Erfasst wird im Ergebnis-Reiter der Kachel — dort, wo die Zahlen
           entstehen. Diese Fläche ist reine Rückschau. */}
       <Link href="/budgeting/periods" className="text-xs font-medium text-primary hover:underline">
-        ← Budgeting-Zeiträume
+        {t("budgeting.page.budgetingZeitraeume")}
       </Link>
 
       {history.length > 1 && (

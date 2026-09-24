@@ -257,7 +257,7 @@ export function lifecycleSpans(input: {
 /**
  * **Die Spalten des Portfolio-Kanbans.**
  *
- * Sie entstanden bis September 2026 aus `STAGE_GATES` × `STAGE_SHORT` — Spalte
+ * Sie entstanden bis September 2026 aus `STAGE_GATES` × `STAGE_SHORT_KEYS` — Spalte
  * und Reifegrad waren dasselbe. Mit dem Neuschnitt der Achse traegt das nicht
  * mehr: zwei Reifegrade teilen sich eine Spalte, zwei Spalten unterscheiden
  * sich nur durch einen Stempel, und der letzte Grad steht gar nicht mehr auf

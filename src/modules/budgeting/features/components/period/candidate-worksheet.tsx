@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Fragment, useState, type ReactNode } from "react";
 import {
   groupCandidates,
@@ -61,6 +62,7 @@ export function CandidateWorksheet<T extends GroupableCandidate>({
   /** Abschnitte, die eingeklappt starten (z. B. Run auf der PB-Liste). */
   collapsedByDefault?: (section: WorksheetSection<T>) => boolean;
 }) {
+  const t = useTranslations();
   const sections = worksheetSections(groupCandidates(items, sortBy));
   const [closed, setClosed] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(
@@ -88,7 +90,7 @@ export function CandidateWorksheet<T extends GroupableCandidate>({
 
         <thead className="sticky top-0 z-10">
           <tr className="border-b bg-muted/60 text-xs text-muted-foreground">
-            <th className="px-3 py-2 text-left font-medium">Kandidat</th>
+            <th className="px-3 py-2 text-left font-medium">{t("budgeting.period.kandidat")}</th>
             {columns.map((c) => (
               <th key={c.key} className="px-3 py-2 text-right font-medium">
                 {c.label}

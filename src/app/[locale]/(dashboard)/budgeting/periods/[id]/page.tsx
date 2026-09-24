@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
@@ -54,6 +55,7 @@ const TABS: readonly DetailTab[] = PERIOD_TABS.map((key) => ({ key, label: TAB_L
  * Reiter und zwei weitere Nav-Einträge verteilt.
  */
 export default async function BudgetingPeriodDetailPage({ params, searchParams }: Props) {
+  const t = await getTranslations();
   const { id } = await params;
   const { tab } = await searchParams;
   const principal = await requirePrincipal().catch(() => null);
@@ -116,7 +118,9 @@ export default async function BudgetingPeriodDetailPage({ params, searchParams }
         (overview ? (
           <PeriodDistributionTab model={overview} basePath={basePath} />
         ) : (
-          <p className="text-sm text-muted-foreground">Keine Verteilungsdaten.</p>
+          <p className="text-sm text-muted-foreground">
+            {t("budgeting.page.keineVerteilungsdaten")}
+          </p>
         ))}
 
       {activeTab === "ergebnis" &&
@@ -130,7 +134,7 @@ export default async function BudgetingPeriodDetailPage({ params, searchParams }
             hasRevision={revision != null}
           />
         ) : (
-          <p className="text-sm text-muted-foreground">Kein Ergebnis.</p>
+          <p className="text-sm text-muted-foreground">{t("budgeting.page.keinErgebnis")}</p>
         ))}
     </EntityDetailShell>
   );

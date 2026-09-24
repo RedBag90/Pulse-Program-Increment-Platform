@@ -168,9 +168,9 @@ export function classifyEpic(e: EpicClassState, threshold: number): EpicClassifi
   };
 }
 
-export const EPIC_CLASS_LABELS: Record<EpicClass, string> = {
-  portfolio: "Portfolio-Epic",
-  art: "ART-Epic",
+export const EPIC_CLASS_KEYS: Record<EpicClass, string> = {
+  portfolio: "work.epicClass.portfolio",
+  art: "work.epicClass.art",
 };
 
 /** Die beim Anlegen hinterlegte Erwartung; `null` = keine (Bestands-Epics). */

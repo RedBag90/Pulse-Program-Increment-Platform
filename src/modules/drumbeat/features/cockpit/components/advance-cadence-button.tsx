@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -14,6 +15,7 @@ import { advanceCadenceAction } from "@/modules/drumbeat/features/cockpit/action
  * Umsetzung-Cockpit-Strip und auf der PI-Detailseite.
  */
 export function AdvanceCadenceButton({ piId, artId }: { piId: string; artId: string }) {
+  const t = useTranslations();
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
@@ -52,7 +54,7 @@ export function AdvanceCadenceButton({ piId, artId }: { piId: string; artId: str
           disabled={pending}
           onClick={() => setConfirming(false)}
         >
-          Abbrechen
+          {t("drumbeat.ui.abbrechen")}
         </Button>
       </span>
     );

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useRef, useState } from "react";
 import { ShieldAlert } from "lucide-react";
 import {
@@ -21,8 +22,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RISK_LEVELS } from "@/modules/risks/domain/risk-matrix";
 import { RISK_CATEGORIES } from "@/modules/risks/domain/risk-category";
-import { CATEGORY_LABELS } from "@/modules/risks/features/risk/components/labels";
-import { LEVEL_LABEL } from "@/modules/core/kernel/domain/exposure";
+import { CATEGORY_KEYS } from "@/modules/risks/features/risk/components/labels";
+import { LEVEL_KEYS } from "@/modules/core/kernel/domain/exposure";
 
 const SELECT_CLASS =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -50,6 +51,7 @@ export function CreateIssueDialog({
   featureOptions,
   onCreated,
 }: CreateIssueDialogProps) {
+  const t = useTranslations();
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : uncontrolledOpen;
@@ -74,7 +76,7 @@ export function CreateIssueDialog({
       {!isControlled && (
         <Button onClick={() => setOpen(true)} data-tour="issue-create-button">
           <ShieldAlert className="mr-1.5 size-4" />
-          Issue erfassen
+          {t("risks.ui.issueErfassen")}
         </Button>
       )}
 
@@ -86,9 +88,9 @@ export function CreateIssueDialog({
           <form ref={formRef} action={formAction} className="space-y-4">
             {showBetrifft ? (
               <div className="space-y-1.5">
-                <Label>Betrifft</Label>
+                <Label>{t("risks.ui.betrifft")}</Label>
                 <select name="initiativeId" defaultValue={initiativeId} className={SELECT_CLASS}>
-                  <option value={initiativeId}>Ganzes Epic</option>
+                  <option value={initiativeId}>{t("risks.ui.ganzesEpic")}</option>
                   {featureOptions!.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.title}
@@ -102,45 +104,45 @@ export function CreateIssueDialog({
 
             <div className="space-y-1.5">
               <Label>
-                Titel <span className="text-destructive">*</span>
+                {t("risks.ui.titel")} <span className="text-destructive">*</span>
               </Label>
               <Input
                 name="title"
                 required
                 maxLength={300}
-                placeholder="Kurzbeschreibung des Issues"
+                placeholder={t("risks.ui.kurzbeschreibungDesIssues")}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label>Beschreibung</Label>
+              <Label>{t("risks.ui.beschreibung")}</Label>
               <Textarea
                 name="description"
                 rows={3}
                 maxLength={5000}
-                placeholder="Kontext, Auswirkung, Details"
+                placeholder={t("risks.ui.kontextAuswirkungDetails")}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Wahrscheinlichkeit</Label>
+                <Label>{t("risks.ui.wahrscheinlichkeit")}</Label>
                 <select name="probability" defaultValue="" className={SELECT_CLASS}>
                   <option value="">—</option>
                   {RISK_LEVELS.map((l) => (
                     <option key={l} value={l}>
-                      {LEVEL_LABEL[l]}
+                      {t(LEVEL_KEYS[l])}
                     </option>
                   ))}
                 </select>
               </div>
               <div className="space-y-1.5">
-                <Label>Auswirkung</Label>
+                <Label>{t("risks.ui.auswirkung")}</Label>
                 <select name="impact" defaultValue="" className={SELECT_CLASS}>
                   <option value="">—</option>
                   {RISK_LEVELS.map((l) => (
                     <option key={l} value={l}>
-                      {LEVEL_LABEL[l]}
+                      {t(LEVEL_KEYS[l])}
                     </option>
                   ))}
                 </select>
@@ -149,18 +151,18 @@ export function CreateIssueDialog({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Kategorie</Label>
+                <Label>{t("risks.ui.kategorie")}</Label>
                 <select name="category" defaultValue="" className={SELECT_CLASS}>
                   <option value="">—</option>
                   {RISK_CATEGORIES.map((c) => (
                     <option key={c} value={c}>
-                      {CATEGORY_LABELS[c]}
+                      {t(CATEGORY_KEYS[c])}
                     </option>
                   ))}
                 </select>
               </div>
               <div className="space-y-1.5">
-                <Label>Zieltermin</Label>
+                <Label>{t("risks.ui.zieltermin")}</Label>
                 <Input type="date" name="targetResolutionDate" />
               </div>
             </div>
@@ -169,7 +171,7 @@ export function CreateIssueDialog({
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Abbrechen
+                {t("risks.ui.abbrechen")}
               </Button>
               <Button type="submit" disabled={pending}>
                 {pending ? "Speichern…" : cta}

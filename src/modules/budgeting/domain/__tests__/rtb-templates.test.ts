@@ -7,7 +7,7 @@ import {
 import {
   rtbAssignmentGroup,
   RTB_ASSIGNMENT_GROUPS,
-  RTB_ASSIGNMENT_GROUP_LABELS,
+  RTB_ASSIGNMENT_GROUP_KEYS,
 } from "@/modules/budgeting/domain/rtb-art-resolution";
 import { isRtbInterval } from "@/modules/budgeting/domain/rtb-interval";
 import { RTB_KINDS } from "@/modules/budgeting/domain/rtb-kind";
@@ -28,7 +28,7 @@ describe("RTB_TEMPLATES", () => {
 
   it("hat zu jeder Zurechnungsebene mindestens eine Vorlage", () => {
     for (const g of RTB_ASSIGNMENT_GROUPS) {
-      expect(templatesOfGroup(g).length, RTB_ASSIGNMENT_GROUP_LABELS[g]).toBeGreaterThan(0);
+      expect(templatesOfGroup(g).length, RTB_ASSIGNMENT_GROUP_KEYS[g]).toBeGreaterThan(0);
     }
   });
 

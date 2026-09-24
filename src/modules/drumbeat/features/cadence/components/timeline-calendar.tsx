@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useRef, useState, useEffect, startTransition, useActionState } from "react";
 import { updatePiOnTimelineAction } from "@/modules/drumbeat/features/cadence/actions/pi";
 import type { ActionState } from "@/server/http/server-action";
@@ -64,6 +65,7 @@ const initialActionState: ActionState = {};
  * PI-Balken oeffnet den Konsumenten-Callback.
  */
 export function TimelineCalendar({ pis, canEdit, onEmptyDayClick, onPiClick }: Props) {
+  const t = useTranslations();
   const [, updateAction] = useActionState(updatePiOnTimelineAction, initialActionState);
   const [drag, setDrag] = useState<DragState | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -267,7 +269,7 @@ export function TimelineCalendar({ pis, canEdit, onEmptyDayClick, onPiClick }: P
                       });
                     }}
                     className="ml-auto h-full w-1.5 cursor-ew-resize rounded-r border-l border-current/30"
-                    title="Ende-Datum ziehen"
+                    title={t("drumbeat.ui.endeDatumZiehen")}
                   />
                 )}
               </div>
@@ -276,7 +278,7 @@ export function TimelineCalendar({ pis, canEdit, onEmptyDayClick, onPiClick }: P
 
         {pis.length === 0 && (
           <p className="absolute left-3 top-10 text-xs text-muted-foreground">
-            Klick auf einen Tag, um ein PI anzulegen.
+            {t("drumbeat.ui.klickAufEinenTag")}
           </p>
         )}
       </div>

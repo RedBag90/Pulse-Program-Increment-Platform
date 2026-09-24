@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 
 /**
@@ -11,10 +12,19 @@ export const CockpitNetworkLazy = dynamic(
   () => import("./cockpit-network").then((m) => m.CockpitNetwork),
   {
     ssr: false,
-    loading: () => (
-      <div className="grid h-96 place-items-center text-sm text-muted-foreground">
-        Netzplan wird geladen…
-      </div>
-    ),
+    loading: NetzplanLadehinweis,
   },
 );
+
+/**
+ * Eigene Komponente statt einer Pfeilfunktion in `loading`: `useTranslations`
+ * ist ein Hook und braucht eine Komponente.
+ */
+function NetzplanLadehinweis() {
+  const t = useTranslations();
+  return (
+    <div className="grid h-96 place-items-center text-sm text-muted-foreground">
+      {t("drumbeat.ui.netzplanWirdGeladen")}
+    </div>
+  );
+}

@@ -66,20 +66,20 @@ export function riskExposure(p: RiskLevel, i: RiskLevel): Exposure {
   return { score, band: bandForScore(score) };
 }
 
-export const EXPOSURE_LABEL: Record<ExposureBand, string> = {
-  low: "Niedrig",
-  medium: "Mittel",
-  high: "Hoch",
-  critical: "Kritisch",
+export const EXPOSURE_KEYS: Record<ExposureBand, string> = {
+  low: "risks.exposure.low",
+  medium: "risks.exposure.medium",
+  high: "risks.exposure.high",
+  critical: "risks.exposure.critical",
 };
 
 /** Die Stufen der beiden Achsen, ausgeschrieben. */
-export const LEVEL_LABEL: Record<RiskLevel, string> = {
-  very_low: "Sehr niedrig",
-  low: "Niedrig",
-  medium: "Mittel",
-  high: "Hoch",
-  very_high: "Sehr hoch",
+export const LEVEL_KEYS: Record<RiskLevel, string> = {
+  very_low: "risks.level.low",
+  low: "risks.level.low",
+  medium: "risks.level.medium",
+  high: "risks.level.high",
+  very_high: "risks.level.veryHigh",
 };
 
 /**

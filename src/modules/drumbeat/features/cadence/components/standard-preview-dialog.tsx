@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState, useActionState, startTransition, useEffect } from "react";
 import {
   Dialog,
@@ -56,6 +57,7 @@ export function StandardPreviewDialog({
   standards,
   existingPis,
 }: Props) {
+  const t = useTranslations();
   const [standardId, setStandardId] = useState(standards[0]?.id ?? "");
   const currentYear = new Date().getUTCFullYear();
   const [year, setYear] = useState(currentYear);
@@ -120,13 +122,13 @@ export function StandardPreviewDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>PI-Standard anwenden</DialogTitle>
+          <DialogTitle>{t("drumbeat.ui.piStandardAnwenden")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label htmlFor="std" className="text-xs font-medium">
-                Standard
+                {t("drumbeat.ui.standard")}
               </label>
               <select
                 id="std"
@@ -143,7 +145,7 @@ export function StandardPreviewDialog({
             </div>
             <div className="space-y-1">
               <label htmlFor="year" className="text-xs font-medium">
-                Jahr
+                {t("drumbeat.ui.jahr")}
               </label>
               <input
                 id="year"
@@ -161,10 +163,10 @@ export function StandardPreviewDialog({
             <table className="w-full text-xs">
               <thead className="border-b bg-muted/40 text-left text-muted-foreground">
                 <tr>
-                  <th className="px-3 py-1.5">Name</th>
-                  <th className="px-3 py-1.5">Start</th>
-                  <th className="px-3 py-1.5">Ende</th>
-                  <th className="px-3 py-1.5">Status</th>
+                  <th className="px-3 py-1.5">{t("drumbeat.ui.name")}</th>
+                  <th className="px-3 py-1.5">{t("drumbeat.ui.start")}</th>
+                  <th className="px-3 py-1.5">{t("drumbeat.ui.ende")}</th>
+                  <th className="px-3 py-1.5">{t("drumbeat.ui.status")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -176,7 +178,7 @@ export function StandardPreviewDialog({
                     <td className="px-3 py-1.5">
                       {p.willCreate ? (
                         <span className="rounded-full bg-success-surface px-2 py-0.5 text-label font-medium text-success">
-                          wird angelegt
+                          {t("drumbeat.ui.wirdAngelegt")}
                         </span>
                       ) : (
                         <span className="rounded-full bg-warning-surface px-2 py-0.5 text-label font-medium text-warning">
@@ -191,7 +193,8 @@ export function StandardPreviewDialog({
           </div>
 
           <p className="text-xs text-muted-foreground">
-            <strong>{newCount}</strong> neu, <strong>{skipCount}</strong> uebersprungen.
+            <strong>{newCount}</strong> neu, <strong>{skipCount}</strong>{" "}
+            {t("drumbeat.ui.uebersprungen")}
           </p>
 
           {state?.error && (
@@ -207,7 +210,7 @@ export function StandardPreviewDialog({
             onClick={() => onOpenChange(false)}
             className="h-9 rounded-md border px-3 text-sm hover:bg-muted/50"
           >
-            Abbrechen
+            {t("drumbeat.ui.abbrechen")}
           </button>
           <button
             type="button"

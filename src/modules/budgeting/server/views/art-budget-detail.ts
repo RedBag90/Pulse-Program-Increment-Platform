@@ -29,7 +29,7 @@ import type {
   ArtBudgetSourceView,
   UnfundedCandidate,
 } from "@/modules/budgeting/domain/art-budget-model";
-import { ALLOCATION_SOURCE_LABELS } from "@/modules/budgeting/domain/art-budget-model";
+import { ALLOCATION_SOURCE_KEYS } from "@/modules/budgeting/domain/art-budget-model";
 import { isChangeKind } from "@/modules/budgeting/domain/rtb-kind";
 import { rtbAnnualAmount, rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 import {
@@ -123,7 +123,7 @@ export function buildArtBudgetDetail(input: {
   const sources: ArtBudgetSourceView[] = [
     {
       source: "portfolio",
-      label: ALLOCATION_SOURCE_LABELS.portfolio,
+      label: ALLOCATION_SOURCE_KEYS.portfolio,
       breakdown: summarizeAllocations(allocated),
       titles,
     },
@@ -278,7 +278,7 @@ export async function loadArtBudgetDetail(
             ...detail.sources,
             {
               source: "art" as const,
-              label: ALLOCATION_SOURCE_LABELS.art,
+              label: ALLOCATION_SOURCE_KEYS.art,
               breakdown: pot.breakdown,
               titles: pot.titles,
             },

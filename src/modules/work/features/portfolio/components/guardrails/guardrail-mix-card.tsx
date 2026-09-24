@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import {
   Card,
   CardHeader,
@@ -60,6 +61,7 @@ export function GuardrailMixCard<B extends string>({
   totalCount: number;
   coverageThin: boolean;
 }) {
+  const t = useTranslations();
   const share = (r: MixRow) => (view === "count" ? r.countShare : r.amountShare);
   const delta = (r: MixRow) => (view === "count" ? r.deltaCount : r.deltaAmount);
 
@@ -75,7 +77,7 @@ export function GuardrailMixCard<B extends string>({
       <CardContent>
         {status === "unknown" ? (
           <EmptyState
-            title="Noch keine klassifizierten Epics"
+            title={t("work.guardrails.nochKeineKlassifiziertenEpics")}
             body={`Der Mix erscheint, sobald Epics einen ${unclassifiedNoun} tragen.`}
             className="p-6"
           />
@@ -128,7 +130,7 @@ export function GuardrailMixCard<B extends string>({
 
             {coverageThin && (
               <p className="mt-2 rounded-r-sm border-l-2 border-amber-500 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-700 dark:text-amber-400">
-                Über 20 % unklassifiziert — der Mix ist nur ein Indiz.
+                {t("work.guardrails.ueberUnklassifiziertDerMix")}
               </p>
             )}
           </>

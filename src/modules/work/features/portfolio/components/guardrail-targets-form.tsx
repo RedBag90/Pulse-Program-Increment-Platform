@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { savePortfolioDashboardSettingsAction } from "@/modules/work/features/portfolio/actions/dashboard-settings";
 import {
   validateGuardrailTargets,
-  HORIZON_LABEL,
+  HORIZON_KEYS,
   STATIONS,
   type GuardrailTargets,
   type Station,
@@ -35,6 +36,7 @@ interface Props {
  * unangetastet, daher keine Hidden-Input-Kruecke).
  */
 export function GuardrailTargetsForm({ targets }: Props) {
+  const t = useTranslations();
   const [state, formAction, pending] = useActionState(savePortfolioDashboardSettingsAction, {});
   const [draft, setDraft] = useState(targets);
 
@@ -58,26 +60,29 @@ export function GuardrailTargetsForm({ targets }: Props) {
   return (
     <Card className="space-y-3 p-4">
       <header>
-        <h3 className="font-heading text-base font-medium">Portfolio-Guardrail-Targets</h3>
+        <h3 className="font-heading text-base font-medium">
+          {t("work.epic.portfolioGuardrailTargets")}
+        </h3>
         <p className="text-xs text-muted-foreground">
           Soll-Werte je Achse. Treiben Soll-Marker und Ampel auf der{" "}
-          <span className="font-medium">Portfolio-Guardrails</span>-Fläche.
+          <span className="font-medium">{t("work.epic.portfolioGuardrails")}</span>
+          {t("work.epic.flaeche")}
         </p>
       </header>
       <form action={formAction} className="space-y-3">
         <div className="grid gap-3 md:grid-cols-3">
           <fieldset className="space-y-2 rounded-md border p-3">
             <legend className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Horizon
+              {t("work.epic.horizon")}
             </legend>
             <NumberRow
-              label={HORIZON_LABEL.h3}
+              label={t(HORIZON_KEYS.h3)}
               name="guardrail_h3"
               value={draft.horizon.h3}
               onChange={(v) => setHorizon("h3", v)}
             />
             <NumberRow
-              label={HORIZON_LABEL.h2}
+              label={t(HORIZON_KEYS.h2)}
               name="guardrail_h2"
               value={draft.horizon.h2}
               onChange={(v) => setHorizon("h2", v)}
@@ -86,19 +91,19 @@ export function GuardrailTargetsForm({ targets }: Props) {
                 Teilung wird hier gesetzt — der Code-Default (haelftig) ist nur
                 ein Startwert, keine Empfehlung. */}
             <NumberRow
-              label="H1.1 · Investing"
+              label={t("work.epic.hInvesting")}
               name="guardrail_h1_1"
               value={draft.horizon["h1.1"]}
               onChange={(v) => setHorizon("h1.1", v)}
             />
             <NumberRow
-              label="H1.2 · Extracting"
+              label={t("work.epic.hExtracting")}
               name="guardrail_h1_2"
               value={draft.horizon["h1.2"]}
               onChange={(v) => setHorizon("h1.2", v)}
             />
             <NumberRow
-              label={HORIZON_LABEL.h0}
+              label={t(HORIZON_KEYS.h0)}
               name="guardrail_h0"
               value={draft.horizon.h0}
               onChange={(v) => setHorizon("h0", v)}
@@ -121,9 +126,9 @@ export function GuardrailTargetsForm({ targets }: Props) {
                 className="mt-0.5 size-3.5 shrink-0"
               />
               <span>
-                Auf der Portfolio-Übersicht zeigen
+                {t("work.epic.aufDerPortfolioUebersicht")}
                 <span className="block text-meta text-muted-foreground">
-                  Trichter „Produkte im Investitionshorizont" und die Horizont-Bahnen des Kanbans.
+                  {t("work.epic.trichterProdukteImInvestitionshorizont")}
                 </span>
               </span>
             </label>
@@ -131,22 +136,22 @@ export function GuardrailTargetsForm({ targets }: Props) {
 
           <fieldset className="space-y-2 rounded-md border p-3">
             <legend className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Capacity
+              {t("work.epic.capacity")}
             </legend>
             <NumberRow
-              label="Business"
+              label={t("work.epic.business")}
               name="guardrail_business"
               value={draft.capacity.business}
               onChange={(v) => setCapacity("business", v)}
             />
             <NumberRow
-              label="Enabler"
+              label={t("work.epic.enabler")}
               name="guardrail_enabler"
               value={draft.capacity.enabler}
               onChange={(v) => setCapacity("enabler", v)}
             />
             <NumberRow
-              label="Maintenance"
+              label={t("work.epic.maintenance")}
               name="guardrail_maintenance"
               value={draft.capacity.maintenance}
               onChange={(v) => setCapacity("maintenance", v)}
@@ -156,16 +161,16 @@ export function GuardrailTargetsForm({ targets }: Props) {
 
           <fieldset className="space-y-2 rounded-md border p-3">
             <legend className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Engagement
+              {t("work.epic.engagement")}
             </legend>
             <NumberRow
-              label="Abdeckung"
+              label={t("work.epic.abdeckung")}
               name="guardrail_coverage"
               value={draft.engagement.coverage}
               onChange={(v) => setEngagement("coverage", v)}
             />
             <NumberRow
-              label="Reaktionszeit"
+              label={t("work.epic.reaktionszeit")}
               name="guardrail_response_days"
               value={draft.engagement.responseDays}
               unit="Tage"
@@ -173,15 +178,17 @@ export function GuardrailTargetsForm({ targets }: Props) {
               max={365}
               onChange={(v) => setEngagement("responseDays", v)}
             />
-            <p className="pt-1 text-meta text-muted-foreground">keine Summenregel</p>
+            <p className="pt-1 text-meta text-muted-foreground">
+              {t("work.epic.keineSummenregel")}
+            </p>
           </fieldset>
 
           <fieldset className="space-y-2 rounded-md border p-3">
             <legend className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Portfolio-Limit
+              {t("work.epic.portfolioLimit")}
             </legend>
             <NumberRow
-              label="Schwelle"
+              label={t("work.epic.schwelle")}
               name="guardrail_portfolio_threshold"
               value={draft.approval.portfolioThreshold}
               unit="€"
@@ -189,7 +196,7 @@ export function GuardrailTargetsForm({ targets }: Props) {
               onChange={setThreshold}
             />
             <p className="pt-1 text-meta text-muted-foreground">
-              Ab dieser Größe entscheidet das Portfolio. Darunter finanziert der ART.
+              {t("work.epic.abDieserGroesseEntscheidet")}
             </p>
           </fieldset>
         </div>
@@ -205,7 +212,7 @@ export function GuardrailTargetsForm({ targets }: Props) {
         )}
         {state.success && (
           <p role="status" className="text-sm text-success">
-            Targets gespeichert.
+            {t("work.epic.targetsGespeichert")}
           </p>
         )}
         <Button type="submit" disabled={pending || !validation.ok} size="sm">

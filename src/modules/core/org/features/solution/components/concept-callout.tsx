@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { Info, X } from "lucide-react";
 import { CONCEPT_HELP } from "@/modules/core/org/domain/horizon";
@@ -10,6 +11,7 @@ import { CONCEPT_HELP } from "@/modules/core/org/domain/horizon";
  * dem Schließen nicht wiederkommt.
  */
 export function ConceptCallout({ storageKey }: { storageKey: string }) {
+  const t = useTranslations();
   const key = `pulse.callout.${storageKey}`;
   const [dismissed, setDismissed] = useState(true);
 
@@ -25,7 +27,7 @@ export function ConceptCallout({ storageKey }: { storageKey: string }) {
       <p className="flex-1 text-muted-foreground">{CONCEPT_HELP.solutionVsEpic}</p>
       <button
         type="button"
-        aria-label="Hinweis ausblenden"
+        aria-label={t("org.ui.hinweisAusblenden")}
         onClick={() => {
           window.localStorage.setItem(key, "1");
           setDismissed(true);

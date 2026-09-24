@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 import type { ContributionView } from "@/modules/work/domain/contribution-view-preference";
 import { PeriodBanner } from "@/modules/work/features/portfolio/overview/blocks/period-banner";
@@ -24,6 +25,7 @@ export function OverviewMissionControl({
   /** Gespeicherte Stellung der Schalter der Beitrags-Kachel (siehe dort). */
   contributionView: ContributionView;
 }) {
+  const t = useTranslations();
   return (
     <div className="space-y-6">
       <PeriodBanner data={data} />
@@ -76,14 +78,14 @@ export function OverviewMissionControl({
           ohnehin kurz; die Sperre bleibt trotzdem stehen. */}
       <div className="grid items-start gap-4 md:grid-cols-2">
         <DueSoonBlock
-          label="L4-Abschluss fällig (≤ 4 Wochen)"
+          label={t("work.overview.lAbschlussFaelligWochen")}
           items={data.l4DueSoon}
           hrefBase="/portfolio/epics"
           emptyText="Kein Epic mit geplantem L4-Abschluss in den nächsten 4 Wochen."
           classFilter={data.classFilter}
         />
         <DueSoonBlock
-          label="Features fällig (≤ 2 Wochen)"
+          label={t("work.overview.featuresFaelligWochen")}
           items={data.featuresDueSoon}
           hrefBase="/feature"
           emptyText="Kein Feature mit geplantem Abschluss in den nächsten 2 Wochen."

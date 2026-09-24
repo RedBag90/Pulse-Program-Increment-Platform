@@ -4,7 +4,7 @@ import {
   expandApprovers,
   DEFAULT_GATE_POLICIES,
   GATE_APPROVER_ROLES,
-  GATE_APPROVER_ROLE_LABELS,
+  GATE_APPROVER_ROLE_KEYS,
   isGateApproverRole,
   MAX_APPROVER_ROLES_PER_RULE,
   allowsAdHocApprovers,
@@ -336,7 +336,7 @@ describe("expandApprovers — Business Owner und Architect Lead", () => {
     // `isGateApproverRole` filtert unbekannte Schlüssel **still** weg. Ohne den
     // Alias verlöre die Historie ihr Etikett, ohne dass es jemand merkt.
     expect(isGateApproverRole("epic.party.mgmt")).toBe(true);
-    expect(GATE_APPROVER_ROLE_LABELS["epic.party.mgmt"]).toBe("MGMT");
+    expect(GATE_APPROVER_ROLE_KEYS["epic.party.mgmt"]).toBe("work.gateApproverRole.mgmt");
   });
 
   it("ehrt MGMT weiter, wenn eine Wertstrom-Regel ihn eigens führt", () => {

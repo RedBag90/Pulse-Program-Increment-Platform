@@ -1,21 +1,26 @@
 import { describe, it, expect } from "vitest";
 import {
   GATE_STEPS,
-  GATE_STEP_LABELS,
+  GATE_STEP_KEYS,
+  GATE_STEP_NUMBER_KEYS,
   LADDER_STEPS,
-  gateStepLabel,
-  gateStepNumber,
+  gateStepKey,
+  gateStepNumberKey,
 } from "@/modules/work/domain/stage-gate";
+import { catalogTranslate } from "@/test/helpers/catalog";
 
 describe("Beschriftung der beantragbaren Schritte", () => {
-  it("beschriftet jeden Schritt", () => {
+  it("benennt jeden Schritt", () => {
     for (const step of GATE_STEPS) {
-      expect(GATE_STEP_LABELS[step], `Schritt ${step} ohne Label`).toBeTruthy();
+      expect(GATE_STEP_KEYS[step], `Schritt ${step} ohne Schlüssel`).toBeTruthy();
     }
   });
 
   it("nennt den Schritt L4 wie die Anzeige danach: L4.1", () => {
-    expect(gateStepLabel("L4")).toBe("L4.1 Umsetzung läuft");
+    // Der Schlüssel unterscheidet sich vom Major-Gate; dass auch die Wörter
+    // auseinandergehen, prüft `initiative-labels.test.tsx` nebenan.
+    expect(gateStepKey("L4")).toBe("work.gateStep.l4");
+    expect(catalogTranslate("de")(gateStepKey("L4"))).toContain("L4.1");
   });
 
   it("lässt den gespeicherten Wert unangetastet — L4 bleibt ein Schritt namens L4", () => {
@@ -24,36 +29,44 @@ describe("Beschriftung der beantragbaren Schritte", () => {
   });
 
   it("fällt bei unbekannten Werten auf den Wert selbst zurück", () => {
-    expect(gateStepLabel("L9")).toBe("L9");
+    expect(gateStepKey("L9")).toBe("L9");
   });
 });
 
 describe("Marke der beantragbaren Schritte", () => {
-  it("gibt fuer jeden Schritt eine ganze Marke, kein abgeschnittenes Wort", () => {
-    // Die Marke wird aus dem Etikett abgeleitet. Fuer die nummerierten Schritte
-    // ist das richtig; fuer einen nummernlosen ergaebe es Unsinn — aus „Zur
-    // Analyse ausgewaehlt" wurde bis September 2026 der Punkt „Zur", und der
-    // stand so auch in der Epics-Tabelle („Wechsel nach Zur beantragt").
-    //
-    // Dieser Test faellt auf, sobald ein kuenftiger Schritt ohne Nummer
-    // dazukommt, ohne in `NUMBERLESS` eine eigene Marke zu bekommen.
+  it("führt für jeden Schritt eine eigene Marke", () => {
+    // Bis September 2026 wurde die Marke aus dem Etikett geschnitten
+    // (`label.split(" ")[0]`). Für die nummerierten Schritte ging das gut; aus
+    // „Zur Analyse ausgewählt" wurde der Punkt „Zur", und der stand so auch in
+    // der Epics-Tabelle („Wechsel nach Zur beantragt"). Jetzt steht jede Marke
+    // ausgeschrieben da — dieser Test fällt auf, wenn ein künftiger Schritt
+    // ohne Eintrag dazukommt.
     for (const step of GATE_STEPS) {
-      const mark = gateStepNumber(step);
-      expect(mark, `Schritt ${step} ohne Marke`).toBeTruthy();
-      if (!/^L[0-9.]+$/.test(mark)) {
-        expect(
-          LADDER_STEPS,
-          `${step} traegt keine Nummer und gehoert nicht auf die Leiter`,
-        ).not.toContain(step);
+      expect(GATE_STEP_NUMBER_KEYS[step], `Schritt ${step} ohne Marke`).toBeTruthy();
+    }
+  });
+
+  it("lässt genau die Schritte von der Leiter, deren Marke keine Nummer ist", () => {
+    // Die eigentliche Aussage, und sie gilt in beiden Sprachen: wer keine
+    // Nummer trägt, bewegt den Reifegrad nicht und gehört nicht auf die Leiter.
+    for (const locale of ["de", "en"] as const) {
+      const t = catalogTranslate(locale);
+      for (const step of GATE_STEPS) {
+        const marke = t(gateStepNumberKey(step));
+        if (!/^L[0-9.]+$/.test(marke)) {
+          expect(LADDER_STEPS, `${step} (${locale}) trägt keine Nummer`).not.toContain(step);
+        }
       }
     }
   });
 
-  it("nennt den nummernlosen Analyse-Schritt „Analyse\u201c", () => {
-    expect(gateStepNumber("analysis")).toBe("Analyse");
+  it("nennt den nummernlosen Analyse-Schritt in beiden Sprachen mit einem Wort", () => {
+    expect(gateStepNumberKey("analysis")).toBe("work.gateStepNumber.analysis");
+    expect(catalogTranslate("de")(gateStepNumberKey("analysis"))).toBe("Analyse");
+    expect(catalogTranslate("en")(gateStepNumberKey("analysis"))).toBe("Analysis");
   });
 
-  it("laesst die Leiter kuerzer als den Antragsweg", () => {
+  it("lässt die Leiter kürzer als den Antragsweg", () => {
     // Zwei Listen, zwei Aussagen: `GATE_STEPS` ist der Antragsweg, `LADDER_STEPS`
     // der Reifegrad. Werden sie je gleich lang, hat jemand einen Schritt ohne
     // Reifegrad auf die Leiter gelassen.

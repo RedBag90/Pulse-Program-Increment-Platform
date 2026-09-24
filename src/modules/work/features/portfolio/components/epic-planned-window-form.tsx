@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 
 /** ISO yyyy-mm-dd extractor for display (UTC-safe). */
@@ -26,6 +27,7 @@ interface Props {
  * stays in lock-step with the plan. To change it, the owner edits those dates.
  */
 export function EpicPlannedWindowForm({ epicId, plannedStartAt, plannedEndAt, derived }: Props) {
+  const t = useTranslations();
   const startStr = toIsoDate(plannedStartAt);
   const endStr = toIsoDate(plannedEndAt);
   const hasPlanned = startStr !== "" && endStr !== "";
@@ -51,7 +53,7 @@ export function EpicPlannedWindowForm({ epicId, plannedStartAt, plannedEndAt, de
             href={`/portfolio/epics/${epicId}?tab=timeline`}
             className="text-primary hover:underline"
           >
-            Reifegrad-Plan
+            {t("work.epic.reifegradPlan")}
           </Link>
           .
         </p>
@@ -62,7 +64,7 @@ export function EpicPlannedWindowForm({ epicId, plannedStartAt, plannedEndAt, de
           href={`/portfolio/epics/${epicId}?tab=timeline`}
           className="text-primary hover:underline"
         >
-          Reifegrad-Plan
+          {t("work.epic.reifegradPlan")}
         </Link>{" "}
         abgeleitet — geplanter Umsetzungsstart (L4.1) bis Umsetzungsende (L4.2).
       </p>
@@ -71,12 +73,7 @@ export function EpicPlannedWindowForm({ epicId, plannedStartAt, plannedEndAt, de
           Ableitung aus Features: {toIsoDate(derived.start)} → {toIsoDate(derived.end)}
         </p>
       )}
-      {diverged && (
-        <p className="text-xs text-warning">
-          Ist-Fenster (Feature-PIs) weicht vom Plan-Fenster ab — Feature-PIs ggf. umplanen oder den
-          Reifegrad-Plan (L4.1/L4.2) anpassen.
-        </p>
-      )}
+      {diverged && <p className="text-xs text-warning">{t("work.epic.istFensterFeaturePis")}</p>}
     </div>
   );
 }

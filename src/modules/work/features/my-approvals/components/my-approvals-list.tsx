@@ -1,8 +1,9 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { PageSection } from "@/components/layout";
 import { ApprovalActions } from "@/modules/work/features/my-approvals/components/approval-actions";
 import type { MyApprovalRow } from "@/modules/work/server/services/my-approvals";
-import { gateStepLabel } from "@/modules/work/domain/stage-gate";
+import { gateStepKey } from "@/modules/work/domain/stage-gate";
 
 /**
  * „Meine Freigaben" — der persönliche Posteingang, nach Art gruppiert.
@@ -21,13 +22,14 @@ const KIND_ORDER: MyApprovalRow["kind"][] = ["epic_gate"];
 
 /** Renders the per-row context column — what makes this approval distinct. */
 function ContextCell({ row }: { row: MyApprovalRow }) {
+  const t = useTranslations();
   const bits: string[] = [];
   if (row.context.fromGate && row.context.toGate) {
     // Bisher stand hier der rohe Schrittcode — dieselbe Beschriftung wie auf
     // der Gate-Karte, damit „L4" und „L4.1" nicht zwei Dinge zu sein scheinen.
-    bits.push(`${gateStepLabel(row.context.fromGate)} → ${gateStepLabel(row.context.toGate)}`);
+    bits.push(`${t(gateStepKey(row.context.fromGate))} → ${t(gateStepKey(row.context.toGate))}`);
   }
-  if (row.context.roleLabel) bits.push(row.context.roleLabel);
+  if (row.context.roleLabelKey) bits.push(t(row.context.roleLabelKey));
   if (row.context.valueStreamName) bits.push(row.context.valueStreamName);
   if (row.context.artName) bits.push(row.context.artName);
   if (row.context.parentTitle) bits.push(row.context.parentTitle);

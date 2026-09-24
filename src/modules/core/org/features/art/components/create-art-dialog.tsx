@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import { Plus } from "lucide-react";
 import { createArtAction } from "@/modules/core/org/features/art/actions/art";
@@ -49,6 +50,7 @@ const initialState: ActionState = {};
  * deutsch ist.
  */
 export function CreateArtDialog({ open, onOpenChange, valueStreams }: CreateArtDialogProps) {
+  const t = useTranslations();
   const isControlled = open !== undefined;
   const [selfOpen, setSelfOpen] = useState(false);
   const dialogOpen = open ?? selfOpen;
@@ -69,19 +71,19 @@ export function CreateArtDialog({ open, onOpenChange, valueStreams }: CreateArtD
       {!isControlled && (
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="size-4 mr-1.5" />
-          ART
+          {t("org.page.art")}
         </Button>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Agile Release Train anlegen</DialogTitle>
+            <DialogTitle>{t("org.ui.agileReleaseTrainAnlegen")}</DialogTitle>
           </DialogHeader>
           <form action={action} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="art-vs">
-                Wertstrom <span className="text-destructive">*</span>
+                {t("org.ui.wertstrom")} <span className="text-destructive">*</span>
               </Label>
               <select
                 id="art-vs"
@@ -104,20 +106,18 @@ export function CreateArtDialog({ open, onOpenChange, valueStreams }: CreateArtD
 
             <div className="space-y-1.5">
               <Label htmlFor="art-name">
-                Name <span className="text-destructive">*</span>
+                {t("org.ui.name")} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="art-name"
                 name="name"
                 required
                 maxLength={100}
-                placeholder="z. B. Plattform-ART"
+                placeholder={t("org.ui.zBPlattformArt")}
               />
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              Die PI-Kadenz wird später (mit dem Drumbeat-Modul) pro ART zugewiesen.
-            </p>
+            <p className="text-xs text-muted-foreground">{t("org.ui.diePiKadenzWird")}</p>
 
             {state.error && (
               <p role="alert" className="text-sm text-destructive">
@@ -127,7 +127,7 @@ export function CreateArtDialog({ open, onOpenChange, valueStreams }: CreateArtD
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Abbrechen
+                {t("org.ui.abbrechen")}
               </Button>
               <Button type="submit" disabled={isPending}>
                 {isPending ? "Wird angelegt …" : "ART anlegen"}

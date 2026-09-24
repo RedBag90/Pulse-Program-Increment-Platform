@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { SectionCard } from "@/components/ui/section-card";
 import { Stat, StatStrip } from "@/components/ui/stat";
@@ -17,7 +18,7 @@ import { EpicPlannedWindowForm } from "./epic-planned-window-form";
 import { EpicBudgetPanel } from "./epic-budget-panel";
 import { formatCompactEUR } from "@/lib/formatting";
 import { buildInitiativeSummary } from "@/modules/core/kernel/domain/initiative-summary";
-import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
+import { STAGE_GATE_KEYS } from "@/components/detail/initiative-labels";
 import type { BusinessCaseTotals } from "@/modules/work/domain/business-case";
 import type { StageGate, InitiativeStatus } from "@/modules/core/kernel/domain/types";
 
@@ -229,12 +230,13 @@ export function EpicOverviewTab({
   realizedSlot,
   goalsSlot,
 }: EpicOverviewTabProps) {
+  const t = useTranslations();
   const completedChildren = epic.children.filter((c) => c.status === "completed").length;
   const amZug = currentGate === OVERVIEW_PANELS_GATE;
 
   const summary = buildInitiativeSummary({
     stageGate: epic.stageGate as StageGate,
-    stageLabel: STAGE_GATE_LABELS[epic.stageGate] ?? epic.stageGate,
+    stageLabel: t(STAGE_GATE_KEYS[epic.stageGate] ?? epic.stageGate),
     status: epic.status as InitiativeStatus,
     childCount: epic.children.length,
     completedChildCount: completedChildren,
@@ -273,25 +275,25 @@ export function EpicOverviewTab({
     <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
       {/* ── Die Erzählung ────────────────────────────────────────────── */}
       <div className="grid content-start gap-4">
-        <Panel label="Wo das Vorhaben steht">
+        <Panel label={t("work.epic.woDasVorhabenSteht")}>
           <p className="text-sm">{summary}</p>
         </Panel>
 
-        <Panel label="Wirtschaftlichkeit">
+        <Panel label={t("work.epic.wirtschaftlichkeit")}>
           {hasFigures ? (
             <StatStrip className="flex-col sm:flex-row sm:divide-x divide-y sm:divide-y-0">
               <Stat
-                label="Kosten"
+                label={t("work.epic.kosten")}
                 value={eur(totals.implementationCost)}
                 delta={{ tone: "flat", text: "Σ Kostenscheiben" }}
               />
               <Stat
-                label="Budget"
+                label={t("work.epic.budget")}
                 value={budget.value}
                 delta={{ tone: "flat", text: budget.hint }}
               />
               <Stat
-                label="Nutzen p. a."
+                label={t("work.epic.nutzenPA")}
                 value={eur(totals.recurringBenefit)}
                 valueClassName={
                   totals.recurringBenefit > 0 ? "text-emerald-600 dark:text-emerald-400" : ""
@@ -299,7 +301,7 @@ export function EpicOverviewTab({
                 delta={{ tone: "flat", text: "wiederkehrend" }}
               />
               <Stat
-                label="Einmalig"
+                label={t("work.epic.einmalig")}
                 value={eur(totals.oneTimeBenefit)}
                 delta={{ tone: "flat", text: "einmaliger Effekt" }}
               />
@@ -307,8 +309,8 @@ export function EpicOverviewTab({
           ) : (
             <EmptyState
               className="p-5"
-              title="Noch keine Zahlen"
-              body="Kosten und Nutzen entstehen mit dem Business Case. Bis dahin trägt das Vorhaben nur seine Hypothese."
+              title={t("work.epic.nochKeineZahlen")}
+              body={t("work.epic.kostenUndNutzenEntstehen")}
             />
           )}
         </Panel>
@@ -330,7 +332,9 @@ export function EpicOverviewTab({
               currentArtId={epic.artId ?? ""}
             />
           ) : (
-            <p className="text-sm">{epic.description ?? <None>Keine Beschreibung.</None>}</p>
+            <p className="text-sm">
+              {epic.description ?? <None>{t("work.epic.keineBeschreibung")}</None>}
+            </p>
           )}
         </Panel>
 
@@ -347,7 +351,7 @@ export function EpicOverviewTab({
          * gehört. Die Klasse ist das Ergebnis, Typ und Horizont sind die
          * Eingaben; sie stehen jetzt untereinander in einer Karte.
          */}
-        <Panel label="Einordnung" atGate={amZug}>
+        <Panel label={t("work.epic.einordnung")} atGate={amZug}>
           {classification && (
             <EpicClassBadge
               classification={classification.classification}
@@ -367,7 +371,7 @@ export function EpicOverviewTab({
           />
         </Panel>
 
-        <Panel label="Zuordnung" atGate={amZug}>
+        <Panel label={t("work.epic.zuordnung")} atGate={amZug}>
           {/**
            * Der Owner steht **über** der Akte, nicht in einer ihrer Wertzellen:
            * er bringt einen Personen-Picker mit, und der kollabiert in einer
@@ -376,19 +380,23 @@ export function EpicOverviewTab({
           {/* `data-tour`: Ziel der Wiki-Station „Den Epic Owner benennen" — seit
               die Timeline ihre Zuweisung abgegeben hat, ist das hier die einzige. */}
           <div className="grid gap-1.5" data-tour="epic-owner-field">
-            <p className="text-xs text-muted-foreground">Owner</p>
-            {ownerSlot ?? <None>Nicht zugewiesen</None>}
+            <p className="text-xs text-muted-foreground">{t("work.epic.owner")}</p>
+            {ownerSlot ?? <None>{t("work.epic.nichtZugewiesen")}</None>}
           </div>
           <dl className="grid border-t border-border pt-1">
-            <Row label="Wertstrom">{epic.valueStream?.name ?? <None>keiner zugeordnet</None>}</Row>
-            <Row label="Solution">
+            <Row label={t("work.epic.wertstrom")}>
+              {epic.valueStream?.name ?? <None>{t("work.epic.keinerZugeordnet")}</None>}
+            </Row>
+            <Row label={t("work.epic.solution")}>
               {linkedSolutions.length > 0 ? (
                 <span>
                   {epic.primarySolution
                     ? (linkedSolutions.find((l) => l.solution.id === epic.primarySolution?.id)
                         ?.solution.name ?? linkedSolutions[0]!.solution.name)
                     : linkedSolutions[0]!.solution.name}
-                  {epic.primarySolution && <span className="text-muted-foreground"> · primär</span>}
+                  {epic.primarySolution && (
+                    <span className="text-muted-foreground">{t("work.epic.primaer")}</span>
+                  )}
                   {linkedSolutions.length > 1 && (
                     <span className="text-muted-foreground"> +{linkedSolutions.length - 1}</span>
                   )}
@@ -407,7 +415,7 @@ export function EpicOverviewTab({
           />
         </Panel>
 
-        <Panel label="Governance">
+        <Panel label={t("work.epic.governance")}>
           {canEdit ? (
             <EpicGovernanceFlags
               epicId={epic.id}
@@ -418,20 +426,20 @@ export function EpicOverviewTab({
             <ul className="flex flex-wrap gap-1.5">
               {epic.needsSteeringAttention && (
                 <li className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-                  Steering-Meeting
+                  {t("work.epic.steeringMeeting")}
                 </li>
               )}
               {epic.stagedForBudgeting && (
                 <li className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-                  Budget-Meeting
+                  {t("work.epic.budgetMeeting")}
                 </li>
               )}
             </ul>
           ) : (
             <EmptyState
               className="p-5"
-              title="Keine Markierung"
-              body="Weder fürs Steering noch fürs Budget vorgemerkt."
+              title={t("work.epic.keineMarkierung")}
+              body={t("work.epic.wederFuersSteeringNoch")}
             />
           )}
         </Panel>
@@ -440,7 +448,7 @@ export function EpicOverviewTab({
             heissen fast gleich und meinen Verschiedenes — die Geltung des
             Geldes und das Lieferfenster. Die Frage „reicht mein Budget ueber
             meine Umsetzung?" laesst sich nur so beantworten. */}
-        <Panel label="Budget">
+        <Panel label={t("work.epic.budget")}>
           <EpicBudgetPanel
             standing={budgetStanding ?? null}
             allocationState={allocationState}
@@ -448,7 +456,7 @@ export function EpicOverviewTab({
           />
         </Panel>
 
-        <Panel label="Zeitfenster">
+        <Panel label={t("work.epic.zeitfenster")}>
           <EpicPlannedWindowForm
             epicId={epic.id}
             plannedStartAt={epic.plannedStartAt}

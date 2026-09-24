@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Link } from "@/i18n/navigation";
@@ -28,6 +29,7 @@ export function PeriodDistributionTab({
   model: DistributionOverviewModel;
   basePath: string;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -56,9 +58,11 @@ export function PeriodDistributionTab({
             <span className="font-medium">
               {model.submittedCount} von {model.groups.length}
             </span>{" "}
-            <span className="text-muted-foreground">Gruppen haben abgegeben</span>
+            <span className="text-muted-foreground">
+              {t("budgeting.period.gruppenHabenAbgegeben")}
+            </span>
             {model.deadlinePassed && (
-              <span className="ml-1 text-warning">· Deadline verstrichen</span>
+              <span className="ml-1 text-warning">{t("budgeting.period.deadlineVerstrichen")}</span>
             )}
           </span>
           <span className="text-xs text-muted-foreground">
@@ -78,7 +82,7 @@ export function PeriodDistributionTab({
       <p className="text-xs text-muted-foreground">
         Auf Papier verteilen?{" "}
         <Link href={`${basePath}/sheet`} className="text-primary hover:underline">
-          Verteilbögen drucken →
+          {t("budgeting.period.verteilboegenDrucken")}
         </Link>
       </p>
 
@@ -100,18 +104,18 @@ export function PeriodDistributionTab({
                 </span>
                 {g.submitted ? (
                   <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200">
-                    eingereicht
+                    {t("budgeting.period.eingereicht")}
                   </span>
                 ) : (
                   <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                    offen
+                    {t("budgeting.period.offen")}
                   </span>
                 )}
                 <Link
                   href={`${basePath}/distribute/${g.id}`}
                   className="rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted"
                 >
-                  öffnen →
+                  {t("budgeting.period.oeffnen")}
                 </Link>
               </span>
             </li>
@@ -121,7 +125,7 @@ export function PeriodDistributionTab({
 
       <section className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Vorschläge je Gruppe
+          {t("budgeting.period.vorschlaegeJeGruppe")}
         </h3>
         <CandidateWorksheet
           items={model.candidates}
@@ -150,7 +154,7 @@ export function PeriodDistributionTab({
           empty="Noch keine Kandidaten — die Runde ist nicht gestartet."
         />
         <p className="text-meta text-muted-foreground">
-          Die Zwischensummen je Gruppenspalte zeigen, welcher Wertstrom einer Gruppe wichtiger war.
+          {t("budgeting.period.dieZwischensummenJeGruppenspalte")}
         </p>
       </section>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
@@ -11,7 +12,7 @@ import {
   HORIZON_HEX,
   HORIZON_NONE_HEX,
 } from "@/modules/core/org/features/solution/components/horizon-tokens";
-import { HORIZON_LABEL, type Horizon } from "@/modules/work/domain/portfolio-guardrails";
+import { HORIZON_KEYS, type Horizon } from "@/modules/work/domain/portfolio-guardrails";
 import {
   fitFunnel,
   halfAt,
@@ -42,14 +43,14 @@ import {
  */
 
 /**
- * Der Bandkopf im Trichter. Nur H1 weicht von `HORIZON_LABEL` ab: dort steht
+ * Der Bandkopf im Trichter. Nur H1 weicht von `HORIZON_KEYS` ab: dort steht
  * „H1 · Investing", was im Trichter das Gegenteil der Daten behaupten kann —
  * gemessen sind in Large Test Corp **alle drei** H1-Produkte in der Ernte. Am
  * Badge stimmt das Label weiterhin, weil der Modus dort danebensteht; ein
  * globaler Umtext wäre eine eigene Entscheidung.
  */
 const BAND_TITLE: Record<Horizon, string> = {
-  ...HORIZON_LABEL,
+  ...HORIZON_KEYS,
   h1: "H1 · Investing & Extracting",
 };
 
@@ -332,13 +333,13 @@ export function HorizonFunnelBlock({
   horizonTargets,
   budgetingEnabled,
 }: FunnelProps) {
+  const t = useTranslations();
   if (items.length === 0) {
     return (
       <Card className="space-y-2 p-4">
-        <SectionLabel>Produkte im Investitionshorizont</SectionLabel>
+        <SectionLabel>{t("work.overview.produkteImInvestitionshorizont")}</SectionLabel>
         <p className="text-sm text-muted-foreground">
-          Noch keine Produkte angelegt — sobald ein Wertstrom Solutions hat, zeigt dieser Abschnitt,
-          in welchem Horizont sie stehen und wie viel Geld sie binden.
+          {t("work.overview.nochKeineProdukteAngelegt")}
         </p>
       </Card>
     );
@@ -354,6 +355,7 @@ export function HorizonFunnelBlock({
 }
 
 function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: FunnelProps) {
+  const t = useTranslations();
   const [wrapRef, measured] = useMeasuredWidth();
 
   const layout = useMemo(
@@ -412,7 +414,7 @@ function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: Funne
   return (
     <Card className="space-y-3 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <SectionLabel>Produkte im Investitionshorizont</SectionLabel>
+        <SectionLabel>{t("work.overview.produkteImInvestitionshorizont")}</SectionLabel>
         <p className="text-xs text-muted-foreground">
           {items.filter((i) => i.kind === "solution").length} Produkte ·{" "}
           {budgetingEnabled ? (
@@ -422,15 +424,14 @@ function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: Funne
               Invest + Betrieb dieses Halbjahrs
             </>
           ) : (
-            <>Größe und Öffnung sind Epics in Umsetzung (L3.2–L4.2)</>
+            <>{t("work.overview.groesseUndOeffnungSind")}</>
           )}
         </p>
       </div>
 
       {!budgetingEnabled ? null : cycleKey == null ? (
         <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-          Es gilt gerade kein Budget-Rahmen — die Kachel, deren Zeitraum jetzt läuft, ist noch in
-          Ausarbeitung. Gezeigt sind nur die Betriebskosten.
+          {t("work.overview.esGiltGeradeKein")}
         </p>
       ) : (
         total === 0 && (
@@ -665,7 +666,7 @@ function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: Funne
                 fontWeight={700}
                 className="fill-muted-foreground"
               >
-                OHNE PRODUKT-ZUORDNUNG
+                {t("work.overview.ohneProduktZuordnung")}
               </text>
               <text
                 x={first.x0 + 16}
@@ -673,7 +674,7 @@ function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: Funne
                 fontSize={11}
                 className="fill-muted-foreground"
               >
-                Epics ohne Produkt und wertstromübergreifender Betrieb — zählt in keinem Band mit
+                {t("work.overview.epicsOhneProduktUnd")}
               </text>
               {layout.homeless.map((i) => (
                 <Symbol
@@ -708,11 +709,11 @@ function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: Funne
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-label text-muted-foreground">
         <li className="flex items-center gap-1.5">
           <span className="inline-block size-2 rotate-45 bg-muted-foreground/70" />
-          Produkt
+          {t("work.overview.produkt")}
         </li>
         <li className="flex items-center gap-1.5">
           <span className="inline-block size-2 rounded-full bg-muted-foreground/70" />
-          Epic ohne Produkt
+          {t("work.overview.epicOhneProdukt")}
         </li>
         <li className="flex items-center gap-1.5">
           <span className="inline-block size-2 rounded-full border border-dashed border-muted-foreground/70" />
@@ -736,7 +737,7 @@ function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: Funne
         {layout.targetProfile != null && (
           <li className="flex items-center gap-1.5">
             <span className="inline-block h-px w-4 border-t border-dashed border-muted-foreground" />
-            Guardrail-Ziel
+            {t("work.overview.guardrailZiel")}
           </li>
         )}
       </ul>

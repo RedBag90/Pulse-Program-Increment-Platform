@@ -179,10 +179,10 @@ describe("buildStructureOverview", () => {
         }),
       ),
     );
-    expect(o.valueStreams[0]!.arts[0]!.solutions.map((s) => [s.statusLabel, s.status])).toEqual([
-      ["H1 · Investing", "investing"],
+    expect(o.valueStreams[0]!.arts[0]!.solutions.map((s) => [s.statusLabelKey, s.status])).toEqual([
+      ["org.horizon.h1", "investing"],
       ["H1 · Extracting", "extracting"],
-      ["H2 · Emerging", "emerging"],
+      ["org.horizon.h2", "emerging"],
     ]);
   });
 
@@ -271,9 +271,9 @@ describe("groupByStatus", () => {
    * deshalb in einen Topf.
    */
   it("folgt der Lebenszyklus-Leiter und spaltet H1 auf", () => {
-    expect(groupByStatus(flattenSolutions(o)).map((g) => [g.label, g.rows.length])).toEqual([
-      ["H2 · Emerging", 1],
-      ["H1 · Investing", 1],
+    expect(groupByStatus(flattenSolutions(o)).map((g) => [g.labelKey, g.rows.length])).toEqual([
+      ["org.horizon.h2", 1],
+      ["org.horizon.h1", 1],
       ["H1 · Extracting", 1],
     ]);
   });

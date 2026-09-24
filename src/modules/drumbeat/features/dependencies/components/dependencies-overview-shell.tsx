@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
 import { Link2, ShieldAlert, Split, X } from "lucide-react";
@@ -13,7 +14,7 @@ import {
   type DependencyOverviewRow,
 } from "@/modules/drumbeat/server/views/dependencies-overview";
 import {
-  DEPENDENCY_TYPE_LABELS as TYPE_LABEL,
+  DEPENDENCY_TYPE_KEYS as TYPE_LABEL,
   FEATURE_STATUSES,
   type FeatureStatus,
 } from "@/modules/drumbeat/domain/status";
@@ -55,6 +56,7 @@ function parseScope(raw: string | null): ScopeFilter {
  * From-ART teilen, sonst blockt die Bar mit einem Hinweis.
  */
 export function DependenciesOverviewShell({ model, canBulk }: Props) {
+  const t = useTranslations();
   const { searchParams, setParams: pushParam } = useUrlState();
 
   const type = parseType(searchParams.get("type"));
@@ -124,8 +126,8 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
   return (
     <Page>
       <PageHeader
-        title="Abhängigkeiten"
-        subtitle="Alle Abhängigkeiten im Zugriff über PIs hinweg — Cross-ART und Critical-Path sind direkt sichtbar."
+        title={t("drumbeat.ui.abhaengigkeiten")}
+        subtitle={t("drumbeat.ui.alleAbhaengigkeitenImZugriff")}
       />
 
       {/* Type-Funnel */}
@@ -158,7 +160,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
           type="search"
           value={query}
           onChange={(e) => pushParam({ q: e.target.value || null })}
-          placeholder="Suche Feature …"
+          placeholder={t("drumbeat.ui.sucheFeature")}
           className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
         />
         <select
@@ -177,7 +179,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
           onChange={(e) => pushParam({ fromArt: e.target.value || null })}
           className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
         >
-          <option value="">Alle From-ARTs</option>
+          <option value="">{t("drumbeat.ui.alleFromArts")}</option>
           {model.artOptions.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
@@ -189,7 +191,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
           onChange={(e) => pushParam({ toArt: e.target.value || null })}
           className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
         >
-          <option value="">Alle To-ARTs</option>
+          <option value="">{t("drumbeat.ui.alleToArts")}</option>
           {model.artOptions.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
@@ -201,7 +203,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
           onChange={(e) => pushParam({ fromPi: e.target.value || null })}
           className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
         >
-          <option value="">Alle From-PIs</option>
+          <option value="">{t("drumbeat.ui.alleFromPis")}</option>
           {model.piOptions.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -213,7 +215,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
           onChange={(e) => pushParam({ toPi: e.target.value || null })}
           className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
         >
-          <option value="">Alle To-PIs</option>
+          <option value="">{t("drumbeat.ui.alleToPis")}</option>
           {model.piOptions.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -231,18 +233,18 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
                 <th className="py-2 pl-4 pr-2">
                   <input
                     type="checkbox"
-                    aria-label="Alle auswählen"
+                    aria-label={t("drumbeat.ui.alleAuswaehlen")}
                     checked={filtered.length > 0 && filtered.every((r) => selected.has(r.id))}
                     onChange={toggleAll}
                     className="size-4 rounded-sm border-border"
                   />
                 </th>
               )}
-              <th className="py-2 pr-3">Von-Feature</th>
-              <th className="py-2 pr-3">Typ</th>
-              <th className="py-2 pr-3">Zu-Feature</th>
-              <th className="py-2 pr-3">Status</th>
-              <th className="py-2 pr-4">PI-Fenster</th>
+              <th className="py-2 pr-3">{t("drumbeat.ui.vonFeature")}</th>
+              <th className="py-2 pr-3">{t("drumbeat.ui.typ")}</th>
+              <th className="py-2 pr-3">{t("drumbeat.ui.zuFeature")}</th>
+              <th className="py-2 pr-3">{t("drumbeat.ui.status")}</th>
+              <th className="py-2 pr-4">{t("drumbeat.ui.piFenster")}</th>
             </tr>
           </thead>
           <tbody>
@@ -252,7 +254,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
                   colSpan={canBulk ? 6 : 5}
                   className="py-12 text-center text-sm text-muted-foreground"
                 >
-                  Keine Abhängigkeiten im aktuellen Filter.
+                  {t("drumbeat.ui.keineAbhaengigkeitenImAktuellen")}
                 </td>
               </tr>
             ) : (
@@ -281,9 +283,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
               {selected.size} ausgewählt
             </span>
             {bulkArtId == null ? (
-              <p className="text-xs text-warning">
-                Bulk-Unlink nur innerhalb eines From-ARTs möglich.
-              </p>
+              <p className="text-xs text-warning">{t("drumbeat.ui.bulkUnlinkNurInnerhalb")}</p>
             ) : (
               <button
                 type="button"
@@ -297,7 +297,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
             <button
               type="button"
               onClick={() => setSelected(new Set())}
-              aria-label="Auswahl aufheben"
+              aria-label={t("drumbeat.ui.auswahlAufheben")}
               className="ml-auto rounded-md border border-input p-1.5 text-muted-foreground hover:bg-muted"
             >
               <X className="size-3.5" />
@@ -325,6 +325,7 @@ function DependencyRow({
   onToggle: () => void;
   canBulk: boolean;
 }) {
+  const t = useTranslations();
   return (
     <tr className="border-b align-middle last:border-b-0 hover:bg-muted/30">
       {canBulk && (
@@ -346,7 +347,7 @@ function DependencyRow({
           <DependencyBadge type={row.type} />
           {row.isCriticalPath && (
             <span
-              title="Kritischer Pfad — Blocker mit Ziel in aktiver PI"
+              title={t("drumbeat.ui.kritischerPfadBlockerMit")}
               className="inline-flex size-5 items-center justify-center rounded-sm bg-destructive-surface text-destructive"
             >
               <ShieldAlert className="size-3" />
@@ -371,12 +372,12 @@ function DependencyRow({
           )}
           {row.isCrossArt && (
             <span className="inline-flex items-center gap-1 rounded-sm bg-destructive-surface px-1.5 py-0.5 text-label text-destructive">
-              <Split className="size-3" /> Cross-ART
+              <Split className="size-3" /> {t("drumbeat.ui.crossArt")}
             </span>
           )}
           {row.isCrossPi && (
             <span className="inline-flex items-center gap-1 rounded-sm bg-warning-surface px-1.5 py-0.5 text-label text-warning">
-              <Link2 className="size-3" /> Cross-PI
+              <Link2 className="size-3" /> {t("drumbeat.ui.crossPi")}
             </span>
           )}
         </div>

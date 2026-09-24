@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { CockpitView } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
 import { ToggleGroup, type ToggleGroupOption } from "@/components/ui/toggle-group";
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export function CockpitViewTabs({ view }: Props) {
+  const t = useTranslations();
   const { setParam } = useUrlState();
 
   function setView(next: CockpitView) {
@@ -36,7 +38,7 @@ export function CockpitViewTabs({ view }: Props) {
         value={view}
         options={TABS}
         onChange={setView}
-        ariaLabel="Cockpit-Sicht"
+        ariaLabel={t("drumbeat.ui.cockpitSicht")}
         className="h-9 bg-card text-sm"
       />
     </div>

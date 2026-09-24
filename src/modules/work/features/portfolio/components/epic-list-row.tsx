@@ -1,10 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, startTransition } from "react";
-import { gateStepNumber } from "@/modules/work/domain/stage-gate";
+import { gateStepNumberKey } from "@/modules/work/domain/stage-gate";
 import { AlertTriangle, ArrowUp, Coins, MoreHorizontal, ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { STAGE_GATE_LABELS, SUB_STAGE_LABELS } from "@/components/detail/initiative-labels";
+import { STAGE_GATE_KEYS, SUB_STAGE_KEYS } from "@/components/detail/initiative-labels";
 import {
   setEpicFlagAction,
   deleteEpicAction,
@@ -78,6 +79,7 @@ export function EpicListRowComponent({
   onToggleSelect,
   compact,
 }: Props) {
+  const t = useTranslations();
   const [flagState, flag, flagging] = useActionState(setEpicFlagAction, {});
   const [deleteState, del, deleting] = useActionState(deleteEpicAction, {});
   const busy = flagging || deleting;
@@ -134,15 +136,15 @@ export function EpicListRowComponent({
             className={`inline-block size-2 shrink-0 rounded-full ${STAGE_DOT[row.stageGate] ?? "bg-muted-foreground/40"}`}
             title={
               row.subStage
-                ? `${STAGE_GATE_LABELS[row.stageGate] ?? row.stageGate} · ${row.subStage} ${SUB_STAGE_LABELS[row.subStage]}`
-                : (STAGE_GATE_LABELS[row.stageGate] ?? row.stageGate)
+                ? `${t(STAGE_GATE_KEYS[row.stageGate] ?? row.stageGate)} · ${row.subStage} ${t(SUB_STAGE_KEYS[row.subStage] ?? row.subStage)}`
+                : t(STAGE_GATE_KEYS[row.stageGate] ?? row.stageGate)
             }
             aria-hidden
           />
           {row.subStage && (
             <span
               className="shrink-0 rounded-md bg-muted px-1 text-label font-medium tabular-nums text-muted-foreground"
-              title={SUB_STAGE_LABELS[row.subStage]}
+              title={t(SUB_STAGE_KEYS[row.subStage] ?? row.subStage)}
             >
               {row.subStage}
             </span>
@@ -196,7 +198,7 @@ export function EpicListRowComponent({
           {row.economics.recurringBenefitYear != null ? (
             <>
               {money(row.economics.recurringBenefitYear)}
-              <span className="text-label text-muted-foreground/60">/Jahr</span>
+              <span className="text-label text-muted-foreground/60">{t("work.epic.jahr")}</span>
             </>
           ) : (
             "—"
@@ -248,7 +250,7 @@ export function EpicListRowComponent({
                     variant="ghost"
                     className="size-7"
                     disabled={busy}
-                    aria-label="Mehr"
+                    aria-label={t("work.epic.mehr")}
                   >
                     <MoreHorizontal className="size-3.5" />
                   </Button>
@@ -289,7 +291,7 @@ export function EpicListRowComponent({
                           onClick={deleteRow}
                           className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-destructive hover:bg-destructive/10"
                         >
-                          Löschen
+                          {t("work.epic.loeschen")}
                         </button>
                       </li>
                     </>
@@ -310,6 +312,7 @@ export function EpicListRowComponent({
 }
 
 function GovernanceBadges({ row }: { row: EpicListRow }) {
+  const t = useTranslations();
   const showSteering = row.needsSteeringAttention;
   const showBudget = row.stagedForBudgeting;
   const showApprovals = row.pendingApprovalsCount > 0;
@@ -322,10 +325,10 @@ function GovernanceBadges({ row }: { row: EpicListRow }) {
       {gateRequest && (
         <span
           className="inline-flex h-5 items-center gap-0.5 rounded-md bg-primary/10 px-1.5 text-label font-medium tabular-nums text-primary"
-          title={`Wechsel nach ${gateStepNumber(gateRequest.toGate)} beantragt — ${gateRequest.pendingCount} von ${gateRequest.totalCount} Abnahmen offen`}
+          title={`Wechsel nach ${t(gateStepNumberKey(gateRequest.toGate))} beantragt — ${gateRequest.pendingCount} von ${gateRequest.totalCount} Abnahmen offen`}
         >
           <ArrowUp className="size-3" />
-          {gateStepNumber(gateRequest.toGate)}
+          {t(gateStepNumberKey(gateRequest.toGate))}
           <span className="text-primary/70">
             {gateRequest.totalCount - gateRequest.pendingCount}/{gateRequest.totalCount}
           </span>
@@ -334,7 +337,7 @@ function GovernanceBadges({ row }: { row: EpicListRow }) {
       {showSteering && (
         <span
           className="inline-flex size-5 items-center justify-center rounded-md bg-warning-surface text-warning"
-          title="Für Steering markiert"
+          title={t("work.epic.fuerSteeringMarkiert")}
         >
           <AlertTriangle className="size-3" />
         </span>
@@ -342,7 +345,7 @@ function GovernanceBadges({ row }: { row: EpicListRow }) {
       {showBudget && (
         <span
           className="inline-flex size-5 items-center justify-center rounded-md bg-info-surface text-info"
-          title="Für Budget vorbereitet"
+          title={t("work.epic.fuerBudgetVorbereitet")}
         >
           <Coins className="size-3" />
         </span>

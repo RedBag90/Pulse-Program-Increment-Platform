@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import {
@@ -62,6 +63,7 @@ const splitCsv = (v: string | undefined): string[] =>
  * Nutzer) sind anwendbar, einer als Standard automatisch beim Öffnen.
  */
 export default async function PortfolioPage({ searchParams }: Props) {
+  const t = await getTranslations();
   const sp = await searchParams;
   const view = resolveOverviewView(sp.view);
 
@@ -258,8 +260,8 @@ export default async function PortfolioPage({ searchParams }: Props) {
   return (
     <Page>
       <PageHeader
-        title="Portfolio-Übersicht"
-        subtitle="Strategischer Bezug, Funding und Flow auf einen Blick."
+        title={t("work.overview.portfolioUebersicht")}
+        subtitle={t("work.overview.strategischerBezugFundingUnd")}
         actions={<ViewSwitcher current={view} />}
       />
 

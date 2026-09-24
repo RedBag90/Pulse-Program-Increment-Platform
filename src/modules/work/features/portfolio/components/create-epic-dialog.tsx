@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useRef, useState, startTransition } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -54,6 +55,7 @@ export interface CreateEpicDialogProps {
 const initialState: ActionState = {};
 
 export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpicDialogProps) {
+  const t = useTranslations();
   const isControlled = open !== undefined;
   const [selfOpen, setSelfOpen] = useState(false);
   const dialogOpen = open ?? selfOpen;
@@ -117,6 +119,7 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
   const thresholds = usePortfolioThresholds(dialogOpen);
   const classOptions = intendedClassOptions(
     thresholds == null ? null : (thresholds.byValueStream[vsId] ?? thresholds.defaultThreshold),
+    t,
   );
 
   return (
@@ -124,26 +127,26 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
       {!isControlled && (
         <Button onClick={() => setDialogOpen(true)} data-tour="epic-create-button">
           <Plus className="mr-1.5 size-4" />
-          Neues Epic
+          {t("work.epic.neuesEpic")}
         </Button>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Epic anlegen</DialogTitle>
+            <DialogTitle>{t("work.epic.epicAnlegen")}</DialogTitle>
           </DialogHeader>
           <form action={action} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="epic-title">
-                Titel <span className="text-destructive">*</span>
+                {t("work.epic.titel")} <span className="text-destructive">*</span>
               </Label>
               <Input id="epic-title" name="title" required />
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="epic-vs">
-                Wertstrom <span className="text-destructive">*</span>
+                {t("work.epic.wertstrom")} <span className="text-destructive">*</span>
               </Label>
               <select
                 id="epic-vs"
@@ -166,7 +169,7 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
 
             <div className="space-y-1.5">
               <Label htmlFor="epic-art">
-                ART <span className="text-destructive">*</span>
+                {t("work.common.art")} <span className="text-destructive">*</span>
               </Label>
               <select
                 key={vsId}
@@ -195,7 +198,7 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="epic-solution">Primär-Solution</Label>
+              <Label htmlFor="epic-solution">{t("work.epic.primaerSolution")}</Label>
               <select
                 key={`sol-${vsId}`}
                 id="epic-solution"
@@ -216,7 +219,7 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="epic-intended-class">Erwartete Einordnung</Label>
+              <Label htmlFor="epic-intended-class">{t("work.epic.erwarteteEinordnung")}</Label>
               <select
                 id="epic-intended-class"
                 name="intendedClass"
@@ -231,18 +234,17 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
                 ))}
               </select>
               <p className="text-xs text-muted-foreground">
-                Eine Erwartung, keine Entscheidung. Die Klasse entsteht aus den Kosten des
-                freigegebenen Business Case — weicht sie ab, fragt die Fläche vor dem Antrag nach.
+                {t("work.epic.eineErwartungKeineEntscheidung")}
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <Label>Unterstütztes Ziel</Label>
+              <Label>{t("work.epic.unterstuetztesZiel")}</Label>
               <GoalTreePicker value={goalId} onChange={setGoalId} />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="epic-description">Beschreibung</Label>
+              <Label htmlFor="epic-description">{t("work.epic.beschreibung")}</Label>
               <Textarea id="epic-description" name="description" rows={3} />
             </div>
 
@@ -254,7 +256,7 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Abbrechen
+                {t("work.epic.abbrechen")}
               </Button>
               <Button type="submit" disabled={isPending || linkPending}>
                 {isPending ? "Lege an…" : linkPending ? "Verknüpfe…" : "Anlegen"}

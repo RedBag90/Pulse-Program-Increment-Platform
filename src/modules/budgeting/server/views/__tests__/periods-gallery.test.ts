@@ -72,7 +72,7 @@ describe("buildPeriodsGallery", () => {
     );
     expect(m.active!.id).toBe("alt");
     expect(m.active!.extended).toBe(true);
-    expect(m.active!.validityLabel).toBe("Angewandtes Budget");
+    expect(m.active!.validityLabelKey).toBe("budgeting.periodValidity.applied");
   });
 
   it("listet nur abgeschlossene Kacheln mit offener Reserve als übertragbar", () => {

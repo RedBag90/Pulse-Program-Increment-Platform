@@ -16,7 +16,9 @@
  */
 
 import { formatEUR } from "@/lib/formatting";
-import { EPIC_CLASS_LABELS, type EpicClass } from "@/modules/work/domain/pb-submission";
+import type { Locale } from "@/i18n/routing";
+import type { Translate } from "@/i18n/translate";
+import { EPIC_CLASS_KEYS, type EpicClass } from "@/modules/work/domain/pb-submission";
 
 export interface IntendedClassOption {
   value: EpicClass;
@@ -27,16 +29,22 @@ export interface IntendedClassOption {
  * `threshold === null` ⇒ die schlichten Namen. Das ist der Zustand, solange die
  * Schwellen nicht geladen sind: lieber keine Zahl als eine falsche.
  */
-export function intendedClassOptions(threshold: number | null): IntendedClassOption[] {
+export function intendedClassOptions(
+  threshold: number | null,
+  t: Translate,
+  locale?: Locale,
+): IntendedClassOption[] {
+  const portfolio = t(EPIC_CLASS_KEYS.portfolio);
+  const art = t(EPIC_CLASS_KEYS.art);
   if (threshold == null) {
     return [
-      { value: "portfolio", label: EPIC_CLASS_LABELS.portfolio },
-      { value: "art", label: EPIC_CLASS_LABELS.art },
+      { value: "portfolio", label: portfolio },
+      { value: "art", label: art },
     ];
   }
-  const limit = formatEUR(threshold);
+  const limit = formatEUR(threshold, locale);
   return [
-    { value: "portfolio", label: `${EPIC_CLASS_LABELS.portfolio} — über ${limit}` },
-    { value: "art", label: `${EPIC_CLASS_LABELS.art} — bis ${limit}` },
+    { value: "portfolio", label: t("work.gate.classOver", { name: portfolio, limit }) },
+    { value: "art", label: t("work.gate.classUpTo", { name: art, limit }) },
   ];
 }

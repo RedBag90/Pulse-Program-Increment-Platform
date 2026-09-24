@@ -1,5 +1,6 @@
+import { useTranslations } from "next-intl";
 import { ArrowUp, Undo2 } from "lucide-react";
-import { gateStepLabel } from "@/modules/work/domain/stage-gate";
+import { gateStepKey } from "@/modules/work/domain/stage-gate";
 import type { EpicGateHistoryView } from "@/modules/work/server/views/epic-detail";
 
 /**
@@ -25,7 +26,7 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 // `fromGate`/`toGate` einer Antragszeile sind Schritte, keine Major-Gates.
-const gateLabel = gateStepLabel;
+const gateLabel = gateStepKey;
 
 /** ISO → de-DE, wie im Timeline-Tab. */
 function day(iso: string): string {
@@ -40,8 +41,11 @@ export function GateHistoryList({
   history: EpicGateHistoryView[];
   userLabels: Record<string, string>;
 }) {
+  const t = useTranslations();
   if (history.length === 0) {
-    return <p className="text-xs text-muted-foreground">Noch kein Reifegrad-Wechsel beantragt.</p>;
+    return (
+      <p className="text-xs text-muted-foreground">{t("work.gate.nochKeinReifegradWechsel")}</p>
+    );
   }
 
   return (

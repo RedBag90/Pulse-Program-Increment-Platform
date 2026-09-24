@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { formatCompactEUR } from "@/lib/formatting";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import type {
@@ -40,6 +41,7 @@ export function EpicBudgetPanel({
   allocationState: EpicAllocationStateView | null;
   fundable: { may: boolean; firstStep: string };
 }) {
+  const t = useTranslations();
   // Kein Geld: erklären statt nur melden. Vor L3.1 *kann* keines da sein — das
   // ist eine andere Aussage als „es wurde keines zugeteilt".
   if (standing == null || standing.state === "none") {
@@ -110,12 +112,12 @@ export function EpicBudgetPanel({
 
       {standing.periods.length > 0 && (
         <table className="w-full text-sm">
-          <caption className="sr-only">Zuteilung je Budget-Zeitraum</caption>
+          <caption className="sr-only">{t("work.epic.zuteilungJeBudgetZeitraum")}</caption>
           <thead>
             <tr className="border-b text-label uppercase tracking-[0.1em] text-muted-foreground">
-              <th className="py-1 text-left font-semibold">Zeitraum</th>
-              <th className="py-1 text-left font-semibold">Geltung</th>
-              <th className="py-1 text-right font-semibold">Betrag</th>
+              <th className="py-1 text-left font-semibold">{t("work.epic.zeitraum")}</th>
+              <th className="py-1 text-left font-semibold">{t("work.epic.geltung")}</th>
+              <th className="py-1 text-right font-semibold">{t("work.epic.betrag")}</th>
             </tr>
           </thead>
           <tbody className="divide-y">

@@ -1,3 +1,4 @@
+import type { Translate } from "@/i18n/translate";
 import dagre from "@dagrejs/dagre";
 import { MarkerType, type Edge, type Node } from "@xyflow/react";
 import { EDGE_LABEL as SHARED_EDGE_LABEL } from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";
@@ -46,6 +47,11 @@ export interface InsertableEdgeData {
 }
 
 export interface LayoutCtx {
+  /**
+   * Der Übersetzer, hereingereicht — das Layout beschriftet Kanten und ist
+   * eine reine Funktion (siehe `src/i18n/translate.ts`).
+   */
+  t: Translate;
   canLinkDependency: boolean;
   canCreateFeature: boolean;
   canEditFeature: boolean;
@@ -146,7 +152,7 @@ export function layoutGraph(
       source: e.source,
       target: e.target,
       type: "insertable",
-      label: EDGE_LABEL[e.type],
+      label: ctx.t(EDGE_LABEL[e.type]),
       animated: s.animated,
       style: s.style,
       markerEnd: s.marker,
@@ -243,7 +249,7 @@ export function layoutByPi(
       source: e.source,
       target: e.target,
       type: "insertable",
-      label: EDGE_LABEL[e.type],
+      label: ctx.t(EDGE_LABEL[e.type]),
       animated: s.animated,
       style: s.style,
       markerEnd: s.marker,

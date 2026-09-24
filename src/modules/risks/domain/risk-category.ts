@@ -12,9 +12,9 @@ export function isRiskCategory(s: string): s is RiskCategory {
  * Präsentationsschicht: die Gruppierung (`issue-grouping.ts`) braucht sie, und
  * eine Domänenregel darf nicht in `features/` lesen (ADR-0013).
  */
-export const CATEGORY_LABELS: Record<RiskCategory, string> = {
-  technical: "Technisch",
-  business: "Business",
-  schedule: "Termin",
-  external: "Extern",
+export const CATEGORY_KEYS: Record<RiskCategory, string> = {
+  technical: "risks.category.technical",
+  business: "risks.category.business",
+  schedule: "risks.category.schedule",
+  external: "risks.category.external",
 };

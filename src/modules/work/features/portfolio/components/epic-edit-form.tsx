@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useActionState } from "react";
 import { updateEpicAction } from "@/modules/work/features/portfolio/actions/epic";
 import { useEntityOptions, optionsEndpoint } from "@/features/create/use-entity-options";
@@ -40,6 +41,7 @@ export function EpicEditForm({
   currentValueStreamId,
   currentArtId,
 }: EpicEditFormProps) {
+  const t = useTranslations();
   const [state, action, isPending] = useActionState(updateEpicAction, {});
   const valueStreams = useEntityOptions<ValueStreamOption>(optionsEndpoint("valueStream"), true);
   const arts = useEntityOptions<ArtOption>(optionsEndpoint("art"), true);
@@ -55,7 +57,7 @@ export function EpicEditForm({
 
       <div>
         <label htmlFor="epic-title" className="block text-sm font-medium mb-1">
-          Title
+          {t("work.epic.title")}
         </label>
         <input
           id="epic-title"
@@ -69,7 +71,7 @@ export function EpicEditForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="epic-vs" className="block text-sm font-medium mb-1">
-            Wertstrom
+            {t("work.epic.wertstrom")}
           </label>
           <select
             id="epic-vs"
@@ -84,7 +86,7 @@ export function EpicEditForm({
             disabled={valueStreams.loading}
             className={SELECT_CLASS}
           >
-            {valueStreams.loading && <option value={vsId}>Lade…</option>}
+            {valueStreams.loading && <option value={vsId}>{t("work.epic.lade")}</option>}
             {valueStreams.data.map((vs) => (
               <option key={vs.id} value={vs.id}>
                 {vs.name}
@@ -98,7 +100,7 @@ export function EpicEditForm({
 
         <div>
           <label htmlFor="epic-art" className="block text-sm font-medium mb-1">
-            ART
+            {t("work.common.art")}
           </label>
           <select
             id="epic-art"
@@ -127,15 +129,12 @@ export function EpicEditForm({
       </div>
 
       {vsChanged && (
-        <p className="text-xs text-warning">
-          Hinweis: Beim Wertstrom-Wechsel wird eine Primär-Solution, die nicht zum neuen Wertstrom
-          gehört, vom Epic gelöst.
-        </p>
+        <p className="text-xs text-warning">{t("work.epic.hinweisBeimWertstromWechsel")}</p>
       )}
 
       <div>
         <label htmlFor="epic-description" className="block text-sm font-medium mb-1">
-          Description
+          {t("work.epic.description")}
         </label>
         <textarea
           id="epic-description"
@@ -153,7 +152,7 @@ export function EpicEditForm({
       )}
       {state.success && (
         <p role="status" className="text-sm text-emerald-600 dark:text-emerald-400">
-          Saved successfully.
+          {t("work.epic.savedSuccessfully")}
         </p>
       )}
 

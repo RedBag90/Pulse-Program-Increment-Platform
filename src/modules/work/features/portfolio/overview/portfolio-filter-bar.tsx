@@ -1,13 +1,14 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import { SavedFilterControls } from "@/components/ui/saved-filter-controls";
 import type { FilterCriteria } from "@/server/services/saved-filter";
 import { MultiSelectFilter, type MultiSelectSection } from "@/components/ui/multi-select-filter";
 import { STATUS_LABELS } from "@/components/detail/initiative-labels";
-import { STAGE_SHORT } from "@/components/detail/initiative-labels";
+import { STAGE_SHORT_KEYS } from "@/components/detail/initiative-labels";
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
-import { EPIC_CLASS_LABELS } from "@/modules/work/domain/pb-submission";
+import { EPIC_CLASS_KEYS } from "@/modules/work/domain/pb-submission";
 import {
   savePortfolioFilterAction,
   deletePortfolioFilterAction,
@@ -42,6 +43,7 @@ export function PortfolioFilterBar({
   savedFilters,
   showClassFacet = false,
 }: Props) {
+  const t = useTranslations();
   const { params, push } = useUrlState();
 
   const readSet = (key: string): Set<string> =>
@@ -78,7 +80,12 @@ export function PortfolioFilterBar({
     { options: valueStreams.map((v) => ({ value: v.id, label: v.name })) },
   ];
   const gateSections: MultiSelectSection[] = [
-    { options: STAGE_GATES.map((g) => ({ value: g, label: `${g} · ${STAGE_SHORT[g]}` })) },
+    {
+      options: STAGE_GATES.map((g) => ({
+        value: g,
+        label: `${g} · ${t(STAGE_SHORT_KEYS[g] ?? g)}`,
+      })),
+    },
   ];
   const statusSections: MultiSelectSection[] = [
     { options: STATUS_OPTIONS.map((s) => ({ value: s, label: STATUS_LABELS[s] ?? s })) },
@@ -92,7 +99,7 @@ export function PortfolioFilterBar({
     {
       options: (["portfolio", "art"] as const).map((c) => ({
         value: c,
-        label: EPIC_CLASS_LABELS[c],
+        label: t(EPIC_CLASS_KEYS[c] ?? c),
       })),
     },
   ];
@@ -113,32 +120,32 @@ export function PortfolioFilterBar({
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg bg-card p-2.5 shadow-card">
       <MultiSelectFilter
-        label="Wertstrom"
+        label={t("work.overview.wertstrom")}
         sections={vsSections}
         selected={vsSel}
         {...handlers("vs", vsSel)}
       />
       <MultiSelectFilter
-        label="Stage Gate"
+        label={t("work.overview.stageGate")}
         sections={gateSections}
         selected={gateSel}
         {...handlers("gate", gateSel)}
       />
       <MultiSelectFilter
-        label="Status"
+        label={t("work.overview.status")}
         sections={statusSections}
         selected={statusSel}
         {...handlers("status", statusSel)}
       />
       <MultiSelectFilter
-        label="Owner"
+        label={t("work.overview.owner")}
         sections={ownerSections}
         selected={ownerSel}
         {...handlers("owner", ownerSel)}
       />
       {showClassFacet && (
         <MultiSelectFilter
-          label="Epic-Klasse"
+          label={t("work.overview.epicKlasse")}
           sections={clsSections}
           selected={clsSel}
           {...handlers("cls", clsSel)}
@@ -153,7 +160,7 @@ export function PortfolioFilterBar({
           }
           className="rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
         >
-          Zurücksetzen
+          {t("work.overview.zuruecksetzen")}
         </button>
       )}
 

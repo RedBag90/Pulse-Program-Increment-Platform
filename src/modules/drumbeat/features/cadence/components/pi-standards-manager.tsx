@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, startTransition } from "react";
 import { Settings2, Trash2 } from "lucide-react";
 import {
@@ -27,23 +28,26 @@ export interface PiStandard {
  * (Jan 14, 8 weeks, 6 PIs) prefill the create form.
  */
 export function PiStandardsManager({ standards }: { standards: PiStandard[] }) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <Button type="button" size="sm" variant="outline" onClick={() => setOpen(true)}>
         <Settings2 className="mr-1.5 size-4" />
-        PI-Standards
+        {t("drumbeat.ui.piStandards")}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>PI-Standards</DialogTitle>
+            <DialogTitle>{t("drumbeat.ui.piStandards")}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-2">
             {standards.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Noch keine Standards angelegt.</p>
+              <p className="text-sm text-muted-foreground">
+                {t("drumbeat.ui.nochKeineStandardsAngelegt")}
+              </p>
             ) : (
               <ul className="divide-y rounded-lg border">
                 {standards.map((s) => (
@@ -97,24 +101,25 @@ const NUM_CLASS =
   "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 function CreateStandardForm() {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(createPiStandardAction, {});
 
   return (
     <form action={action} className="space-y-3 border-t pt-3">
-      <h3 className="text-sm font-medium">Neuen Standard anlegen</h3>
+      <h3 className="text-sm font-medium">{t("drumbeat.ui.neuenStandardAnlegen")}</h3>
       <div className="space-y-1.5">
-        <Label htmlFor="std-name">Name</Label>
+        <Label htmlFor="std-name">{t("drumbeat.ui.name")}</Label>
         <Input
           id="std-name"
           name="name"
           required
           maxLength={100}
-          placeholder="z. B. Standard 8 Wochen"
+          placeholder={t("drumbeat.ui.zBStandardWochen")}
         />
       </div>
       <div className="grid grid-cols-4 gap-2">
         <div className="space-y-1.5">
-          <Label htmlFor="std-month">Monat</Label>
+          <Label htmlFor="std-month">{t("drumbeat.ui.monat")}</Label>
           <input
             id="std-month"
             name="anchorMonth"
@@ -127,7 +132,7 @@ function CreateStandardForm() {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="std-day">Tag</Label>
+          <Label htmlFor="std-day">{t("drumbeat.ui.tag")}</Label>
           <input
             id="std-day"
             name="anchorDay"
@@ -140,7 +145,7 @@ function CreateStandardForm() {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="std-cadence">Wochen</Label>
+          <Label htmlFor="std-cadence">{t("drumbeat.ui.wochen")}</Label>
           <input
             id="std-cadence"
             name="cadenceWeeks"
@@ -153,7 +158,7 @@ function CreateStandardForm() {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="std-count">PIs</Label>
+          <Label htmlFor="std-count">{t("drumbeat.ui.pis")}</Label>
           <input
             id="std-count"
             name="piCount"

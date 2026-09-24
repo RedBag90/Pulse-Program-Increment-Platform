@@ -17,7 +17,7 @@ export interface InitiativeSummaryInput {
   stageGate: StageGate;
   /**
    * Beschriftung des **Major-Gates** — z. B. `"L4 Implementierung"` aus
-   * `STAGE_GATE_LABELS`. Wird sie weggelassen, steht der rohe Schlüssel im
+   * `STAGE_GATE_KEYS`. Wird sie weggelassen, steht der rohe Schlüssel im
    * Band; das ist der Fall, den es nicht geben soll. Sie wird hereingereicht
    * statt hier nachgeschlagen, weil dieses Modul im Kern liegt und die
    * Etikettentabelle in der Darstellungsschicht.

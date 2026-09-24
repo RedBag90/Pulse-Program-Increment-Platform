@@ -1,5 +1,6 @@
+import { useTranslations } from "next-intl";
 import {
-  CAPACITY_BUCKET_LABEL,
+  CAPACITY_BUCKET_KEYS,
   type CapacityBucket,
 } from "@/modules/work/domain/portfolio-guardrails";
 import { statusFor } from "@/modules/work/domain/guardrail-rules";
@@ -24,6 +25,7 @@ import { formatEUR } from "@/lib/formatting";
  * Job-Size-Punkt, und eine zweite Währung daneben wäre dieselbe Aussage doppelt.
  */
 export function CapacityPlanCard({ plan }: { plan: ValueStreamCapacityPlan }) {
+  const t = useTranslations();
   const drift = maxCapacityDrift(plan);
   const status = statusFor(drift ?? 0, drift != null);
   const ohneSatz = plan.artsWithoutRate;
@@ -32,7 +34,7 @@ export function CapacityPlanCard({ plan }: { plan: ValueStreamCapacityPlan }) {
   return (
     <div className="space-y-3 rounded-lg bg-card p-4 shadow-card">
       <div className="flex flex-wrap items-baseline gap-2">
-        <h3 className="font-medium">Capacity Allocation</h3>
+        <h3 className="font-medium">{t("work.guardrails.capacityAllocation")}</h3>
         <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
           Guardrail 2 · {plan.cycleLabel}
         </span>
@@ -107,6 +109,7 @@ function Row({
   delta: number | null;
   capacity: number | null;
 }) {
+  const t = useTranslations();
   const tone =
     delta == null || capacity == null || capacity <= 0
       ? "text-muted-foreground"
@@ -118,7 +121,7 @@ function Row({
 
   return (
     <tr className="border-b last:border-b-0">
-      <td className="py-1.5">{CAPACITY_BUCKET_LABEL[bucket]}</td>
+      <td className="py-1.5">{t(CAPACITY_BUCKET_KEYS[bucket] ?? bucket)}</td>
       <td className="py-1.5 text-right tabular-nums">{planned} Pkt</td>
       <td className="py-1.5 text-right tabular-nums text-muted-foreground">
         {available == null || capacity == null || capacity <= 0

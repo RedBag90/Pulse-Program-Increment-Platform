@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 
 import { formatEUR } from "@/lib/formatting";
@@ -41,6 +42,7 @@ export function ArtPotSection({
    */
   guide: OwnWorkGuide;
 }) {
+  const t = useTranslations();
   const { pot, rows, ownWork } = view;
   const [state, formAction, pending] = useActionState(saveArtEpicAllocationsAction, {});
   const [draft, setDraft] = useState<Record<string, string>>(() =>
@@ -68,10 +70,7 @@ export function ArtPotSection({
   if (pot.total === 0 && rows.length === 0) {
     return (
       <SectionCard title={`Rahmen verteilen · ${pot.cycleKey}`} step={4}>
-        <p className="text-sm text-muted-foreground">
-          Für dieses Halbjahr ist diesem ART kein Rahmen zugesprochen. Ein Rahmen wird als
-          Run-the-Business-Position im Wertstrom angelegt und in der Kachel mitverteilt.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("budgeting.art.fuerDiesesHalbjahrIst")}</p>
       </SectionCard>
     );
   }
@@ -80,7 +79,7 @@ export function ArtPotSection({
     <SectionCard
       title={`Rahmen verteilen · ${pot.cycleKey}`}
       step={4}
-      description="Aus dem ART-Rahmen dieses ARTs. Portfolio-Epics laufen über die Kachel."
+      description={t("budgeting.art.ausDemArtRahmen")}
       contentClassName="space-y-3"
     >
       <div className="grid gap-4 md:grid-cols-3">
@@ -109,17 +108,17 @@ export function ArtPotSection({
 
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Kein vorgemerktes ART-Epic in diesem ART. Die Vormerkung setzt der Epic Owner.
+          {t("budgeting.art.keinVorgemerktesArtEpic")}
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-surface-frame text-label uppercase tracking-[0.1em] text-muted-foreground">
-                <th className="p-2 text-left font-semibold">Epic</th>
-                <th className="p-2 text-left font-semibold">Reifegrad</th>
-                <th className="p-2 text-right font-semibold">Richtwert</th>
-                <th className="p-2 text-right font-semibold">Zuteilung</th>
+                <th className="p-2 text-left font-semibold">{t("budgeting.art.epic")}</th>
+                <th className="p-2 text-left font-semibold">{t("budgeting.art.reifegrad")}</th>
+                <th className="p-2 text-right font-semibold">{t("budgeting.art.richtwert")}</th>
+                <th className="p-2 text-right font-semibold">{t("budgeting.art.zuteilung")}</th>
               </tr>
             </thead>
             <tbody>
@@ -129,7 +128,7 @@ export function ArtPotSection({
                     {r.title}
                     {r.askDrifted && (
                       <span className="ml-2 text-xs text-warning">
-                        Business Case weicht vom eingefrorenen Richtwert ab
+                        {t("budgeting.art.businessCaseWeichtVom")}
                       </span>
                     )}
                   </td>
@@ -209,8 +208,9 @@ export function ArtPotSection({
             />
           )}
           <span className="text-sm text-muted-foreground">
-            Summe <span className="font-medium tabular-nums text-foreground">{formatEUR(sum)}</span>{" "}
-            von {formatEUR(pot.total)}
+            {t("budgeting.art.summe")}{" "}
+            <span className="font-medium tabular-nums text-foreground">{formatEUR(sum)}</span> von{" "}
+            {formatEUR(pot.total)}
           </span>
           <button
             type="submit"
@@ -258,14 +258,11 @@ export function ArtPotSection({
         </p>
       )}
       <p className="text-sm text-muted-foreground">
-        Die Zuteilung erfüllt das blockierende Kriterium für L3.2 — sie kommt also <em>vor</em> dem
-        Antrag. Beantragt und abgenommen wird danach wie bei jedem Epic.
+        {t("budgeting.art.dieZuteilungErfuelltDas")} <em>{t("budgeting.art.vor")}</em>{" "}
+        {t("budgeting.art.demAntragBeantragtUnd")}
       </p>
       {canDistribute && rows.some((r) => !r.canDistribute) && (
-        <p className="text-sm text-muted-foreground">
-          Bedienbar sind nur die Zeilen, deren Solution Sie als Produkt-Manager verantworten. Für
-          die übrigen entscheidet der Wertstrom.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("budgeting.art.bedienbarSindNurDie")}</p>
       )}
     </SectionCard>
   );
@@ -293,6 +290,7 @@ function OwnWorkRow({
   amount: number;
   onChange: (v: string) => void;
 }) {
+  const t = useTranslations();
   const herleitung =
     guide.featureCount === 0
       ? "Kein eigenständiges Feature in diesem Halbjahr eingeplant."
@@ -303,7 +301,7 @@ function OwnWorkRow({
   return (
     <tr className="border-b bg-primary/5 last:border-b-0">
       <td className="p-2">
-        <span className="font-medium">ART-eigene Arbeit (ohne Epic)</span>
+        <span className="font-medium">{t("budgeting.art.artEigeneArbeitOhne")}</span>
         <div className="mt-0.5 text-xs text-muted-foreground">{herleitung}</div>
       </td>
       <td className="p-2">
@@ -316,7 +314,7 @@ function OwnWorkRow({
           <>
             {formatEUR(guide.ask)}
             <span className="ml-1.5 rounded-sm bg-muted px-1.5 py-0.5 text-meta text-muted-foreground">
-              geschätzt
+              {t("budgeting.art.geschaetzt")}
             </span>
           </>
         )}
@@ -327,7 +325,7 @@ function OwnWorkRow({
             value={value}
             onChange={(ev) => onChange(ev.target.value)}
             inputMode="numeric"
-            aria-label="Reservierung für ART-eigene Arbeit"
+            aria-label={t("budgeting.art.reservierungFuerArtEigene")}
             className="w-28 rounded-md border bg-background px-2 py-1 text-right tabular-nums"
           />
         ) : (

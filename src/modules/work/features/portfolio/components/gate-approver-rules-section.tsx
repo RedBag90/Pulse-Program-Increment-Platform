@@ -1,12 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { GATE_STEPS, type GateStep } from "@/modules/work/domain/stage-gate";
 import {
   GATE_APPROVER_ROLES,
-  GATE_APPROVER_ROLE_LABELS,
+  GATE_APPROVER_ROLE_KEYS,
   resolveGatePolicy,
   type GateApproverRole,
   type GateApproverRuleRow,
@@ -19,7 +20,7 @@ import {
   type TenantApprover,
 } from "@/modules/work/features/portfolio/components/approver-picker";
 import { userLabel } from "@/components/detail/initiative-labels";
-import { gateStepLabel } from "@/modules/work/domain/stage-gate";
+import { gateStepKey } from "@/modules/work/domain/stage-gate";
 import { SectionLabel } from "@/components/ui/section-label";
 
 // L0 ist der Funnel-Start — dorthin führt kein Vorwärts-Antrag, also keine
@@ -102,6 +103,7 @@ export function GateApproverRulesSection({
   userLabels,
   canConfigure,
 }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -187,13 +189,14 @@ export function GateApproverRulesSection({
   }
 
   function save() {
+    const t = useTranslations();
     setError(null);
     startTransition(async () => {
       const changed = GATES.filter(isDirty);
       for (const g of changed) {
         const res = await saveGateApproverRuleAction({}, buildFd(g, drafts[g]!));
         if (res.error) {
-          setError(`${gateStepLabel(g)}: ${res.error}`);
+          setError(`${t(gateStepKey(g))}: ${res.error}`);
           return;
         }
       }
@@ -258,11 +261,8 @@ export function GateApproverRulesSection({
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-medium">Freigaben je Reifegrad</h2>
-          <p className="text-xs text-muted-foreground">
-            Wer nimmt jeden Reifegrad-Übergang (L1–L5) in diesem Wertstrom ab. Rollen-Platzhalter
-            (VMO, Finance) treffen beim Antrag automatisch die hinterlegte Person.
-          </p>
+          <h2 className="text-sm font-medium">{t("work.epic.freigabenJeReifegrad")}</h2>
+          <p className="text-xs text-muted-foreground">{t("work.epic.werNimmtJedenReifegrad")}</p>
         </div>
         {canConfigure && !editing && (
           <button
@@ -271,14 +271,14 @@ export function GateApproverRulesSection({
             className="flex shrink-0 items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
           >
             <Pencil className="h-3.5 w-3.5" />
-            Bearbeiten
+            {t("work.epic.bearbeiten")}
           </button>
         )}
       </div>
 
       {saved && !editing && (
         <p role="status" className="text-xs text-success">
-          Freigabe-Regeln gespeichert.
+          {t("work.epic.freigabeRegelnGespeichert")}
         </p>
       )}
 
@@ -290,7 +290,7 @@ export function GateApproverRulesSection({
           return (
             <li key={gate} className="rounded-lg bg-card p-3 shadow-card">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium">{gateStepLabel(gate)}</span>
+                <span className="text-sm font-medium">{t(gateStepKey(gate))}</span>
                 {!editing && (
                   <span className="rounded-full bg-muted px-2 py-0.5 text-label text-muted-foreground">
                     {SOURCE_LABELS[b.source]}
@@ -302,7 +302,9 @@ export function GateApproverRulesSection({
               {!d && (
                 <div className="mt-1.5 text-xs">
                   {!b.required ? (
-                    <span className="text-muted-foreground">Keine Abnahme erforderlich.</span>
+                    <span className="text-muted-foreground">
+                      {t("work.epic.keineAbnahmeErforderlich")}
+                    </span>
                   ) : (
                     <div className="flex flex-wrap items-center gap-1.5">
                       {b.approverRoles.map((role) => (
@@ -310,7 +312,7 @@ export function GateApproverRulesSection({
                           key={role}
                           className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-primary"
                         >
-                          {GATE_APPROVER_ROLE_LABELS[role]}
+                          {t(GATE_APPROVER_ROLE_KEYS[role] ?? role)}
                           <span className="text-primary/60">· {rolePersonHint(role)}</span>
                         </span>
                       ))}
@@ -323,7 +325,9 @@ export function GateApproverRulesSection({
                         </span>
                       ))}
                       {b.approverRoles.length === 0 && b.approverUserIds.length === 0 && (
-                        <span className="text-warning">Erforderlich, aber niemand hinterlegt.</span>
+                        <span className="text-warning">
+                          {t("work.epic.erforderlichAberNiemandHinterlegt")}
+                        </span>
                       )}
                       <span className="text-muted-foreground">
                         · {b.quorum === "all" ? "alle müssen zustimmen" : "eine Zustimmung genügt"}
@@ -343,20 +347,20 @@ export function GateApproverRulesSection({
                       onChange={(e) => patch(gate, { required: e.target.checked })}
                       className="h-3.5 w-3.5"
                     />
-                    Abnahme erforderlich
+                    {t("work.epic.abnahmeErforderlich")}
                   </label>
 
                   {required && (
                     <>
                       <div className="flex items-center gap-2">
-                        <SectionLabel>Quorum</SectionLabel>
+                        <SectionLabel>{t("work.epic.quorum")}</SectionLabel>
                         <select
                           value={d.quorum}
                           onChange={(e) => patch(gate, { quorum: e.target.value as Quorum })}
                           className="rounded-md border border-input bg-background px-2 py-1 text-xs"
                         >
-                          <option value="all">alle müssen zustimmen</option>
-                          <option value="any">eine Zustimmung genügt</option>
+                          <option value="all">{t("work.epic.alleMuessenZustimmen")}</option>
+                          <option value="any">{t("work.epic.eineZustimmungGenuegt")}</option>
                         </select>
                       </div>
 
@@ -378,7 +382,7 @@ export function GateApproverRulesSection({
                                   }`}
                                   title={rolePersonHint(role)}
                                 >
-                                  {GATE_APPROVER_ROLE_LABELS[role]}
+                                  {t(GATE_APPROVER_ROLE_KEYS[role] ?? role)}
                                 </button>
                               );
                             })}
@@ -387,7 +391,7 @@ export function GateApproverRulesSection({
                       ))}
 
                       <div className="space-y-1">
-                        <SectionLabel>Benannte Personen</SectionLabel>
+                        <SectionLabel>{t("work.epic.benanntePersonen")}</SectionLabel>
                         <MultiUserSelect
                           options={approvers}
                           selected={d.userIds}
@@ -426,7 +430,7 @@ export function GateApproverRulesSection({
               disabled={pending}
               className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
             >
-              Abbrechen
+              {t("work.epic.abbrechen")}
             </button>
           </div>
         </div>

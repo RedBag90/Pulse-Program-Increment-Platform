@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { ArrowRight, Check, Circle, RotateCcw } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export function RolePlaybookPanel({ role, tour, seenStepKeys }: Props) {
+  const t = useTranslations();
   // Wie im Willkommensfenster: Button statt Formular, also die Action direkt in
   // einer Transition aufrufen — `useActionState`-Dispatch gehört an ein
   // `action`/`formAction`.
@@ -70,7 +72,7 @@ export function RolePlaybookPanel({ role, tour, seenStepKeys }: Props) {
             </span>
             <Button variant="ghost" size="sm" disabled={pending} onClick={restart}>
               <RotateCcw className="size-3.5" />
-              Tour erneut starten
+              {t("onboarding.ui.tourErneutStarten")}
             </Button>
           </div>
         )}
@@ -85,7 +87,7 @@ export function RolePlaybookPanel({ role, tour, seenStepKeys }: Props) {
       {tour.responsibilities.length > 0 && (
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Deine Verantwortung
+            {t("onboarding.ui.deineVerantwortung")}
           </h3>
           <ul className="space-y-1.5">
             {tour.responsibilities.map((text) => (
@@ -101,7 +103,7 @@ export function RolePlaybookPanel({ role, tour, seenStepKeys }: Props) {
       {tour.handoffs.length > 0 && (
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Zusammenspiel
+            {t("onboarding.ui.zusammenspiel")}
           </h3>
           <ul className="space-y-1.5">
             {tour.handoffs.map((text) => (
@@ -117,7 +119,7 @@ export function RolePlaybookPanel({ role, tour, seenStepKeys }: Props) {
       {tour.total > 0 ? (
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Deine Flächen
+            {t("onboarding.ui.deineFlaechen")}
           </h3>
           <ol className="space-y-2">
             {tour.steps.map((s) => (
@@ -142,8 +144,7 @@ export function RolePlaybookPanel({ role, tour, seenStepKeys }: Props) {
         </section>
       ) : (
         <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-          In diesem Workspace ist für diese Rolle aktuell nichts freigeschaltet. Sobald weitere
-          Module dazukommen, erscheinen sie hier.
+          {t("onboarding.ui.inDiesemWorkspaceIst")}
         </p>
       )}
     </Card>

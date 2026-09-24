@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { EpicClass } from "@/modules/work/domain/pb-submission";
 import type { ClassFilterState } from "@/modules/work/server/views/portfolio-overview";
 
@@ -35,14 +36,15 @@ export function RollupHint({
   /** Was der Block zusätzlich erklären muss (z. B. wie summiert wird). */
   detail?: string;
 }) {
-  if (classFilter.hiddenLabel == null) return null;
+  const t = useTranslations();
+  if (classFilter.hiddenLabelKey == null) return null;
   return (
     <p className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
       <span
         className={`inline-block size-2 shrink-0 rounded-[2px] border ${rollupTone(classFilter.hiddenClass)}`}
       />
       <span>
-        {classFilter.hiddenLabel} je Solution zusammengefasst
+        {t(classFilter.hiddenLabelKey)} {t("work.overview.rollupBySolution")}
         {detail ? ` · ${detail}` : ""}
       </span>
     </p>

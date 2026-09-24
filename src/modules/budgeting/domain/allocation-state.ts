@@ -20,10 +20,10 @@ export const ALLOCATION_STATES = ["notStarted", "committed", "consumed"] as cons
 export type AllocationState = (typeof ALLOCATION_STATES)[number];
 
 /** Beschriftung der Fläche — „nicht begonnen" heißt ausdrücklich nicht „frei". */
-export const ALLOCATION_STATE_LABELS: Record<AllocationState, string> = {
-  notStarted: "Nicht begonnen",
-  committed: "Gebunden",
-  consumed: "Verbraucht",
+export const ALLOCATION_STATE_KEYS: Record<AllocationState, string> = {
+  notStarted: "budgeting.allocationState.notStarted",
+  committed: "budgeting.allocationState.committed",
+  consumed: "budgeting.allocationState.consumed",
 };
 
 /**

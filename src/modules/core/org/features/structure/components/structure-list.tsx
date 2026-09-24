@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Network } from "lucide-react";
 import { StructureListRow } from "@/modules/core/org/features/structure/components/structure-list-row";
 import type { StructureRow, NodeKind } from "@/modules/core/org/server/views/structure-page";
@@ -17,13 +18,12 @@ interface Props {
  * adding a Value Stream first.
  */
 export function StructureList({ rows, selection, onSelect }: Props) {
+  const t = useTranslations();
   if (rows.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-6 text-center">
         <Network className="mx-auto h-6 w-6 text-muted-foreground" />
-        <p className="mt-2 text-sm text-muted-foreground">
-          Noch keine Struktur — Filter prüfen oder Wertstrom anlegen.
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">{t("org.ui.nochKeineStrukturFilter")}</p>
       </div>
     );
   }

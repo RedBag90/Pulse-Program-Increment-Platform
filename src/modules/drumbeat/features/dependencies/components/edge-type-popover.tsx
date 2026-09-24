@@ -1,11 +1,12 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { DependencyEdgeType } from "@/modules/drumbeat/server/views/breakdown-network-view";
 // Single source of truth für die Edge-Farben (graph-palette).
 import { EDGE_COLOR } from "@/modules/drumbeat/features/cockpit/components/graph-palette";
-import { DEPENDENCY_TYPE_LABELS } from "@/modules/drumbeat/domain/status";
+import { DEPENDENCY_TYPE_KEYS } from "@/modules/drumbeat/domain/status";
 
 /**
  * Shared Edge-Type-Popover — wird vom Epic-Breakdown-Netzplan UND vom
@@ -28,11 +29,11 @@ export { EDGE_COLOR };
  *
  * Bis September 2026 stand hier eine zweite Tabelle mit `"blocks"`,
  * `"depends on"`, `"relates to"`: englische Wörter in einer deutschen
- * Oberfläche, direkt neben `DEPENDENCY_TYPE_LABELS`, das dieselben drei Werte
+ * Oberfläche, direkt neben `DEPENDENCY_TYPE_KEYS`, das dieselben drei Werte
  * seit jeher deutsch beschriftet. Welche der beiden ein Nutzer zu sehen bekam,
  * entschied allein, über welchen Netzplan er kam.
  */
-export const EDGE_LABEL: Record<DependencyEdgeType, string> = DEPENDENCY_TYPE_LABELS;
+export const EDGE_LABEL: Record<DependencyEdgeType, string> = DEPENDENCY_TYPE_KEYS;
 
 interface MenuProps {
   currentType: DependencyEdgeType;
@@ -46,32 +47,35 @@ interface MenuProps {
  * selber (Portal / absolute Div etc.).
  */
 export function EdgeTypeMenu({ currentType, onChange, onDelete, onClose }: MenuProps) {
+  const t = useTranslations();
   return (
     <div className="w-48 rounded-md border bg-popover p-1 shadow-md">
       <p className="px-1 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        Abhängigkeitstyp
+        {t("drumbeat.ui.abhaengigkeitstyp")}
       </p>
       <div className="flex flex-col gap-0.5">
-        {(["depends_on", "blocks", "relates_to"] as const).map((t) => (
+        {(["depends_on", "blocks", "relates_to"] as const).map((typ) => (
           <button
-            key={t}
+            key={typ}
             type="button"
             className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
-              t === currentType ? "bg-muted font-medium" : "hover:bg-muted/50"
+              typ === currentType ? "bg-muted font-medium" : "hover:bg-muted/50"
             }`}
             onClick={() => {
-              if (t !== currentType) onChange(t);
+              if (typ !== currentType) onChange(typ);
               onClose?.();
             }}
           >
             <span
               className="size-2 shrink-0 rounded-sm"
-              style={{ backgroundColor: EDGE_COLOR[t] }}
+              style={{ backgroundColor: EDGE_COLOR[typ] }}
               aria-hidden
             />
-            <span>{EDGE_LABEL[t]}</span>
-            {t === currentType && (
-              <span className="ml-auto text-label text-muted-foreground">aktiv</span>
+            <span>{t(EDGE_LABEL[typ])}</span>
+            {typ === currentType && (
+              <span className="ml-auto text-label text-muted-foreground">
+                {t("drumbeat.ui.active")}
+              </span>
             )}
           </button>
         ))}
@@ -87,7 +91,7 @@ export function EdgeTypeMenu({ currentType, onChange, onDelete, onClose }: MenuP
               onClose?.();
             }}
           >
-            <span>Abhängigkeit löschen</span>
+            <span>{t("drumbeat.ui.abhaengigkeitLoeschen")}</span>
           </button>
         </>
       )}

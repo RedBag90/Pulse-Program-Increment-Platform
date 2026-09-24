@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import {
   CheckCircle2,
   XCircle,
@@ -56,11 +57,12 @@ export function EpicHistoryTimeline({
    */
   truncated?: boolean;
 }) {
+  const t = useTranslations();
   if (events.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed bg-muted/20 px-4 py-10 text-center">
         <History className="size-6 text-muted-foreground/60" />
-        <p className="text-sm text-muted-foreground">Noch keine Historie.</p>
+        <p className="text-sm text-muted-foreground">{t("work.epic.nochKeineHistorie")}</p>
       </div>
     );
   }
@@ -103,7 +105,7 @@ export function EpicHistoryTimeline({
       })}
       {truncated && (
         <li className="pt-2 text-xs text-muted-foreground">
-          Es gibt ältere Ereignisse als die hier gezeigten 50.
+          {t("work.epic.esGibtAeltereEreignisse")}
         </li>
       )}
     </ol>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
@@ -36,6 +37,7 @@ const initialState: ActionState = {};
  * nur eine Hürde.
  */
 export function DeleteEpicButton({ id, title, featureCount }: DeleteEpicButtonProps) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const [state, action, isPending] = useActionState(deleteEpicAction, initialState);
 
@@ -44,7 +46,7 @@ export function DeleteEpicButton({ id, title, featureCount }: DeleteEpicButtonPr
       <ConfirmMutateForm
         action={deleteEpicAction}
         fields={{ id }}
-        label={<span className="sr-only">Löschen</span>}
+        label={<span className="sr-only">{t("work.epic.loeschen")}</span>}
         icon={<Trash2 className="size-3.5" />}
         confirmPrompt={`Epic „${title}“ löschen?`}
         variant="ghost"
@@ -62,7 +64,7 @@ export function DeleteEpicButton({ id, title, featureCount }: DeleteEpicButtonPr
         className="h-7 px-2 text-muted-foreground"
       >
         <Trash2 className="size-3.5" />
-        <span className="sr-only">Löschen</span>
+        <span className="sr-only">{t("work.epic.loeschen")}</span>
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -76,16 +78,16 @@ export function DeleteEpicButton({ id, title, featureCount }: DeleteEpicButtonPr
             <strong className="font-medium text-foreground">
               {featureCount} {featureCount === 1 ? "Feature" : "Features"}
             </strong>
-            . Was soll damit geschehen?
+            {t("work.epic.wasSollDamitGeschehen")}
           </p>
           <ul className="space-y-1 text-sm text-muted-foreground">
             <li>
-              <strong className="font-medium text-foreground">Freigeben</strong> — sie werden
-              eigenständig und behalten PI, WSJF, Abhängigkeiten und Verlauf.
+              <strong className="font-medium text-foreground">{t("work.epic.freigeben")}</strong>
+              {t("work.epic.sieWerdenEigenstaendigUnd")}
             </li>
             <li>
-              <strong className="font-medium text-foreground">Mitlöschen</strong> — sie verschwinden
-              mit dem Epic.
+              <strong className="font-medium text-foreground">{t("work.epic.mitloeschen")}</strong>
+              {t("work.epic.sieVerschwindenMitDem")}
             </li>
           </ul>
 
@@ -97,20 +99,20 @@ export function DeleteEpicButton({ id, title, featureCount }: DeleteEpicButtonPr
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Abbrechen
+              {t("work.epic.abbrechen")}
             </Button>
             <form action={action}>
               <input type="hidden" name="id" value={id} />
               <input type="hidden" name="children" value="release" />
               <Button type="submit" variant="outline" disabled={isPending}>
-                Features freigeben
+                {t("work.epic.featuresFreigeben")}
               </Button>
             </form>
             <form action={action}>
               <input type="hidden" name="id" value={id} />
               <input type="hidden" name="children" value="delete" />
               <Button type="submit" variant="destructive" disabled={isPending}>
-                Alles löschen
+                {t("work.epic.allesLoeschen")}
               </Button>
             </form>
           </DialogFooter>

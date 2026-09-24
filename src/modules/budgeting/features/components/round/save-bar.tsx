@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -19,6 +20,7 @@ interface Props {
  * verwirft sie gesammelt.
  */
 export function SaveBar({ count, detail, pending, error, onSave, onDiscard }: Props) {
+  const t = useTranslations();
   if (count === 0) return null;
 
   return (
@@ -38,7 +40,7 @@ export function SaveBar({ count, detail, pending, error, onSave, onDiscard }: Pr
         </div>
         <div className="ml-auto flex shrink-0 gap-2">
           <Button type="button" variant="outline" size="sm" disabled={pending} onClick={onDiscard}>
-            Verwerfen
+            {t("budgeting.round.verwerfen")}
           </Button>
           <Button type="button" size="sm" disabled={pending} onClick={onSave}>
             {pending ? "Speichert…" : "Änderungen speichern"}

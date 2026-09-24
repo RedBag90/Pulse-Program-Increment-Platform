@@ -57,7 +57,11 @@ describe("detachArtFromTimeline — feature unassignment", () => {
 
     const initWrite = writes.find((w) => w.table === "initiative");
     expect(initWrite).toBeDefined();
-    expect(initWrite!.where).toEqual({ tenantId: "T", artId: "A1", piId: { in: ["pi-1", "pi-2"] } });
+    expect(initWrite!.where).toEqual({
+      tenantId: "T",
+      artId: "A1",
+      piId: { in: ["pi-1", "pi-2"] },
+    });
     if (result.ok) expect(result.value.featuresUnassigned).toBe(3);
   });
 

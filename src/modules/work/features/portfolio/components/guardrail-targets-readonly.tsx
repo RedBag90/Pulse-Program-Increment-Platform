@@ -1,7 +1,8 @@
+import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/card";
 import { Link } from "@/i18n/navigation";
 import { ArrowRight } from "lucide-react";
-import { HORIZON_LABEL, type GuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
+import { HORIZON_KEYS, type GuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
 
 interface Props {
   targets: GuardrailTargets;
@@ -14,34 +15,35 @@ interface Props {
  * Mix gerendert wird.
  */
 export function GuardrailTargetsReadOnly({ targets }: Props) {
+  const t = useTranslations();
   return (
     <Card className="space-y-3 p-4">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-heading text-base font-medium">Portfolio-Guardrail-Targets</h3>
-          <p className="text-xs text-muted-foreground">
-            Aktuell wirksame Soll-Mix-Anteile. Pflege liegt beim LPM.
-          </p>
+          <h3 className="font-heading text-base font-medium">
+            {t("work.epic.portfolioGuardrailTargets")}
+          </h3>
+          <p className="text-xs text-muted-foreground">{t("work.epic.aktuellWirksameSollMix")}</p>
         </div>
         <Link
           href="/portfolio/guardrails"
           className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
         >
-          Ist-vs-Soll öffnen
+          {t("work.epic.istVsSollOeffnen")}
           <ArrowRight className="size-3.5" />
         </Link>
       </header>
       <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded-md border p-3">
           <p className="mb-2 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            Horizon
+            {t("work.epic.horizon")}
           </p>
           <ul className="space-y-1 text-sm">
-            <Row label={HORIZON_LABEL.h3} value={targets.horizon.h3} />
-            <Row label={HORIZON_LABEL.h2} value={targets.horizon.h2} />
-            <Row label="H1.1 · Investing" value={targets.horizon["h1.1"]} />
-            <Row label="H1.2 · Extracting" value={targets.horizon["h1.2"]} />
-            <Row label={HORIZON_LABEL.h0} value={targets.horizon.h0} />
+            <Row label={t(HORIZON_KEYS.h3)} value={targets.horizon.h3} />
+            <Row label={t(HORIZON_KEYS.h2)} value={targets.horizon.h2} />
+            <Row label={t("work.epic.hInvesting")} value={targets.horizon["h1.1"]} />
+            <Row label={t("work.epic.hExtracting")} value={targets.horizon["h1.2"]} />
+            <Row label={t(HORIZON_KEYS.h0)} value={targets.horizon.h0} />
           </ul>
           {/* Der Zwilling des Schalters im Formular. Ohne ihn zeigten die zwei
               Ansichten Verschiedenes — und wer nur lesen darf, saehe nicht,
@@ -55,21 +57,25 @@ export function GuardrailTargetsReadOnly({ targets }: Props) {
         </div>
         <div className="rounded-md border p-3">
           <p className="mb-2 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            Capacity
+            {t("work.epic.capacity")}
           </p>
           <ul className="space-y-1 text-sm">
-            <Row label="Business" value={targets.capacity.business} />
-            <Row label="Enabler" value={targets.capacity.enabler} />
-            <Row label="Maintenance" value={targets.capacity.maintenance} />
+            <Row label={t("work.epic.business")} value={targets.capacity.business} />
+            <Row label={t("work.epic.enabler")} value={targets.capacity.enabler} />
+            <Row label={t("work.epic.maintenance")} value={targets.capacity.maintenance} />
           </ul>
         </div>
         <div className="rounded-md border p-3">
           <p className="mb-2 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            Engagement
+            {t("work.epic.engagement")}
           </p>
           <ul className="space-y-1 text-sm">
-            <Row label="Abdeckung" value={targets.engagement.coverage} />
-            <Row label="Reaktionszeit" value={targets.engagement.responseDays} unit="Tage" />
+            <Row label={t("work.epic.abdeckung")} value={targets.engagement.coverage} />
+            <Row
+              label={t("work.epic.reaktionszeit")}
+              value={targets.engagement.responseDays}
+              unit="Tage"
+            />
           </ul>
         </div>
       </div>

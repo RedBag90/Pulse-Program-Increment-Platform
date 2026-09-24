@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,12 +22,13 @@ export function CockpitCreateFeature({
   artId: string;
   artValueStreamId: string;
 }) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   return (
     <>
       <Button size="sm" onClick={() => setOpen(true)}>
         <Plus className="mr-1.5 size-4" />
-        Feature anlegen
+        {t("drumbeat.ui.featureAnlegen")}
       </Button>
       <CreateFeatureDialog
         open={open}

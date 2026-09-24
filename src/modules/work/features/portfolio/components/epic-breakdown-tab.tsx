@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useMemo, useState } from "react";
 import { PackageOpen } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -42,11 +43,7 @@ const BreakdownNetworkView = dynamic(
     ),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex h-[480px] items-center justify-center rounded-lg border bg-muted/20 text-sm text-muted-foreground">
-        Lade Netzplan…
-      </div>
-    ),
+    loading: NetzplanLadehinweis,
   },
 );
 
@@ -141,6 +138,7 @@ interface Props {
  * wird es als `renderExpanded`-Slot hereingereicht.
  */
 function FeatureEditForm({ feature }: { feature: BreakdownFeature }) {
+  const t = useTranslations();
   const [state, action, isPending] = useActionState(updateFeatureAction, {});
 
   const wsjfFields = [
@@ -156,12 +154,12 @@ function FeatureEditForm({ feature }: { feature: BreakdownFeature }) {
       <input type="hidden" name="artId" value={feature.artId} />
 
       <div className="space-y-1.5">
-        <Label htmlFor={`title-${feature.id}`}>Titel</Label>
+        <Label htmlFor={`title-${feature.id}`}>{t("work.epic.titel")}</Label>
         <Input id={`title-${feature.id}`} name="title" defaultValue={feature.title} required />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor={`desc-${feature.id}`}>Beschreibung</Label>
+        <Label htmlFor={`desc-${feature.id}`}>{t("work.epic.beschreibung")}</Label>
         <Textarea
           id={`desc-${feature.id}`}
           name="description"
@@ -171,14 +169,14 @@ function FeatureEditForm({ feature }: { feature: BreakdownFeature }) {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor={`ac-${feature.id}`}>Akzeptanzkriterien</Label>
+        <Label htmlFor={`ac-${feature.id}`}>{t("work.epic.akzeptanzkriterien")}</Label>
         <Textarea
           id={`ac-${feature.id}`}
           name="acceptanceCriteria"
           defaultValue={feature.acceptanceCriteria.join("\n")}
           rows={4}
         />
-        <p className="text-xs text-muted-foreground">Ein Kriterium pro Zeile</p>
+        <p className="text-xs text-muted-foreground">{t("work.epic.einKriteriumProZeile")}</p>
       </div>
 
       <fieldset className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -208,7 +206,7 @@ function FeatureEditForm({ feature }: { feature: BreakdownFeature }) {
       )}
       {state.success && (
         <p role="status" className="text-sm text-emerald-600 dark:text-emerald-400">
-          Gespeichert.
+          {t("work.epic.gespeichert")}
         </p>
       )}
 
@@ -239,6 +237,7 @@ export function EpicBreakdownTab({
   showWsjf,
   canSetDelivery,
 }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -339,9 +338,9 @@ export function EpicBreakdownTab({
 
       {view === "list" ? (
         <p className="text-xs text-muted-foreground">
-          Die QS einzelner Features (durch den RTE) ist unabhängig von der Epic-Freigabe: die
-          <span className="font-medium"> Deliverables als Ganzes</span> werden mit dem Business Case
-          freigegeben.
+          {t("work.epic.dieQsEinzelnerFeatures")}
+          <span className="font-medium">{t("work.epic.deliverablesAlsGanzes")}</span>
+          {t("work.epic.werdenMitDemBusiness")}
         </p>
       ) : (
         <p className="text-xs text-muted-foreground">
@@ -381,8 +380,8 @@ export function EpicBreakdownTab({
       ) : features.length === 0 ? (
         <EmptyState
           icon={<PackageOpen className="size-6" />}
-          title="Noch keine Deliverables"
-          body="Deliverables sind die Features, mit denen dieses Epic umgesetzt wird. Sie tragen PI, Status und WSJF."
+          title={t("work.epic.nochKeineDeliverables")}
+          body={t("work.epic.deliverablesSindDieFeatures")}
           action={
             canEdit ? (
               <CreateFeatureDialog
@@ -399,7 +398,7 @@ export function EpicBreakdownTab({
           paramPrefix="dl."
           onOpen={(row) => openSlideOver(row.id)}
           showTotals={false}
-          emptyLabel="Keine Deliverables im aktuellen Filter."
+          emptyLabel={t("work.epic.keineDeliverablesImAktuellen")}
           {...(canSetDelivery
             ? {
                 renderStatus: (row: FeatureOverviewRow) => (
@@ -441,6 +440,19 @@ export function EpicBreakdownTab({
             : {})}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * Eigene Komponente statt einer Pfeilfunktion in `loading`: `useTranslations`
+ * ist ein Hook und braucht eine Komponente, keine beliebige Funktion.
+ */
+function NetzplanLadehinweis() {
+  const t = useTranslations();
+  return (
+    <div className="flex h-[480px] items-center justify-center rounded-lg border bg-muted/20 text-sm text-muted-foreground">
+      {t("work.epic.ladeNetzplan")}
     </div>
   );
 }

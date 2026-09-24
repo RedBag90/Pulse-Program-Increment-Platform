@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import { useActionResult } from "@/lib/hooks/use-action-result";
 import { updateValueStreamAction } from "@/modules/core/org/features/value-stream/actions/value-stream";
@@ -22,6 +23,7 @@ interface EditValueStreamDialogProps {
 }
 
 export function EditValueStreamDialog({ id, name, description }: EditValueStreamDialogProps) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const [state, action, isPending] = useActionState(updateValueStreamAction, {});
 
@@ -30,26 +32,26 @@ export function EditValueStreamDialog({ id, name, description }: EditValueStream
   return (
     <>
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-        Edit
+        {t("org.ui.edit")}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Value Stream</DialogTitle>
+            <DialogTitle>{t("org.ui.editValueStream")}</DialogTitle>
           </DialogHeader>
           <form action={action} className="space-y-4">
             <input type="hidden" name="id" value={id} />
 
             <div className="space-y-1.5">
               <Label htmlFor="edit-vs-name">
-                Name <span className="text-destructive">*</span>
+                {t("org.ui.name")} <span className="text-destructive">*</span>
               </Label>
               <Input id="edit-vs-name" name="name" required defaultValue={name} />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="edit-vs-description">Description</Label>
+              <Label htmlFor="edit-vs-description">{t("org.ui.description")}</Label>
               <Textarea
                 id="edit-vs-description"
                 name="description"
@@ -66,7 +68,7 @@ export function EditValueStreamDialog({ id, name, description }: EditValueStream
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Cancel
+                {t("org.ui.cancel")}
               </Button>
               <Button type="submit" disabled={isPending}>
                 {isPending ? "Saving…" : "Save"}

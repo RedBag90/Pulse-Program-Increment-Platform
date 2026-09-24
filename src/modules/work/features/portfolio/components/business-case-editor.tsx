@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { useActionState, useState } from "react";
 import { Lock, Lightbulb, ArrowRight, ChevronRight, AlertTriangle } from "lucide-react";
@@ -66,6 +67,7 @@ export function BusinessCaseEditor({
   kpiNames = [],
   cascade = [],
 }: BusinessCaseEditorProps) {
+  const t = useTranslations();
   const [state, action, isPending] = useActionState(saveBusinessCaseAction, {});
   const [slices, setSlices] = useState<string[]>(() => initialSlices(current.costSlices));
 
@@ -85,7 +87,7 @@ export function BusinessCaseEditor({
         <fieldset disabled={readOnly} className="space-y-6 border-0 p-0 m-0 min-w-0">
           <div>
             <FieldLabel htmlFor="bc-stakeholders" field="keyStakeholders">
-              Key Stakeholders
+              {t("work.epic.keyStakeholders")}
             </FieldLabel>
             <Input
               id="bc-stakeholders"
@@ -97,7 +99,7 @@ export function BusinessCaseEditor({
 
           <div>
             <FieldLabel htmlFor="bc-description" field="initiativeDescription">
-              Initiative Description
+              {t("work.epic.initiativeDescription")}
             </FieldLabel>
             <Textarea
               id="bc-description"
@@ -111,7 +113,7 @@ export function BusinessCaseEditor({
           <div className="grid gap-4 @md:grid-cols-2">
             <div>
               <FieldLabel htmlFor="bc-outcome" field="businessOutcomeHypothesis">
-                Business Outcome Hypothesis
+                {t("work.epic.businessOutcomeHypothesis")}
               </FieldLabel>
               <Textarea
                 id="bc-outcome"
@@ -123,7 +125,9 @@ export function BusinessCaseEditor({
             </div>
             <div>
               <div className="flex items-baseline justify-between gap-2 mb-1">
-                <label className="block text-sm font-medium">Leading Indicators</label>
+                <label className="block text-sm font-medium">
+                  {t("work.epic.leadingIndicators")}
+                </label>
                 <Link
                   href={`/portfolio/epics/${epicId}?tab=kpis` as never}
                   className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
@@ -161,7 +165,7 @@ export function BusinessCaseEditor({
           <div className="grid gap-4 @lg:grid-cols-3">
             <div>
               <FieldLabel htmlFor="bc-inscope" field="inScope">
-                In Scope
+                {t("work.epic.inScope")}
               </FieldLabel>
               <Textarea
                 id="bc-inscope"
@@ -173,7 +177,7 @@ export function BusinessCaseEditor({
             </div>
             <div>
               <FieldLabel htmlFor="bc-outscope" field="outOfScope">
-                Out of Scope
+                {t("work.epic.outOfScope")}
               </FieldLabel>
               <Textarea
                 id="bc-outscope"
@@ -185,7 +189,7 @@ export function BusinessCaseEditor({
             </div>
             <div>
               <FieldLabel htmlFor="bc-believe" field="whatYouNeedToBelieve">
-                What you need to believe in
+                {t("work.epic.whatYouNeedTo")}
               </FieldLabel>
               <Textarea
                 id="bc-believe"
@@ -202,9 +206,11 @@ export function BusinessCaseEditor({
             <div className="grid gap-4 lg:grid-cols-3">
               <div className="space-y-3 lg:col-span-2">
                 <div>
-                  <SectionLabel>Implementierungskosten — Bedarfskalkulation</SectionLabel>
+                  <SectionLabel>
+                    {t("work.epic.implementierungskostenBedarfskalkulation")}
+                  </SectionLabel>
                   <p className="text-xs text-muted-foreground">
-                    Geschätzter Kostenbedarf je 6-Monats-Periode.
+                    {t("work.epic.geschaetzterKostenbedarfJeMonats")}
                   </p>
                 </div>
 
@@ -235,7 +241,7 @@ export function BusinessCaseEditor({
                         disabled={slices.length <= 1}
                         className="text-sm text-muted-foreground hover:text-destructive disabled:opacity-40"
                       >
-                        Entfernen
+                        {t("work.epic.entfernen")}
                       </button>
                     </div>
                   ))}
@@ -246,11 +252,11 @@ export function BusinessCaseEditor({
                   onClick={() => setSlices((prev) => [...prev, ""])}
                   className="text-sm font-medium text-primary hover:underline"
                 >
-                  + Periode hinzufügen
+                  {t("work.epic.periodeHinzufuegen")}
                 </button>
 
                 <div className="flex items-center gap-3 border-t pt-2 text-sm font-medium">
-                  <span className="w-24 shrink-0 @sm:w-32">Gesamtkosten</span>
+                  <span className="w-24 shrink-0 @sm:w-32">{t("work.epic.gesamtkosten")}</span>
                   <span>{costTotal.toLocaleString("de-DE")}</span>
                 </div>
               </div>
@@ -260,14 +266,13 @@ export function BusinessCaseEditor({
                   <Lightbulb className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
                   <div className="space-y-2">
                     <p className="text-xs leading-snug text-muted-foreground">
-                      Zur besseren Konkretisierung brich das Epic in Deliverables herunter —
-                      Features mit Aufwand machen die Kostenkalkulation belastbarer.
+                      {t("work.epic.zurBesserenKonkretisierungBrich")}
                     </p>
                     <Link
                       href={`/portfolio/epics/${epicId}?tab=breakdown` as never}
                       className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                     >
-                      Zu den Deliverables <ArrowRight className="size-3" />
+                      {t("work.epic.zuDenDeliverables")} <ArrowRight className="size-3" />
                     </Link>
                   </div>
                 </div>
@@ -279,22 +284,19 @@ export function BusinessCaseEditor({
               + Explorer-Baum, der die Kaskade Ebene für Ebene bis zu den KPIs aufschlüsselt. */}
           <section className="space-y-4 rounded-lg bg-card p-4 shadow-card">
             <div>
-              <SectionLabel>Nutzen</SectionLabel>
-              <p className="text-xs text-muted-foreground">
-                Was dieses Epic über seine Erfolgs-KPIs beiträgt — in der Einheit des Top-Ziels,
-                über die Ziel-Kaskade hochgerechnet, getrennt nach einmalig und wiederkehrend.
-              </p>
+              <SectionLabel>{t("work.epic.nutzen")}</SectionLabel>
+              <p className="text-xs text-muted-foreground">{t("work.epic.wasDiesesEpicUeber")}</p>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
               <EffectTile
-                title="Einmaliger Effekt"
+                title={t("work.epic.einmaligerEffekt")}
                 epicId={epicId}
                 cascade={cascade}
                 kind="one_time"
               />
               <EffectTile
-                title="Wiederkehrender Effekt"
+                title={t("work.epic.wiederkehrenderEffekt")}
                 epicId={epicId}
                 cascade={cascade}
                 kind="recurring"
@@ -304,7 +306,7 @@ export function BusinessCaseEditor({
 
           <div>
             <FieldLabel htmlFor="bc-customers" field="customersAffected">
-              Which internal and/or external customers are affected, and how?
+              {t("work.epic.whichInternalAndOr")}
             </FieldLabel>
             <Textarea
               id="bc-customers"
@@ -317,7 +319,7 @@ export function BusinessCaseEditor({
 
           <div>
             <FieldLabel htmlFor="bc-impact" field="impactOnSolutions">
-              What is the potential impact on solutions, programs and services?
+              {t("work.epic.whatIsThePotential")}
             </FieldLabel>
             <Textarea
               id="bc-impact"
@@ -330,7 +332,7 @@ export function BusinessCaseEditor({
 
           <div>
             <FieldLabel htmlFor="bc-summary" field="analysisSummary">
-              Analysis Summary
+              {t("work.epic.analysisSummary")}
             </FieldLabel>
             <Textarea
               id="bc-summary"
@@ -346,10 +348,10 @@ export function BusinessCaseEditor({
               zeigte ins Leere. */}
           <div className="rounded-md border border-dashed bg-muted/30 p-3 text-sm text-muted-foreground">
             Freigaben laufen über die{" "}
-            <span className="font-medium text-foreground">Reifegrad-Karte</span> oben auf dieser
-            Seite und erscheinen bei den Abnehmern unter{" "}
+            <span className="font-medium text-foreground">{t("work.epic.reifegradKarte")}</span>{" "}
+            oben auf dieser Seite und erscheinen bei den Abnehmern unter{" "}
             <Link href={"/my-tasks" as never} className="font-medium text-primary hover:underline">
-              Meine Tasks
+              {t("work.epic.meineTasks")}
             </Link>{" "}
             (Mehrparteien-Workflow mit Status, Genehmiger und Datum).
           </div>
@@ -362,7 +364,7 @@ export function BusinessCaseEditor({
         )}
         {state.success && (
           <p role="status" className="text-emerald-600 dark:text-emerald-400 text-sm">
-            Business Case gespeichert.
+            {t("work.epic.businessCaseGespeichert")}
           </p>
         )}
 
@@ -409,6 +411,7 @@ function EffectTile({
   cascade: EpicCascadeContribution[];
   kind: string;
 }) {
+  const t = useTranslations();
   const roots = buildCascadeTree(cascade.filter((c) => c.impactKind === kind));
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const toggle = (key: string) =>
@@ -435,7 +438,7 @@ function EffectTile({
               href={`/portfolio/epics/${epicId}?tab=kpis` as never}
               className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
             >
-              Zu den KPIs <ArrowRight className="size-3" />
+              {t("work.epic.zuDenKpis")} <ArrowRight className="size-3" />
             </Link>
           </div>
         </div>
@@ -452,7 +455,7 @@ function EffectTile({
                   {root.brokenHere && (
                     <AlertTriangle
                       className="size-3.5 text-amber-600 dark:text-amber-400"
-                      aria-label="Einheiten-Umrechnung fehlt."
+                      aria-label={t("work.epic.einheitenUmrechnungFehlt")}
                     />
                   )}
                 </div>
@@ -489,6 +492,7 @@ function CascadeRows({
   collapsed: Set<string>;
   toggle: (key: string) => void;
 }) {
+  const t = useTranslations();
   return (
     <ul className="space-y-0.5">
       {nodes.map((node) => {
@@ -525,7 +529,7 @@ function CascadeRows({
               {node.brokenHere && (
                 <AlertTriangle
                   className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400"
-                  aria-label="Ab hier keine Einheiten-Umrechnung hinterlegt — Beitrag bricht ab."
+                  aria-label={t("work.epic.abHierKeineEinheiten")}
                 />
               )}
             </div>

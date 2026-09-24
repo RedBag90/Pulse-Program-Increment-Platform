@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Fragment } from "react";
@@ -18,7 +19,7 @@ import { CaptureRevisionButton } from "@/modules/budgeting/features/components/r
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { formatEUR } from "@/lib/formatting";
 import { Link } from "@/i18n/navigation";
-import { RTB_KIND_LABELS } from "@/modules/budgeting/domain/rtb-kind";
+import { RTB_KIND_KEYS } from "@/modules/budgeting/domain/rtb-kind";
 
 const btn =
   "rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50";
@@ -48,6 +49,7 @@ export function PeriodResultTab({
   canCapture: boolean;
   hasRevision: boolean;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -69,10 +71,7 @@ export function PeriodResultTab({
 
   if (!decided && !closed) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Noch kein Ergebnis — erst wenn die Verteilung geschlossen ist, setzt Finance hier die
-        endgültigen Beträge.
-      </p>
+      <p className="text-sm text-muted-foreground">{t("budgeting.period.nochKeinErgebnisErst")}</p>
     );
   }
 
@@ -122,7 +121,7 @@ export function PeriodResultTab({
       <section className="space-y-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            Finale Beträge
+            {t("budgeting.period.finaleBetraege")}
           </h3>
           <span className="text-xs text-muted-foreground">
             Verteilbar {formatEUR(model.distributable)} · Festgeschrieben {formatEUR(finalTotal)} ·{" "}
@@ -178,9 +177,7 @@ export function PeriodResultTab({
 
         {error && <p className="text-sm text-destructive">{error}</p>}
         {decided && reserve < 0 && (
-          <p className="text-sm text-destructive">
-            Die Summe der finalen Beträge überschreitet den verteilbaren Topf.
-          </p>
+          <p className="text-sm text-destructive">{t("budgeting.period.dieSummeDerFinalen")}</p>
         )}
 
         {model.canFinalize && (
@@ -205,7 +202,7 @@ export function PeriodResultTab({
               <ConfirmMutateForm
                 action={reopenPeriodAction}
                 fields={{ id: model.roundId }}
-                label="Finalisierung zurücknehmen"
+                label={t("budgeting.period.finalisierungZuruecknehmen")}
                 pendingLabel="Nehme zurück…"
                 confirmPrompt="Finalisierung zurücknehmen? Die Kachel geht zurück auf „entschieden“; die finalen Beträge bleiben als Vorbelegung erhalten."
                 variant="outline"
@@ -218,7 +215,7 @@ export function PeriodResultTab({
       {closed && valueStreams && valueStreams.rows.length > 0 && (
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            Abgeleitete Budgets
+            {t("budgeting.period.abgeleiteteBudgets")}
           </h3>
           {/*
             **Andere Zeitform, gleiche Wörter** (REQ-15). Diese Tabelle zeigt den
@@ -233,15 +230,20 @@ export function PeriodResultTab({
           */}
           <p className="text-xs text-muted-foreground">
             Stand der Finalisierung — was diese Kachel entschieden hat. Wertstrom-Budget ={" "}
-            {RTB_KIND_LABELS.run} + Zuteilungen an Epics, nach ART. Ein Klick auf ein ART zeigt, was
-            dort <strong className="font-medium">heute</strong> gilt.
+            {RTB_KIND_KEYS.run} + Zuteilungen an Epics, nach ART. Ein Klick auf ein ART zeigt, was
+            dort <strong className="font-medium">{t("budgeting.period.heute")}</strong>{" "}
+            {t("budgeting.period.gilt")}
           </p>
           <div className="overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/40 text-xs text-muted-foreground">
-                  <th className="px-3 py-2 text-left font-medium">Wertstrom / Aufschlüsselung</th>
-                  <th className="px-3 py-2 text-right font-medium">Σ Budget</th>
+                  <th className="px-3 py-2 text-left font-medium">
+                    {t("budgeting.period.wertstromAufschluesselung")}
+                  </th>
+                  <th className="px-3 py-2 text-right font-medium">
+                    {t("budgeting.period.budget")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -255,7 +257,7 @@ export function PeriodResultTab({
                     </tr>
                     {vs.runTotal > 0 && (
                       <tr className="border-b">
-                        <td className="px-3 py-1.5 pl-8 text-warning">{RTB_KIND_LABELS.run}</td>
+                        <td className="px-3 py-1.5 pl-8 text-warning">{RTB_KIND_KEYS.run}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">
                           {formatEUR(vs.runTotal)}
                         </td>
@@ -286,7 +288,7 @@ export function PeriodResultTab({
                   </Fragment>
                 ))}
                 <tr className="border-t bg-muted/40 font-medium">
-                  <td className="px-3 py-2">Σ gesamt</td>
+                  <td className="px-3 py-2">{t("budgeting.period.gesamt")}</td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {formatEUR(valueStreams.grandTotal)}
                   </td>
@@ -300,7 +302,7 @@ export function PeriodResultTab({
       {closed && (
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            Stand einfrieren
+            {t("budgeting.period.standEinfrieren")}
           </h3>
           <div className="flex flex-wrap items-center gap-3">
             {canCapture ? (
@@ -329,7 +331,7 @@ export function PeriodResultTab({
             {pending ? "…" : "Nächsten Zeitraum starten →"}
           </button>
           <span className="text-xs text-muted-foreground">
-            Übernimmt Beteiligte, Gruppen und die Reserve.
+            {t("budgeting.period.uebernimmtBeteiligteGruppenUnd")}
           </span>
         </section>
       )}

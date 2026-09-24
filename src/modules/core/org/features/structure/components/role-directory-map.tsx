@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -64,6 +65,7 @@ function StreamLane({
   users: DirectoryUserOption[];
   editable: EditableTargets;
 }) {
+  const t = useTranslations();
   const offen = unfilledCount(vs);
 
   const columns: LaneColumn[] = vs.arts.map((art) => ({
@@ -75,7 +77,7 @@ function StreamLane({
       key: "ohne-art",
       children: (
         <>
-          <p className="text-xs font-semibold text-muted-foreground">Ohne ART</p>
+          <p className="text-xs font-semibold text-muted-foreground">{t("org.ui.ohneArt")}</p>
           {vs.looseSolutions.map((so) => (
             <SolutionTile key={so.id} solution={so} users={users} editable={editable} />
           ))}
@@ -116,9 +118,7 @@ function StreamLane({
         ) : undefined
       }
       columns={columns}
-      empty={
-        <p className="p-4 text-xs text-muted-foreground">Noch kein ART in diesem Wertstrom.</p>
-      }
+      empty={<p className="p-4 text-xs text-muted-foreground">{t("org.ui.nochKeinArtIn")}</p>}
     />
   );
 }
@@ -132,6 +132,7 @@ function ArtColumn({
   users: DirectoryUserOption[];
   editable: EditableTargets;
 }) {
+  const t = useTranslations();
   const offen = [...art.entries, ...art.solutions.flatMap((so) => so.entries)].filter(
     (e) => e.userId === null,
   ).length;
@@ -152,7 +153,9 @@ function ArtColumn({
         >
           {art.name}
         </Link>
-        <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">ART</span>
+        <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
+          {t("org.page.art")}
+        </span>
         {offen > 0 && (
           <span className="ml-auto shrink-0 text-meta tabular-nums text-warning">
             {offen} offen

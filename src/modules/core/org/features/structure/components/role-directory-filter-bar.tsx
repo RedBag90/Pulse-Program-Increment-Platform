@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ export function RoleDirectoryFilterBar({
   /** Für die Zahl am Umschalter — er sagt, wie viel er zeigen würde. */
   unfilledCount: number;
 }) {
+  const t = useTranslations();
   const [draft, setDraft] = useState(query);
 
   useEffect(() => setDraft(query), [query]);
@@ -51,7 +53,7 @@ export function RoleDirectoryFilterBar({
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg bg-card p-2.5 shadow-card">
       <Segmented
-        label="Darstellung"
+        label={t("org.ui.darstellung")}
         options={[
           { value: "karte" as const, label: "Karte" },
           { value: "tabelle" as const, label: "Tabelle" },
@@ -71,7 +73,7 @@ export function RoleDirectoryFilterBar({
             : "border-input bg-background text-foreground hover:bg-muted/50"
         }`}
       >
-        Nur offene Plätze
+        {t("org.ui.nurOffenePlaetze")}
         <span className={`tabular-nums ${onlyUnfilled ? "opacity-80" : "text-muted-foreground"}`}>
           {unfilledCount}
         </span>
@@ -87,7 +89,7 @@ export function RoleDirectoryFilterBar({
           }}
           className="text-xs text-muted-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          Zurücksetzen
+          {t("org.ui.zuruecksetzen")}
         </button>
       )}
 
@@ -99,8 +101,8 @@ export function RoleDirectoryFilterBar({
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Suche Person · Rolle · Anliegen …"
-          aria-label="Rollenverteilung durchsuchen"
+          placeholder={t("org.ui.suchePersonRolleAnliegen")}
+          aria-label={t("org.ui.rollenverteilungDurchsuchen")}
           className="h-8 pl-7"
         />
       </div>

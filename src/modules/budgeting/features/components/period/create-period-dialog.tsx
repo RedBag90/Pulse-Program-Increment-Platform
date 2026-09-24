@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
@@ -37,6 +38,7 @@ export function CreatePeriodDialog({
   /** Abgeschlossene Kacheln mit offener Reserve — benannt, statt still addiert. */
   carriableReserves?: CarriableReserve[];
 } = {}) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(createPeriodAction, initialState);
   const router = useRouter();
@@ -52,32 +54,32 @@ export function CreatePeriodDialog({
     <>
       <Button onClick={() => setOpen(true)}>
         <Plus className="mr-1.5 size-4" />
-        Neue Kachel
+        {t("budgeting.period.neueKachel")}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Neuen Budgeting-Zeitraum anlegen</DialogTitle>
+            <DialogTitle>{t("budgeting.period.neuenBudgetingZeitraumAnlegen")}</DialogTitle>
           </DialogHeader>
           <form action={action} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="period-start">
-                Geltungszeitraum des Budgets <span className="text-destructive">*</span>
+                {t("budgeting.period.geltungszeitraumDesBudgets")}{" "}
+                <span className="text-destructive">*</span>
               </Label>
               <div className="flex items-center gap-2">
                 <Input id="period-start" name="periodStart" type="date" required />
-                <span className="text-sm text-muted-foreground">bis</span>
+                <span className="text-sm text-muted-foreground">{t("budgeting.period.bis")}</span>
                 <Input id="period-end" name="periodEnd" type="date" />
               </div>
               <p className="text-xs text-muted-foreground">
-                Von wann bis wann dieses Budget gilt — nicht die Dauer der Vorbereitung. Ohne Ende:
-                Start + 6 Monate. Zwei Kacheln dürfen nicht im selben Halbjahr beginnen.
+                {t("budgeting.period.vonWannBisWann")}
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="period-pool">Topf (€)</Label>
+              <Label htmlFor="period-pool">{t("budgeting.period.topf")}</Label>
               <Input
                 id="period-pool"
                 name="poolTotal"
@@ -102,10 +104,11 @@ export function CreatePeriodDialog({
                   className="mt-0.5 accent-primary"
                 />
                 <span>
-                  Reserve übernehmen
+                  {t("budgeting.period.reserveUebernehmen")}
                   <span className="block text-xs text-muted-foreground">
-                    Die Reserve der letzten abgeschlossenen Kachel <em>vor</em> deinem Start-Termin
-                    wird auf den Topf addiert. Offen:{" "}
+                    {t("budgeting.period.dieReserveDerLetzten")}{" "}
+                    <em>{t("budgeting.period.vor")}</em> deinem Start-Termin wird auf den Topf
+                    addiert. Offen:{" "}
                     {carriableReserves
                       .map((r) => `${r.label} · ${formatEUR(r.amount)}`)
                       .join(" · ")}
@@ -123,10 +126,9 @@ export function CreatePeriodDialog({
                   className="mt-0.5 accent-primary"
                 />
                 <span>
-                  Vom vorherigen Zeitraum übernehmen
+                  {t("budgeting.period.vomVorherigenZeitraumUebernehmen")}
                   <span className="block text-xs text-muted-foreground">
-                    Beteiligte, Gruppen (inkl. Sprecher) und die PB-Liste (Epics). Danach im Setup
-                    anpassbar.
+                    {t("budgeting.period.beteiligteGruppenInklSprecher")}
                   </span>
                 </span>
               </label>
@@ -140,7 +142,7 @@ export function CreatePeriodDialog({
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Abbrechen
+                {t("budgeting.period.abbrechen")}
               </Button>
               <Button type="submit" disabled={pending}>
                 {pending ? "Lege an…" : "Kachel anlegen"}

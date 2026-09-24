@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Pencil } from "lucide-react";
 import type { SolutionDetailModel } from "@/modules/core/org/server/views/solution-detail";
@@ -12,13 +13,14 @@ import { Button } from "@/components/ui/button";
  * deshalb dieser schmale Client-Wrapper.
  */
 export function SolutionEditButton({ model }: { model: SolutionDetailModel }) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
         <Pencil className="mr-1.5 size-3.5" />
-        Bearbeiten
+        {t("org.ui.bearbeiten")}
       </Button>
       <CreateSolutionDialog
         open={open}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, startTransition } from "react";
 import { joinArtToTimelineAction } from "@/modules/drumbeat/features/cadence/actions/timeline";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ export function JoinArtToTimelineControl({
   timelineId: string;
   candidates: ArtOption[];
 }) {
+  const t = useTranslations();
   const [artId, setArtId] = useState(candidates[0]?.id ?? "");
   const [state, run, pending] = useActionState(joinArtToTimelineAction, {});
 
@@ -51,7 +53,7 @@ export function JoinArtToTimelineControl({
         className={SELECT_CLASS}
         value={artId}
         onChange={(e) => setArtId(e.target.value)}
-        aria-label="ART hinzufügen"
+        aria-label={t("drumbeat.ui.artHinzufuegen")}
       >
         {candidates.map((a) => (
           <option key={a.id} value={a.id}>
@@ -74,6 +76,7 @@ export function AssignTimelineDropdown({
   artId: string;
   timelines: TimelineOption[];
 }) {
+  const t = useTranslations();
   const [timelineId, setTimelineId] = useState(timelines[0]?.id ?? "");
   const [state, run, pending] = useActionState(joinArtToTimelineAction, {});
 
@@ -93,7 +96,7 @@ export function AssignTimelineDropdown({
         className={SELECT_CLASS}
         value={timelineId}
         onChange={(e) => setTimelineId(e.target.value)}
-        aria-label="Timeline zuordnen"
+        aria-label={t("drumbeat.ui.timelineZuordnen")}
       >
         {timelines.map((t) => (
           <option key={t.id} value={t.id}>

@@ -1,7 +1,8 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { formatCompactEUR, formatEUR } from "@/lib/formatting";
 import {
-  ALLOCATION_STATE_LABELS,
+  ALLOCATION_STATE_KEYS,
   allocationShare,
   type AllocationState,
 } from "@/modules/budgeting/domain/allocation-state";
@@ -11,7 +12,7 @@ import { ownWorkGuide } from "@/modules/budgeting/domain/art-own-work";
 import { SectionCard } from "@/components/ui/section-card";
 import { CoverageOneLiner } from "@/modules/budgeting/features/components/art-budget/coverage-card";
 import {
-  UNFUNDED_REASON_LABELS,
+  UNFUNDED_REASON_KEYS,
   UNFUNDED_REMEDIES,
   type ArtBudgetDetail,
   type UnfundedCandidate,
@@ -60,6 +61,7 @@ function RemainingTile({
   distributeHref: string;
   canDistribute: boolean;
 }) {
+  const t = useTranslations();
   const standing = potStanding(detail.pot?.pot ?? null);
   const showAmount = standing.state === "open" || standing.state === "closed";
   const note =
@@ -74,7 +76,7 @@ function RemainingTile({
   return (
     <div className="rounded-lg bg-card shadow-card p-4">
       <div className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        Noch zu verteilen
+        {t("budgeting.art.nochZuVerteilen")}
       </div>
       <div className="mt-1 text-2xl font-semibold tabular-nums">
         {showAmount ? formatCompactEUR(standing.remaining) : "—"}
@@ -85,7 +87,7 @@ function RemainingTile({
           href={distributeHref}
           className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
         >
-          Verteilen →
+          {t("budgeting.art.verteilen")}
         </Link>
       )}
     </div>
@@ -127,6 +129,7 @@ export function ArtBudgetTab({
   kpiHref: string;
   canDistribute?: boolean;
 }) {
+  const t = useTranslations();
   const cycleLabel = detail.cycles.find((c) => c.key === detail.cycleKey)?.label ?? detail.cycleKey;
   return (
     // `space-y-6` wie zwischen allen Abschnittskarten dieser Seite.
@@ -150,7 +153,7 @@ export function ArtBudgetTab({
           <div className={`grid gap-4 ${s.source === "art" ? "md:grid-cols-5" : "md:grid-cols-4"}`}>
             <div className="rounded-lg bg-card shadow-card p-4">
               <div className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                Zugeteilt
+                {t("budgeting.art.zugeteilt")}
               </div>
               <div className="mt-1 text-2xl font-semibold tabular-nums">
                 {s.breakdown.total > 0 ? formatCompactEUR(s.breakdown.total) : "—"}
@@ -163,7 +166,7 @@ export function ArtBudgetTab({
             {TILE_ORDER.map((state) => (
               <div key={state} className="rounded-lg bg-card shadow-card p-4">
                 <div className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                  {ALLOCATION_STATE_LABELS[state]}
+                  {t(ALLOCATION_STATE_KEYS[state])}
                 </div>
                 <div
                   className="mt-1 text-2xl font-semibold tabular-nums"
@@ -191,15 +194,15 @@ export function ArtBudgetTab({
 
           {s.breakdown.rows.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Für dieses Halbjahr ist diesem ART nichts zugeteilt.
+              {t("budgeting.art.fuerDiesesHalbjahrIst")}
             </p>
           ) : (
             <ul className="divide-y rounded-lg border">
               <li className="flex items-center gap-3 bg-surface-frame px-3 py-2 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                <span className="flex-1">Epic</span>
-                <span className="w-32">Zustand</span>
-                <span className="w-28 text-right">Zuteilung</span>
-                <span className="w-12 text-right">Anteil</span>
+                <span className="flex-1">{t("budgeting.art.epic")}</span>
+                <span className="w-32">{t("budgeting.art.zustand")}</span>
+                <span className="w-28 text-right">{t("budgeting.art.zuteilung")}</span>
+                <span className="w-12 text-right">{t("budgeting.art.anteil")}</span>
               </li>
               {s.breakdown.rows.map((r) => (
                 <li key={r.epicId} className="flex items-center gap-3 px-3 py-2 text-sm">
@@ -219,7 +222,7 @@ export function ArtBudgetTab({
                       className="inline-block size-2 shrink-0 rounded-sm"
                       style={{ background: STATE_COLOR[r.state] }}
                     />
-                    {ALLOCATION_STATE_LABELS[r.state]}
+                    {t(ALLOCATION_STATE_KEYS[r.state])}
                   </span>
                   <span className="w-28 text-right tabular-nums">{formatEUR(r.amount)}</span>
                   <span className="w-12 text-right tabular-nums text-muted-foreground">
@@ -237,7 +240,7 @@ export function ArtBudgetTab({
           )}
 
           <p className="text-sm text-muted-foreground">
-            „{ALLOCATION_STATE_LABELS.notStarted}" ist das Restbudget — es hängt an diesen Epics und
+            „{ALLOCATION_STATE_KEYS.notStarted}" ist das Restbudget — es hängt an diesen Epics und
             wird ohne neue Budget-Kachel nicht umgewidmet.
           </p>
         </SectionCard>
@@ -320,8 +323,7 @@ export function ArtBudgetTab({
       )}
 
       <p className="border-t pt-3 text-meta text-muted-foreground">
-        Abgeleitet aus den finalisierten Budget-Kacheln. Pulse führt keine Ist-Kosten — der Zustand
-        kommt aus den Reifegrad-Stempeln der Epics.
+        {t("budgeting.art.abgeleitetAusDenFinalisierten")}
       </p>
     </div>
   );
@@ -339,6 +341,7 @@ export function ArtBudgetTab({
  * nächste Runde geht.
  */
 function ReallocationView({ detail }: { detail: ArtBudgetDetail }) {
+  const t = useTranslations();
   const portfolio = detail.sources.find((s) => s.source === "portfolio");
   const free = portfolio?.breakdown.rows.filter((r) => r.state === "notStarted") ?? [];
   const freeSum = free.reduce((acc, r) => acc + r.amount, 0);
@@ -350,18 +353,18 @@ function ReallocationView({ detail }: { detail: ArtBudgetDetail }) {
   for (const u of detail.unfunded) byReason.set(u.reason, [...(byReason.get(u.reason) ?? []), u]);
 
   return (
-    <SectionCard title="Was sich verschieben ließe" contentClassName="space-y-3">
+    <SectionCard title={t("budgeting.art.wasSichVerschiebenLiesse")} contentClassName="space-y-3">
       <div className="grid overflow-hidden rounded-lg border md:grid-cols-2">
         <div className="border-b md:border-b-0 md:border-r">
           <div className="flex items-baseline gap-2 border-b bg-surface-frame px-3 py-2">
             <span className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-              Zugeteilt, nicht begonnen
+              {t("budgeting.art.zugeteiltNichtBegonnen")}
             </span>
             <span className="ml-auto text-sm font-semibold tabular-nums">{formatEUR(freeSum)}</span>
           </div>
           {free.length === 0 ? (
             <p className="px-3 py-2 text-sm text-muted-foreground">
-              Jede Zuteilung ist bereits in Arbeit.
+              {t("budgeting.art.jedeZuteilungIstBereits")}
             </p>
           ) : (
             free.map((r) => (
@@ -384,7 +387,7 @@ function ReallocationView({ detail }: { detail: ArtBudgetDetail }) {
         <div>
           <div className="flex items-baseline gap-2 border-b bg-surface-frame px-3 py-2">
             <span className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-              Beantragt, nicht finanziert
+              {t("budgeting.art.beantragtNichtFinanziert")}
             </span>
             <span className="ml-auto text-sm font-semibold tabular-nums">
               {formatEUR(wantedSum)}
@@ -392,13 +395,13 @@ function ReallocationView({ detail }: { detail: ArtBudgetDetail }) {
           </div>
           {detail.unfunded.length === 0 ? (
             <p className="px-3 py-2 text-sm text-muted-foreground">
-              Alles Beantragte wurde finanziert.
+              {t("budgeting.art.allesBeantragteWurdeFinanziert")}
             </p>
           ) : (
             [...byReason.entries()].map(([reason, items]) => (
               <div key={reason}>
                 <div className="border-b bg-surface-frame px-3 py-1.5 text-meta uppercase tracking-[0.1em] text-muted-foreground">
-                  {UNFUNDED_REASON_LABELS[reason]} · {UNFUNDED_REMEDIES[reason]}
+                  {t(UNFUNDED_REASON_KEYS[reason])} · {UNFUNDED_REMEDIES[reason]}
                 </div>
                 {items.map((u) => (
                   <div
@@ -437,17 +440,14 @@ function ReallocationView({ detail }: { detail: ArtBudgetDetail }) {
           ) : (
             <>
               Das Nichtbegonnene würde für alles Beantragte reichen —{" "}
-              <strong className="font-semibold tabular-nums">{formatEUR(-gap)}</strong> blieben
-              übrig.
+              <strong className="font-semibold tabular-nums">{formatEUR(-gap)}</strong>{" "}
+              {t("budgeting.art.bliebenUebrig")}
             </>
           )}
         </p>
       )}
 
-      <p className="text-sm text-muted-foreground">
-        Umgewidmet wird nicht hier: Beträge des Portfolio-Budgets ändern sich ausschließlich beim
-        Festschreiben einer Budget-Kachel. Diese Sicht zeigt, womit man in die nächste Runde geht.
-      </p>
+      <p className="text-sm text-muted-foreground">{t("budgeting.art.umgewidmetWirdNichtHier")}</p>
     </SectionCard>
   );
 }

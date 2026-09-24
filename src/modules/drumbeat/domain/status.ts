@@ -41,12 +41,12 @@ type _AssertFeatureStatus = FeatureStatus extends FeatureDeliveryStatus
 export const assertSameFeatureStatus: _AssertFeatureStatus = true;
 
 /** Deutsche Anzeige-Labels je Delivery-Status (überall dasselbe Wort). */
-export const FEATURE_STATUS_LABELS: Record<FeatureStatus, string> = {
-  approved: "Freigegeben",
-  in_progress: "In Umsetzung",
-  blocked: "Blockiert",
-  completed: "Abgeschlossen",
-  cancelled: "Verworfen",
+export const FEATURE_STATUS_KEYS: Record<FeatureStatus, string> = {
+  approved: "drumbeat.featureStatus.approved",
+  in_progress: "drumbeat.featureStatus.inProgress",
+  blocked: "drumbeat.featureStatus.blocked",
+  completed: "drumbeat.featureStatus.completed",
+  cancelled: "drumbeat.featureStatus.cancelled",
 };
 
 /**
@@ -67,16 +67,16 @@ export function needsReasonForStatus(next: FeatureStatus): boolean {
 
 // ── PI-Status ─────────────────────────────────────────────────────────────────
 
-export const PI_STATUS_LABELS: Record<PiStatus, string> = {
-  planned: "Geplant",
-  active: "Aktiv",
-  completed: "Abgeschlossen",
+export const PI_STATUS_KEYS: Record<PiStatus, string> = {
+  planned: "drumbeat.piStatus.planned",
+  active: "drumbeat.piStatus.active",
+  completed: "drumbeat.piStatus.completed",
 };
 
 // ── Dependency-Typ (ein deutsches Vokabular) ─────────────────────────────────
 
-export const DEPENDENCY_TYPE_LABELS: Record<DependencyType, string> = {
-  blocks: "blockiert",
-  depends_on: "hängt ab von",
-  relates_to: "bezieht sich auf",
+export const DEPENDENCY_TYPE_KEYS: Record<DependencyType, string> = {
+  blocks: "drumbeat.dependencyType.blocks",
+  depends_on: "drumbeat.dependencyType.dependsOn",
+  relates_to: "drumbeat.dependencyType.relatesTo",
 };

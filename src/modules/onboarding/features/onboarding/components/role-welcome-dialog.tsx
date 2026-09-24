@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { ArrowRight, Check, Compass, Sparkles } from "lucide-react";
 import {
@@ -49,6 +50,7 @@ interface Props {
 }
 
 export function RoleWelcomeDialog({ notice, onStartTour, onDismiss }: Props) {
+  const t = useTranslations();
   // Kein `useActionState`: dessen Dispatch gehört an ein `action`/`formAction`
   // eines Formulars. Hier hängt die Quittung an einem Button, deshalb die Action
   // direkt in einer Transition aufrufen — dasselbe Muster wie in
@@ -138,7 +140,7 @@ export function RoleWelcomeDialog({ notice, onStartTour, onDismiss }: Props) {
         {isNewRole && notice.tour.responsibilities.length > 0 && (
           <section className="space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Deine Verantwortung
+              {t("onboarding.ui.deineVerantwortung")}
             </h3>
             <ul className="space-y-1.5">
               {notice.tour.responsibilities.map((text) => (
@@ -154,7 +156,7 @@ export function RoleWelcomeDialog({ notice, onStartTour, onDismiss }: Props) {
         {isNewRole && notice.tour.handoffs.length > 0 && (
           <section className="space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Zusammenspiel
+              {t("onboarding.ui.zusammenspiel")}
             </h3>
             <ul className="space-y-1.5">
               {notice.tour.handoffs.map((text) => (
@@ -180,8 +182,7 @@ export function RoleWelcomeDialog({ notice, onStartTour, onDismiss }: Props) {
 
         {isNewRole && !hasSteps && (
           <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-            In diesem Workspace ist für diese Rolle aktuell nichts freigeschaltet. Sobald weitere
-            Module dazukommen, melden wir uns hier wieder.
+            {t("onboarding.ui.nothingUnlocked")}
           </p>
         )}
 
@@ -200,7 +201,7 @@ export function RoleWelcomeDialog({ notice, onStartTour, onDismiss }: Props) {
                   disabled={pending}
                   onClick={() => acknowledgeThen(onDismiss)}
                 >
-                  Annehmen, Tour später
+                  {t("onboarding.ui.acceptTourLater")}
                 </Button>
               )}
               <Button
@@ -222,14 +223,14 @@ export function RoleWelcomeDialog({ notice, onStartTour, onDismiss }: Props) {
                   onClick={dismissForever}
                   className="mr-auto text-xs text-muted-foreground"
                 >
-                  Nicht mehr anzeigen
+                  {t("onboarding.ui.dontShowAgain")}
                 </Button>
               )}
               <Button variant="ghost" disabled={pending} onClick={onDismiss}>
-                Nicht jetzt
+                {t("onboarding.ui.notNow")}
               </Button>
               <Button disabled={pending} onClick={onStartTour}>
-                Ansehen
+                {t("onboarding.ui.view")}
               </Button>
             </>
           )}

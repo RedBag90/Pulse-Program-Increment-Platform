@@ -1,11 +1,13 @@
 "use client";
 
+import type { Translate } from "@/i18n/translate";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Page, PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ToggleGroup, type ToggleGroupOption } from "@/components/ui/toggle-group";
 import {
-  HORIZON_LABEL,
+  HORIZON_KEYS,
   STATIONS,
   horizonOfStation,
   type Station,
@@ -31,19 +33,24 @@ const VIEW_OPTIONS: ReadonlyArray<ToggleGroupOption<MixView>> = [
  * Fuenf Kuebel: H1 zerfaellt in Investing und Extracting. Beide behalten den
  * H1-Ton — es ist ein Horizont mit zwei Phasen, nicht zwei Horizonte.
  */
-const STATION_LABEL: Record<Station, string> = {
-  h3: HORIZON_LABEL.h3,
-  h2: HORIZON_LABEL.h2,
-  "h1.1": "H1.1 · Investing",
-  "h1.2": "H1.2 · Extracting",
-  h0: HORIZON_LABEL.h0,
+const STATION_KEYS: Record<Station, string> = {
+  h3: HORIZON_KEYS.h3,
+  h2: HORIZON_KEYS.h2,
+  "h1.1": "org.solutionStep.investing",
+  "h1.2": "org.solutionStep.extracting",
+  h0: HORIZON_KEYS.h0,
 };
 
-const HORIZON_BUCKETS: ReadonlyArray<MixBucketSpec<Station>> = STATIONS.map((st) => ({
-  id: st,
-  label: STATION_LABEL[st],
-  color: HORIZON_HEX[horizonOfStation(st)],
-}));
+/**
+ * Die Kübel entstehen erst im Rendern, nicht beim Laden des Moduls: ihre
+ * Beschriftung hängt an der Sprache, und die kennt nur die Komponente.
+ */
+const horizonBuckets = (t: Translate): ReadonlyArray<MixBucketSpec<Station>> =>
+  STATIONS.map((st) => ({
+    id: st,
+    label: t(STATION_KEYS[st]),
+    color: HORIZON_HEX[horizonOfStation(st)],
+  }));
 
 /**
  * Guardrails-Flaeche. Client-Shell, weil die Umschaltung Anzahl ↔ € der einzige
@@ -65,20 +72,21 @@ export function GuardrailsView({
   /** Der Soll-Mix — gepflegt am Ende dieser Seite, nicht mehr im Budgeting. */
   targets: GuardrailTargets;
 }) {
+  const t = useTranslations();
   const [view, setView] = useState<MixView>("count");
   const { horizon, engagement } = model;
 
   return (
     <Page>
       <PageHeader
-        title="Portfolio-Guardrails"
+        title={t("work.guardrails.portfolioGuardrails")}
         subtitle={`Ist-Mix gegen den vom LPM gesetzten Soll-Mix. ${epicCount} Epics im Portfolio.`}
         actions={
           <ToggleGroup
             value={view}
             options={VIEW_OPTIONS}
             onChange={setView}
-            ariaLabel="Sicht"
+            ariaLabel={t("work.guardrails.sicht")}
             className="bg-card text-meta"
           />
         }
@@ -86,17 +94,17 @@ export function GuardrailsView({
 
       {epicCount === 0 ? (
         <EmptyState
-          title="Noch keine Epics im Portfolio"
-          body="Die Guardrails messen den Mix der Epics — sobald das erste angelegt ist, rechnet die Fläche."
+          title={t("work.guardrails.nochKeineEpicsIm")}
+          body={t("work.guardrails.dieGuardrailsMessenDen")}
         />
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <GuardrailMixCard
-              title="Investment by Horizon"
-              subtitle="Guardrail 1"
+              title={t("work.guardrails.investmentByHorizon")}
+              subtitle={t("work.guardrails.guardrail")}
               view={view}
-              buckets={HORIZON_BUCKETS}
+              buckets={horizonBuckets(t)}
               rows={horizon.rows}
               status={horizon.status}
               unclassifiedCount={horizon.unclassifiedCount}
@@ -117,7 +125,7 @@ export function GuardrailsView({
           Budgeting-Modul — fachlich ein Fremdkörper und zwei Klicks entfernt
           von jeder Abweichung, die er erklären soll. */}
       <section className="space-y-3 border-t pt-6">
-        <SectionLabel>Soll-Mix (Targets)</SectionLabel>
+        <SectionLabel>{t("work.guardrails.sollMixTargets")}</SectionLabel>
         {canManageTargets ? (
           <GuardrailTargetsForm targets={targets} />
         ) : (

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type {
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export function CockpitPiStrip({ pis, window: nav, selectedPiId }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -43,19 +45,21 @@ export function CockpitPiStrip({ pis, window: nav, selectedPiId }: Props) {
 
   if (pis.length === 0) {
     return (
-      <div className="px-6 py-2 text-xs text-muted-foreground">Keine PIs in dieser Timeline.</div>
+      <div className="px-6 py-2 text-xs text-muted-foreground">
+        {t("drumbeat.ui.keinePisInDieser")}
+      </div>
     );
   }
 
   return (
     <nav
-      aria-label="PI-Strip"
+      aria-label={t("drumbeat.ui.piStrip")}
       data-tour="cockpit-pi-strip"
       className="flex items-center gap-2 overflow-x-auto px-6 py-3"
     >
       <button
         type="button"
-        aria-label="Fenster zurück"
+        aria-label={t("drumbeat.ui.fensterZurueck")}
         disabled={!nav.canBack}
         onClick={() => shift(nav.offset - 1)}
         className="grid size-7 shrink-0 place-items-center rounded-md border bg-background text-muted-foreground hover:text-foreground disabled:opacity-30"
@@ -82,7 +86,7 @@ export function CockpitPiStrip({ pis, window: nav, selectedPiId }: Props) {
               {p.name}
               {p.isCurrent && (
                 <span className="text-label font-semibold uppercase tracking-[0.1em] text-primary">
-                  jetzt
+                  {t("drumbeat.ui.jetzt")}
                 </span>
               )}
             </span>
@@ -93,7 +97,7 @@ export function CockpitPiStrip({ pis, window: nav, selectedPiId }: Props) {
 
       <button
         type="button"
-        aria-label="Fenster vor"
+        aria-label={t("drumbeat.ui.fensterVor")}
         disabled={!nav.canForward}
         onClick={() => shift(nav.offset + 1)}
         className="grid size-7 shrink-0 place-items-center rounded-md border bg-background text-muted-foreground hover:text-foreground disabled:opacity-30"
@@ -107,7 +111,7 @@ export function CockpitPiStrip({ pis, window: nav, selectedPiId }: Props) {
           onClick={() => shift(0)}
           className="ml-1 shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-meta font-medium text-primary hover:underline"
         >
-          Zum aktiven PI
+          {t("drumbeat.ui.zumAktivenPi")}
         </button>
       )}
     </nav>

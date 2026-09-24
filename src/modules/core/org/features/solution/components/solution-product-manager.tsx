@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, startTransition } from "react";
 import { Check, Plus } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -41,6 +42,7 @@ export function SolutionProductManager({
   userLabels: Record<string, string>;
   canManage: boolean;
 }) {
+  const t = useTranslations();
   const [state, submit, busy] = useActionState(updateSolutionAction, {});
   const [open, setOpen] = useState(false);
   const saved = useTransientFlag(state?.success === true);
@@ -68,7 +70,7 @@ export function SolutionProductManager({
           <span className="grid size-6 shrink-0 place-items-center rounded-full border border-dashed text-muted-foreground">
             <Plus className="size-3" aria-hidden />
           </span>
-          <span className="truncate text-sm text-muted-foreground">Benennen</span>
+          <span className="truncate text-sm text-muted-foreground">{t("org.ui.benennen")}</span>
         </>
       )}
       {saved && <Check className="size-3.5 shrink-0 text-success" aria-hidden />}
@@ -78,7 +80,7 @@ export function SolutionProductManager({
   return (
     <section className="rounded-lg bg-card p-4 shadow-card">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Produkt-Manager
+        {t("org.ui.produktManager")}
       </h2>
 
       {!canManage ? (
@@ -88,7 +90,7 @@ export function SolutionProductManager({
         <p className="mt-2 text-sm">
           {name ?? (
             <span className="inline-flex items-center rounded-full bg-warning-surface px-2 py-0.5 text-meta text-warning">
-              Nicht zugewiesen
+              {t("org.ui.nichtZugewiesen")}
             </span>
           )}
         </p>
@@ -102,9 +104,9 @@ export function SolutionProductManager({
               label: userLabel(u.userId, userLabels),
               ...(u.roles.length ? { hint: u.roles.join(", ") } : {}),
             }))}
-            ariaLabel="Produkt-Manager"
-            placeholder="Nicht zugewiesen"
-            emptyLabel="— Niemand —"
+            ariaLabel={t("org.ui.produktManager")}
+            placeholder={t("org.ui.nichtZugewiesen")}
+            emptyLabel={t("org.ui.niemand")}
             disabled={busy}
           />
           <button
@@ -112,7 +114,7 @@ export function SolutionProductManager({
             onClick={() => setOpen(false)}
             className="text-meta text-muted-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            Abbrechen
+            {t("org.ui.abbrechen")}
           </button>
         </div>
       ) : (
@@ -130,9 +132,7 @@ export function SolutionProductManager({
       )}
 
       <p className="mt-2 text-xs text-muted-foreground">
-        Verantwortlich für dieses Produkt: darf es bearbeiten und zeichnet bei den
-        Reifegrad-Freigaben seiner Epics mit — am Business Case bei allen, am Start der Umsetzung
-        bei ART-Epics.
+        {t("org.ui.verantwortlichFuerDiesesProdukt")}
       </p>
 
       <span role="status" className="sr-only">

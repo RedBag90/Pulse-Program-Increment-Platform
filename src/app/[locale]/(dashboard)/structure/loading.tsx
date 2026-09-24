@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 /**
  * Ladezustand des Struktur-Bereichs — ein Skelett in der Form dessen, was
  * kommt, kein Spinner.
@@ -8,8 +10,13 @@
  * Blöcke —, statt die Reiter einer Knotenseite zu skizzieren.
  */
 export default function StructureLoading() {
+  const t = useTranslations();
   return (
-    <div className="animate-pulse space-y-4 p-6" aria-busy="true" aria-label="Wird geladen">
+    <div
+      className="animate-pulse space-y-4 p-6"
+      aria-busy="true"
+      aria-label={t("org.page.wirdGeladen")}
+    >
       <div className="h-7 w-64 rounded-sm bg-muted" />
       <div className="flex gap-2">
         <div className="h-8 w-40 rounded-lg bg-muted" />

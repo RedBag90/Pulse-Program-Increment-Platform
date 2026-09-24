@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
@@ -11,7 +12,7 @@ import {
 } from "@/modules/budgeting/server/services/epic-allocation";
 import {
   allocationState,
-  ALLOCATION_STATE_LABELS,
+  ALLOCATION_STATE_KEYS,
 } from "@/modules/budgeting/domain/allocation-state";
 import {
   mayHoldAllocation,
@@ -50,9 +51,9 @@ import { EpicTimelineTab } from "@/modules/work/features/portfolio/components/ep
 import { EpicOwnerAssign } from "@/modules/work/features/portfolio/components/epic-owner-assign";
 import { EpicGateLadder } from "@/modules/work/features/portfolio/components/epic-gate-ladder";
 import { HorizonBadge } from "@/modules/core/org/features/solution/components/horizon-badge";
-import { currentGateStep, gateStepLabel } from "@/modules/work/domain/stage-gate";
-import { EPIC_CLASS_LABELS } from "@/modules/work/domain/pb-submission";
-import { EPIC_TYPE_LABEL, isEpicType } from "@/modules/work/domain/portfolio-guardrails";
+import { currentGateStep, gateStepKey } from "@/modules/work/domain/stage-gate";
+import { EPIC_CLASS_KEYS } from "@/modules/work/domain/pb-submission";
+import { EPIC_TYPE_KEYS, isEpicType } from "@/modules/work/domain/portfolio-guardrails";
 import { resolveEpicHorizon } from "@/modules/work/domain/epic-horizon";
 import {
   RevisionDiff,
@@ -77,6 +78,7 @@ interface Props {
  * (approvers/user-labels/goal-links), and renders. See ADR-0013.
  */
 export default async function EpicDetailPage({ params, searchParams }: Props) {
+  const t = await getTranslations();
   const { id } = await params;
   const { tab, featureId, bcMonth } = await searchParams;
 
@@ -133,7 +135,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             allocatedByPeriod: allocation?.allocatedByPeriod ?? {},
             standing,
             allocationState:
-              allocatedSum > 0 ? { key: state, label: ALLOCATION_STATE_LABELS[state] } : null,
+              allocatedSum > 0 ? { key: state, label: t(ALLOCATION_STATE_KEYS[state]) } : null,
             fundable: {
               may: mayHoldAllocation(facts.step),
               firstStep: FIRST_FUNDABLE_STEP,
@@ -303,12 +305,15 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           <>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
               <span aria-hidden className="size-1.5 rounded-full bg-current" />
-              {gateStepLabel(gateNow)}
+              {t(gateStepKey(gateNow))}
             </span>
             {epicClassification ? (
               <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
                 {epicClassification.classification.epicClass
-                  ? EPIC_CLASS_LABELS[epicClassification.classification.epicClass]
+                  ? t(
+                      EPIC_CLASS_KEYS[epicClassification.classification.epicClass] ??
+                        epicClassification.classification.epicClass,
+                    )
                   : "Noch nicht eingeordnet"}
               </span>
             ) : null}
@@ -321,12 +326,12 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             />
             {epic.epicType && isEpicType(epic.epicType) && (
               <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
-                {EPIC_TYPE_LABEL[epic.epicType]}
+                {t(EPIC_TYPE_KEYS[epic.epicType] ?? epic.epicType)}
               </span>
             )}
             {epic.needsSteeringAttention && (
               <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-                Zur Steuerung markiert
+                {t("work.epic.zurSteuerungMarkiert")}
               </span>
             )}
           </>
@@ -419,7 +424,9 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
 
         {activeTab === "timeline" && (
           <section>
-            <h2 className="mb-4 font-heading text-lg font-medium">Reifegrad-Timeline</h2>
+            <h2 className="mb-4 font-heading text-lg font-medium">
+              {t("work.epic.reifegradTimeline")}
+            </h2>
             <EpicTimelineTab
               epicId={epic.id}
               createdAt={epic.createdAt.toISOString()}
@@ -442,7 +449,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
 
         {activeTab === "business-case" && (
           <section>
-            <h2 className="mb-4 text-lg font-medium">Business Case</h2>
+            <h2 className="mb-4 text-lg font-medium">{t("work.epic.businessCase")}</h2>
             {model.showBcReviewDiff && model.bcBaseline ? (
               <RevisionDiff rows={businessCaseDiffRows(model.bcBaseline, businessCase.current)} />
             ) : model.showBcOwnerEdit && model.bcBaseline ? (
@@ -520,7 +527,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
 
         {activeTab === "benefit-hypothesis" && (
           <section>
-            <h2 className="mb-4 text-lg font-medium">Benefit Hypothese</h2>
+            <h2 className="mb-4 text-lg font-medium">{t("work.epic.benefitHypothese")}</h2>
             {model.showHypoReviewDiff && model.hypoBaseline ? (
               <RevisionDiff
                 rows={benefitHypothesisDiffRows(model.hypoBaseline, benefitHypothesis.current)}
@@ -624,7 +631,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
 
         {activeTab === "history" && (
           <section>
-            <h2 className="mb-3 font-heading text-lg font-medium">History</h2>
+            <h2 className="mb-3 font-heading text-lg font-medium">{t("work.epic.history")}</h2>
             <EpicHistoryTimeline
               events={model.activityEvents}
               userLabels={userLabels}

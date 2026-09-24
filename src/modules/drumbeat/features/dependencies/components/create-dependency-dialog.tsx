@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useRef, useState } from "react";
 import { createDependencyAction } from "@/modules/drumbeat/features/dependencies/actions/dependency";
 import { useCreateResult } from "@/features/create/use-create-result";
@@ -27,6 +28,7 @@ export interface CreateDependencyDialogProps {
 
 /** Global dependency dialog — picks both initiatives via typeahead search. */
 export function CreateDependencyDialog({ open, onOpenChange }: CreateDependencyDialogProps) {
+  const t = useTranslations();
   const formRef = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(createDependencyAction, initialState);
   useCreateResult(state, () => {
@@ -41,28 +43,28 @@ export function CreateDependencyDialog({ open, onOpenChange }: CreateDependencyD
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Link Dependency</DialogTitle>
+          <DialogTitle>{t("drumbeat.ui.linkDependency")}</DialogTitle>
         </DialogHeader>
         <form ref={formRef} action={action} className="space-y-4">
           <InitiativeSearchField
             name="fromId"
-            label="From initiative"
+            label={t("drumbeat.ui.fromInitiative")}
             value={fromId}
             onChange={setFromId}
           />
 
           <div className="space-y-1.5">
-            <Label htmlFor="dep-type">Type</Label>
+            <Label htmlFor="dep-type">{t("drumbeat.ui.type")}</Label>
             <select id="dep-type" name="type" defaultValue="blocks" className={SELECT_CLASS}>
-              <option value="blocks">blocks</option>
-              <option value="depends_on">depends on</option>
-              <option value="relates_to">relates to</option>
+              <option value="blocks">{t("drumbeat.ui.blocks")}</option>
+              <option value="depends_on">{t("drumbeat.ui.dependsOn")}</option>
+              <option value="relates_to">{t("drumbeat.ui.relatesTo")}</option>
             </select>
           </div>
 
           <InitiativeSearchField
             name="toId"
-            label="To initiative"
+            label={t("drumbeat.ui.toInitiative")}
             value={toId}
             onChange={setToId}
           />
@@ -71,7 +73,7 @@ export function CreateDependencyDialog({ open, onOpenChange }: CreateDependencyD
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t("drumbeat.ui.cancel")}
             </Button>
             <Button type="submit" disabled={pending || !fromId || !toId}>
               {pending ? "Linking…" : "Link"}

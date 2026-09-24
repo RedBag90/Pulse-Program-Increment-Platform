@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState, type ReactNode } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -8,8 +9,8 @@ import { UserPicker } from "@/components/detail/user-picker";
 import {
   EPIC_TYPES,
   HORIZONS,
-  EPIC_TYPE_LABEL,
-  HORIZON_LABEL,
+  EPIC_TYPE_KEYS,
+  HORIZON_KEYS,
 } from "@/modules/work/domain/portfolio-guardrails";
 
 export type FlagFilter = "all" | "steering" | "budgeting";
@@ -70,6 +71,7 @@ export function EpicFacetFilterBar({
   onArtChange,
   children,
 }: Props) {
+  const t = useTranslations();
   const [draft, setDraft] = useState(query);
   useEffect(() => setDraft(query), [query]);
   useEffect(() => {
@@ -93,9 +95,9 @@ export function EpicFacetFilterBar({
         className={FACET_SELECT_CLASS}
         value={valueStreamId ?? ""}
         onChange={(e) => onValueStreamChange(e.target.value || null)}
-        aria-label="Wertstrom"
+        aria-label={t("work.epic.wertstrom")}
       >
-        <option value="">Alle Wertströme</option>
+        <option value="">{t("work.epic.alleWertstroeme")}</option>
         {valueStreamOptions.map((v) => (
           <option key={v.id} value={v.id}>
             {v.name}
@@ -108,9 +110,9 @@ export function EpicFacetFilterBar({
           className={FACET_SELECT_CLASS}
           value={art ?? ""}
           onChange={(e) => onArtChange(e.target.value || null)}
-          aria-label="ART"
+          aria-label={t("work.common.art")}
         >
-          <option value="">Alle ARTs</option>
+          <option value="">{t("work.epic.alleArts")}</option>
           {artOptions.map((name) => (
             <option key={name} value={name}>
               {name}
@@ -124,9 +126,9 @@ export function EpicFacetFilterBar({
           value={ownerId ?? ""}
           onChange={(v) => onOwnerChange(v || null)}
           options={ownerOptions.map((o) => ({ value: o.id, label: o.label }))}
-          ariaLabel="Owner"
-          placeholder="Alle Owner"
-          emptyLabel="Alle Owner"
+          ariaLabel={t("work.epic.owner")}
+          placeholder={t("work.epic.alleOwner")}
+          emptyLabel={t("work.epic.alleOwner")}
         />
       </div>
 
@@ -134,23 +136,23 @@ export function EpicFacetFilterBar({
         className={FACET_SELECT_CLASS}
         value={flag}
         onChange={(e) => onFlagChange(e.target.value as FlagFilter)}
-        aria-label="Flag"
+        aria-label={t("work.epic.flag")}
       >
-        <option value="all">Alle Flags</option>
-        <option value="steering">⚠ Steering</option>
-        <option value="budgeting">💰 Budget</option>
+        <option value="all">{t("work.epic.alleFlags")}</option>
+        <option value="steering">{t("work.epic.steering")}</option>
+        <option value="budgeting">{t("work.epic.budget")}</option>
       </select>
 
       <select
         className={FACET_SELECT_CLASS}
         value={horizon ?? ""}
         onChange={(e) => onHorizonChange(e.target.value || null)}
-        aria-label="Horizon"
+        aria-label={t("work.epic.horizon")}
       >
-        <option value="">Alle Horizonte</option>
+        <option value="">{t("work.epic.alleHorizonte")}</option>
         {HORIZONS.map((h) => (
           <option key={h} value={h}>
-            {HORIZON_LABEL[h]}
+            {t(HORIZON_KEYS[h])}
           </option>
         ))}
       </select>
@@ -159,12 +161,12 @@ export function EpicFacetFilterBar({
         className={FACET_SELECT_CLASS}
         value={epicType ?? ""}
         onChange={(e) => onEpicTypeChange(e.target.value || null)}
-        aria-label="Epic-Typ"
+        aria-label={t("work.epic.epicTyp")}
       >
-        <option value="">Alle Typen</option>
-        {EPIC_TYPES.map((t) => (
-          <option key={t} value={t}>
-            {EPIC_TYPE_LABEL[t]}
+        <option value="">{t("work.epic.alleTypen")}</option>
+        {EPIC_TYPES.map((wert) => (
+          <option key={wert} value={wert}>
+            {t(EPIC_TYPE_KEYS[wert] ?? wert)}
           </option>
         ))}
       </select>
@@ -174,7 +176,7 @@ export function EpicFacetFilterBar({
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Suche…"
+          placeholder={t("work.epic.suche")}
           className="h-8 pl-7"
         />
       </div>
@@ -196,7 +198,8 @@ export function EpicFacetFilterBar({
           }}
           className="h-8 px-2 text-xs text-muted-foreground"
         >
-          <X className="size-3.5" /> Filter
+          <X className="size-3.5" />
+          {t("work.epic.filter")}
         </Button>
       )}
 

@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import type { PeriodPhase } from "@/modules/budgeting/domain/period-phases";
 
@@ -18,9 +19,10 @@ const SUBLABEL: Record<PeriodPhase["state"], string> = {
  * Schritt trägt.
  */
 export function PeriodPhaseRail({ phases, basePath }: { phases: PeriodPhase[]; basePath: string }) {
+  const t = useTranslations();
   return (
     <nav
-      aria-label="Zeitraum — Phasen"
+      aria-label={t("budgeting.period.zeitraumPhasen")}
       className="flex overflow-x-auto rounded-lg bg-card shadow-card"
     >
       {phases.map((p, i) => {

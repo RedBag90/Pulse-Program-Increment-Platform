@@ -43,11 +43,11 @@ export const SOLUTION_STATUSES = [
 export type SolutionStatus = (typeof SOLUTION_STATUSES)[number];
 export const isSolutionStatus = makeTypeGuard(SOLUTION_STATUSES);
 
-export const SOLUTION_STATUS_LABEL: Record<SolutionStatus, string> = {
-  emerging: "Emerging",
-  investing: "Investing",
-  extracting: "Extracting",
-  decommissioning: "Decommissioning",
+export const SOLUTION_STATUS_KEYS: Record<SolutionStatus, string> = {
+  emerging: "org.solutionStatus.emerging",
+  investing: "org.solutionStatus.investing",
+  extracting: "org.solutionStatus.extracting",
+  decommissioning: "org.solutionStatus.decommissioning",
 };
 
 /**
@@ -124,11 +124,11 @@ export function investmentModeForHorizon(
  * zerfällt: **die Achse bleibt dreiwertig, die Leiter zeigt vier Stufen.**
  * H3 fehlt hier nicht aus Versehen — dort gibt es keine Solution (ADR-0020).
  */
-export const SOLUTION_STATUS_STEP_LABEL: Record<SolutionStatus, string> = {
-  emerging: "H2 · Emerging",
-  investing: "H1.1 · Investing",
-  extracting: "H1.2 · Extracting",
-  decommissioning: "H0 · Decommissioning",
+export const SOLUTION_STATUS_STEP_KEYS: Record<SolutionStatus, string> = {
+  emerging: "org.solutionStep.emerging",
+  investing: "org.solutionStep.investing",
+  extracting: "org.solutionStep.extracting",
+  decommissioning: "org.solutionStep.decommissioning",
 };
 
 export interface SolutionTransition {

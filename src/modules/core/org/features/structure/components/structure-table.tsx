@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { HORIZON_BADGE_CLASS } from "@/modules/core/org/features/solution/components/horizon-tokens";
@@ -44,6 +45,7 @@ export function StructureTable({
   showInvest: boolean;
   showRun: boolean;
 }) {
+  const t = useTranslations();
   return (
     <div className="overflow-hidden rounded-lg bg-card shadow-card">
       <div className="overflow-x-auto">
@@ -56,9 +58,15 @@ export function StructureTable({
               <th className="px-3 py-2 text-left font-semibold">
                 {grouping === "struktur" ? "Stand" : "Wertstrom · ART"}
               </th>
-              {showEpics && <th className="px-3 py-2 text-right font-semibold">Epics</th>}
-              {showInvest && <th className="px-3 py-2 text-right font-semibold">Grow</th>}
-              {showRun && <th className="px-3 py-2 text-right font-semibold">Run · Halbjahr</th>}
+              {showEpics && (
+                <th className="px-3 py-2 text-right font-semibold">{t("org.ui.epics")}</th>
+              )}
+              {showInvest && (
+                <th className="px-3 py-2 text-right font-semibold">{t("org.ui.grow")}</th>
+              )}
+              {showRun && (
+                <th className="px-3 py-2 text-right font-semibold">{t("org.ui.runHalbjahr")}</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -82,11 +90,11 @@ export function StructureTable({
       </div>
       {showRun && (
         <p className="border-t px-3 py-2 text-meta leading-relaxed text-muted-foreground">
-          Beide Beträge stehen auf <strong>demselben Halbjahr</strong> — Grow ist das in diesem
-          Zyklus zugeteilte Geld, Run der Betriebsanteil eines Halbjahres. „Run" enthält dabei nur
-          Positionen, die <strong>einer Solution</strong> zugerechnet sind; wertstrom- und
-          ART-übergreifender Betrieb zählt in keine Zeile und steht vollständig im
-          Budgeting-Bereich.
+          {t("org.ui.beideBetraegeStehenAuf")} <strong>{t("org.ui.demselbenHalbjahr")}</strong> —
+          Grow ist das in diesem Zyklus zugeteilte Geld, Run der Betriebsanteil eines Halbjahres.
+          „Run" enthält dabei nur Positionen, die <strong>{t("org.ui.einerSolution")}</strong>{" "}
+          zugerechnet sind; wertstrom- und ART-übergreifender Betrieb zählt in keine Zeile und steht
+          vollständig im Budgeting-Bereich.
         </p>
       )}
     </div>
@@ -104,6 +112,7 @@ function StructureRows({
   showInvest: boolean;
   showRun: boolean;
 }) {
+  const t = useTranslations();
   const span = 1 + (showEpics ? 1 : 0) + (showInvest ? 1 : 0) + (showRun ? 1 : 0);
   return (
     <>
@@ -134,7 +143,7 @@ function StructureRows({
                 </td>
                 {art.solutions.length === 0 ? (
                   <td colSpan={span} className="px-3 py-1.5 text-meta text-warning">
-                    keine Solution
+                    {t("org.ui.keineSolution")}
                   </td>
                 ) : (
                   <>
@@ -185,6 +194,7 @@ function HorizonRows({
   showInvest: boolean;
   showRun: boolean;
 }) {
+  const t = useTranslations();
   const span = 2 + (showEpics ? 1 : 0) + (showInvest ? 1 : 0) + (showRun ? 1 : 0);
   return (
     <>
@@ -195,7 +205,7 @@ function HorizonRows({
               colSpan={span}
               className="px-3 py-1.5 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground"
             >
-              {group.label} — {group.rows.length}
+              {t(group.labelKey)} — {group.rows.length}
             </td>
           </tr>
           {group.rows.map(({ solution, valueStreamName, artName }) => (
@@ -237,6 +247,7 @@ function SolutionRow({
   showRun: boolean;
   note?: string;
 }) {
+  const t = useTranslations();
   const tone = solution.horizon ? HORIZON_BADGE_CLASS[solution.horizon] : null;
   return (
     <tr className="border-b hover:bg-muted/20">
@@ -259,7 +270,7 @@ function SolutionRow({
           <span
             className={cn("size-1.5 rounded-full", tone ? tone.dot : "bg-muted-foreground/50")}
           />
-          {solution.statusLabel}
+          {t(solution.statusLabelKey)}
         </span>
       </td>
       {showEpics && <EpicsCell money={solution.money} />}

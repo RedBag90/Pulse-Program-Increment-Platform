@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
@@ -30,7 +31,7 @@ import { AuditTimeline } from "@/components/detail/audit-timeline";
 import { SolutionProductManager } from "@/modules/core/org/features/solution/components/solution-product-manager";
 import { listTenantApprovers } from "@/modules/work/server/services/tenant-approvers";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { STAGE_SHORT } from "@/components/detail/initiative-labels";
+import { STAGE_SHORT_KEYS } from "@/components/detail/initiative-labels";
 import { formatCompactEUR } from "@/lib/formatting";
 
 const CORE_TABS: readonly DetailTab[] = [
@@ -69,6 +70,7 @@ interface Props {
  * Entitlement degradiert die Run-Kachel, statt zu fehlen.
  */
 export default async function SolutionDetailPage({ params, searchParams }: Props) {
+  const t = await getTranslations();
   const { id } = await params;
   const { tab } = await searchParams;
 
@@ -215,7 +217,7 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
 
       {activeTab === "epics" && (
         <section className="space-y-3">
-          <h2 className="text-lg font-medium">Zugeordnete Epics (Primär)</h2>
+          <h2 className="text-lg font-medium">{t("org.page.zugeordneteEpicsPrimaer")}</h2>
           <p className="text-sm text-muted-foreground">
             Diese Epics erben den Horizont der Solution — bis ihr Business Case freigegeben ist. Ab
             dann tragen sie ihn selbst, vom Tag der Freigabe, und folgen einem späteren Wechsel der
@@ -224,9 +226,7 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
             Vergangenheit nicht umschreibt.
           </p>
           {(workSide?.epics.length ?? 0) === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Noch keine Epics dieser Solution zugeordnet.
-            </p>
+            <p className="text-sm text-muted-foreground">{t("org.page.nochKeineEpicsDieser")}</p>
           ) : (
             <ul className="divide-y rounded-lg border">
               {(workSide?.epics ?? []).map((e) => (
@@ -239,7 +239,10 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
                   </Link>
                   <span className="flex items-center gap-3">
                     <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                      {STAGE_SHORT[e.stageGate as keyof typeof STAGE_SHORT] ?? e.stageGate}
+                      {t(
+                        STAGE_SHORT_KEYS[e.stageGate as keyof typeof STAGE_SHORT_KEYS] ??
+                          e.stageGate,
+                      )}
                     </span>
                     {/* `null` = Business Case noch nicht freigegeben. Ein Strich
                         statt einer Null: „noch keine belastbare Zahl" ist etwas
@@ -253,18 +256,16 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
             </ul>
           )}
 
-          <h2 className="pt-4 text-lg font-medium">Direkt zugeordnete Features</h2>
+          <h2 className="pt-4 text-lg font-medium">{t("org.page.direktZugeordneteFeatures")}</h2>
           <p className="text-sm text-muted-foreground">
-            Features, die ihre Solution <strong className="font-medium">selbst</strong> tragen — ein
-            Feature wird in genau eine Solution geliefert. Features, die sie nur über ihr Epic
-            erben, stehen nicht hier: sie hängen unter einem Epic aus der Liste darüber. Diese
-            Zeilen tragen <strong className="font-medium">kein Geld</strong>; Grow ist die Summe der
-            Umsetzungskosten der Primär-Epics, ein Feature hat keinen Business Case.
+            {t("org.page.featuresDieIhreSolution")}{" "}
+            <strong className="font-medium">{t("org.page.selbst")}</strong>{" "}
+            {t("org.page.tragenEinFeatureWird")}{" "}
+            <strong className="font-medium">{t("org.page.keinGeld")}</strong>; Grow ist die Summe
+            der Umsetzungskosten der Primär-Epics, ein Feature hat keinen Business Case.
           </p>
           {solutionFeatures.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Kein Feature ist dieser Solution direkt zugeordnet.
-            </p>
+            <p className="text-sm text-muted-foreground">{t("org.page.keinFeatureIstDieser")}</p>
           ) : (
             <ul className="divide-y rounded-lg border">
               {solutionFeatures.map((f) => (
@@ -289,7 +290,7 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
 
       {activeTab === "history" && (
         <section>
-          <h2 className="mb-3 text-lg font-medium">Verlauf</h2>
+          <h2 className="mb-3 text-lg font-medium">{t("org.page.verlauf")}</h2>
           <AuditTimeline events={events} />
         </section>
       )}

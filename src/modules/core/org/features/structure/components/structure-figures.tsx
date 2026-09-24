@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { formatCompactEUR } from "@/lib/formatting";
 import { cn } from "@/lib/utils";
 import type { StructureMoney } from "@/modules/core/org/server/views/structure-overview";
@@ -33,6 +34,7 @@ export function StructureFigures({
   showRun: boolean;
   className?: string;
 }) {
+  const t = useTranslations();
   if (money == null || (!showEpics && !showInvest && !showRun)) return null;
   return (
     <span
@@ -44,12 +46,12 @@ export function StructureFigures({
       {showEpics && (
         <span>
           {money.epicCount === 0 ? (
-            <em className="not-italic opacity-80" title="Diesem Knoten ist kein Epic zugeordnet.">
-              kein Epic
+            <em className="not-italic opacity-80" title={t("org.ui.diesemKnotenIstKein")}>
+              {t("org.ui.keinEpic")}
             </em>
           ) : (
             <>
-              <b className="font-semibold text-foreground">{money.epicCount}</b> Epics
+              <b className="font-semibold text-foreground">{money.epicCount}</b> {t("org.ui.epics")}
             </>
           )}
         </span>
@@ -58,14 +60,12 @@ export function StructureFigures({
         <span>
           {money.grow > 0 ? (
             <>
-              Grow <b className="font-semibold text-foreground">{formatCompactEUR(money.grow)}</b>
+              {t("org.ui.grow")}{" "}
+              <b className="font-semibold text-foreground">{formatCompactEUR(money.grow)}</b>
             </>
           ) : (
-            <em
-              className="not-italic opacity-80"
-              title="In diesem Halbjahr ist diesen Epics kein Geld zugeteilt."
-            >
-              nicht zugeteilt
+            <em className="not-italic opacity-80" title={t("org.ui.inDiesemHalbjahrIst")}>
+              {t("org.ui.nichtZugeteilt")}
             </em>
           )}
         </span>
@@ -74,10 +74,11 @@ export function StructureFigures({
         <span>
           {money.run > 0 ? (
             <>
-              Run <b className="font-semibold text-foreground">{formatCompactEUR(money.run)}</b>
+              {t("org.ui.run")}{" "}
+              <b className="font-semibold text-foreground">{formatCompactEUR(money.run)}</b>
             </>
           ) : (
-            <em className="not-italic opacity-80">kein Run</em>
+            <em className="not-italic opacity-80">{t("org.ui.keinRun")}</em>
           )}
         </span>
       )}
@@ -108,11 +109,12 @@ export function GapBadge({ gaps, className }: { gaps: readonly string[]; classNa
  * „kein Epic" nicht an einer Stelle „—" heisst.
  */
 export function EpicsCell({ money }: { money: StructureMoney | null }) {
+  const t = useTranslations();
   if (money == null) return <td className="px-3 py-1.5 text-right text-muted-foreground">—</td>;
   return (
     <td className="px-3 py-1.5 text-right tabular-nums">
       {money.epicCount === 0 ? (
-        <span className="text-meta text-muted-foreground">kein Epic</span>
+        <span className="text-meta text-muted-foreground">{t("org.ui.keinEpic")}</span>
       ) : (
         money.epicCount
       )}
@@ -121,19 +123,18 @@ export function EpicsCell({ money }: { money: StructureMoney | null }) {
 }
 
 export function GrowCell({ money }: { money: StructureMoney | null }) {
+  const t = useTranslations();
   if (money == null) return <td className="px-3 py-1.5 text-right text-muted-foreground">—</td>;
   if (money.epicCount === 0)
     return (
       <td className="px-3 py-1.5 text-right text-meta text-muted-foreground">
-        <span title="Diesem Knoten ist kein Epic zugeordnet.">kein Epic</span>
+        <span title={t("org.ui.diesemKnotenIstKein")}>{t("org.ui.keinEpic")}</span>
       </td>
     );
   if (money.grow === 0)
     return (
       <td className="px-3 py-1.5 text-right text-meta text-muted-foreground">
-        <span title="In diesem Halbjahr ist diesen Epics kein Geld zugeteilt.">
-          nicht zugeteilt
-        </span>
+        <span title={t("org.ui.inDiesemHalbjahrIst")}>{t("org.ui.nichtZugeteilt")}</span>
       </td>
     );
   return <td className="px-3 py-1.5 text-right tabular-nums">{formatCompactEUR(money.grow)}</td>;

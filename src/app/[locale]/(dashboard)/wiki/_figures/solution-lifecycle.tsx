@@ -1,6 +1,7 @@
+import { useTranslations } from "next-intl";
 import {
   SOLUTION_STATUSES,
-  SOLUTION_STATUS_STEP_LABEL,
+  SOLUTION_STATUS_STEP_KEYS,
   SOLUTION_TRANSITIONS,
   PROMOTION_CRITERIA,
 } from "@/modules/core/org/domain/solution";
@@ -15,12 +16,13 @@ import {
  * `PROMOTION_CRITERIA`. Aendert jemand das Tor, aendert sich die Anleitung mit.
  */
 export function SolutionLifecycle() {
+  const t = useTranslations();
   return (
     <div className="divide-y overflow-hidden rounded-lg bg-card shadow-card">
       {SOLUTION_STATUSES.map((s) => (
         <div key={s} className="space-y-2 p-4">
           <p className="font-heading text-sm font-semibold text-foreground">
-            {SOLUTION_STATUS_STEP_LABEL[s]}
+            {t(SOLUTION_STATUS_STEP_KEYS[s])}
           </p>
           <ul className="space-y-1.5">
             {SOLUTION_TRANSITIONS[s].map((t) => (

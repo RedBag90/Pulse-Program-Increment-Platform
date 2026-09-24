@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, startTransition, useEffect } from "react";
 import {
   createPiOnTimelineAction,
@@ -41,6 +42,7 @@ const initialState: ActionState = {};
  * wird das Start-Datum vorbelegt. End-Datum traegt der User immer manuell ein.
  */
 export function PiDialog({ open, onOpenChange, timelineId, initial }: Props) {
+  const t = useTranslations();
   const isEdit = Boolean(initial?.id);
   const [createState, runCreate, createPending] = useActionState(
     createPiOnTimelineAction,
@@ -104,7 +106,7 @@ export function PiDialog({ open, onOpenChange, timelineId, initial }: Props) {
 
           <div className="space-y-1.5">
             <label htmlFor="pi-name" className="text-sm font-medium">
-              Name <span className="text-destructive">*</span>
+              {t("drumbeat.ui.name")} <span className="text-destructive">*</span>
             </label>
             <input
               id="pi-name"
@@ -115,14 +117,14 @@ export function PiDialog({ open, onOpenChange, timelineId, initial }: Props) {
               maxLength={100}
               disabled={pending}
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              placeholder="z. B. PI 25-04"
+              placeholder={t("drumbeat.ui.zBPi")}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label htmlFor="pi-start" className="text-sm font-medium">
-                Start <span className="text-destructive">*</span>
+                {t("drumbeat.ui.start")} <span className="text-destructive">*</span>
               </label>
               <input
                 id="pi-start"
@@ -137,7 +139,7 @@ export function PiDialog({ open, onOpenChange, timelineId, initial }: Props) {
             </div>
             <div className="space-y-1.5">
               <label htmlFor="pi-end" className="text-sm font-medium">
-                Ende <span className="text-destructive">*</span>
+                {t("drumbeat.ui.ende")} <span className="text-destructive">*</span>
               </label>
               <input
                 id="pi-end"
@@ -170,7 +172,7 @@ export function PiDialog({ open, onOpenChange, timelineId, initial }: Props) {
               onClick={() => onOpenChange(false)}
               className="h-9 rounded-md border px-3 text-sm hover:bg-muted/50"
             >
-              Abbrechen
+              {t("drumbeat.ui.abbrechen")}
             </button>
             <button
               type="submit"

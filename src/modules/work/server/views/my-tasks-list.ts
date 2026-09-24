@@ -68,14 +68,7 @@ export function buildMyTasksListModel(input: {
   canEditEpic: boolean;
   canEditFeature: boolean;
 }): MyTasksListModel {
-  const {
-    tasks,
-    epicRows,
-    featureRows,
-    stageGatesEnabled,
-    canEditEpic,
-    canEditFeature,
-  } = input;
+  const { tasks, epicRows, featureRows, stageGatesEnabled, canEditEpic, canEditFeature } = input;
 
   const bucketById = new Map<string, Bucket>(tasks.map((t) => [t.id, t.bucket]));
 

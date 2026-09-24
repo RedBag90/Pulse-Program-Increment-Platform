@@ -167,7 +167,9 @@ describe("advanceCadence — complete active + open next", () => {
   });
 
   it("creates the next PI from cadence when none is scheduled after the active one", async () => {
-    const siblings = [{ id: "a", name: "PI 1", startDate: D("2026-01-01"), endDate: D("2026-03-31") }];
+    const siblings = [
+      { id: "a", name: "PI 1", startDate: D("2026-01-01"), endDate: D("2026-03-31") },
+    ];
     const t = tx(active, siblings, { id: "c", name: "PI 2" });
     const result = await advanceCadence(ctxWith(t), { piId: "a" as PiId });
     expect(result.ok).toBe(true);

@@ -3,7 +3,7 @@ import {
   rtbAssignmentGroup,
   zaehltBeiAnderemArt,
   RTB_ASSIGNMENT_GROUPS,
-  RTB_ASSIGNMENT_GROUP_LABELS,
+  RTB_ASSIGNMENT_GROUP_KEYS,
 } from "@/modules/budgeting/domain/rtb-art-resolution";
 
 /**
@@ -69,9 +69,9 @@ describe("die Gruppen als gemeinsames Vokabular", () => {
 
   it("hat zu jeder Ebene ein Wort", () => {
     for (const g of RTB_ASSIGNMENT_GROUPS) {
-      expect(RTB_ASSIGNMENT_GROUP_LABELS[g], g).toBeTruthy();
+      expect(RTB_ASSIGNMENT_GROUP_KEYS[g], g).toBeTruthy();
     }
-    expect(new Set(Object.values(RTB_ASSIGNMENT_GROUP_LABELS)).size).toBe(3);
+    expect(new Set(Object.values(RTB_ASSIGNMENT_GROUP_KEYS)).size).toBe(3);
   });
 
   /**

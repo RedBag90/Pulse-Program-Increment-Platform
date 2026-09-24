@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Stat, StatStrip } from "@/components/ui/stat";
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 import { CompactKanban } from "@/modules/work/features/portfolio/overview/blocks/compact-kanban";
@@ -13,18 +14,19 @@ function pct(n: number): string {
  * Trades depth for at-a-glance density.
  */
 export function OverviewHero({ data }: { data: PortfolioOverview }) {
+  const t = useTranslations();
   const inFlight =
     data.epicsByGate.L2.length + data.epicsByGate.L3.length + data.epicsByGate.L4.length;
   return (
     <div className="space-y-6">
       <StatStrip>
-        <Stat label="Epics in Flow" value={inFlight} />
+        <Stat label={t("work.overview.epicsInFlow")} value={inFlight} />
         <Stat
-          label="Pool alloziert"
+          label={t("work.overview.poolAlloziert")}
           value={data.poolTotal > 0 ? pct(data.poolAllocated / data.poolTotal) : "—"}
         />
-        <Stat label="Ø Ziele erreicht" value={pct(data.goalAverageProgress)} />
-        <Stat label="PIs aktiv" value={data.activePis.length} />
+        <Stat label={t("work.overview.zieleErreicht")} value={pct(data.goalAverageProgress)} />
+        <Stat label={t("work.overview.pisAktiv")} value={data.activePis.length} />
       </StatStrip>
 
       <CompactKanban data={data} />

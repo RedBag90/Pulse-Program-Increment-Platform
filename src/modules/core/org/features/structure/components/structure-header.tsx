@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState, type ReactNode } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,7 @@ export function StructureHeader({
   onQueryChange,
   onKindFilterChange,
 }: Props) {
+  const t = useTranslations();
   const [draft, setDraft] = useState(query);
   useEffect(() => setDraft(query), [query]);
   useEffect(() => {
@@ -80,7 +82,7 @@ export function StructureHeader({
         {showChips && (
           <div className="flex flex-wrap gap-1">
             <Chip
-              label="Alle"
+              label={t("org.ui.alle")}
               count={total}
               active={kindFilter === null}
               onClick={() => onKindFilterChange(null)}
@@ -101,7 +103,7 @@ export function StructureHeader({
           <Input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Suche…"
+            placeholder={t("org.ui.suche")}
             className="h-8 pl-7"
           />
         </div>

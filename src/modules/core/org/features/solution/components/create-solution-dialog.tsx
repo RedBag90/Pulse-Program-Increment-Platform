@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import {
@@ -10,7 +11,7 @@ import { useCreateResult } from "@/features/create/use-create-result";
 import { useEntityOptions, optionsEndpoint } from "@/features/create/use-entity-options";
 import {
   SOLUTION_STATUSES,
-  SOLUTION_STATUS_LABEL,
+  SOLUTION_STATUS_KEYS,
   solutionStatusOf,
   type InvestmentMode,
 } from "@/modules/core/org/domain/solution";
@@ -61,6 +62,7 @@ export interface CreateSolutionDialogProps {
 const initialState: ActionState = {};
 
 export function CreateSolutionDialog({ open, onOpenChange, solution }: CreateSolutionDialogProps) {
+  const t = useTranslations();
   const isEdit = solution !== undefined;
   const isControlled = open !== undefined;
   const [selfOpen, setSelfOpen] = useState(false);
@@ -88,7 +90,7 @@ export function CreateSolutionDialog({ open, onOpenChange, solution }: CreateSol
       {!isControlled && !isEdit && (
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="mr-1.5 size-4" />
-          Solution
+          {t("org.ui.solution")}
         </Button>
       )}
 
@@ -102,13 +104,13 @@ export function CreateSolutionDialog({ open, onOpenChange, solution }: CreateSol
 
             <div className="space-y-1.5">
               <Label htmlFor="sol-name">
-                Name <span className="text-destructive">*</span>
+                {t("org.ui.name")} <span className="text-destructive">*</span>
               </Label>
               <Input id="sol-name" name="name" required defaultValue={solution?.name ?? ""} />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="sol-desc">Beschreibung</Label>
+              <Label htmlFor="sol-desc">{t("org.ui.beschreibung")}</Label>
               <Textarea
                 id="sol-desc"
                 name="description"
@@ -120,7 +122,7 @@ export function CreateSolutionDialog({ open, onOpenChange, solution }: CreateSol
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="sol-vs">
-                  Value Stream <span className="text-destructive">*</span>
+                  {t("org.ui.valueStream")} <span className="text-destructive">*</span>
                 </Label>
                 <select
                   id="sol-vs"
@@ -141,7 +143,7 @@ export function CreateSolutionDialog({ open, onOpenChange, solution }: CreateSol
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="sol-art">ART *</Label>
+                <Label htmlFor="sol-art">{t("org.ui.art")}</Label>
                 {/*
                   **Pflichtfeld seit 2026-09-19.** „— kein ART —" stand hier als
                   gleichwertige Wahl; über dieses Feld löst sich aber das
@@ -171,7 +173,7 @@ export function CreateSolutionDialog({ open, onOpenChange, solution }: CreateSol
 
             <div className="space-y-1.5">
               <Label htmlFor="sol-status">
-                Status <span className="text-destructive">*</span>
+                {t("org.ui.status")} <span className="text-destructive">*</span>
               </Label>
               <select
                 id="sol-status"
@@ -189,7 +191,7 @@ export function CreateSolutionDialog({ open, onOpenChange, solution }: CreateSol
               >
                 {SOLUTION_STATUSES.map((s) => (
                   <option key={s} value={s}>
-                    {SOLUTION_STATUS_LABEL[s]}
+                    {t(SOLUTION_STATUS_KEYS[s])}
                   </option>
                 ))}
               </select>
@@ -203,7 +205,7 @@ export function CreateSolutionDialog({ open, onOpenChange, solution }: CreateSol
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Abbrechen
+                {t("org.ui.abbrechen")}
               </Button>
               <Button type="submit" disabled={isPending}>
                 {isPending ? "Speichern…" : isEdit ? "Speichern" : "Solution anlegen"}

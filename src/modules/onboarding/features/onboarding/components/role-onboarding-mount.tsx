@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import type { Notice } from "@/modules/onboarding/domain/role-tour";
-import { subscribeTour, type TourRequest } from "@/modules/onboarding/features/onboarding/tour-channel";
+import {
+  subscribeTour,
+  type TourRequest,
+} from "@/modules/onboarding/features/onboarding/tour-channel";
 import { RoleWelcomeDialog } from "./role-welcome-dialog";
 import { RoleTourOverlay } from "./role-tour-overlay";
 

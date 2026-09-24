@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Link } from "@/i18n/navigation";
 import {
@@ -11,13 +12,13 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { ToggleGroup, type ToggleGroupOption } from "@/components/ui/toggle-group";
-import { STAGE_GATE_LABELS, STAGE_SHORT } from "@/components/detail/initiative-labels";
+import { STAGE_GATE_KEYS, STAGE_SHORT_KEYS } from "@/components/detail/initiative-labels";
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import {
   HORIZON_HEX,
   HORIZON_NONE_HEX,
 } from "@/modules/core/org/features/solution/components/horizon-tokens";
-import { HORIZON_LABEL, type Horizon } from "@/modules/work/domain/portfolio-guardrails";
+import { HORIZON_KEYS, type Horizon } from "@/modules/work/domain/portfolio-guardrails";
 import type {
   HorizonColumn,
   StageTowerEpic,
@@ -66,6 +67,7 @@ export function EpicTower({
   epicsByStage: Record<StageGate, StageTowerEpic[]>;
   epicsByHorizon: Record<HorizonColumn, StageTowerEpic[]>;
 }) {
+  const t = useTranslations();
   const [mode, setMode] = useState<TowerMode>("stage");
 
   const columns =
@@ -73,20 +75,20 @@ export function EpicTower({
       ? STAGE_GATES.map((g) => ({
           key: g as string,
           top: g as string,
-          bottom: STAGE_SHORT[g] ?? "",
+          bottom: t(STAGE_SHORT_KEYS[g] ?? ""),
           epics: epicsByStage[g] ?? [],
         }))
       : HORIZON_COLUMNS.map((c) => ({
           key: c as string,
           top: HORIZON_COLUMN_LABEL[c],
-          bottom: c === "none" ? "Horizont" : (HORIZON_LABEL[c].split("·")[1]?.trim() ?? ""),
+          bottom: c === "none" ? "Horizont" : (t(HORIZON_KEYS[c]).split("·")[1]?.trim() ?? ""),
           epics: epicsByHorizon[c] ?? [],
         }));
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Epic-Türme</CardTitle>
+        <CardTitle>{t("work.guardrails.epicTuerme")}</CardTitle>
         <CardDescription className="text-xs">
           Ein Quadrat = ein Epic. Farbe = Horizont. Klick öffnet das Epic.
         </CardDescription>
@@ -95,7 +97,7 @@ export function EpicTower({
             value={mode}
             options={MODE_OPTIONS}
             onChange={setMode}
-            ariaLabel="Turm-Achse"
+            ariaLabel={t("work.guardrails.turmAchse")}
             className="bg-card text-meta"
           />
         </CardAction>
@@ -111,7 +113,7 @@ export function EpicTower({
                   <Link
                     key={e.id}
                     href={`/portfolio/epics/${e.id}`}
-                    title={`${e.title} — ${STAGE_GATE_LABELS[e.stageGate] ?? e.stageGate}`}
+                    title={`${e.title} — ${t(STAGE_GATE_KEYS[e.stageGate] ?? e.stageGate)}`}
                     aria-label={e.title}
                     className={`size-2.5 rounded-[2px] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
                       e.needsSteeringAttention
@@ -134,16 +136,16 @@ export function EpicTower({
 
         <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-label text-muted-foreground">
           {(["h3", "h2", "h1", "h0"] as const).map((h) => (
-            <Legend key={h} color={HORIZON_HEX[h]} label={HORIZON_LABEL[h]} />
+            <Legend key={h} color={HORIZON_HEX[h]} label={t(HORIZON_KEYS[h])} />
           ))}
-          <Legend color={HORIZON_NONE_HEX} label="ohne Horizont" />
+          <Legend color={HORIZON_NONE_HEX} label={t("work.guardrails.ohneHorizont")} />
           <span className="inline-flex items-center gap-1.5">
             <span
               className="size-2.5 rounded-[2px] ring-1 ring-destructive ring-offset-1 ring-offset-card"
               style={{ backgroundColor: HORIZON_NONE_HEX }}
               aria-hidden
             />
-            braucht Steuerung
+            {t("work.guardrails.brauchtSteuerung")}
           </span>
         </div>
       </CardContent>

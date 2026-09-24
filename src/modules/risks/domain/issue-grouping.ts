@@ -22,11 +22,12 @@
  * Rein, kein I/O.
  */
 
-import { EXPOSURE_BANDS, EXPOSURE_LABEL } from "@/modules/core/kernel/domain/exposure";
-import { ROAM_LABELS, ROAM_STATUSES, normalizeRoamStatus } from "@/modules/core/kernel/domain/roam";
+import type { Locale } from "@/i18n/routing";
+import { EXPOSURE_BANDS, EXPOSURE_KEYS } from "@/modules/core/kernel/domain/exposure";
+import { ROAM_KEYS, ROAM_STATUSES, normalizeRoamStatus } from "@/modules/core/kernel/domain/roam";
 import {
   RISK_CATEGORIES,
-  CATEGORY_LABELS,
+  CATEGORY_KEYS,
   isRiskCategory,
 } from "@/modules/risks/domain/risk-category";
 
@@ -34,12 +35,12 @@ export const ISSUE_GROUP_AXES = ["flach", "exposure", "roam", "category", "owner
 export type IssueGroupAxis = (typeof ISSUE_GROUP_AXES)[number];
 
 /** Wie der Umschalter sie nennt. */
-export const ISSUE_GROUP_LABELS: Record<IssueGroupAxis, string> = {
-  flach: "ohne",
-  exposure: "Exposure",
-  roam: "ROAM",
-  category: "Kategorie",
-  owner: "Owner",
+export const ISSUE_GROUP_KEYS: Record<IssueGroupAxis, string> = {
+  flach: "risks.issueGroup.flach",
+  exposure: "risks.issueGroup.exposure",
+  roam: "risks.issueGroup.roam",
+  category: "risks.issueGroup.category",
+  owner: "risks.issueGroup.owner",
 };
 
 /** Was eine Zeile mitbringen muss, um gebündelt werden zu können. */
@@ -53,17 +54,23 @@ export interface GroupableIssue {
 
 export interface IssueGroup<T> {
   key: string;
-  label: string;
+  /**
+   * **Ein Katalog-Schlüssel, ausser bei den offenen Achsen.** Gruppen nach
+   * Owner entstehen aus den Daten; dort steht der Name der Person, und der
+   * gehört in keinen Katalog. Die Oberfläche übersetzt, was übersetzbar ist —
+   * `t()` gibt einen unbekannten Schlüssel unverändert zurück.
+   */
+  labelKey: string;
   items: T[];
 }
 
 /** Wer nichts hat, bekommt eine eigene Gruppe statt stiller Einsortierung. */
 const OHNE_KEY = "";
-const OHNE_LABEL: Record<Exclude<IssueGroupAxis, "flach">, string> = {
-  exposure: "Unbewertet",
-  roam: "Ohne ROAM",
-  category: "Ohne Kategorie",
-  owner: "Ohne Owner",
+const OHNE_KEYS: Record<Exclude<IssueGroupAxis, "flach">, string> = {
+  exposure: "risks.without.exposure",
+  roam: "risks.without.roam",
+  category: "risks.without.category",
+  owner: "risks.without.owner",
 };
 
 /**
@@ -74,21 +81,21 @@ const OHNE_LABEL: Record<Exclude<IssueGroupAxis, "flach">, string> = {
  * Exposure läuft **kritisch zuerst**: es ist die einzige geordnete Achse, und
  * oben steht, worauf man zuerst schaut.
  */
-function skala(axis: Exclude<IssueGroupAxis, "flach">): { key: string; label: string }[] | null {
+function skala(axis: Exclude<IssueGroupAxis, "flach">): { key: string; labelKey: string }[] | null {
   switch (axis) {
     case "exposure":
       return [
         ...[...EXPOSURE_BANDS]
           .reverse()
-          .map((b) => ({ key: b as string, label: EXPOSURE_LABEL[b] })),
-        { key: OHNE_KEY, label: OHNE_LABEL.exposure },
+          .map((b) => ({ key: b as string, labelKey: EXPOSURE_KEYS[b] })),
+        { key: OHNE_KEY, labelKey: OHNE_KEYS.exposure },
       ];
     case "roam":
-      return ROAM_STATUSES.map((s) => ({ key: s as string, label: ROAM_LABELS[s] }));
+      return ROAM_STATUSES.map((s) => ({ key: s as string, labelKey: ROAM_KEYS[s] }));
     case "category":
       return [
-        ...RISK_CATEGORIES.map((c) => ({ key: c as string, label: CATEGORY_LABELS[c] })),
-        { key: OHNE_KEY, label: OHNE_LABEL.category },
+        ...RISK_CATEGORIES.map((c) => ({ key: c as string, labelKey: CATEGORY_KEYS[c] })),
+        { key: OHNE_KEY, labelKey: OHNE_KEYS.category },
       ];
     // Owner ist offen: die Gruppen entstehen aus den Daten, nicht aus einer Liste.
     case "owner":
@@ -119,6 +126,13 @@ export function groupIssues<T>(
   items: readonly T[],
   axis: Exclude<IssueGroupAxis, "flach">,
   rowOf: (item: T) => GroupableIssue,
+  /**
+   * Die Sprache der **Sortierung**. Nur die offene Achse (Owner) sortiert
+   * überhaupt alphabetisch — dort stehen Personennamen, und deren Reihenfolge
+   * hängt an der Kollation: „Ö" steht im Deutschen bei „O", im Schwedischen
+   * am Ende. Bis September 2026 stand hier `"de"` fest verdrahtet.
+   */
+  locale: Locale = "de",
 ): IssueGroup<T>[] {
   const eimer = new Map<string, T[]>();
   const labels = new Map<string, string>();
@@ -126,7 +140,7 @@ export function groupIssues<T>(
     const row = rowOf(item);
     const key = schluessel(row, axis);
     if (axis === "owner") {
-      labels.set(key, key === OHNE_KEY ? OHNE_LABEL.owner : (row.ownerLabel ?? key));
+      labels.set(key, key === OHNE_KEY ? OHNE_KEYS.owner : (row.ownerLabel ?? key));
     }
     const prev = eimer.get(key);
     if (prev) prev.push(item);
@@ -138,8 +152,12 @@ export function groupIssues<T>(
 
   // Offene Achse: nach Beschriftung sortiert, „ohne" ans Ende.
   return [...eimer]
-    .map(([key, items]) => ({ key, label: labels.get(key) ?? key, items }))
+    .map(([key, items]) => ({ key, labelKey: labels.get(key) ?? key, items }))
     .sort((a, b) =>
-      a.key === OHNE_KEY ? 1 : b.key === OHNE_KEY ? -1 : a.label.localeCompare(b.label, "de"),
+      a.key === OHNE_KEY
+        ? 1
+        : b.key === OHNE_KEY
+          ? -1
+          : a.labelKey.localeCompare(b.labelKey, locale),
     );
 }

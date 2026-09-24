@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { updateArtAction } from "@/modules/core/org/features/art/actions/art";
 import { userLabel } from "@/components/detail/initiative-labels";
@@ -42,6 +43,7 @@ export function ArtOverviewForm({
   users,
   userLabels,
 }: Props) {
+  const t = useTranslations();
   const [state, action, isPending] = useActionState(updateArtAction, {});
 
   return (
@@ -49,17 +51,17 @@ export function ArtOverviewForm({
       <input type="hidden" name="id" value={id} />
 
       <div className="space-y-1.5">
-        <Label htmlFor="art-name">Name</Label>
+        <Label htmlFor="art-name">{t("org.ui.name")}</Label>
         <Input id="art-name" name="name" defaultValue={name} required />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="art-description">Beschreibung</Label>
+        <Label htmlFor="art-description">{t("org.ui.beschreibung")}</Label>
         <Textarea id="art-description" name="description" defaultValue={description} rows={4} />
       </div>
 
       <div className="space-y-1.5 max-w-xs">
-        <Label>RTE (Release Train Engineer)</Label>
+        <Label>{t("org.ui.rteReleaseTrainEngineer")}</Label>
         <UserPicker
           name="rteId"
           defaultValue={rteId}
@@ -68,17 +70,17 @@ export function ArtOverviewForm({
             label: userLabel(u.userId, userLabels),
             ...(u.roles.length ? { hint: u.roles.join(", ") } : {}),
           }))}
-          ariaLabel="RTE (Release Train Engineer)"
-          placeholder="— Niemand —"
-          emptyLabel="— Niemand —"
+          ariaLabel={t("org.ui.rteReleaseTrainEngineer")}
+          placeholder={t("org.ui.niemand")}
+          emptyLabel={t("org.ui.niemand")}
         />
         {rteUsers.length === 0 && (
-          <p className="text-xs text-warning">Keine Nutzer mit RTE-Rolle im Mandanten.</p>
+          <p className="text-xs text-warning">{t("org.ui.keineNutzerMitRte")}</p>
         )}
       </div>
 
       <div className="space-y-1.5 max-w-xs">
-        <Label>ART Technical Lead</Label>
+        <Label>{t("org.ui.artTechnicalLead")}</Label>
         <UserPicker
           name="technicalLeadId"
           defaultValue={technicalLeadId}
@@ -87,11 +89,13 @@ export function ArtOverviewForm({
             label: userLabel(u.userId, userLabels),
             ...(u.roles.length ? { hint: u.roles.join(", ") } : {}),
           }))}
-          ariaLabel="ART Technical Lead"
-          placeholder="— Niemand —"
-          emptyLabel="— Niemand —"
+          ariaLabel={t("org.ui.artTechnicalLead")}
+          placeholder={t("org.ui.niemand")}
+          emptyLabel={t("org.ui.niemand")}
         />
-        <p className="text-xs text-muted-foreground">Technisch Verantwortliche:r dieses ARTs.</p>
+        <p className="text-xs text-muted-foreground">
+          {t("org.ui.technischVerantwortlicheRDieses")}
+        </p>
       </div>
 
       {state.error && (
@@ -101,7 +105,7 @@ export function ArtOverviewForm({
       )}
       {state.success && (
         <p role="status" className="text-sm text-success">
-          Gespeichert.
+          {t("org.ui.gespeichert")}
         </p>
       )}
 

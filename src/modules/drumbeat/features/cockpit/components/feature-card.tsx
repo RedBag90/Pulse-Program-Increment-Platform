@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { memo, type RefObject } from "react";
 import type { CockpitFeature } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { WsjfBadge, FEATURE_STATUS_DOT } from "@/modules/drumbeat/features/lib/status-badges";
@@ -26,6 +27,7 @@ interface Props {
 }
 
 function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
+  const t = useTranslations();
   const { setParam } = useUrlState();
 
   function openSlideOver() {
@@ -103,7 +105,7 @@ function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
               </span>
             </>
           ) : (
-            <span className="truncate text-muted-foreground/60">ohne Owner</span>
+            <span className="truncate text-muted-foreground/60">{t("drumbeat.ui.ohneOwner")}</span>
           )}
         </span>
         {feature.wsjfComputed != null && (
@@ -116,7 +118,7 @@ function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
 
       {feature.hasBlocker && feature.blockerHint && (
         <p className="line-clamp-1 text-label text-warning">
-          ⚠ blockt durch <span className="font-medium">{feature.blockerHint}</span>
+          {t("drumbeat.ui.blocktDurch")} <span className="font-medium">{feature.blockerHint}</span>
         </p>
       )}
     </div>

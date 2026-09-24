@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 import { cookies } from "next/headers";
@@ -55,6 +56,7 @@ interface Props {
 }
 
 export default async function ValueStreamNodePage({ params, searchParams }: Props) {
+  const t = await getTranslations();
   const { id } = await params;
   const { tab } = await searchParams;
 
@@ -119,11 +121,8 @@ export default async function ValueStreamNodePage({ params, searchParams }: Prop
 
       {!inScope && (
         <div className="mb-4 rounded-lg border border-dashed bg-muted/40 p-4 text-sm">
-          <p className="font-medium">Dieser Wertstrom liegt außerhalb deines Bereichs.</p>
-          <p className="mt-1 text-muted-foreground">
-            Name und Verantwortliche stehen unten. Budget, Guardrails, Betrieb und Verlauf bleiben
-            zu. Im Baum bleibt er sichtbar, damit die Landkarte vollständig ist.
-          </p>
+          <p className="font-medium">{t("org.page.outOfScopeVs")}</p>
+          <p className="mt-1 text-muted-foreground">{t("org.page.outOfScopeVsHint")}</p>
         </div>
       )}
 
@@ -134,7 +133,7 @@ export default async function ValueStreamNodePage({ params, searchParams }: Prop
             href={`/budgeting/value-streams/${vs.id}`}
             className="font-medium text-primary hover:underline"
           >
-            Budget dieses Wertstroms →
+            {t("org.page.budgetOfVs")}
           </Link>
         </p>
       )}
@@ -154,6 +153,7 @@ export default async function ValueStreamNodePage({ params, searchParams }: Prop
    eigener Typ je Teil brächte hier nichts als Wiederholung. */
 
 async function OverviewTab({ db, vs, principal, canEdit, inScope }: any) {
+  const t = await getTranslations();
   const [approvers, userLabels, gateRules] = await Promise.all([
     listTenantApprovers(db, principal.tenantId),
     listTenantUserLabels(db, principal.tenantId),
@@ -195,18 +195,18 @@ async function OverviewTab({ db, vs, principal, canEdit, inScope }: any) {
         />
       ) : (
         <dl className="max-w-xl space-y-3 text-sm">
-          <Field label="Name">{vs.name}</Field>
-          <Field label="Beschreibung">{vs.description ?? "—"}</Field>
-          <Field label="Finance Approver">
+          <Field label={t("org.ui.name")}>{vs.name}</Field>
+          <Field label={t("org.ui.beschreibung")}>{vs.description ?? "—"}</Field>
+          <Field label={t("org.ui.financeApprover")}>
             {vs.financeApproverId ? userLabel(vs.financeApproverId, userLabels) : "—"}
           </Field>
-          <Field label="Portfolio Manager">
+          <Field label={t("org.ui.portfolioManager")}>
             {vs.vmoId ? userLabel(vs.vmoId, userLabels) : "—"}
           </Field>
-          <Field label="Business Owner">
+          <Field label={t("org.ui.businessOwner")}>
             {vs.businessOwnerId ? userLabel(vs.businessOwnerId, userLabels) : "—"}
           </Field>
-          <Field label="Value Stream Architect Lead">
+          <Field label={t("org.ui.valueStreamArchitectLead")}>
             {vs.architectLeadId ? userLabel(vs.architectLeadId, userLabels) : "—"}
           </Field>
         </dl>
@@ -227,7 +227,7 @@ async function OverviewTab({ db, vs, principal, canEdit, inScope }: any) {
           />
           {canEdit && (
             <section>
-              <h2 className="mb-2 text-sm font-medium">Wertstrom löschen</h2>
+              <h2 className="mb-2 text-sm font-medium">{t("org.page.deleteVs")}</h2>
               <DeleteValueStreamButton id={vs.id} name={vs.name} />
             </section>
           )}
@@ -280,10 +280,11 @@ async function GuardrailsTab({ db, principal, vsId, inScope }: any) {
 }
 
 async function HistoryTab({ db, tenantId, id }: any) {
+  const t = await getTranslations();
   const history = await listAuditHistory(db, tenantId, "value_stream", id);
   return (
     <section>
-      <h2 className="mb-3 text-lg font-medium">Verlauf</h2>
+      <h2 className="mb-3 text-lg font-medium">{t("org.page.verlauf")}</h2>
       <AuditTimeline
         events={history.map((e: { id: string; action: string; occurredAt: Date }) => ({
           id: e.id,

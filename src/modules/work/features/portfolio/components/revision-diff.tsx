@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { costSliceLabel, type BusinessCaseFields } from "@/modules/work/domain/business-case";
 import type { BenefitHypothesisFields } from "@/modules/work/domain/benefit-hypothesis";
@@ -90,17 +91,18 @@ export function benefitHypothesisDiffRows(
  * screens.
  */
 export function RevisionEditLayout({ left, right }: { left: ReactNode; right: ReactNode }) {
+  const t = useTranslations();
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Letzte Freigabe
+          {t("work.epic.letzteFreigabe")}
         </p>
         {left}
       </div>
       <div className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Neue Version
+          {t("work.epic.neueVersion")}
         </p>
         {right}
       </div>
@@ -113,11 +115,12 @@ export function RevisionEditLayout({ left, right }: { left: ReactNode; right: Re
  * the current/new version (right). Changed fields are pastel-highlighted.
  */
 export function RevisionDiff({ rows }: { rows: DiffRow[] }) {
+  const t = useTranslations();
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-4 px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        <span>Letzte Freigabe</span>
-        <span>Neue Version</span>
+        <span>{t("work.epic.letzteFreigabe")}</span>
+        <span>{t("work.epic.neueVersion")}</span>
       </div>
       {rows.map((r) => {
         const changed = r.before !== r.after;

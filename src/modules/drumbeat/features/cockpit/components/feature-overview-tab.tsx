@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { FeatureOwnerAssign } from "@/modules/work/features/feature/components/feature-owner-assign";
@@ -44,15 +45,16 @@ export function FeatureOverviewTab({
   epicOptions,
   userLabels,
 }: Props) {
+  const t = useTranslations();
   return (
     <div className="space-y-6">
       <SummaryHeader model={model} />
 
       <section className="grid gap-4 md:grid-cols-2">
-        <Field label="Status">
+        <Field label={t("drumbeat.ui.status")}>
           <StatusPill status={model.status} />
         </Field>
-        <Field label="Solution">
+        <Field label={t("drumbeat.ui.solution")}>
           <FeatureSolutionAssign
             featureId={model.id}
             artId={model.art?.id ?? ""}
@@ -62,7 +64,7 @@ export function FeatureOverviewTab({
             canEdit={canEdit && model.art !== null}
           />
         </Field>
-        <Field label="Epic">
+        <Field label={t("drumbeat.ui.epic")}>
           <FeatureParentAssign
             featureId={model.id}
             artId={model.art?.id ?? ""}
@@ -71,14 +73,14 @@ export function FeatureOverviewTab({
             canEdit={canEdit && model.art !== null}
           />
         </Field>
-        <Field label="Wertstrom · ART">
+        <Field label={t("drumbeat.ui.wertstromArt")}>
           <span className="text-sm">
             {model.valueStream?.name ?? "—"}
             <span className="mx-2 text-muted-foreground">·</span>
             {model.art?.name ?? "—"}
           </span>
         </Field>
-        <Field label="PI">
+        <Field label={t("drumbeat.ui.pi")}>
           {model.pi ? (
             <Link
               href={`/umsetzung/pi/${model.pi.id}` as never}
@@ -88,10 +90,10 @@ export function FeatureOverviewTab({
               <ArrowRight className="size-3" />
             </Link>
           ) : (
-            <span className="text-muted-foreground">Backlog</span>
+            <span className="text-muted-foreground">{t("drumbeat.ui.backlog")}</span>
           )}
         </Field>
-        <Field label="Owner">
+        <Field label={t("drumbeat.ui.owner")}>
           <FeatureOwnerAssign
             featureId={model.id}
             artId={model.art?.id ?? ""}
@@ -103,7 +105,7 @@ export function FeatureOverviewTab({
         </Field>
         <div>
           <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            Feature-Typ
+            {t("drumbeat.ui.featureTyp")}
           </p>
           {model.art ? (
             <FeatureClassificationForm
@@ -118,7 +120,7 @@ export function FeatureOverviewTab({
             </div>
           )}
         </div>
-        <Field label="Erstellt · Aktualisiert">
+        <Field label={t("drumbeat.ui.erstelltAktualisiert")}>
           <span className="text-sm">
             {formatDate(model.createdAt)}
             <span className="mx-2 text-muted-foreground">·</span>
@@ -131,7 +133,7 @@ export function FeatureOverviewTab({
 
       <section>
         <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Beschreibung
+          {t("drumbeat.ui.beschreibung")}
         </p>
         {canEdit && model.art ? (
           <FeatureEditForm
@@ -146,7 +148,7 @@ export function FeatureOverviewTab({
           </p>
         ) : (
           <p className="rounded-lg border border-dashed bg-card px-4 py-3 text-sm text-muted-foreground">
-            Keine Beschreibung.
+            {t("drumbeat.ui.keineBeschreibung")}
           </p>
         )}
       </section>
@@ -225,6 +227,7 @@ function StatusPill({ status }: { status: string }) {
  * (fuer Berechtigte) dem Score-Bearbeiten-Dialog.
  */
 function WsjfBlock({ model, canEdit }: { model: FeatureDetailModel; canEdit: boolean }) {
+  const t = useTranslations();
   const w = model.wsjf;
   const costOfDelay = (w.businessValue ?? 0) + (w.timeCriticality ?? 0) + (w.riskReduction ?? 0);
   const cells: [string, number | null][] = [
@@ -237,7 +240,7 @@ function WsjfBlock({ model, canEdit }: { model: FeatureDetailModel; canEdit: boo
     <section className="space-y-3">
       <div className="flex items-center gap-3">
         <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          WSJF
+          {t("drumbeat.ui.wsjf")}
         </p>
         {canEdit && model.art && (
           <WsjfScoreDialog
@@ -262,17 +265,17 @@ function WsjfBlock({ model, canEdit }: { model: FeatureDetailModel; canEdit: boo
       </div>
       <div className="flex flex-wrap items-center gap-6 rounded-lg border border-info/30 bg-info-surface p-4">
         <div>
-          <p className="text-xs text-muted-foreground">Cost of Delay</p>
+          <p className="text-xs text-muted-foreground">{t("drumbeat.ui.costOfDelay")}</p>
           <p className="text-xl font-semibold text-foreground tabular-nums">{costOfDelay}</p>
         </div>
         <div className="text-xl text-muted-foreground/60">÷</div>
         <div>
-          <p className="text-xs text-muted-foreground">Job Size</p>
+          <p className="text-xs text-muted-foreground">{t("drumbeat.ui.jobSize")}</p>
           <p className="text-xl font-semibold text-foreground tabular-nums">{w.jobSize ?? "—"}</p>
         </div>
         <div className="text-xl text-muted-foreground/60">=</div>
         <div>
-          <p className="text-xs text-muted-foreground">WSJF Score</p>
+          <p className="text-xs text-muted-foreground">{t("drumbeat.ui.wsjfScore")}</p>
           <p className="text-3xl font-bold text-primary/80 tabular-nums">
             {formatWsjf(w.computed)}
           </p>
@@ -283,14 +286,15 @@ function WsjfBlock({ model, canEdit }: { model: FeatureDetailModel; canEdit: boo
 }
 
 function AcceptanceList({ items }: { items: string[] }) {
+  const t = useTranslations();
   if (items.length === 0) {
     return (
       <section>
         <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Acceptance Criteria
+          {t("drumbeat.ui.acceptanceCriteria")}
         </p>
         <p className="rounded-lg border border-dashed bg-card px-4 py-3 text-sm text-muted-foreground">
-          Noch keine Acceptance Criteria — werden in P1.B im eigenen Tab gepflegt.
+          {t("drumbeat.ui.nochKeineAcceptanceCriteria")}
         </p>
       </section>
     );
@@ -298,7 +302,7 @@ function AcceptanceList({ items }: { items: string[] }) {
   return (
     <section>
       <p className="mb-1.5 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        Acceptance Criteria
+        {t("drumbeat.ui.acceptanceCriteria")}
       </p>
       <ul className="space-y-1.5 rounded-lg bg-card p-4 text-sm shadow-card">
         {items.map((c, i) => (

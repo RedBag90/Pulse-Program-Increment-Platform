@@ -34,7 +34,7 @@ import { subStageFor } from "@/modules/work/domain/stage-gate";
 import { type GateReadiness, nextGate, previousGate } from "@/modules/work/domain/gate-readiness";
 import { type ApprovalStatus, type Quorum } from "@/modules/work/domain/approval-primitives";
 import {
-  GATE_APPROVER_ROLE_LABELS,
+  GATE_APPROVER_ROLE_KEYS,
   BUSINESS_CASE_PARTY_ROLES,
   allowsAdHocApprovers,
   isGateApproverRole,
@@ -352,7 +352,7 @@ export interface EpicGateApproverView {
   id: string;
   userId: string;
   /** Anzeige-Rolle ("Finance", "VMO", …) oder null bei direkt benannten Personen. */
-  roleLabel: string | null;
+  roleLabelKey: string | null;
   status: ApprovalStatus;
   decidedAt: string | null;
   comment: string | null;
@@ -381,7 +381,7 @@ export interface EpicGateRequestView {
  * hat vorher der Approver-Dialog des Business Case erfasst.
  */
 export interface GatePartyStaffing {
-  roles: { role: GateApproverRole; label: string }[];
+  roles: { role: GateApproverRole; labelKey: string }[];
   /** Rolle → vorbelegte userIds (Finance und LACE/VMO aus dem Wertstrom). */
   defaults: Record<string, string[]>;
 }
@@ -831,7 +831,7 @@ export async function loadEpicDetailInputs(
         ? {
             roles: BUSINESS_CASE_PARTY_ROLES.map((role) => ({
               role,
-              label: GATE_APPROVER_ROLE_LABELS[role],
+              labelKey: GATE_APPROVER_ROLE_KEYS[role],
             })),
             // **Vier** der fünf Parteien haben eine Governance-Spalte am
             // Wertstrom und werden daraus vorbelegt; nur den IRT-Owner benennt
@@ -926,8 +926,8 @@ function buildGateSlice(input: {
         approvers: input.openRequest.approvers.map((a) => ({
           id: a.id,
           userId: a.userId,
-          roleLabel:
-            a.role && isGateApproverRole(a.role) ? GATE_APPROVER_ROLE_LABELS[a.role] : null,
+          roleLabelKey:
+            a.role && isGateApproverRole(a.role) ? GATE_APPROVER_ROLE_KEYS[a.role] : null,
           status: a.status,
           decidedAt: a.decidedAt?.toISOString() ?? null,
           comment: a.comment,

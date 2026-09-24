@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { ALL_ROLES, ROLE_LABELS } from "@/modules/core/kernel/domain/roles";
 import { moduleForAction, MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
-import { ALL_DUTIES, DUTY_LEVEL_LABEL } from "@/modules/core/org/domain/role-directory";
+import { ALL_DUTIES, DUTY_LEVEL_KEYS } from "@/modules/core/org/domain/role-directory";
 import { ROLE_PLAYBOOKS } from "@/modules/onboarding/domain/role-playbook";
 import { appRoutes } from "@/test/helpers/app-routes";
 
@@ -72,7 +72,7 @@ describe("Zustaendigkeiten", () => {
 
   it("jeder Platz traegt Anliegen, Bezeichnung und eine benannte Ebene", () => {
     const kaputt = ALL_DUTIES.filter(
-      (d) => d.duty.length < 5 || d.role.length < 3 || DUTY_LEVEL_LABEL[d.level] == null,
+      (d) => d.duty.length < 5 || d.role.length < 3 || DUTY_LEVEL_KEYS[d.level] == null,
     ).map((d) => d.key);
     expect(kaputt).toEqual([]);
   });

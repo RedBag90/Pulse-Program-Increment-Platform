@@ -1,9 +1,10 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
 import { STICKY_THEAD } from "@/components/ui/table-chrome";
 import { STATUS_LABELS } from "@/components/detail/initiative-labels";
-import { STAGE_SHORT } from "@/components/detail/initiative-labels";
+import { STAGE_SHORT_KEYS } from "@/components/detail/initiative-labels";
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 import { isClassShown, rollUpBySolution } from "@/modules/work/domain/epic-class-filter";
 import { rollupTone } from "@/modules/work/features/portfolio/overview/blocks/class-rollup";
@@ -20,6 +21,7 @@ import { rollupTone } from "@/modules/work/features/portfolio/overview/blocks/cl
  * Datenfehler.
  */
 export function SteeringTableBlock({ data }: { data: PortfolioOverview }) {
+  const t = useTranslations();
   const { classFilter } = data;
   const rows = data.steeringEpics.filter((r) => isClassShown(r.epicClass, classFilter.selected));
   const rollups = rollUpBySolution(
@@ -29,7 +31,7 @@ export function SteeringTableBlock({ data }: { data: PortfolioOverview }) {
   return (
     <Card className="space-y-3 p-4">
       <div className="flex items-center justify-between gap-2">
-        <SectionLabel>Zur Steuerung markiert</SectionLabel>
+        <SectionLabel>{t("work.overview.zurSteuerungMarkiert")}</SectionLabel>
         {rows.length > 0 && (
           <span className="font-mono text-xs tabular-nums text-muted-foreground">
             {rows.length}
@@ -48,12 +50,14 @@ export function SteeringTableBlock({ data }: { data: PortfolioOverview }) {
           <table className="w-full border-collapse text-xs">
             <thead className={STICKY_THEAD}>
               <tr>
-                <th className="px-3 py-2 text-left font-medium">Titel</th>
-                <th className="px-3 py-2 text-left font-medium">Stage Gate</th>
-                <th className="px-3 py-2 text-left font-medium">Status</th>
-                <th className="px-3 py-2 text-left font-medium">Owner</th>
-                <th className="px-3 py-2 text-left font-medium">Wertstrom</th>
-                <th className="px-3 py-2 text-right font-medium">Tage seit Update</th>
+                <th className="px-3 py-2 text-left font-medium">{t("work.overview.titel")}</th>
+                <th className="px-3 py-2 text-left font-medium">{t("work.overview.stageGate")}</th>
+                <th className="px-3 py-2 text-left font-medium">{t("work.overview.status")}</th>
+                <th className="px-3 py-2 text-left font-medium">{t("work.overview.owner")}</th>
+                <th className="px-3 py-2 text-left font-medium">{t("work.overview.wertstrom")}</th>
+                <th className="px-3 py-2 text-right font-medium">
+                  {t("work.overview.tageSeitUpdate")}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -67,7 +71,9 @@ export function SteeringTableBlock({ data }: { data: PortfolioOverview }) {
                       {r.title}
                     </Link>
                   </td>
-                  <td className="px-3 py-2 text-muted-foreground">{STAGE_SHORT[r.stageGate]}</td>
+                  <td className="px-3 py-2 text-muted-foreground">
+                    {t(STAGE_SHORT_KEYS[r.stageGate] ?? r.stageGate)}
+                  </td>
                   <td className="px-3 py-2 text-muted-foreground">
                     {STATUS_LABELS[r.status] ?? r.status}
                   </td>
@@ -86,7 +92,8 @@ export function SteeringTableBlock({ data }: { data: PortfolioOverview }) {
       {rollups.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-t border-dashed pt-3">
           <span className="text-xs text-muted-foreground">
-            Nicht in der Tabelle · {classFilter.hiddenLabel}:
+            {t("work.overview.notInTable")} ·{" "}
+            {classFilter.hiddenLabelKey && t(classFilter.hiddenLabelKey)}:
           </span>
           {rollups.map((r) => (
             <span

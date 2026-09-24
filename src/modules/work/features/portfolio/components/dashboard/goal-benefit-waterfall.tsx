@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import type { Translate } from "@/i18n/translate";
 import { useMemo, useState } from "react";
 import {
   BarChart,
@@ -27,7 +29,7 @@ import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { epicColor, NEUTRAL_COLOR, TOP_EPIC_SERIES } from "./epic-colors";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
-import { STAGE_SHORT } from "@/components/detail/initiative-labels";
+import { STAGE_SHORT_KEYS } from "@/components/detail/initiative-labels";
 
 /** Deckkraft der Estimate/Forecast-Anteile (Zeit-/Reifegrad-Konfidenz). */
 const FORECAST_OPACITY = 0.4;
@@ -49,7 +51,7 @@ const STAGE_COLORS: Record<StageGate, string> = {
  * Hier stand bis September 2026 die zweite Abschrift derselben veralteten
  * Wortliste wie im Dashboard nebenan („Detailing", „Analyse", „Backlog").
  */
-const stageSublabel = (gate: StageGate): string => STAGE_SHORT[gate] ?? gate;
+const stageSublabel = (gate: StageGate, t: Translate): string => t(STAGE_SHORT_KEYS[gate] ?? gate);
 
 // ── Bucket-Dimension aus dem Ansicht-Umschalter des Dashboards ──────────────
 
@@ -93,12 +95,13 @@ function buildDimension(
   selectedEpicIds: ReadonlySet<string> | null,
   epicInfoById: Record<string, WaterfallEpicInfo>,
 ): WaterfallDimension {
+  const t = useTranslations();
   if (mode === "status") {
     return {
       buckets: STAGE_ORDER.map((gate) => ({
         key: gate,
         label: gate,
-        sublabel: stageSublabel(gate),
+        sublabel: stageSublabel(gate, t),
         color: STAGE_COLORS[gate],
       })),
       keyOf: (e) => e.gate,
@@ -409,6 +412,7 @@ export function GoalBenefitWaterfallSection({
   /** Dimension-Fakten je Epic (VS/ART/Titel/Farbe), aus `data.epics` gebaut. */
   epicInfoById: Record<string, WaterfallEpicInfo>;
 }) {
+  const t = useTranslations();
   // Wurzel-Ziele zuerst; Unterziele hängen im Selektor eingerückt darunter.
   const rootGoals = useMemo(() => data.goals.filter((g) => g.parentId === null), [data.goals]);
   const goalOptions = useMemo(() => {
@@ -448,13 +452,15 @@ export function GoalBenefitWaterfallSection({
     return (
       <Card className="p-4">
         <div className="mb-3">
-          <h2 className="font-heading text-sm font-medium">Benefit-Wasserfall</h2>
+          <h2 className="font-heading text-sm font-medium">
+            {t("work.dashboard.benefitWasserfall")}
+          </h2>
           <p className="text-xs text-muted-foreground">Wert je Status &amp; Lücke zum Ziel</p>
         </div>
         <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
           Noch keine messbaren Ziele mit Zielwert. Lege in den{" "}
           <Link href={"/ziele" as never} className="text-primary hover:underline">
-            Zielen
+            {t("work.dashboard.zielen")}
           </Link>{" "}
           ein Ziel mit Zielwert an und verknüpfe Epics.
         </p>
@@ -466,14 +472,16 @@ export function GoalBenefitWaterfallSection({
     <Card className="p-4">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-heading text-sm font-medium">Benefit-Wasserfall</h2>
+          <h2 className="font-heading text-sm font-medium">
+            {t("work.dashboard.benefitWasserfall")}
+          </h2>
           <p className="text-xs text-muted-foreground">
             Wert je {GROUP_LABEL[groupMode]} &amp; Lücke zum Ziel — Bezug: heute
           </p>
         </div>
         <div className="flex items-center gap-2">
           <label htmlFor="wf-goal" className="text-xs text-muted-foreground">
-            Ziel
+            {t("work.dashboard.ziel")}
           </label>
           <select
             id="wf-goal"
@@ -506,25 +514,25 @@ export function GoalBenefitWaterfallSection({
             className="inline-block h-3 w-3 rounded-sm"
             style={{ background: "var(--foreground)" }}
           />
-          Ist / realisiert
+          {t("work.dashboard.istRealisiert")}
         </span>
         <span className="flex items-center gap-1.5">
           <span
             className="inline-block h-3 w-3 rounded-sm"
             style={{ background: "var(--foreground)", opacity: FORECAST_OPACITY }}
           />
-          Estimate / Forecast (Rest zum Ziel)
+          {t("work.dashboard.estimateForecastRestZum")}
         </span>
         <span className="flex items-center gap-1.5">
           <span
             className="inline-block h-3 w-3 rounded-sm"
             style={{ background: GAP_COLOR, opacity: 0.55 }}
           />
-          Deckungslücke
+          {t("work.dashboard.deckungsluecke")}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-0 w-4 border-t-2 border-dashed border-foreground" />
-          Zielwert
+          {t("work.dashboard.zielwert")}
         </span>
       </div>
 
@@ -532,7 +540,7 @@ export function GoalBenefitWaterfallSection({
       {rootGoals.length > 1 && (
         <div className="mt-4 border-t pt-3">
           <p className="mb-2 text-label uppercase tracking-[0.1em] text-muted-foreground">
-            Alle Ziele
+            {t("work.dashboard.alleZiele")}
           </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {rootGoals.map((g) => (

@@ -10,11 +10,11 @@ export const TEAM_TYPES = [
 ] as const;
 export type TeamType = (typeof TEAM_TYPES)[number];
 
-export const TEAM_TYPE_LABELS: Record<TeamType, string> = {
-  stream_aligned: "Stream-aligned",
-  complicated_subsystem: "Complicated Subsystem",
-  platform: "Platform",
-  enabling: "Enabling",
+export const TEAM_TYPE_KEYS: Record<TeamType, string> = {
+  stream_aligned: "org.teamType.streamAligned",
+  complicated_subsystem: "org.teamType.complicatedSubsystem",
+  platform: "org.teamType.platform",
+  enabling: "org.teamType.enabling",
 };
 
 export const isTeamType = makeTypeGuard(TEAM_TYPES);

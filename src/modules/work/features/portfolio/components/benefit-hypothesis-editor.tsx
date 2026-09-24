@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { Lock } from "lucide-react";
 import { saveBenefitHypothesisAction } from "@/modules/work/features/portfolio/actions/benefit-hypothesis";
@@ -32,6 +33,7 @@ export function BenefitHypothesisEditor({
   readOnly = false,
   lockReason,
 }: BenefitHypothesisEditorProps) {
+  const t = useTranslations();
   const [state, action, isPending] = useActionState(saveBenefitHypothesisAction, {});
 
   return (
@@ -48,34 +50,36 @@ export function BenefitHypothesisEditor({
         <fieldset disabled={readOnly} className="space-y-6 border-0 p-0 m-0 min-w-0">
           <div>
             <label htmlFor="bh-measures" className="block text-sm font-medium mb-1">
-              Maßnahmen-Hypothese
+              {t("work.epic.massnahmenHypothese")}
             </label>
             <Textarea
               id="bh-measures"
               name="measuresHypothesis"
               rows={4}
               defaultValue={current.measuresHypothesis}
-              placeholder="Welche Maßnahme wird vorgeschlagen und warum?"
+              placeholder={t("work.epic.welcheMassnahmeWirdVorgeschlagen")}
             />
           </div>
 
           <div>
             <label htmlFor="bh-change" className="block text-sm font-medium mb-1">
-              Veränderung ggü. Startpunkt
+              {t("work.epic.veraenderungGgueStartpunkt")}
             </label>
             <Textarea
               id="bh-change"
               name="changeFromBaseline"
               rows={3}
               defaultValue={current.changeFromBaseline}
-              placeholder="Wie unterscheidet sich die Lösung vom heutigen Zustand?"
+              placeholder={t("work.epic.wieUnterscheidetSichDie")}
             />
           </div>
 
           <div>
             <label htmlFor="bh-outcomes" className="block text-sm font-medium mb-1">
-              Business Outcomes
-              <span className="ml-2 font-normal text-muted-foreground">— ein Punkt pro Zeile</span>
+              {t("work.epic.businessOutcomes")}
+              <span className="ml-2 font-normal text-muted-foreground">
+                {t("work.epic.einPunktProZeile")}
+              </span>
             </label>
             <Textarea
               id="bh-outcomes"
@@ -90,29 +94,33 @@ export function BenefitHypothesisEditor({
 
           <div>
             <label htmlFor="bh-indicators" className="block text-sm font-medium mb-1">
-              Leading Indicators
-              <span className="ml-2 font-normal text-muted-foreground">— ein Punkt pro Zeile</span>
+              {t("work.epic.leadingIndicators")}
+              <span className="ml-2 font-normal text-muted-foreground">
+                {t("work.epic.einPunktProZeile")}
+              </span>
             </label>
             <Textarea
               id="bh-indicators"
               name="leadingIndicators"
               rows={4}
               defaultValue={current.leadingIndicators?.join("\n")}
-              placeholder={"Frühindikatoren, die den Business Outcome vorhersagen"}
+              placeholder={t("work.epic.fruehindikatorenDieDenBusiness")}
             />
           </div>
 
           <div>
             <label htmlFor="bh-risks" className="block text-sm font-medium mb-1">
               Risks &amp; Abhängigkeiten
-              <span className="ml-2 font-normal text-muted-foreground">— ein Punkt pro Zeile</span>
+              <span className="ml-2 font-normal text-muted-foreground">
+                {t("work.epic.einPunktProZeile")}
+              </span>
             </label>
             <Textarea
               id="bh-risks"
               name="risks"
               rows={4}
               defaultValue={current.risks?.join("\n")}
-              placeholder={"Risiken und Abhängigkeiten"}
+              placeholder={t("work.epic.risikenUndAbhaengigkeiten")}
             />
           </div>
         </fieldset>
@@ -124,7 +132,7 @@ export function BenefitHypothesisEditor({
         )}
         {state.success && (
           <p role="status" className="text-sm text-emerald-600 dark:text-emerald-400">
-            Benefit Hypothese gespeichert.
+            {t("work.epic.benefitHypotheseGespeichert")}
           </p>
         )}
 

@@ -68,7 +68,7 @@ export function isGateStep(value: string): value is GateStep {
 }
 
 /**
- * Beschriftung der **Schritte** — bewusst getrennt von `STAGE_GATE_LABELS`
+ * Beschriftung der **Schritte** — bewusst getrennt von `STAGE_GATE_KEYS`
  * (`src/components/detail/initiative-labels.ts`), das dieselben Schlüssel für
  * die **Major-Gates** benutzt.
  *
@@ -83,18 +83,17 @@ export function isGateStep(value: string): value is GateStep {
  * neuer Schritt. `GATE_STEPS`, `stage_gate_transitions.toGate` und die v1-API
  * sind unberührt.
  */
-export const GATE_STEP_LABELS: Record<GateStep, string> = {
-  L0: "L0 Idee",
-  L1: "L1 Hypothese freigegeben",
+export const GATE_STEP_KEYS: Record<GateStep, string> = {
+  L0: "work.gateStep.l0",
+  L1: "work.gateStep.l1",
   // Ohne Nummer, und das ist die Aussage: dieser Schritt bewegt den Reifegrad
-  // nicht. Seine kurze Marke steht in `NUMBERLESS` — aus diesem Etikett liesse
-  // sie sich nicht ableiten (das erste Wort waere „Zur").
-  analysis: "Zur Analyse ausgewählt",
-  L2: "L2 Business Case freigegeben",
-  L3: "L3 Budget alloziert",
-  L4: "L4.1 Umsetzung läuft",
-  "L4.2": "L4.2 Umsetzung fertig",
-  L5: "L5 Impact realisiert",
+  // nicht. Seine kurze Marke steht in {@link GATE_STEP_NUMBER_KEYS}.
+  analysis: "work.gateStep.analysis",
+  L2: "work.gateStep.l2",
+  L3: "work.gateStep.l3",
+  L4: "work.gateStep.l4",
+  "L4.2": "work.gateStep.l42",
+  L5: "work.gateStep.l5",
 };
 
 /**
@@ -104,12 +103,12 @@ export const GATE_STEP_LABELS: Record<GateStep, string> = {
  * Ein Schritt steht hier genau dann, wenn er `stage_gate` nicht bewegt. Zwei
  * Dinge hängen daran, und beide sollen sich nie widersprechen können: er taucht
  * auf der Reifegrad-Leiter nicht auf ({@link LADDER_STEPS}), und
- * {@link gateStepNumber} gibt für ihn diese Marke statt einer Nummer.
+ * {@link gateStepNumberKey} gibt für ihn diese Marke statt einer Nummer.
  *
  * `L4.2` bewegt den Reifegrad ebenfalls nicht, steht aber **nicht** hier: es
  * trägt eine echte Nummer, unter der es am Epic auch angezeigt wird.
  */
-const NUMBERLESS: Partial<Record<GateStep, string>> = { analysis: "Analyse" };
+const NUMBERLESS: readonly GateStep[] = ["analysis"];
 
 /**
  * Die Schritte der **Reifegrad-Leiter**: `GATE_STEPS` ohne die nummernlosen.
@@ -120,11 +119,13 @@ const NUMBERLESS: Partial<Record<GateStep, string>> = { analysis: "Analyse" };
  * **Reifegrad**, und den bewegt `analysis` nicht. Wer beide Listen
  * gleichsetzte, schrieb einen Punkt auf die Leiter, der dort nichts misst.
  */
-export const LADDER_STEPS: readonly GateStep[] = GATE_STEPS.filter((step) => !(step in NUMBERLESS));
+export const LADDER_STEPS: readonly GateStep[] = GATE_STEPS.filter(
+  (step) => !NUMBERLESS.includes(step),
+);
 
-/** Beschriftung eines Schritts; unbekannte Werte fallen auf sich selbst zurück. */
-export function gateStepLabel(step: string): string {
-  return GATE_STEP_LABELS[step as GateStep] ?? step;
+/** Katalog-Schlüssel eines Schritts; unbekannte Werte fallen auf sich selbst zurück. */
+export function gateStepKey(step: string): string {
+  return GATE_STEP_KEYS[step as GateStep] ?? step;
 }
 
 /**
@@ -133,20 +134,35 @@ export function gateStepLabel(step: string): string {
  * Der gespeicherte Wert bleibt `"L4"`; das ist der Schlüssel in
  * `stage_gate_transitions`, in der v1-API und in jeder Historie. Angezeigt
  * werden darf er nie: wer ihn roh ausgibt, zeigt eine Nummer, die es am Epic
- * danach nicht gibt — genau die Verwechslung, die `GATE_STEP_LABELS` oben
+ * danach nicht gibt — genau die Verwechslung, die `GATE_STEP_KEYS` oben
  * beschreibt.
  *
- * Abgeleitet aus derselben Etikettenliste, damit keine zweite entsteht — für
- * die nummernlosen Schritte trägt {@link NUMBERLESS} die Marke, weil aus deren
- * Etikett nichts Brauchbares abzuleiten ist: „Zur Analyse ausgewählt" ergäbe
- * das abgeschnittene Wort „Zur", und genau das stand eine Zeit lang in der
- * Epics-Tabelle („Wechsel nach Zur beantragt").
+ * **Eine eigene Tabelle, nicht mehr aus dem Etikett geschnitten.** Bis
+ * September 2026 stand hier `label.split(" ")[0]` — das erste Wort des
+ * deutschen Etiketts. Für „Zur Analyse ausgewählt" ergab das „Zur", und genau
+ * das stand eine Zeit lang in der Epics-Tabelle („Wechsel nach Zur beantragt").
+ * Geflickt war es mit einer Ausnahmeliste; mit der Übersetzung wäre es erneut
+ * gebrochen, denn aus `"work.gateStep.l4"` lässt sich gar nichts schneiden.
+ *
+ * Die Nummern stehen deshalb ausgeschrieben im Katalog — auch die, die in
+ * beiden Sprachen gleich lauten. Das ist Regel 1 aus ADR-0024, und hier zahlt
+ * sie sich aus: `analysis` trägt keine Nummer, sondern ein Wort, und das ist in
+ * derselben Tabelle nicht mehr die Ausnahme, sondern ein Eintrag wie jeder
+ * andere.
  */
-export function gateStepNumber(step: string): string {
-  const numberless = NUMBERLESS[step as GateStep];
-  if (numberless) return numberless;
-  const label = GATE_STEP_LABELS[step as GateStep];
-  return label ? (label.split(" ")[0] ?? step) : step;
+export const GATE_STEP_NUMBER_KEYS: Record<GateStep, string> = {
+  L0: "work.gateStepNumber.l0",
+  L1: "work.gateStepNumber.l1",
+  analysis: "work.gateStepNumber.analysis",
+  L2: "work.gateStepNumber.l2",
+  L3: "work.gateStepNumber.l3",
+  L4: "work.gateStepNumber.l4",
+  "L4.2": "work.gateStepNumber.l42",
+  L5: "work.gateStepNumber.l5",
+};
+
+export function gateStepNumberKey(step: string): string {
+  return GATE_STEP_NUMBER_KEYS[step as GateStep] ?? step;
 }
 
 /** Erlaubte Schritt-Wechsel: ein Schritt vor oder zurück. */

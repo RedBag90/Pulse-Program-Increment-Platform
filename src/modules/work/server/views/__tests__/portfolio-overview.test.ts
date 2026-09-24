@@ -584,13 +584,13 @@ describe("Klassen-Facette im Overview-Modell", () => {
 
   it("zählt die zusammengefassten Epics und benennt die Klasse", () => {
     expect(build(["portfolio"]).classFilter).toMatchObject({
-      hiddenLabel: "ART-Epics",
+      hiddenLabelKey: "work.epicClassPlural.art",
       hiddenClass: "art",
       hiddenCount: 2,
     });
     // Ohne Business Case zählt zur Portfolio-Seite — bei `cls=art` verborgen.
     expect(build(["art"]).classFilter).toMatchObject({
-      hiddenLabel: "Portfolio-Epics",
+      hiddenLabelKey: "work.epicClassPlural.portfolio",
       hiddenClass: "portfolio",
       hiddenCount: 2,
     });
@@ -598,7 +598,7 @@ describe("Klassen-Facette im Overview-Modell", () => {
 
   it("fasst ohne Facette nichts zusammen", () => {
     expect(build([]).classFilter).toMatchObject({
-      hiddenLabel: null,
+      hiddenLabelKey: null,
       hiddenClass: null,
       hiddenCount: 0,
     });

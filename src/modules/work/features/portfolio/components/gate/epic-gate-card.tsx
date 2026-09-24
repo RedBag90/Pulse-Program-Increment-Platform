@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, startTransition } from "react";
 import {
   ArrowUp,
@@ -19,7 +20,7 @@ import {
   withdrawGateTransitionAction,
 } from "@/modules/work/features/portfolio/actions/stage-gate";
 import { setEpicHelpRequestedAction } from "@/modules/work/features/portfolio/actions/epic";
-import { gateStepLabel } from "@/modules/work/domain/stage-gate";
+import { gateStepKey } from "@/modules/work/domain/stage-gate";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import type { EpicGateSlice } from "@/modules/work/server/views/epic-detail";
 import {
@@ -65,7 +66,7 @@ const CLARIFY =
 
 // Hier werden **Schritte** benannt, nicht Major-Gates: `L4` heißt deshalb
 // „L4.1 Umsetzung läuft" — dieselbe Zahl, die danach am Epic steht.
-const gateLabel = gateStepLabel;
+const gateLabel = gateStepKey;
 
 /**
  * Sprungziel je Freigabe-Kriterium: der Ort, an dem man es erfüllt. Nach
@@ -135,6 +136,7 @@ interface Props {
 }
 
 export function EpicGateCard({ epicId, gate, approvers, userLabels, classDrift }: Props) {
+  const t = useTranslations();
   if (gate.disabled) return null;
 
   return (
@@ -156,11 +158,11 @@ export function EpicGateCard({ epicId, gate, approvers, userLabels, classDrift }
           {gate.next && (
             <h2 className="flex items-center gap-1.5 text-sm font-semibold">
               <ListChecks className="size-4 shrink-0 text-primary" aria-hidden />
-              To-dos für {gateLabel(gate.next)}
+              {t("work.gate.todosFor", { step: t(gateLabel(gate.next)) })}
             </h2>
           )}
           <p className={gate.next ? "mt-0.5 text-xs text-muted-foreground" : "text-sm"}>
-            <span className={gate.next ? "" : "font-medium"}>Reifegrad heute:</span>{" "}
+            <span className={gate.next ? "" : "font-medium"}>{t("work.gate.reifegradHeute")}</span>{" "}
             {gateLabel(gate.current)}
           </p>
         </div>
@@ -194,6 +196,7 @@ export function EpicGateCard({ epicId, gate, approvers, userLabels, classDrift }
  * Abhaken nimmt die Bitte zurück.
  */
 function HelpRequestControl({ epicId, requested }: { epicId: string; requested: boolean }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(setEpicHelpRequestedAction, {});
 
   function toggle(next: boolean) {
@@ -214,12 +217,13 @@ function HelpRequestControl({ epicId, requested }: { epicId: string; requested: 
           className="size-4 rounded-sm border-input"
         />
         <span className="inline-flex items-center gap-1.5 font-medium">
-          <LifeBuoy className="size-3.5 text-muted-foreground" />I need help
+          <LifeBuoy className="size-3.5 text-muted-foreground" />
+          {t("work.gate.iNeedHelp")}
         </span>
       </label>
       {requested && (
         <p className="pl-6 text-meta text-muted-foreground">
-          VMO und Portfolio-Management sehen dieses Epic jetzt in „Meine Tasks".
+          {t("work.gate.vmoUndPortfolioManagement")}
         </p>
       )}
       {state.error && <p className="pl-6 text-xs text-destructive">{state.error}</p>}
@@ -244,6 +248,7 @@ function NoRequest({
   userLabels: Record<string, string>;
   classDrift: DriftInfo | null;
 }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(requestGateTransitionAction, {});
   const [driftOpen, setDriftOpen] = useState(false);
   // Besetzung der Parteien — nur an den Schritten, die eine je Epic zulassen
@@ -268,7 +273,7 @@ function NoRequest({
 
   if (!gate.next) {
     return (
-      <p className="text-xs text-muted-foreground">Endgate erreicht — kein weiterer Wechsel.</p>
+      <p className="text-xs text-muted-foreground">{t("work.gate.endgateErreichtKeinWeiterer")}</p>
     );
   }
 
@@ -338,7 +343,7 @@ function NoRequest({
                         „(optional)" an allen anderen war Tapete. */}
                     {c.blocking && (
                       <span className="rounded-sm bg-muted px-1.5 py-0.5 text-label font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                        Pflicht
+                        {t("work.gate.pflicht")}
                       </span>
                     )}
                   </span>
@@ -421,6 +426,7 @@ function OpenRequest({
   const [withdrawState, withdraw, withdrawing] = useActionState(withdrawGateTransitionAction, {});
   if (!request) return null;
 
+  const t = useTranslations();
   const name = (id: string) => userLabels[id] ?? "Unbekannt";
 
   function onWithdraw() {
@@ -437,7 +443,7 @@ function OpenRequest({
         <span className="font-medium">Push nach {gateLabel(request.toGate)} beantragt</span> von{" "}
         {name(request.requestedBy)}
         {request.quorum === "any" && (
-          <span className="text-muted-foreground"> · eine Abnahme genügt</span>
+          <span className="text-muted-foreground">{t("work.gate.eineAbnahmeGenuegt")}</span>
         )}
       </p>
       {request.reason && <p className="text-xs text-muted-foreground">„{request.reason}"</p>}
@@ -454,7 +460,9 @@ function OpenRequest({
             )}
             <span>
               {name(a.userId)}
-              {a.roleLabel && <span className="text-muted-foreground"> ({a.roleLabel})</span>}
+              {a.roleLabelKey && (
+                <span className="text-muted-foreground"> ({t(a.roleLabelKey)})</span>
+              )}
               {a.comment && <span className="text-muted-foreground"> — „{a.comment}"</span>}
             </span>
           </li>
@@ -481,6 +489,7 @@ function OpenRequest({
  * und In-Klärung verlangen eine Begründung.
  */
 function DecideButtons({ transitionId }: { transitionId: string }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(decideGateTransitionAction, {});
   const [open, setOpen] = useState<"reject" | "clarification" | null>(null);
   const [comment, setComment] = useState("");
@@ -503,7 +512,7 @@ function DecideButtons({ transitionId }: { transitionId: string }) {
           onChange={(e) => setComment(e.target.value)}
           rows={3}
           maxLength={1000}
-          placeholder="Begründung (erforderlich)"
+          placeholder={t("work.gate.begruendungErforderlich")}
           className="w-full rounded-md border border-input px-2 py-1 text-xs"
         />
         <div className="flex gap-2">
@@ -524,7 +533,7 @@ function DecideButtons({ transitionId }: { transitionId: string }) {
               setComment("");
             }}
           >
-            Abbrechen
+            {t("work.gate.abbrechen")}
           </button>
         </div>
         {state.error && <p className="text-xs text-destructive">{state.error}</p>}
@@ -534,7 +543,7 @@ function DecideButtons({ transitionId }: { transitionId: string }) {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium">Du bist als abnehmende Person benannt.</p>
+      <p className="text-xs font-medium">{t("work.gate.duBistAlsAbnehmende")}</p>
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -550,7 +559,7 @@ function DecideButtons({ transitionId }: { transitionId: string }) {
           className={CLARIFY}
           onClick={() => setOpen("clarification")}
         >
-          In Klärung schicken
+          {t("work.gate.inKlaerungSchicken")}
         </button>
         <button
           type="button"
@@ -558,7 +567,7 @@ function DecideButtons({ transitionId }: { transitionId: string }) {
           className={REJECT}
           onClick={() => setOpen("reject")}
         >
-          Ablehnen
+          {t("work.gate.ablehnen")}
         </button>
       </div>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}

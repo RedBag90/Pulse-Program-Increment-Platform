@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { updateValueStreamAction } from "@/modules/core/org/features/value-stream/actions/value-stream";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,7 @@ export function ValueStreamOverviewForm({
   vmoUsers,
   userLabels,
 }: Props) {
+  const t = useTranslations();
   const [state, action, isPending] = useActionState(updateValueStreamAction, {});
 
   return (
@@ -62,74 +64,69 @@ export function ValueStreamOverviewForm({
       <input type="hidden" name="id" value={id} />
 
       <div className="space-y-1.5">
-        <Label htmlFor="vs-name">Name</Label>
+        <Label htmlFor="vs-name">{t("org.ui.name")}</Label>
         <Input id="vs-name" name="name" defaultValue={name} required />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="vs-description">Beschreibung</Label>
+        <Label htmlFor="vs-description">{t("org.ui.beschreibung")}</Label>
         <Textarea id="vs-description" name="description" defaultValue={description} rows={4} />
       </div>
 
       <div className="space-y-1.5">
-        <Label>Finance Approver</Label>
+        <Label>{t("org.ui.financeApprover")}</Label>
         <UserPicker
           name="financeApproverId"
           defaultValue={financeApproverId}
           options={toUserOptions(users, userLabels)}
-          ariaLabel="Finance Approver"
-          placeholder="— Niemand —"
-          emptyLabel="— Niemand —"
+          ariaLabel={t("org.ui.financeApprover")}
+          placeholder={t("org.ui.niemand")}
+          emptyLabel={t("org.ui.niemand")}
         />
-        <p className="text-xs text-muted-foreground">
-          Nimmt die Epics dieses Wertstroms als Finance-Partei ab.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("org.ui.nimmtDieEpicsDieses")}</p>
       </div>
 
       <div className="space-y-1.5">
-        <Label>Portfolio Manager</Label>
+        <Label>{t("org.ui.portfolioManager")}</Label>
         <UserPicker
           name="vmoId"
           defaultValue={vmoId}
           options={toUserOptions(vmoUsers, userLabels)}
-          ariaLabel="Portfolio Manager"
-          placeholder="— Niemand —"
-          emptyLabel="— Niemand —"
+          ariaLabel={t("org.ui.portfolioManager")}
+          placeholder={t("org.ui.niemand")}
+          emptyLabel={t("org.ui.niemand")}
         />
         {vmoUsers.length === 0 ? (
-          <p className="text-xs text-warning">
-            Keine Nutzer mit Portfolio-Manager-Rolle im Mandanten.
-          </p>
+          <p className="text-xs text-warning">{t("org.ui.keineNutzerMitPortfolio")}</p>
         ) : (
-          <p className="text-xs text-muted-foreground">Zuständiges Value Management Office.</p>
+          <p className="text-xs text-muted-foreground">
+            {t("org.ui.zustaendigesValueManagementOffice")}
+          </p>
         )}
       </div>
 
       <div className="space-y-1.5">
-        <Label>Business Owner</Label>
+        <Label>{t("org.ui.businessOwner")}</Label>
         <UserPicker
           name="businessOwnerId"
           defaultValue={businessOwnerId}
           options={toUserOptions(users, userLabels)}
-          ariaLabel="Business Owner"
-          placeholder="— Niemand —"
-          emptyLabel="— Niemand —"
+          ariaLabel={t("org.ui.businessOwner")}
+          placeholder={t("org.ui.niemand")}
+          emptyLabel={t("org.ui.niemand")}
         />
-        <p className="text-xs text-muted-foreground">
-          Steht für den fachlichen Nutzen. Wird beim Business-Case-Antrag (L2 → L3.1) als Partei
-          vorbelegt — der Antragsteller kann sie am Epic ändern.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("org.ui.stehtFuerDenFachlichen")}</p>
       </div>
 
       <div className="space-y-1.5">
-        <Label>Value Stream Architect Lead</Label>
+        <Label>{t("org.ui.valueStreamArchitectLead")}</Label>
         <UserPicker
           name="architectLeadId"
           defaultValue={architectLeadId}
           options={toUserOptions(users, userLabels)}
-          ariaLabel="Value Stream Architect Lead"
-          placeholder="— Niemand —"
-          emptyLabel="— Niemand —"
+          ariaLabel={t("org.ui.valueStreamArchitectLead")}
+          placeholder={t("org.ui.niemand")}
+          emptyLabel={t("org.ui.niemand")}
         />
         <p className="text-xs text-muted-foreground">
           Architektur und technische Machbarkeit. Zeichnet nur, wo du ihn unter „Freigaben je
@@ -144,7 +141,7 @@ export function ValueStreamOverviewForm({
       )}
       {state.success && (
         <p role="status" className="text-sm text-success">
-          Gespeichert.
+          {t("org.ui.gespeichert")}
         </p>
       )}
 

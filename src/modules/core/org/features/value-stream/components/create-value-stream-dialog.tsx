@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import { Plus } from "lucide-react";
 import { createValueStreamAction } from "@/modules/core/org/features/value-stream/actions/value-stream";
@@ -36,6 +37,7 @@ export function CreateValueStreamDialog({
   onOpenChange,
   compact = false,
 }: CreateValueStreamDialogProps) {
+  const t = useTranslations();
   const isControlled = open !== undefined;
   const [selfOpen, setSelfOpen] = useState(false);
   const dialogOpen = open ?? selfOpen;
@@ -60,18 +62,18 @@ export function CreateValueStreamDialog({
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Wertstrom anlegen</DialogTitle>
+            <DialogTitle>{t("org.ui.wertstromAnlegen")}</DialogTitle>
           </DialogHeader>
           <form action={action} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="vs-name">
-                Name <span className="text-destructive">*</span>
+                {t("org.ui.name")} <span className="text-destructive">*</span>
               </Label>
               <Input id="vs-name" name="name" required />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="vs-description">Beschreibung</Label>
+              <Label htmlFor="vs-description">{t("org.ui.beschreibung")}</Label>
               <Textarea id="vs-description" name="description" rows={3} />
             </div>
 
@@ -83,7 +85,7 @@ export function CreateValueStreamDialog({
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Abbrechen
+                {t("org.ui.abbrechen")}
               </Button>
               <Button type="submit" disabled={isPending}>
                 {isPending ? "Wird angelegt…" : "Anlegen"}

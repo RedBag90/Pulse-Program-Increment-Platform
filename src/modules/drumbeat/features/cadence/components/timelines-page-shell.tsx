@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { StructurePageShell } from "@/modules/core/org/features/structure/components/structure-page-shell";
 import { CreateTimelineButton } from "@/modules/drumbeat/features/cadence/components/create-timeline-button";
 import { TimelineDetailPane } from "@/modules/drumbeat/features/cadence/components/timeline-detail-pane";
@@ -31,10 +32,11 @@ interface Props {
  * von hier statt vom Composition-Root. Drumbeat → Core ist erlaubt.
  */
 export function TimelinesPageShell({ model, piStandards, canManageTimeline }: Props) {
+  const t = useTranslations();
   return (
     <StructurePageShell
-      title="Timelines"
-      subtitle="Geteilte PI-Kadenzen — Timelines, ihre PIs und subscribierte ARTs."
+      title={t("drumbeat.ui.timelines")}
+      subtitle={t("drumbeat.ui.geteiltePiKadenzenTimelines")}
       availableKinds={["timeline"]}
       model={model}
       canCreateVs={false}

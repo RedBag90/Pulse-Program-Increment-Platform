@@ -1,12 +1,13 @@
+import { useTranslations } from "next-intl";
 import { formatEUR } from "@/lib/formatting";
 import {
   classificationDrift,
-  EPIC_CLASS_LABELS,
+  EPIC_CLASS_KEYS,
   type EpicClassification,
   type IntendedClass,
 } from "@/modules/work/domain/pb-submission";
 import {
-  GUARDRAIL_SOURCE_LABELS,
+  GUARDRAIL_SOURCE_KEYS,
   type GuardrailTargetsSource,
 } from "@/modules/work/domain/portfolio-guardrails";
 
@@ -31,6 +32,7 @@ export function EpicClassBadge({
   /** Beim Anlegen hinterlegte Erwartung; `null` bei Bestands-Epics. */
   intended?: IntendedClass;
 }) {
+  const t = useTranslations();
   const { epicClass, cost, threshold, overridden } = classification;
   const drift = classificationDrift(intended, epicClass);
 
@@ -45,18 +47,19 @@ export function EpicClassBadge({
               : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
         }`}
       >
-        {epicClass == null ? "Noch nicht eingeordnet" : EPIC_CLASS_LABELS[epicClass]}
+        {epicClass == null ? "Noch nicht eingeordnet" : t(EPIC_CLASS_KEYS[epicClass] ?? epicClass)}
       </span>
       {intended != null && epicClass == null && (
         <p className="text-xs text-muted-foreground">
-          Erwartet: <strong className="font-medium">{EPIC_CLASS_LABELS[intended]}</strong> — die
-          Einordnung entsteht mit der Freigabe des Business Case.
+          {t("work.epic.erwartet")}{" "}
+          <strong className="font-medium">{t(EPIC_CLASS_KEYS[intended] ?? intended)}</strong>
+          {t("work.epic.dieEinordnungEntstehtMit")}
         </p>
       )}
       {drift !== "none" && intended != null && (
         <p className="rounded-r-md border-l-2 border-l-amber-600 bg-amber-500/[0.07] px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-          <strong className="font-semibold">Abweichung von der Erwartung.</strong> Angelegt wurde
-          dieses Epic als {EPIC_CLASS_LABELS[intended]}
+          <strong className="font-semibold">{t("work.epic.abweichungVonDerErwartung")}</strong>{" "}
+          Angelegt wurde dieses Epic als {t(EPIC_CLASS_KEYS[intended] ?? intended)}
           {drift === "up"
             ? " — die Kosten machen es zur Portfolio-Sache."
             : " — die Kosten machen es zum ART-Epic."}
@@ -64,16 +67,14 @@ export function EpicClassBadge({
       )}
       <p className="text-xs text-muted-foreground">
         {overridden ? (
-          <>Ausnahme: dieses Epic ist bewusst Portfolio-Sache, unabhängig von seinen Kosten.</>
+          <>{t("work.epic.ausnahmeDiesesEpicIst")}</>
         ) : epicClass == null ? (
-          <>
-            Ohne freigegebenen Lean Business Case liegt keine belastbare Kostenschätzung vor. Die
-            Einordnung entsteht mit der Freigabe an L3.1.
-          </>
+          <>{t("work.epic.ohneFreigegebenenLeanBusiness")}</>
         ) : (
           <>
             Kosten {formatEUR(cost ?? 0)} {epicClass === "portfolio" ? "über" : "unter"} dem
-            Portfolio-Limit von {formatEUR(threshold)} ({GUARDRAIL_SOURCE_LABELS[source]}).{" "}
+            Portfolio-Limit von {formatEUR(threshold)} ({t(GUARDRAIL_SOURCE_KEYS[source] ?? source)}
+            ).{" "}
             {epicClass === "art"
               ? "Finanziert wird aus dem Rahmen des ARTs."
               : "Finanziert wird über eine Budget-Kachel."}
@@ -82,7 +83,7 @@ export function EpicClassBadge({
       </p>
       {fundingGap && (
         <p className="rounded-r-md border-l-2 border-l-amber-600 bg-amber-500/[0.07] px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-          <strong className="font-semibold">Kein Finanzierungsweg.</strong>{" "}
+          <strong className="font-semibold">{t("work.epic.keinFinanzierungsweg")}</strong>{" "}
           {fundingGap === "noArt"
             ? "Das Epic trägt keinen ART und kann deshalb aus keinem Rahmen finanziert werden."
             : "Für den ART dieses Epics ist kein ART-Rahmen angelegt."}{" "}

@@ -1,12 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, startTransition } from "react";
 import { updateEpicAction } from "@/modules/work/features/portfolio/actions/epic";
 import {
   EPIC_TYPES,
-  EPIC_TYPE_LABEL,
+  EPIC_TYPE_KEYS,
   HORIZONS,
-  HORIZON_LABEL,
+  HORIZON_KEYS,
 } from "@/modules/work/domain/portfolio-guardrails";
 import { epicHorizon, horizonEditDeniedReason } from "@/modules/work/domain/epic-horizon";
 import { HorizonBadge } from "@/modules/core/org/features/solution/components/horizon-badge";
@@ -51,6 +52,7 @@ export function EpicClassificationForm({
   canEdit,
   canOverrideHorizon,
 }: Props) {
+  const t = useTranslations();
   const [state, submit, busy] = useActionState(updateEpicAction, {});
 
   const resolved = epicHorizon({
@@ -93,7 +95,7 @@ export function EpicClassificationForm({
             htmlFor="epic-type-select"
             className="mb-1.5 block text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground"
           >
-            Epic-Typ
+            {t("work.epic.epicTyp")}
           </label>
           {canEdit ? (
             <select
@@ -103,17 +105,17 @@ export function EpicClassificationForm({
               onChange={(e) => update("epicType", e.target.value)}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
             >
-              <option value="">— ungesetzt</option>
-              {EPIC_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {EPIC_TYPE_LABEL[t]}
+              <option value="">{t("work.epic.ungesetzt")}</option>
+              {EPIC_TYPES.map((wert) => (
+                <option key={wert} value={wert}>
+                  {t(EPIC_TYPE_KEYS[wert] ?? wert)}
                 </option>
               ))}
             </select>
           ) : (
             <div className="flex min-h-9 items-center rounded-lg border bg-muted/30 px-3 py-2 text-sm">
               {epicType
-                ? (EPIC_TYPE_LABEL[epicType as keyof typeof EPIC_TYPE_LABEL] ?? epicType)
+                ? t(EPIC_TYPE_KEYS[epicType as keyof typeof EPIC_TYPE_KEYS] ?? epicType)
                 : "—"}
             </div>
           )}
@@ -123,7 +125,7 @@ export function EpicClassificationForm({
             htmlFor="epic-horizon-select"
             className="mb-1.5 block text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground"
           >
-            Horizont
+            {t("work.epic.horizont")}
           </label>
           {denied === null ? (
             <select
@@ -136,12 +138,12 @@ export function EpicClassificationForm({
               {/* Leerer Wert = wieder ableiten. Ohne Solution heisst das „ohne". */}
               <option value="">
                 {solutionHorizon
-                  ? `— aus Primär-Solution (${HORIZON_LABEL[solutionHorizon as keyof typeof HORIZON_LABEL] ?? solutionHorizon})`
+                  ? `— aus Primär-Solution (${t(HORIZON_KEYS[solutionHorizon as keyof typeof HORIZON_KEYS]) ?? solutionHorizon})`
                   : "— ohne Horizont"}
               </option>
               {HORIZONS.map((h) => (
                 <option key={h} value={h}>
-                  {HORIZON_LABEL[h]}
+                  {t(HORIZON_KEYS[h])}
                 </option>
               ))}
             </select>

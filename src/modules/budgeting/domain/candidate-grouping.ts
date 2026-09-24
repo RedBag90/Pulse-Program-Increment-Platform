@@ -15,9 +15,9 @@ import { UNASSIGNED_VALUE_STREAM_LABEL } from "@/modules/budgeting/domain/budget
 export const BUSINESS_KINDS = ["run", "grow"] as const;
 export type BusinessKind = (typeof BUSINESS_KINDS)[number];
 
-export const BUSINESS_KIND_LABELS: Record<BusinessKind, string> = {
-  run: "Run the Business",
-  grow: "Grow the Business",
+export const BUSINESS_KIND_KEYS: Record<BusinessKind, string> = {
+  run: "budgeting.businessKind.run",
+  grow: "budgeting.businessKind.grow",
 };
 
 /** Weitergereicht aus {@link UNASSIGNED_VALUE_STREAM_LABEL} — dieselbe Zeile für dieselbe Sache. */
@@ -112,7 +112,7 @@ export function groupCandidates<T extends GroupableCandidate>(
     return [
       {
         kind,
-        label: BUSINESS_KIND_LABELS[kind],
+        label: BUSINESS_KIND_KEYS[kind],
         total: valueStreams.reduce((s, g) => s + g.total, 0),
         valueStreams,
       },

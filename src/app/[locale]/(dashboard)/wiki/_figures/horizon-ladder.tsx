@@ -1,6 +1,7 @@
+import { useTranslations } from "next-intl";
 import {
   HORIZONS,
-  HORIZON_LABEL,
+  HORIZON_KEYS,
   HORIZON_HELP,
   stationsOf,
 } from "@/modules/work/domain/portfolio-guardrails";
@@ -15,6 +16,7 @@ import {
  * nicht.
  */
 export function HorizonLadder() {
+  const t = useTranslations();
   return (
     <div className="divide-y overflow-hidden rounded-lg bg-card shadow-card">
       {HORIZONS.map((h) => {
@@ -24,7 +26,7 @@ export function HorizonLadder() {
           <div key={h} className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
             <div className="space-y-1.5">
               <p className="font-heading text-sm font-semibold text-foreground">
-                {HORIZON_LABEL[h]}
+                {t(HORIZON_KEYS[h])}
               </p>
               <p className="text-sm leading-relaxed text-muted-foreground">{help.blurb}</p>
               <dl className="grid gap-x-3 gap-y-0.5 text-xs text-muted-foreground sm:grid-cols-[auto_minmax(0,1fr)]">

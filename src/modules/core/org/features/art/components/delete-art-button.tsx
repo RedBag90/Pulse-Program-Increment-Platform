@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Trash2 } from "lucide-react";
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { deleteArtAction } from "@/modules/core/org/features/art/actions/art";
@@ -10,11 +11,12 @@ interface DeleteArtButtonProps {
 }
 
 export function DeleteArtButton({ id, name }: DeleteArtButtonProps) {
+  const t = useTranslations();
   return (
     <ConfirmMutateForm
       action={deleteArtAction}
       fields={{ id }}
-      label={<span className="sr-only">Delete</span>}
+      label={<span className="sr-only">{t("org.ui.delete")}</span>}
       icon={<Trash2 className="size-3.5" />}
       confirmPrompt={`Delete ART "${name}"?`}
       variant="ghost"

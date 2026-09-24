@@ -6,28 +6,28 @@
  * **Neu geschnitten im September 2026.** Vorher hiess L2 „Business Case" und L3
  * „Investition" mit zwei Unterstufen (L3.1 BC freigegeben, L3.2 Budget
  * alloziert). Jetzt sind das zwei eigene Grade, und „Zur Analyse ausgewählt"
- * ist ein Gate ohne Nummer (`analysis`, siehe `GATE_STEP_LABELS`).
+ * ist ein Gate ohne Nummer (`analysis`, siehe `GATE_STEP_KEYS`).
  */
-export const STAGE_GATE_LABELS: Record<string, string> = {
-  L0: "L0 Idee",
-  L1: "L1 Hypothese freigegeben",
-  L2: "L2 Business Case freigegeben",
-  L3: "L3 Budget alloziert",
+export const STAGE_GATE_KEYS: Record<string, string> = {
+  L0: "work.stageGate.l0",
+  L1: "work.stageGate.l1",
+  L2: "work.stageGate.l2",
+  L3: "work.stageGate.l3",
   // L4 traegt als einziges Gate noch zwei Schritte.
-  L4: "L4 Implementierung",
-  "L4.2": "L4.2 Umsetzung fertig",
-  L5: "L5 Impact realisiert",
+  L4: "work.stageGate.l4",
+  "L4.2": "work.stageGate.l42",
+  L5: "work.stageGate.l5",
 };
 
 /** Kurzlabel je Reifegrad-Gate — für kompakte Stepper/Tracks (ohne L-Präfix). */
-export const STAGE_SHORT: Record<string, string> = {
-  L0: "Funnel",
-  L1: "Hypothese",
-  L2: "Business Case",
-  L3: "Investition",
-  L4: "Umsetzung",
-  "L4.2": "Umsetzung fertig",
-  L5: "Impact",
+export const STAGE_SHORT_KEYS: Record<string, string> = {
+  L0: "work.stageShort.l0",
+  L1: "work.stageShort.l1",
+  L2: "work.stageShort.l2",
+  L3: "work.stageShort.l3",
+  L4: "work.stageShort.l4",
+  "L4.2": "work.stageShort.l42",
+  L5: "work.stageShort.l5",
 };
 
 /**
@@ -49,9 +49,9 @@ export const STAGE_DOT: Record<string, string> = {
  * Neuschnitt noch zwei Schritte traegt. Die Eintritts-Stufe (L4.1) wird
  * abgeleitet, die zweite (L4.2) kommt aus einer abgenommenen Bestaetigung.
  */
-export const SUB_STAGE_LABELS: Record<string, string> = {
-  "L4.1": "Umsetzung läuft",
-  "L4.2": "Umsetzung fertig",
+export const SUB_STAGE_KEYS: Record<string, string> = {
+  "L4.1": "work.subStage.l41",
+  "L4.2": "work.subStage.l42",
 };
 
 /** Status indicator dot colors (Tailwind) — shared by the Kanban board and the Epics table. */
@@ -187,10 +187,10 @@ export const WSJF_TIER_CLASS: Record<"high" | "medium" | "low" | "none" | "unsco
  *
  * Der Schlüssel deckt wie oben beide Namen für „kein Rang" ab.
  */
-export const WSJF_TIER_LABELS: Record<"high" | "medium" | "low" | "none" | "unscored", string> = {
-  high: "Hoch",
-  medium: "Mittel",
-  low: "Niedrig",
-  none: "Ungescored",
-  unscored: "Ungescored",
+export const WSJF_TIER_KEYS: Record<"high" | "medium" | "low" | "none" | "unscored", string> = {
+  high: "work.wsjfTier.high",
+  medium: "work.wsjfTier.medium",
+  low: "work.wsjfTier.low",
+  none: "work.wsjfTier.none",
+  unscored: "work.wsjfTier.unscored",
 };

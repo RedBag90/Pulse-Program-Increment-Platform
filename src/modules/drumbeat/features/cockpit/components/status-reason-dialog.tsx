@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import {
   Dialog,
@@ -11,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { FEATURE_STATUS_LABELS, type FeatureStatus } from "@/modules/drumbeat/domain/status";
+import { FEATURE_STATUS_KEYS, type FeatureStatus } from "@/modules/drumbeat/domain/status";
 
 /**
  * **Die Rückfrage vor „Blockiert" und „Verworfen"** — für alle Schreibwege
@@ -37,6 +38,7 @@ export function StatusReasonDialog({
   onCancel: () => void;
   onConfirm: (reason: string) => void;
 }) {
+  const t = useTranslations();
   const [reason, setReason] = useState("");
 
   // Jede neue Rückfrage beginnt leer — sonst schlüge der Grund von vorhin still
@@ -45,7 +47,7 @@ export function StatusReasonDialog({
     if (targetStatus) setReason("");
   }, [targetStatus]);
 
-  const label = targetStatus ? FEATURE_STATUS_LABELS[targetStatus] : "";
+  const label = targetStatus ? t(FEATURE_STATUS_KEYS[targetStatus]) : "";
 
   return (
     <Dialog
@@ -56,7 +58,7 @@ export function StatusReasonDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Grund erforderlich</DialogTitle>
+          <DialogTitle>{t("drumbeat.ui.grundErforderlich")}</DialogTitle>
           <DialogDescription>
             {count > 1
               ? `${count} Features werden auf „${label}“ gesetzt. Das hält Arbeit an — dafür braucht es einen Satz, den die anderen später lesen können.`
@@ -68,12 +70,12 @@ export function StatusReasonDialog({
           onChange={(e) => setReason(e.target.value)}
           rows={3}
           autoFocus
-          aria-label="Grund"
-          placeholder="Warum wird die Arbeit angehalten?"
+          aria-label={t("drumbeat.ui.grund")}
+          placeholder={t("drumbeat.ui.warumWirdDieArbeit")}
         />
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>
-            Abbrechen
+            {t("drumbeat.ui.abbrechen")}
           </Button>
           <Button
             type="button"

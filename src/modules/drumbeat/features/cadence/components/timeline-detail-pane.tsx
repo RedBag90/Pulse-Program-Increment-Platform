@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ArrowRight, Calendar, Pencil, Plus } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -19,11 +20,7 @@ const TimelineCalendar = dynamic(
     ),
   {
     ssr: false,
-    loading: () => (
-      <div className="grid h-32 place-items-center text-xs text-muted-foreground">
-        Kalender wird geladen…
-      </div>
-    ),
+    loading: KalenderLadehinweis,
   },
 );
 import {
@@ -61,6 +58,7 @@ interface PiDialogState {
 }
 
 export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) {
+  const t = useTranslations();
   const [piDialog, setPiDialog] = useState<PiDialogState>({ open: false });
 
   const openCreate = () => setPiDialog({ open: true });
@@ -79,7 +77,9 @@ export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) 
   return (
     <div className="space-y-6">
       <section className="space-y-3 rounded-lg bg-card p-4 shadow-card">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Timeline</p>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          {t("drumbeat.ui.timeline")}
+        </p>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <h2 className="font-heading text-lg font-medium">{timeline.name}</h2>
           {canManage && (
@@ -87,7 +87,7 @@ export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) 
           )}
         </div>
         <dl className="grid grid-cols-[140px_1fr] gap-y-1.5 text-sm">
-          <dt className="text-muted-foreground">PIs / ARTs</dt>
+          <dt className="text-muted-foreground">{t("drumbeat.ui.pisArts")}</dt>
           <dd className="tabular-nums">
             {timeline.pis.length} / {timeline.subscribedArts.length}
           </dd>
@@ -97,17 +97,17 @@ export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) 
 
       <section className="space-y-3 rounded-lg bg-card p-4 shadow-card">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <h2 className="font-heading text-sm font-medium">Program Increments</h2>
+          <h2 className="font-heading text-sm font-medium">{t("drumbeat.ui.programIncrements")}</h2>
           {canManage && (
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={openCreate}
                 className="inline-flex h-7 items-center gap-1 rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground"
-                aria-label="Neues PI anlegen"
+                aria-label={t("drumbeat.ui.neuesPiAnlegen")}
               >
                 <Plus className="size-3.5" />
-                Neues PI
+                {t("drumbeat.ui.neuesPi")}
               </button>
               <AddStandardPisControl
                 timelineId={timeline.id}
@@ -159,7 +159,7 @@ export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) 
                         onClick={() => openEdit(pi)}
                         className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                         aria-label={`PI ${pi.name} bearbeiten`}
-                        title="PI bearbeiten"
+                        title={t("drumbeat.ui.piBearbeiten")}
                       >
                         <Pencil className="size-3.5" />
                       </button>
@@ -174,7 +174,7 @@ export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) 
       </section>
 
       <section className="space-y-3 rounded-lg bg-card p-4 shadow-card">
-        <h2 className="font-heading text-sm font-medium">Kalender</h2>
+        <h2 className="font-heading text-sm font-medium">{t("drumbeat.ui.kalender")}</h2>
         <TimelineCalendar
           pis={timeline.pis}
           canEdit={canManage}
@@ -201,11 +201,9 @@ export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) 
       )}
 
       <section className="space-y-3 rounded-lg bg-card p-4 shadow-card">
-        <h2 className="font-heading text-sm font-medium">Verknüpfte ARTs</h2>
+        <h2 className="font-heading text-sm font-medium">{t("drumbeat.ui.verknuepfteArts")}</h2>
         {timeline.subscribedArts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Noch keine ARTs dieser Timeline beigetreten.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("drumbeat.ui.nochKeineArtsDieser")}</p>
         ) : (
           <ul className="space-y-1.5">
             {timeline.subscribedArts.map((art) => (
@@ -232,13 +230,26 @@ export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) 
 
       {canManage && timeline.unassignedArts.length > 0 && (
         <section className="space-y-3 rounded-lg bg-card p-4 shadow-card">
-          <h2 className="font-heading text-sm font-medium">ART hinzufügen</h2>
+          <h2 className="font-heading text-sm font-medium">{t("drumbeat.ui.artHinzufuegen")}</h2>
           <JoinArtToTimelineControl
             timelineId={timeline.id}
             candidates={timeline.unassignedArts.map((a) => ({ id: a.id, name: a.name }))}
           />
         </section>
       )}
+    </div>
+  );
+}
+
+/**
+ * Eigene Komponente statt einer Pfeilfunktion in `loading`: `useTranslations`
+ * ist ein Hook und braucht eine Komponente.
+ */
+function KalenderLadehinweis() {
+  const t = useTranslations();
+  return (
+    <div className="grid h-32 place-items-center text-xs text-muted-foreground">
+      {t("drumbeat.ui.kalenderWirdGeladen")}
     </div>
   );
 }

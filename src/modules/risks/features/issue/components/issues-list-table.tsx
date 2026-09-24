@@ -1,11 +1,12 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import type { IssueListRow } from "@/modules/risks/server/views/issues-list";
 import { ROAM_DOT, ROAM_STATUSES, type RoamStatus } from "@/modules/core/kernel/domain/roam";
 import { ExposureBadge, RoamBadge } from "@/modules/risks/features/lib/issue-badges";
-import { CATEGORY_LABELS } from "@/modules/risks/features/risk/components/labels";
+import { CATEGORY_KEYS } from "@/modules/risks/features/risk/components/labels";
 import type { ExposureBand } from "@/modules/risks/domain/risk-matrix";
 import type { RiskCategory } from "@/modules/risks/domain/risk-category";
 import { buildIssueTree, type TreeNode } from "@/modules/risks/domain/issue-tree";
@@ -89,19 +90,22 @@ export function IssuesListTable({
   expanded = EMPTY_SET,
   onToggleRow = () => {},
 }: Props) {
+  const t = useTranslations();
   // Wie viele Wurzeln eine Gruppe schon zeigt. Rein eine Anzeigefrage — sie
   // gehört nicht in die URL, anders als Filter, Sortierung oder Gruppierung.
   const [shown, setShown] = useState<Record<string, number>>({});
   const [closedGroups, setClosedGroups] = useState<ReadonlySet<string>>(EMPTY_SET);
 
   if (rows.length === 0) {
-    return <EmptyState title="Keine Issues" body="Für diese Filter gibt es keine Issues." />;
+    return (
+      <EmptyState title={t("risks.ui.keineIssues")} body={t("risks.ui.fuerDieseFilterGibt")} />
+    );
   }
   const forest = buildIssueTree(rows);
   const colCount = compact ? 3 : 7;
   const groups =
     group === "flach"
-      ? [{ key: "", label: "", items: forest }]
+      ? [{ key: "", labelKey: "", items: forest }]
       : groupIssues(forest, group, (n) => n.row);
 
   return (
@@ -112,13 +116,13 @@ export function IssuesListTable({
         <ColGroup compact={compact} />
         <thead className={TREE_THEAD}>
           <tr>
-            <th className={TREE_TH}>Name</th>
-            <th className={TREE_TH}>Exposure</th>
-            <th className={TREE_TH}>ROAM</th>
-            {!compact && <th className={TREE_TH}>Kategorie</th>}
-            {!compact && <th className={TREE_TH}>Owner</th>}
-            {!compact && <th className={TREE_TH}>Arbeitselement</th>}
-            {!compact && <th className={TREE_TH}>Fällig</th>}
+            <th className={TREE_TH}>{t("risks.ui.name")}</th>
+            <th className={TREE_TH}>{t("risks.ui.exposure")}</th>
+            <th className={TREE_TH}>{t("risks.ui.roam")}</th>
+            {!compact && <th className={TREE_TH}>{t("risks.ui.kategorie")}</th>}
+            {!compact && <th className={TREE_TH}>{t("risks.ui.owner")}</th>}
+            {!compact && <th className={TREE_TH}>{t("risks.ui.arbeitselement")}</th>}
+            {!compact && <th className={TREE_TH}>{t("risks.ui.faellig")}</th>}
           </tr>
         </thead>
         {groups.map((g) => {
@@ -131,7 +135,7 @@ export function IssuesListTable({
             <tbody key={g.key || "flach"} className="divide-y">
               {grouped && (
                 <TableGroupRow
-                  label={g.label}
+                  label={t(g.labelKey)}
                   count={g.items.length}
                   open={open}
                   colSpan={colCount}
@@ -148,7 +152,7 @@ export function IssuesListTable({
               {grouped && open && g.items.length === 0 && (
                 <tr className="border-b">
                   <td colSpan={colCount} className="py-2 pl-9 text-meta text-muted-foreground">
-                    Keine Issues in dieser Gruppe
+                    {t("risks.ui.keineIssuesInDieser")}
                   </td>
                 </tr>
               )}
@@ -245,6 +249,7 @@ function ReparentMenu({
   allRows: IssueListRow[];
   dnd: IssueTreeDnd;
 }) {
+  const t = useTranslations();
   // **Erst rechnen, wenn jemand hinsieht.** Diese Liste entstand im Rumpf der
   // Komponente — also je Zeile und je Rendervorgang, auch ungeöffnet. Bei 148
   // Zeilen waren das 21.904 Ahnen-Läufe pro Rendervorgang, und es ist der einzige
@@ -261,11 +266,11 @@ function ReparentMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => dnd.reparentTo(row.id, { kind: "root" })}>
-          Auf oberste Ebene
+          {t("risks.ui.aufObersteEbene")}
         </DropdownMenuItem>
         {targets.length > 0 && (
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger>Verschieben unter</DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger>{t("risks.ui.verschiebenUnter")}</DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
               {targets.map((t) => (
                 <DropdownMenuItem
@@ -334,6 +339,7 @@ function Row({
   collapsed: boolean;
   onToggle: (id: string) => void;
 }) {
+  const t = useTranslations();
   const { push } = useUrlState();
   const depth = cols.length;
   const due = row.targetResolutionDate ? row.targetResolutionDate.slice(0, 10) : "—";
@@ -414,7 +420,7 @@ function Row({
         {row.band ? (
           <ExposureBadge band={row.band as ExposureBand} />
         ) : (
-          <span className="text-xs text-muted-foreground">unbewertet</span>
+          <span className="text-xs text-muted-foreground">{t("risks.ui.unbewertet")}</span>
         )}
       </td>
       <td className={TREE_TD}>
@@ -425,7 +431,7 @@ function Row({
           {/* Ohne Pille: die Kategorie hat keine Ordnung und trug in allen vier
               Ausprägungen dasselbe Grau — eine Pille, die eine Skala vortäuscht
               und keine ist. */}
-          {row.category ? CATEGORY_LABELS[row.category as RiskCategory] : "—"}
+          {row.category ? t(CATEGORY_KEYS[row.category as RiskCategory]) : "—"}
         </td>
       )}
       {!compact && (
@@ -449,7 +455,7 @@ function Row({
           }`}
         >
           {row.isOverdue && (
-            <span title="überfällig" aria-label="überfällig">
+            <span title={t("risks.ui.ueberfaellig")} aria-label={t("risks.ui.ueberfaellig")}>
               ⚑{" "}
             </span>
           )}

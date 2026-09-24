@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
 import { SearchSelect, type SearchSelectOption } from "@/components/ui/search-select";
 import type { CockpitArtRef } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
@@ -21,6 +22,7 @@ export function CockpitArtPicker({
   availableArts: CockpitArtRef[];
   selectedArt: CockpitArtRef | null;
 }) {
+  const t = useTranslations();
   const { setParams } = useUrlState();
 
   if (availableArts.length <= 1) return null;
@@ -42,8 +44,8 @@ export function CockpitArtPicker({
         setParams({ art: v, pi: null, piw: null })
       }
       options={options}
-      placeholder="ART wählen"
-      ariaLabel="ART auswählen"
+      placeholder={t("drumbeat.ui.artWaehlen")}
+      ariaLabel={t("drumbeat.ui.artAuswaehlen")}
       className="w-56"
     />
   );

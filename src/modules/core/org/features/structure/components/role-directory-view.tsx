@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import { filterDirectory, directoryStats } from "@/modules/core/org/domain/role-directory";
@@ -43,6 +44,7 @@ export function RoleDirectoryView({
   users: DirectoryUserOption[];
   editable: EditableTargets;
 }) {
+  const t = useTranslations();
   const { params, push } = useUrlState();
   const query = params.get("q") ?? "";
   const onlyUnfilled = params.get("offen") === "1";
@@ -53,10 +55,7 @@ export function RoleDirectoryView({
 
   if (streams.length === 0) {
     return (
-      <EmptyState
-        title="Noch kein Wertstrom"
-        body="Ohne Struktur gibt es niemanden, den man fragen könnte. Wertströme, ARTs und Solutions entstehen unter „Organisation“."
-      />
+      <EmptyState title={t("org.ui.nochKeinWertstrom")} body={t("org.ui.ohneStrukturGibtEs")} />
     );
   }
 
@@ -75,7 +74,7 @@ export function RoleDirectoryView({
 
       {shown.length === 0 ? (
         <EmptyState
-          title="Nichts gefunden"
+          title={t("org.ui.nichtsGefunden")}
           body={
             onlyUnfilled && query
               ? "Zu dieser Suche gibt es keinen offenen Platz. Nimm den Filter heraus oder suche anders."

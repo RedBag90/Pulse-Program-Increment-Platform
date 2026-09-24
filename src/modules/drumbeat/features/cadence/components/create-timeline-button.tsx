@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import { Plus } from "lucide-react";
 import { createTimelineAction } from "@/modules/drumbeat/features/cadence/actions/timeline";
@@ -15,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function CreateTimelineButton() {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const [state, run, pending] = useActionState(createTimelineAction, {});
 
@@ -27,25 +29,25 @@ export function CreateTimelineButton() {
     <>
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
         <Plus className="size-4 mr-1.5" />
-        Neue Timeline
+        {t("drumbeat.ui.neueTimeline")}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Neue Timeline anlegen</DialogTitle>
+            <DialogTitle>{t("drumbeat.ui.neueTimelineAnlegen")}</DialogTitle>
           </DialogHeader>
           <form action={run} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="timeline-name">
-                Name <span className="text-destructive">*</span>
+                {t("drumbeat.ui.name")} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="timeline-name"
                 name="name"
                 required
                 maxLength={100}
-                placeholder="z. B. Quartalskadenz Bank"
+                placeholder={t("drumbeat.ui.zBQuartalskadenzBank")}
               />
             </div>
             {state?.error && (
@@ -55,7 +57,7 @@ export function CreateTimelineButton() {
             )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Abbrechen
+                {t("drumbeat.ui.abbrechen")}
               </Button>
               <Button type="submit" disabled={pending}>
                 {pending ? "Anlegen…" : "Anlegen"}

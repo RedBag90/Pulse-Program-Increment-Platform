@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import {
   createRtbItemAction,
@@ -10,13 +11,13 @@ import {
   sumRtbAnnual,
   sumRtbCycle,
   RTB_INTERVALS,
-  RTB_INTERVAL_LABELS,
+  RTB_INTERVAL_KEYS,
   rtbAnnualAmount,
   rtbIntervalOrDefault,
 } from "@/modules/budgeting/domain/rtb-interval";
 import {
   RTB_KINDS,
-  RTB_KIND_LABELS,
+  RTB_KIND_KEYS,
   isChangeKind,
   splitRunAndChange,
 } from "@/modules/budgeting/domain/rtb-kind";
@@ -30,7 +31,7 @@ import {
   rtbAssignmentGroup,
   zaehltBeiAnderemArt,
   RTB_ASSIGNMENT_GROUPS,
-  RTB_ASSIGNMENT_GROUP_LABELS,
+  RTB_ASSIGNMENT_GROUP_KEYS,
 } from "@/modules/budgeting/domain/rtb-art-resolution";
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { SectionCard } from "@/components/ui/section-card";
@@ -113,6 +114,7 @@ export function RtbSection({
   /** ARTs dieses Wertstroms; leer ⇒ kein ART-Rahmen anlegbar. */
   arts?: RtbArtOption[];
 }) {
+  const t = useTranslations();
   // Genau eine Zeile ist offen — mehr braucht niemand gleichzeitig, und die
   // Liste bleibt lesbar.
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -203,7 +205,7 @@ export function RtbSection({
       action={
         canManage && !adding ? (
           <button type="button" onClick={() => setAdding(true)} className={btn}>
-            + Position
+            {t("budgeting.rtb.position")}
           </button>
         ) : undefined
       }
@@ -211,14 +213,16 @@ export function RtbSection({
     >
       {items.length === 0 && (
         <EmptyState
-          title="Noch keine Positionen"
-          body="Was dieser Wertstrom laufend braucht, steht hier — sobald die erste Position angelegt ist."
+          title={t("budgeting.rtb.nochKeinePositionen")}
+          body={t("budgeting.rtb.wasDieserWertstromLaufend")}
         />
       )}
 
-      {run.items.length > 0 && <RtbGroupTable title="Betrieb" group={run} {...groupProps} />}
+      {run.items.length > 0 && (
+        <RtbGroupTable title={t("budgeting.rtb.betrieb")} group={run} {...groupProps} />
+      )}
       {change.items.length > 0 && (
-        <RtbGroupTable title={`${RTB_KIND_LABELS.art_change}s`} group={change} {...groupProps} />
+        <RtbGroupTable title={`${RTB_KIND_KEYS.art_change}s`} group={change} {...groupProps} />
       )}
 
       {/*
@@ -237,7 +241,7 @@ export function RtbSection({
             href={`/budgeting/value-streams/${valueStreamId}?tab=einrichten`}
             className="text-primary hover:underline"
           >
-            Zu den Betriebspositionen →
+            {t("budgeting.rtb.zuDenBetriebspositionen")}
           </Link>
         </p>
       )}
@@ -247,7 +251,7 @@ export function RtbSection({
           Aktive Positionen kommen als Kandidaten auf die PB-Liste der nächsten Kachel — dort
           entscheidet sich, wie viel dieser Wertstrom bekommt.{" "}
           <Link href="/budgeting/periods" className="text-primary hover:underline">
-            Zu den Kacheln →
+            {t("budgeting.rtb.zuDenKacheln")}
           </Link>
         </p>
       )}
@@ -294,6 +298,7 @@ function RtbGroupTable({
   title: string;
   group: { items: RtbItem[]; annual: number; cycle: number };
 }) {
+  const t = useTranslations();
   /*
     **Die Spalte nennt den Namen, die Gruppe den Weg.** Sie hiess einmal
     „Solution" und verschwieg damit zwei der drei Wege; dann „Zurechnung" und
@@ -322,7 +327,8 @@ function RtbGroupTable({
         <span className="text-xs text-muted-foreground">
           <span className="font-medium text-foreground">{EUR(group.annual)}</span> p. a.
           <span className="mx-1.5">·</span>
-          <span className="font-medium text-foreground">{EUR(group.cycle)}</span> je Kachel
+          <span className="font-medium text-foreground">{EUR(group.cycle)}</span>{" "}
+          {t("budgeting.rtb.jeKachel")}
         </span>
       </div>
 
@@ -344,10 +350,10 @@ function RtbGroupTable({
           </colgroup>
           <thead>
             <tr className="border-b bg-surface-frame text-left text-meta uppercase tracking-[0.1em] text-muted-foreground">
-              <th className="px-3 py-2">Position</th>
+              <th className="px-3 py-2">{t("budgeting.rtb.position2")}</th>
               {secondCol && <th className="px-3 py-2">{secondCol}</th>}
-              <th className="px-3 py-2">Periode</th>
-              <th className="px-3 py-2 text-right">Betrag</th>
+              <th className="px-3 py-2">{t("budgeting.rtb.periode")}</th>
+              <th className="px-3 py-2 text-right">{t("budgeting.rtb.betrag")}</th>
               <th className="px-3 py-2 text-right">p. a.</th>
               {p.canManage && <th className="px-3 py-2" />}
             </tr>
@@ -363,7 +369,7 @@ function RtbGroupTable({
               return (
                 <RtbAssignmentGroupRows
                   key={key}
-                  label={p.scoped ? null : RTB_ASSIGNMENT_GROUP_LABELS[key]}
+                  label={p.scoped ? null : t(RTB_ASSIGNMENT_GROUP_KEYS[key])}
                   items={drin}
                   spalten={spalten}
                   {...p}
@@ -395,6 +401,7 @@ function RtbAssignmentGroupRows({
   items: RtbItem[];
   spalten: number;
 }) {
+  const t = useTranslations();
   return (
     <>
       {label != null && (
@@ -447,20 +454,20 @@ function RtbAssignmentGroupRows({
               })()}
             </td>
             <td className="px-3 py-2 text-muted-foreground">
-              {RTB_INTERVAL_LABELS[rtbIntervalOrDefault(it.interval)]}
+              {t(RTB_INTERVAL_KEYS[rtbIntervalOrDefault(it.interval)])}
             </td>
             <td className="px-3 py-2 text-right tabular-nums">{EUR(it.plannedAmount)}</td>
             <td className="px-3 py-2 text-right tabular-nums">
               {it.active ? (
                 EUR(rtbAnnualAmount(it.plannedAmount, it.interval))
               ) : (
-                <span className="text-muted-foreground">inaktiv</span>
+                <span className="text-muted-foreground">{t("budgeting.rtb.inaktiv")}</span>
               )}
             </td>
             {p.canManage && (
               <td className="px-3 py-2 text-right">
                 <button type="button" onClick={() => p.onEdit(it.id)} className={btnGhost}>
-                  Bearbeiten
+                  {t("budgeting.rtb.bearbeiten")}
                 </button>
               </td>
             )}
@@ -484,6 +491,7 @@ function RowEditor({
   arts,
   canUseArts,
 }: GroupProps & { item: RtbItem; onClose: () => void }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(updateRtbItemAction, {});
   const [kind, setKind] = useState<string>(item.kind ?? "run");
 
@@ -495,7 +503,7 @@ function RowEditor({
         {canUseArts && (
           <>
             <label className="text-xs">
-              Art
+              {t("budgeting.rtb.art")}
               <select
                 name="kind"
                 value={kind}
@@ -504,7 +512,7 @@ function RowEditor({
               >
                 {RTB_KINDS.map((k) => (
                   <option key={k} value={k}>
-                    {RTB_KIND_LABELS[k]}
+                    {t(RTB_KIND_KEYS[k])}
                   </option>
                 ))}
               </select>
@@ -517,7 +525,7 @@ function RowEditor({
               Wahl, sondern weil das Formular keinen anbot.
             */}
             <label className="text-xs">
-              ART
+              {t("budgeting.ui.art")}
               <select
                 name="artId"
                 required={isChangeKind(kind)}
@@ -536,11 +544,11 @@ function RowEditor({
         )}
 
         <label className="text-xs">
-          Position
+          {t("budgeting.rtb.position2")}
           <input name="name" defaultValue={item.name} className={`block ${input} w-52`} />
         </label>
         <label className="text-xs">
-          Betrag (€)
+          {t("budgeting.rtb.betrag2")}
           <input
             name="plannedAmount"
             type="number"
@@ -551,7 +559,7 @@ function RowEditor({
           />
         </label>
         <label className="text-xs">
-          Periode
+          {t("budgeting.rtb.periode")}
           <select
             name="interval"
             defaultValue={rtbIntervalOrDefault(item.interval)}
@@ -559,20 +567,20 @@ function RowEditor({
           >
             {RTB_INTERVALS.map((i) => (
               <option key={i} value={i}>
-                {RTB_INTERVAL_LABELS[i]}
+                {t(RTB_INTERVAL_KEYS[i])}
               </option>
             ))}
           </select>
         </label>
         {showSolution && (
           <label className="text-xs">
-            Solution
+            {t("budgeting.rtb.solution")}
             <select
               name="solutionId"
               defaultValue={item.solutionId ?? ""}
               className={`block ${input} w-40`}
             >
-              <option value="">— übergreifend</option>
+              <option value="">{t("budgeting.rtb.uebergreifend")}</option>
               {solutions.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -586,7 +594,7 @@ function RowEditor({
           {pending ? "…" : "Speichern"}
         </button>
         <button type="button" onClick={onClose} className={btnGhost}>
-          Abbrechen
+          {t("budgeting.rtb.abbrechen")}
         </button>
       </form>
 
@@ -603,7 +611,7 @@ function RowEditor({
         <ConfirmMutateForm
           action={deleteRtbItemAction}
           fields={{ id: item.id }}
-          label="Entfernen"
+          label={t("budgeting.rtb.entfernen")}
           pendingLabel="…"
           confirmPrompt={`„${item.name}" wirklich entfernen? Zugeteilte Beträge dieser Position gehen verloren.`}
           destructive
@@ -642,6 +650,7 @@ function AddForm({
   canUseArts: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(createRtbItemAction, {});
   const [kind, setKind] = useState<string>("run");
   /**
@@ -670,15 +679,15 @@ function AddForm({
 
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-xs">
-          Vorlage
+          {t("budgeting.rtb.vorlage")}
           <select
             value={templateId}
             onChange={(e) => waehle(e.target.value)}
             className={`block ${input} w-72`}
           >
-            <option value="">— eigene Position</option>
+            <option value="">{t("budgeting.rtb.eigenePosition")}</option>
             {RTB_ASSIGNMENT_GROUPS.map((g) => (
-              <optgroup key={g} label={RTB_ASSIGNMENT_GROUP_LABELS[g]}>
+              <optgroup key={g} label={t(RTB_ASSIGNMENT_GROUP_KEYS[g])}>
                 {templatesOfGroup(g).map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.label}
@@ -704,7 +713,7 @@ function AddForm({
       {canUseArts && (
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-xs">
-            Art
+            {t("budgeting.rtb.art")}
             <select
               name="kind"
               value={kind}
@@ -713,13 +722,13 @@ function AddForm({
             >
               {RTB_KINDS.map((k) => (
                 <option key={k} value={k}>
-                  {RTB_KIND_LABELS[k]}
+                  {t(RTB_KIND_KEYS[k])}
                 </option>
               ))}
             </select>
           </label>
           <label className="text-xs">
-            ART
+            {t("budgeting.ui.art")}
             <select
               name="artId"
               required={isChangeKind(kind)}
@@ -743,26 +752,23 @@ function AddForm({
         Stroms; mit ihm zählt sie bei genau einem.
       */}
       {canUseArts && !isChangeKind(kind) && (
-        <p className="text-xs text-muted-foreground">
-          Mit ART zählt die Position direkt bei ihm. Ohne ART und ohne Solution wird sie
-          gleichmässig auf alle ARTs des Wertstroms geschlüsselt.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("budgeting.rtb.mitArtZaehltDie")}</p>
       )}
 
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-xs">
-          Position
+          {t("budgeting.rtb.position2")}
           <input
             name="name"
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="z. B. Betrieb / Lizenzen"
+            placeholder={t("budgeting.rtb.zBBetriebLizenzen")}
             className={`block ${input} w-52`}
           />
         </label>
         <label className="text-xs">
-          Betrag (€)
+          {t("budgeting.rtb.betrag2")}
           <input
             name="plannedAmount"
             type="number"
@@ -783,16 +789,16 @@ function AddForm({
           >
             {RTB_INTERVALS.map((i) => (
               <option key={i} value={i}>
-                {RTB_INTERVAL_LABELS[i]}
+                {t(RTB_INTERVAL_KEYS[i])}
               </option>
             ))}
           </select>
         </label>
         {showSolution && (
           <label className="text-xs">
-            Solution
+            {t("budgeting.rtb.solution")}
             <select name="solutionId" defaultValue="" className={`block ${input} w-40`}>
-              <option value="">— übergreifend</option>
+              <option value="">{t("budgeting.rtb.uebergreifend")}</option>
               {solutions.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -805,7 +811,7 @@ function AddForm({
           {pending ? "…" : "Hinzufügen"}
         </button>
         <button type="button" onClick={onClose} className={btnGhost}>
-          Abbrechen
+          {t("budgeting.rtb.abbrechen")}
         </button>
       </div>
 

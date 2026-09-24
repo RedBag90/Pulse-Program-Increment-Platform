@@ -89,7 +89,8 @@ export const reparentIssueAction = createServerAction({
   schema: z.object({ id: z.string().uuid(), newParentId: z.string().uuid().nullable().optional() }),
   action: "risk.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) => reparentIssue(ctx, { id: input.id, newParentId: input.newParentId ?? null }),
+  service: (ctx, input) =>
+    reparentIssue(ctx, { id: input.id, newParentId: input.newParentId ?? null }),
   revalidate: "risk",
   mapError: (e) => formatDomainError(e, { fallback: "Umhängen fehlgeschlagen" }),
 });

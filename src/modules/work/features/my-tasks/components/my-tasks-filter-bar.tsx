@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import type { MyTasksListModel } from "@/modules/work/server/views/my-tasks-list";
 import type { TaskLevel } from "@/server/services/my-tasks";
@@ -23,7 +24,7 @@ interface Props {
   onPiChange: (next: string | null) => void;
 }
 
-const LEVEL_LABEL: Record<TaskLevel, string> = { epic: "Epic", feature: "Feature" };
+const LEVEL_KEYS: Record<TaskLevel, string> = { epic: "Epic", feature: "Feature" };
 
 /**
  * Filter-Bar. Sortierung und Gruppierung sind aus diesem Iterationsschritt
@@ -33,6 +34,7 @@ const LEVEL_LABEL: Record<TaskLevel, string> = { epic: "Epic", feature: "Feature
  * Overhead.
  */
 export function MyTasksFilterBar(props: Props) {
+  const t = useTranslations();
   const [localQuery, setLocalQuery] = useState(props.query);
 
   useEffect(() => setLocalQuery(props.query), [props.query]);
@@ -63,7 +65,7 @@ export function MyTasksFilterBar(props: Props) {
         <option value="">Alle Levels</option>
         {props.options.levelOptions.map((l) => (
           <option key={l} value={l}>
-            {LEVEL_LABEL[l]}
+            {t(LEVEL_KEYS[l])}
           </option>
         ))}
       </select>

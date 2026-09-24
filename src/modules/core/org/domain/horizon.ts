@@ -22,11 +22,11 @@ export type Horizon = (typeof HORIZONS)[number];
 
 export const isHorizon = makeTypeGuard(HORIZONS);
 
-export const HORIZON_LABEL: Record<Horizon, string> = {
-  h3: "H3 · R&D",
-  h2: "H2 · Emerging",
-  h1: "H1 · Investing",
-  h0: "H0 · Decommissioning",
+export const HORIZON_KEYS: Record<Horizon, string> = {
+  h3: "org.horizon.h3",
+  h2: "org.horizon.h2",
+  h1: "org.horizon.h1",
+  h0: "org.horizon.h0",
 };
 
 /**
@@ -35,7 +35,7 @@ export const HORIZON_LABEL: Record<Horizon, string> = {
  *
  * Der Sonderfall ist keine Spitzfindigkeit: H1 zerfällt wirtschaftlich in
  * *Investing* („wir bauen aus") und *Extracting* („wir ernten"), und beide
- * tragen denselben Horizont `h1`. Wer nur `HORIZON_LABEL` liest, nennt eine
+ * tragen denselben Horizont `h1`. Wer nur `HORIZON_KEYS` liest, nennt eine
  * Extracting-Solution „Investing" — genau das tat der Organisations-Baum bis
  * September 2026 mit einer eigenen Etikettenliste `HORIZON_SHORT`, während die
  * Solutions-Liste daneben korrekt zwei Zustände zeigte.
@@ -47,7 +47,7 @@ export const HORIZON_LABEL: Record<Horizon, string> = {
  * sie aus der Datenbank kommt.
  */
 export function horizonLabel(horizon: Horizon, mode: string | null | undefined): string {
-  return horizon === "h1" && mode === "extracting" ? "H1 · Extracting" : HORIZON_LABEL[horizon];
+  return horizon === "h1" && mode === "extracting" ? "H1 · Extracting" : HORIZON_KEYS[horizon];
 }
 
 /**
@@ -55,11 +55,11 @@ export function horizonLabel(horizon: Horizon, mode: string | null | undefined):
  *
  * Für Flächen, die neben dem Horizont ohnehin schon sagen, was die Solution
  * tut, oder die schlicht keinen Platz für den Zusatz haben. Sie schneidet aus
- * `HORIZON_LABEL` ab, statt eine zweite Etikettenliste aufzumachen — genau die
+ * `HORIZON_KEYS` ab, statt eine zweite Etikettenliste aufzumachen — genau die
  * war der Fehler, den `horizonLabel` oben beschreibt.
  */
 export function horizonShort(horizon: Horizon): string {
-  return HORIZON_LABEL[horizon].split(" · ")[0]!;
+  return HORIZON_KEYS[horizon].split(" · ")[0]!;
 }
 
 /** Erklärtexte je Horizont — Quelle für Tooltips + Legende (Helfer-Schicht). */

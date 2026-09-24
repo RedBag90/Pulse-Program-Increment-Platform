@@ -1,8 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   ROAM_DOT,
-  ROAM_LABELS,
+  ROAM_KEYS,
   ROAM_STATUSES,
   type RoamStatus,
 } from "@/modules/core/kernel/domain/roam";
@@ -22,6 +23,7 @@ export function IssuesFunnelBar({
   onToggleRoam: (roam: RoamStatus) => void;
   onClear: () => void;
 }) {
+  const t = useTranslations();
   const total = ROAM_STATUSES.reduce((sum, s) => sum + counts[s], 0);
   const none = activeRoams.length === 0;
   return (
@@ -34,7 +36,7 @@ export function IssuesFunnelBar({
           none ? "border-primary bg-primary/10 font-medium" : "hover:bg-muted/50"
         }`}
       >
-        Alle
+        {t("risks.ui.alle")}
         <span className="tabular-nums text-muted-foreground">{total}</span>
       </button>
       {ROAM_STATUSES.map((s) => {
@@ -50,7 +52,7 @@ export function IssuesFunnelBar({
             }`}
           >
             <span className={`size-2 rounded-full ${ROAM_DOT[s]}`} aria-hidden />
-            {ROAM_LABELS[s]}
+            {t(ROAM_KEYS[s])}
             <span className="tabular-nums text-muted-foreground">{counts[s]}</span>
           </button>
         );

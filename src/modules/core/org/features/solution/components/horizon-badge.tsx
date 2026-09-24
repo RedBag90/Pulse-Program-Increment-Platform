@@ -28,7 +28,7 @@ export function HorizonBadge({
    * Für schmale Spalten: der ausgeschriebene Name bricht dort auf zwei Zeilen
    * um, und die Stufe allein trägt die Auskunft. Die Stufe wird aus dem
    * Horizont selbst gebildet, nicht aus einer zweiten Etikettenliste, die
-   * neben `HORIZON_LABEL` veralten könnte.
+   * neben `HORIZON_KEYS` veralten könnte.
    */
   short?: boolean;
   className?: string;

@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -10,12 +11,13 @@ import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-ov
  * "where would you click next?".
  */
 export function NextStepsBlock({ data }: { data: PortfolioOverview }) {
+  const t = useTranslations();
   return (
     <Card className="space-y-3 p-4">
-      <SectionLabel>Nächste Schritte</SectionLabel>
+      <SectionLabel>{t("work.overview.naechsteSchritte")}</SectionLabel>
       {data.nextSteps.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Aktuell keine konkreten Hinweise — Struktur und Praxis sind im Ziel.
+          {t("work.overview.aktuellKeineKonkretenHinweise")}
         </p>
       ) : (
         <ul className="space-y-1.5 text-xs">

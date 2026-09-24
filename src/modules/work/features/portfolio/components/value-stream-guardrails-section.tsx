@@ -1,13 +1,14 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 
 import { formatEUR } from "@/lib/formatting";
 import { saveValueStreamGuardrailTargetsAction } from "@/modules/work/features/portfolio/actions/guardrail-targets";
 import {
   CAPACITY_BUCKETS,
-  CAPACITY_BUCKET_LABEL,
-  GUARDRAIL_SOURCE_LABELS,
+  CAPACITY_BUCKET_KEYS,
+  GUARDRAIL_SOURCE_KEYS,
   type CapacityBucket,
   type GuardrailTargetsSource,
 } from "@/modules/work/domain/portfolio-guardrails";
@@ -69,6 +70,7 @@ export function ValueStreamGuardrailsSection({
   /** Aufteilung bei diesem Limit — `null`, solange die Practice aus ist. */
   preview?: ClassificationPreview | null | undefined;
 }) {
+  const t = useTranslations();
   const [state, formAction, pending] = useActionState(saveValueStreamGuardrailTargetsAction, {});
   const own = (axis: string) => overriddenAxes.includes(axis);
   const ziel = (b: CapacityBucket) => (own("capacity") ? String(plan.targets[b]) : "");
@@ -87,15 +89,16 @@ export function ValueStreamGuardrailsSection({
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-baseline gap-3">
-        <h2 className="text-lg font-medium">Guardrail 2 · Capacity Allocation</h2>
+        <h2 className="text-lg font-medium">{t("work.epic.guardrailCapacityAllocation")}</h2>
         <GuardrailStatusBadge status={status} />
         <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-          {GUARDRAIL_SOURCE_LABELS[source]}
+          {t(GUARDRAIL_SOURCE_KEYS[source] ?? source)}
         </span>
       </div>
       <p className="text-sm text-muted-foreground">
-        Gemessen in <strong className="font-medium text-foreground">Job-Size-Punkten</strong>: das
-        zugeteilte Veränderungsgeld jedes ARTs, geteilt durch seinen eigenen €-Satz je Punkt —
+        {t("work.epic.gemessenIn")}{" "}
+        <strong className="font-medium text-foreground">{t("work.epic.jobSizePunkten")}</strong>:
+        das zugeteilte Veränderungsgeld jedes ARTs, geteilt durch seinen eigenen €-Satz je Punkt —
         dagegen die Job Size der für {plan.cycleLabel} eingeplanten Features.
       </p>
 
@@ -129,17 +132,17 @@ export function ValueStreamGuardrailsSection({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-surface-frame text-label uppercase tracking-[0.1em] text-muted-foreground">
-              <th className="p-2 text-left font-semibold">Arbeitstyp</th>
-              <th className="p-2 text-right font-semibold">Features</th>
-              <th className="p-2 text-right font-semibold">Geplant</th>
-              <th className="p-2 text-right font-semibold">Verfügbar</th>
-              <th className="p-2 text-right font-semibold">Abw.</th>
+              <th className="p-2 text-left font-semibold">{t("work.epic.arbeitstyp")}</th>
+              <th className="p-2 text-right font-semibold">{t("work.epic.features")}</th>
+              <th className="p-2 text-right font-semibold">{t("work.epic.geplant")}</th>
+              <th className="p-2 text-right font-semibold">{t("work.epic.verfuegbar")}</th>
+              <th className="p-2 text-right font-semibold">{t("work.epic.abw")}</th>
             </tr>
           </thead>
           <tbody>
             {plan.rows.map((row) => (
               <tr key={row.bucket} className="border-b last:border-b-0">
-                <td className="p-2">{CAPACITY_BUCKET_LABEL[row.bucket]}</td>
+                <td className="p-2">{t(CAPACITY_BUCKET_KEYS[row.bucket] ?? row.bucket)}</td>
                 <td className="p-2 text-right tabular-nums">{row.planned.count}</td>
                 <td className="p-2 text-right tabular-nums">{row.planned.jobSize} Pkt</td>
                 <td className="p-2 text-right tabular-nums text-muted-foreground">
@@ -187,10 +190,10 @@ export function ValueStreamGuardrailsSection({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-surface-frame text-label uppercase tracking-[0.1em] text-muted-foreground">
-                <th className="p-2 text-left font-semibold">Entwicklung</th>
+                <th className="p-2 text-left font-semibold">{t("work.epic.entwicklung")}</th>
                 {CAPACITY_BUCKETS.map((b) => (
                   <th key={b} className="p-2 text-right font-semibold">
-                    {CAPACITY_BUCKET_LABEL[b].replace("-Features", "")}
+                    {t(CAPACITY_BUCKET_KEYS[b] ?? b).replace("-Features", "")}
                   </th>
                 ))}
               </tr>
@@ -250,53 +253,53 @@ export function ValueStreamGuardrailsSection({
         <form action={formAction} className="space-y-2 rounded-lg bg-card p-4 shadow-card">
           <input type="hidden" name="valueStreamId" value={valueStreamId} />
           <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            Ziele dieses Wertstroms
+            {t("work.epic.zieleDiesesWertstroms")}
           </p>
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <label className="flex items-center gap-2">
-              Business
+              {t("work.epic.business")}
               <input
                 name="business"
                 value={business}
                 onChange={(ev) => setBusiness(ev.target.value)}
                 inputMode="numeric"
-                placeholder="geerbt"
+                placeholder={t("work.epic.geerbt")}
                 className="w-20 rounded-md border bg-background px-2 py-1 text-right tabular-nums"
               />
               %
             </label>
             <label className="flex items-center gap-2">
-              Enabler
+              {t("work.epic.enabler")}
               <input
                 name="enabler"
                 value={enabler}
                 onChange={(ev) => setEnabler(ev.target.value)}
                 inputMode="numeric"
-                placeholder="geerbt"
+                placeholder={t("work.epic.geerbt")}
                 className="w-20 rounded-md border bg-background px-2 py-1 text-right tabular-nums"
               />
               %
             </label>
             <label className="flex items-center gap-2">
-              Maintenance
+              {t("work.epic.maintenance")}
               <input
                 name="maintenance"
                 value={maintenance}
                 onChange={(ev) => setMaintenance(ev.target.value)}
                 inputMode="numeric"
-                placeholder="geerbt"
+                placeholder={t("work.epic.geerbt")}
                 className="w-20 rounded-md border bg-background px-2 py-1 text-right tabular-nums"
               />
               %
             </label>
             <label className="flex items-center gap-2">
-              Portfolio-Limit
+              {t("work.epic.portfolioLimit")}
               <input
                 name="portfolioThreshold"
                 value={limit}
                 onChange={(ev) => setLimit(ev.target.value)}
                 inputMode="numeric"
-                placeholder="geerbt"
+                placeholder={t("work.epic.geerbt")}
                 className="w-28 rounded-md border bg-background px-2 py-1 text-right tabular-nums"
               />
               €
@@ -310,11 +313,12 @@ export function ValueStreamGuardrailsSection({
             </button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Leer lassen heißt <strong className="font-medium">geerbt</strong>. Aktuell gilt:
-            Business {plan.targets.business} % / Enabler {plan.targets.enabler} % / Maintenance{" "}
+            {t("work.epic.leerLassenHeisst")}{" "}
+            <strong className="font-medium">{t("work.epic.geerbt")}</strong>. Aktuell gilt: Business{" "}
+            {plan.targets.business} % / Enabler {plan.targets.enabler} % / Maintenance{" "}
             {plan.targets.maintenance} %, Portfolio-Limit {formatEUR(threshold)} —{" "}
-            {GUARDRAIL_SOURCE_LABELS[source]}. Die drei Anteile werden zusammen gesetzt: eine halbe
-            Mix-Achse kann nicht auf 100 summieren.
+            {t(GUARDRAIL_SOURCE_KEYS[source] ?? source)}. Die drei Anteile werden zusammen gesetzt:
+            eine halbe Mix-Achse kann nicht auf 100 summieren.
           </p>
           {state.error && (
             <p role="alert" className="text-sm text-destructive">

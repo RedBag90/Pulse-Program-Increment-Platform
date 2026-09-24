@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import {
   EpicFacetFilterBar,
@@ -81,6 +82,7 @@ export function EpicsFilterBar({
   onGroupChange,
   onDensityChange,
 }: Props) {
+  const t = useTranslations();
   return (
     <EpicFacetFilterBar
       query={query}
@@ -100,12 +102,12 @@ export function EpicsFilterBar({
     >
       <div className="ml-auto flex items-center gap-2 text-xs">
         <label className="flex items-center gap-1 text-muted-foreground">
-          Sortierung
+          {t("work.epic.sortierung")}
           <select
             className={FACET_SELECT_CLASS}
             value={sort}
             onChange={(e) => onSortChange(e.target.value as SortKey)}
-            aria-label="Sortierung"
+            aria-label={t("work.epic.sortierung")}
           >
             {Object.entries(SORT_LABELS).map(([v, l]) => (
               <option key={v} value={v}>
@@ -122,7 +124,7 @@ export function EpicsFilterBar({
             { id: "stage", label: "Funnel" },
           ]}
           onChange={onGroupChange}
-          ariaLabel="Gruppierung"
+          ariaLabel={t("work.epic.gruppierung")}
         />
 
         <ToggleGroup
@@ -132,7 +134,7 @@ export function EpicsFilterBar({
             { id: "compact", label: "Kompakt" },
           ]}
           onChange={onDensityChange}
-          ariaLabel="Zeilenhoehe"
+          ariaLabel={t("work.epic.zeilenhoehe")}
         />
       </div>
     </EpicFacetFilterBar>

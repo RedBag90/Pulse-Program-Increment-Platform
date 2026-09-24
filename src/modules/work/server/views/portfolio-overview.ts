@@ -37,7 +37,7 @@ import { totalContribution } from "@/modules/core/goals/domain/epic-contribution
 import type { EpicClass } from "@/modules/work/domain/pb-submission";
 import {
   hiddenClass,
-  hiddenClassLabel,
+  hiddenClassKey,
   isClassShown,
   type SolutionRef,
 } from "@/modules/work/domain/epic-class-filter";
@@ -308,7 +308,7 @@ export interface ClassFilterState {
   /** Gewählte Klassen (leer = Facette aus). */
   selected: string[];
   /** `null`, wenn nichts zusammengefasst wird. */
-  hiddenLabel: string | null;
+  hiddenLabelKey: string | null;
   /** Die zusammengefasste Klasse — treibt die Einfärbung der Sammelzeilen. */
   hiddenClass: EpicClass | null;
   /** Wie viele Epics zusammengefasst sind (über die ganze Seite). */
@@ -772,7 +772,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
   // Epics und würden sonst doppelt zählen.
   const classFilter: ClassFilterState = {
     selected: selectedClasses,
-    hiddenLabel: hiddenClassLabel(selectedClasses),
+    hiddenLabelKey: hiddenClassKey(selectedClasses),
     hiddenClass: hiddenClass(selectedClasses),
     hiddenCount: cards.filter((c) => !isClassShown(c.epicClass, selectedClasses)).length,
   };

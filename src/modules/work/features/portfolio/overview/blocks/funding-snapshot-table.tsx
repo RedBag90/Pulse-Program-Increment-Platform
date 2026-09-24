@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
@@ -15,14 +16,15 @@ function eur(n: number): string {
  * the largest VS so the ranking is read-at-a-glance.
  */
 export function FundingSnapshotTable({ data }: { data: PortfolioOverview }) {
+  const t = useTranslations();
   if (data.budgets.length === 0) {
     return (
       <Card className="space-y-2 p-4">
-        <SectionLabel>Funding-Snapshot</SectionLabel>
+        <SectionLabel>{t("work.overview.fundingSnapshot")}</SectionLabel>
         <p className="text-sm text-muted-foreground">
           Noch keine Budgets verteilt.{" "}
           <Link href="/budgeting/periods" className="text-primary hover:underline">
-            Budgeting öffnen →
+            {t("work.overview.budgetingOeffnen")}
           </Link>
         </p>
       </Card>
@@ -34,7 +36,7 @@ export function FundingSnapshotTable({ data }: { data: PortfolioOverview }) {
 
   return (
     <Card className="space-y-3 p-4">
-      <SectionLabel>Funding-Snapshot</SectionLabel>
+      <SectionLabel>{t("work.overview.fundingSnapshot")}</SectionLabel>
       <ul className="space-y-2">
         {ranked.map((b) => {
           const widthPct = (b.total / max) * 100;

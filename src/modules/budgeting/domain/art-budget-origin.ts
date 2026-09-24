@@ -84,15 +84,15 @@ export interface ArtBudgetOrigin {
   basis: OriginBasis | "mixed";
 }
 
-export const ORIGIN_GROUP_LABELS: Record<OriginGroup, string> = {
-  change: "Veränderung",
-  operating: "Betrieb",
+export const ORIGIN_GROUP_KEYS: Record<OriginGroup, string> = {
+  change: "budgeting.originGroup.change",
+  operating: "budgeting.originGroup.operating",
 };
 
 const LABELS: Record<OriginKey, string> = {
   portfolio: "Portfolio-Epics aus der Kachel",
   // **„ART-Rahmen", nicht „ART-Epic-Rahmen"** (§2.5 der Konsolidierungs-Spec,
-  // und `RTB_KIND_LABELS.art_change`). Hier stand einmal das „Epic" mit drin —
+  // und `RTB_KIND_KEYS.art_change`). Hier stand einmal das „Epic" mit drin —
   // und wurde spätestens neben der Zeile darunter zum Widerspruch: ein
   // ART-Epic-Rahmen, aus dem Arbeit **ohne** Epic bezahlt wird.
   frameDistributed: "ART-Rahmen · an ART-Epics",

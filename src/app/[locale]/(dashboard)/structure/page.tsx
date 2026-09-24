@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
@@ -63,6 +64,7 @@ interface Props {
 }
 
 export default async function StructurePage({ searchParams }: Props) {
+  const t = await getTranslations();
   const { view, nach, q } = await searchParams;
 
   const principal = await requirePrincipal().catch(() => null);
@@ -157,8 +159,8 @@ export default async function StructurePage({ searchParams }: Props) {
   return (
     <Page>
       <PageHeader
-        eyebrow="Struktur"
-        title="Organisation"
+        eyebrow={t("org.page.struktur")}
+        title={t("org.page.organisation")}
         subtitle={
           cycle?.cycleKey
             ? `Wertströme, ihre ARTs und die Solutions, die sie bauen und betreiben. Beträge: ${cycleLabel(cycle.cycleKey)}.`
@@ -198,7 +200,7 @@ export default async function StructurePage({ searchParams }: Props) {
 
       {leer ? (
         <div className="rounded-lg border-2 border-dashed bg-muted/30 px-6 py-10 text-center">
-          <p className="text-sm font-medium">Noch keine Struktur.</p>
+          <p className="text-sm font-medium">{t("org.page.nochKeineStruktur")}</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
             {canCreateVs
               ? "Mit „Wertstrom anlegen“ den ersten anlegen — darunter kommen ARTs, darunter die Solutions, die sie bauen und betreiben."

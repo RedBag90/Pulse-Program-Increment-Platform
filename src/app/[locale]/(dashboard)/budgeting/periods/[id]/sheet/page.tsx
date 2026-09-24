@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
@@ -20,6 +21,7 @@ interface Props {
  * „aktiven Zyklus" zeigte und aus der Oberfläche gar nicht mehr erreichbar war.
  */
 export default async function SheetPage({ params }: Props) {
+  const t = await getTranslations();
   const { id } = await params;
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
@@ -35,15 +37,15 @@ export default async function SheetPage({ params }: Props) {
     <Page>
       <div className="print:hidden">
         <PageHeader
-          eyebrow="Participatory Budgeting"
-          title="Verteilbögen"
-          subtitle="Ein Bogen je Gruppe — zum Ausdrucken für die Verteilung auf Papier."
+          eyebrow={t("budgeting.page.participatoryBudgeting")}
+          title={t("budgeting.page.verteilboegen")}
+          subtitle={t("budgeting.page.einBogenJeGruppe")}
           actions={
             <Link
               href={`/budgeting/periods/${id}?tab=verteilung`}
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
-              ← Zur Verteilung
+              {t("budgeting.page.zurVerteilung")}
             </Link>
           }
         />

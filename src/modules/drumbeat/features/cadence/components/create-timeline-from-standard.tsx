@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, startTransition } from "react";
 import { Sparkles } from "lucide-react";
 import { createTimelineFromStandardAction } from "@/modules/drumbeat/features/cadence/actions/timeline";
@@ -15,6 +16,7 @@ const SELECT_CLASS =
  * the Structure Timeline toolbar when no Timelines exist yet.
  */
 export function CreateTimelineFromStandard({ standards }: { standards: PiStandard[] }) {
+  const t = useTranslations();
   const [standardId, setStandardId] = useState(standards[0]?.id ?? "");
   const [state, run, pending] = useActionState(createTimelineFromStandardAction, {});
 
@@ -33,7 +35,7 @@ export function CreateTimelineFromStandard({ standards }: { standards: PiStandar
         className={SELECT_CLASS}
         value={standardId}
         onChange={(e) => setStandardId(e.target.value)}
-        aria-label="PI-Standard"
+        aria-label={t("drumbeat.ui.piStandard")}
       >
         {standards.map((s) => (
           <option key={s.id} value={s.id}>

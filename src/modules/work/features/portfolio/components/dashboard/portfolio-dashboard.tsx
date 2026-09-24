@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import type { Translate } from "@/i18n/translate";
 import { useMemo, useState, useActionState } from "react";
 import {
   BarChart,
@@ -61,7 +63,7 @@ import {
   yAxis,
   type Row,
 } from "@/components/charts/stacked-chart";
-import { STAGE_SHORT } from "@/components/detail/initiative-labels";
+import { STAGE_SHORT_KEYS } from "@/components/detail/initiative-labels";
 
 interface Props {
   data: PortfolioEconomicsData;
@@ -81,10 +83,11 @@ const OHNE_ART = "Ohne ART";
  * eigene Wortliste — und zwar die von *vor* dem Reifegrad-Neuschnitt: L1 hiess
  * „Detailing", L2 „Analyse", L3 „Backlog". Wer das Dashboard nach Status
  * gruppierte, las drei Stufennamen, die es in der Epic-Liste daneben nicht
- * mehr gab. Die Kurzmarken kommen jetzt aus {@link STAGE_SHORT}; das Präfix
+ * mehr gab. Die Kurzmarken kommen jetzt aus {@link STAGE_SHORT_KEYS}; das Präfix
  * ist Formatierung, kein Vokabular.
  */
-const stageLabel = (gate: StageGate): string => `${gate} · ${STAGE_SHORT[gate] ?? gate}`;
+const stageLabel = (gate: StageGate, t: Translate): string =>
+  `${gate} · ${t(STAGE_SHORT_KEYS[gate] ?? gate)}`;
 
 /** Sequenzielle Farbrampe L0 (früh, grau) → L5 (Impact, grün). */
 const STAGE_COLORS: Record<StageGate, string> = {
@@ -137,6 +140,7 @@ function defaultToIso(data: PortfolioEconomicsData): string {
 }
 
 export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
+  const t = useTranslations();
   const [selected, setSelected] = useState<Set<string>>(() => new Set(data.epics.map((e) => e.id)));
   const [fromIso, setFromIso] = useState(data.axisFromIso);
   // Default upper bound: latest go-live + 36 months so the recurring benefit
@@ -381,7 +385,7 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
       const gate = stageOf(e.title);
       return {
         id: e.id,
-        title: stageLabel(gate),
+        title: stageLabel(gate, t),
         color: STAGE_COLORS[gate],
         confirmed: !e.id.endsWith(":est"),
       };
@@ -470,8 +474,8 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel
-          title="Benefit Velocity"
-          subtitle="Business Value je Monat — Linie = kostenneutraler Betrieb"
+          title={t("work.dashboard.benefitVelocity")}
+          subtitle={t("work.dashboard.businessValueJeMonat")}
         >
           <StackedChart
             rows={benefitRows}
@@ -492,7 +496,10 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
           </StackedChart>
         </Panel>
 
-        <Panel title="Cost Distribution" subtitle={`Kosten je Monat, gestapelt nach ${stackedBy}`}>
+        <Panel
+          title={t("work.dashboard.costDistribution")}
+          subtitle={`Kosten je Monat, gestapelt nach ${stackedBy}`}
+        >
           <StackedChart
             rows={costRows}
             stacks={displayStacks}
@@ -502,7 +509,7 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
           />
         </Panel>
 
-        <Panel title="ROI" subtitle="Business Value (grün) vs. Kosten (rot) je Monat">
+        <Panel title={t("work.dashboard.roi")} subtitle={t("work.dashboard.businessValueGruenVs")}>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={roiRows} margin={{ top: 4, right: 8, left: 0, bottom: 24 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
@@ -534,7 +541,7 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
         </Panel>
 
         <Panel
-          title="Break Even Analyse"
+          title={t("work.dashboard.breakEvenAnalyse")}
           subtitle={
             breakEvenLabel ? `Break-even: ${breakEvenLabel}` : "Kein Break-even im Zeitraum"
           }
@@ -611,7 +618,10 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
           </ResponsiveContainer>
         </Panel>
 
-        <Panel title="Gained Value Analyse" subtitle="Kumulierter Business Value">
+        <Panel
+          title={t("work.dashboard.gainedValueAnalyse")}
+          subtitle={t("work.dashboard.kumulierterBusinessValue")}
+        >
           <StackedChart
             rows={accValueRows}
             stacks={displayStacks}
@@ -621,7 +631,10 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
           />
         </Panel>
 
-        <Panel title="Cost Analysis" subtitle="Kumulierte Kosten">
+        <Panel
+          title={t("work.dashboard.costAnalysis")}
+          subtitle={t("work.dashboard.kumulierteKosten")}
+        >
           <StackedChart
             rows={accCostRows}
             stacks={displayStacks}
@@ -632,7 +645,7 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
         </Panel>
 
         <Panel
-          title="Positiver und Negativer Cash-Flow"
+          title={t("work.dashboard.positiverUndNegativerCash")}
           subtitle={`Laufender kumulierter Saldo je ${stackedBy} — negative unterhalb, positive oberhalb der 0-Linie`}
           className="xl:col-span-2"
         >
@@ -672,9 +685,12 @@ function CashFlowChart({
   months: PortfolioSeries["axis"]["months"];
   todayIndex: number;
 }) {
+  const t = useTranslations();
   if (stacks.length === 0) {
     return (
-      <p className="py-12 text-center text-sm text-muted-foreground">Keine Epics ausgewählt.</p>
+      <p className="py-12 text-center text-sm text-muted-foreground">
+        {t("work.dashboard.keineEpicsAusgewaehlt")}
+      </p>
     );
   }
   const rows: Row[] = series.axis.months.map((mo, m) => {
@@ -804,6 +820,7 @@ function Slicers({
   onGroupMode: (m: GroupMode) => void;
   facets: SlicerFacetProps;
 }) {
+  const t = useTranslations();
   return (
     <Card className="space-y-4 p-4">
       <EpicFacetFilterBar {...facets} />
@@ -811,16 +828,16 @@ function Slicers({
       <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
-            <h2 className="font-heading text-sm font-medium">Projekte</h2>
+            <h2 className="font-heading text-sm font-medium">{t("work.dashboard.projekte")}</h2>
             <button onClick={onAll} className="text-xs text-primary hover:underline">
-              Alle
+              {t("work.dashboard.alle")}
             </button>
             <button onClick={onNone} className="text-xs text-primary hover:underline">
-              Keine
+              {t("work.dashboard.keine")}
             </button>
           </div>
           <MultiSelectFilter
-            label="Projekte"
+            label={t("work.dashboard.projekte")}
             searchable
             sections={[
               {
@@ -839,12 +856,12 @@ function Slicers({
             disabled={facetEpics.length === 0}
           />
           {facetEpics.length === 0 && (
-            <p className="text-xs text-muted-foreground">Keine Epics für die aktuellen Filter.</p>
+            <p className="text-xs text-muted-foreground">{t("work.dashboard.keineEpicsFuerDie")}</p>
           )}
         </div>
 
         <div className="space-y-2">
-          <h2 className="font-heading text-sm font-medium">Stichtag</h2>
+          <h2 className="font-heading text-sm font-medium">{t("work.dashboard.stichtag")}</h2>
           <div className="flex items-center gap-2">
             <Input
               type="date"
@@ -863,7 +880,7 @@ function Slicers({
         </div>
 
         <div className="space-y-2">
-          <h2 className="font-heading text-sm font-medium">Ansicht</h2>
+          <h2 className="font-heading text-sm font-medium">{t("work.dashboard.ansicht")}</h2>
           <div className="inline-flex rounded-full border p-0.5 text-xs">
             {(
               [
@@ -903,12 +920,15 @@ function SettingsEditor({
   costNeutralTarget: number | null;
   costPerJobSizePoint: number | null;
 }) {
+  const t = useTranslations();
   const [state, formAction, pending] = useActionState(savePortfolioDashboardSettingsAction, {});
   return (
     <Card className="p-4">
       <form action={formAction} className="flex flex-wrap items-end gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="pd-target">Zielwert kostenneutraler Betrieb (€/Monat)</Label>
+          <Label htmlFor="pd-target">
+            {t("work.dashboard.zielwertKostenneutralerBetriebMonat")}
+          </Label>
           <Input
             id="pd-target"
             name="costNeutralTarget"
@@ -917,11 +937,11 @@ function SettingsEditor({
             step={100}
             className="w-52"
             defaultValue={costNeutralTarget ?? ""}
-            placeholder="z. B. 100"
+            placeholder={t("work.common.example100")}
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="pd-cpj">€ pro WSJF-Job-Size-Punkt</Label>
+          <Label htmlFor="pd-cpj">{t("work.dashboard.proWsjfJobSize")}</Label>
           <Input
             id="pd-cpj"
             name="costPerJobSizePoint"
@@ -930,14 +950,14 @@ function SettingsEditor({
             step={100}
             className="w-52"
             defaultValue={costPerJobSizePoint ?? ""}
-            placeholder="leer = €-Achse aus"
+            placeholder={t("work.dashboard.leerAchseAus")}
           />
         </div>
         <Button type="submit" variant="outline" disabled={pending}>
           {pending ? "Speichert…" : "Speichern"}
         </Button>
         {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-        {state.success && <p className="text-sm text-success">Gespeichert.</p>}
+        {state.success && <p className="text-sm text-success">{t("work.dashboard.gespeichert")}</p>}
       </form>
     </Card>
   );

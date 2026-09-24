@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import {
   RoleRow,
@@ -110,8 +111,9 @@ function ArtBlock({
   users: DirectoryUserOption[];
   editable: EditableTargets;
 }) {
+  const t = useTranslations();
   return (
-    <Branch label="ART" name={art.name}>
+    <Branch label={t("org.page.art")} name={art.name}>
       <div className="divide-y">
         {art.entries.map((e) => (
           <RoleRow key={e.key} entry={e} users={users} editable={editable} />
@@ -133,8 +135,9 @@ function SolutionBlock({
   users: DirectoryUserOption[];
   editable: EditableTargets;
 }) {
+  const t = useTranslations();
   return (
-    <Branch label="Solution" name={solution.name}>
+    <Branch label={t("org.ui.solution")} name={solution.name}>
       <div className="divide-y">
         {solution.entries.map((e) => (
           <RoleRow key={e.key} entry={e} users={users} editable={editable} />

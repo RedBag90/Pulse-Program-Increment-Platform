@@ -1,8 +1,9 @@
+import { useTranslations } from "next-intl";
 import {
   LADDER_STEPS,
   gateOfStep,
-  gateStepLabel,
-  gateStepNumber,
+  gateStepKey,
+  gateStepNumberKey,
   type GateStep,
 } from "@/modules/work/domain/stage-gate";
 
@@ -18,11 +19,12 @@ import {
  * **Sieben Punkte, nicht acht.** Die Stufen kommen aus `LADDER_STEPS`, nicht
  * aus `GATE_STEPS`: „Zur Analyse ausgewählt" ist ein beantragter Schritt, aber
  * kein Reifegrad — auf einer Leiter mit der Überschrift „Reifegrad" misst er
- * nichts. Die Beschriftung kommt aus `gateStepLabel`, also aus derselben
+ * nichts. Die Beschriftung kommt aus `gateStepKey`, also aus derselben
  * Quelle, aus der die Gate-Karte und der Antrag sie nehmen; eine zweite,
  * abgeschriebene Liste gäbe es sonst schon wieder.
  */
 export function EpicGateLadder({ current }: { current: GateStep }) {
+  const t = useTranslations();
   // Steht das Epic auf einem Schritt, der auf dieser Leiter nicht vorkommt,
   // zeigt sie den Reifegrad, auf dem es dadurch bleibt — ein Epic „zur Analyse
   // ausgewählt" steht auf L1. Ohne das zeigte die Leiter für genau die Epics
@@ -32,7 +34,11 @@ export function EpicGateLadder({ current }: { current: GateStep }) {
   return (
     /* Der Tour-Anker zog vom abgeloesten Stepper hierher: er meint „die Stelle,
        an der der Reifegrad steht", und das ist jetzt die Leiter. */
-    <ol className="flex items-start" aria-label="Reifegrad" data-tour="epic-lifecycle-stepper">
+    <ol
+      className="flex items-start"
+      aria-label={t("work.epic.reifegrad")}
+      data-tour="epic-lifecycle-stepper"
+    >
       {LADDER_STEPS.map((step, i) => {
         const done = i < at;
         const now = i === at;
@@ -61,9 +67,9 @@ export function EpicGateLadder({ current }: { current: GateStep }) {
               className={`truncate font-mono text-label tracking-tight ${
                 now ? "font-semibold text-primary" : "text-muted-foreground"
               }`}
-              title={gateStepLabel(step)}
+              title={t(gateStepKey(step))}
             >
-              {gateStepNumber(step)}
+              {t(gateStepNumberKey(step))}
             </span>
           </li>
         );

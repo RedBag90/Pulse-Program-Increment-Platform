@@ -27,12 +27,12 @@ export function normalizeRoamStatus(s: string): RoamStatus {
 }
 
 /** Display labels (de/EN mix as used across the app). */
-export const ROAM_LABELS: Record<RoamStatus, string> = {
-  open: "Offen",
-  resolved: "Resolved",
-  owned: "Owned",
-  accepted: "Accepted",
-  mitigated: "Mitigated",
+export const ROAM_KEYS: Record<RoamStatus, string> = {
+  open: "risks.roam.open",
+  resolved: "risks.roam.resolved",
+  owned: "risks.roam.owned",
+  accepted: "risks.roam.accepted",
+  mitigated: "risks.roam.mitigated",
 };
 
 /**

@@ -1,7 +1,8 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
-import { STAGE_SHORT } from "@/components/detail/initiative-labels";
+import { STAGE_SHORT_KEYS } from "@/components/detail/initiative-labels";
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 
 function relativeDays(d: Date): string {
@@ -17,15 +18,18 @@ function relativeDays(d: Date): string {
  * of change. Enough to spot momentum.
  */
 export function RecentActivityBlock({ data }: { data: PortfolioOverview }) {
+  const t = useTranslations();
   return (
     <Card className="space-y-3 p-4">
-      <SectionLabel>Recent Activity</SectionLabel>
+      <SectionLabel>{t("work.overview.recentActivity")}</SectionLabel>
       {data.recentActivity.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Noch keine Aktivität.</p>
+        <p className="text-sm text-muted-foreground">{t("work.overview.nochKeineAktivitaet")}</p>
       ) : (
         <ul className="space-y-1.5 text-xs">
           {data.recentActivity.map((e) => {
-            const gate = STAGE_SHORT[e.stageGate as keyof typeof STAGE_SHORT] ?? e.stageGate;
+            const gate = t(
+              STAGE_SHORT_KEYS[e.stageGate as keyof typeof STAGE_SHORT_KEYS] ?? e.stageGate,
+            );
             return (
               <li key={e.id} className="flex items-baseline justify-between gap-3">
                 <span className="truncate">

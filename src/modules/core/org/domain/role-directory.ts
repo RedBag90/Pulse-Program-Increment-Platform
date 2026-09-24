@@ -244,10 +244,10 @@ export const SOLUTION_DUTIES: {
 /** Auf welcher Ebene ein Platz sitzt — die dritte Spalte beim Aufzählen. */
 export type DutyLevel = "valueStream" | "art" | "solution";
 
-export const DUTY_LEVEL_LABEL: Record<DutyLevel, string> = {
-  valueStream: "Wertstrom",
-  art: "ART",
-  solution: "Solution",
+export const DUTY_LEVEL_KEYS: Record<DutyLevel, string> = {
+  valueStream: "org.dutyLevel.valueStream",
+  art: "org.dutyLevel.art",
+  solution: "org.dutyLevel.solution",
 };
 
 /**

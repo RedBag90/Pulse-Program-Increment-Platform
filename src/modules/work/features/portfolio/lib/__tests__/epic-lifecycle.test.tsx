@@ -8,7 +8,7 @@ import {
   type EpicLifecycleInput,
 } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 import { TIMELINE_ESTIMATE_PHASES } from "@/modules/work/domain/timeline";
-import { STAGE_SHORT } from "@/components/detail/initiative-labels";
+import { STAGE_SHORT_KEYS } from "@/components/detail/initiative-labels";
 
 /**
  * Acht Prozessabschnitte, acht Tore. Der Abschnitt sagt, woran gearbeitet wird;
@@ -70,7 +70,7 @@ describe("LIFECYCLE_STEPS — Aufbau", () => {
   });
 
   it("gibt jedem Reifegrad eines Abschnitts ein Kurzlabel", () => {
-    for (const s of LIFECYCLE_STEPS) expect(STAGE_SHORT[s.gate]).toBeTruthy();
+    for (const s of LIFECYCLE_STEPS) expect(STAGE_SHORT_KEYS[s.gate]).toBeTruthy();
   });
 });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useOptimistic, useRef, useState, useTransition } from "react";
 import {
   setFeaturePiAction,
@@ -21,7 +22,7 @@ import {
   type BoardLane,
   splitCell,
 } from "@/modules/drumbeat/domain/board-matrix";
-import { FEATURE_STATUS_LABELS, needsReasonForStatus } from "@/modules/drumbeat/domain/status";
+import { FEATURE_STATUS_KEYS, needsReasonForStatus } from "@/modules/drumbeat/domain/status";
 import { FEATURE_STATUS_LANE } from "@/modules/drumbeat/features/lib/status-badges";
 import { StatusReasonDialog } from "@/modules/drumbeat/features/cockpit/components/status-reason-dialog";
 import { MoreVertical } from "lucide-react";
@@ -80,19 +81,19 @@ const LANES: ReadonlyArray<LaneDef> = [
   // Eine lange Bahn ist dort kein Anzeigefehler, sondern ein WIP-Signal.
   {
     value: "approved",
-    label: FEATURE_STATUS_LABELS.approved,
+    label: FEATURE_STATUS_KEYS.approved,
     color: FEATURE_STATUS_LANE.approved,
     limit: PILE_LIMIT,
   },
   {
     value: "in_progress",
-    label: FEATURE_STATUS_LABELS.in_progress,
+    label: FEATURE_STATUS_KEYS.in_progress,
     color: FEATURE_STATUS_LANE.in_progress,
   },
-  { value: "blocked", label: FEATURE_STATUS_LABELS.blocked, color: FEATURE_STATUS_LANE.blocked },
+  { value: "blocked", label: FEATURE_STATUS_KEYS.blocked, color: FEATURE_STATUS_LANE.blocked },
   {
     value: "completed",
-    label: FEATURE_STATUS_LABELS.completed,
+    label: FEATURE_STATUS_KEYS.completed,
     color: FEATURE_STATUS_LANE.completed,
     limit: PILE_LIMIT,
   },
@@ -318,6 +319,7 @@ function LaneRow({
   onMove: (id: string, target: { targetPiId?: string; targetStatus?: FeatureStatus }) => void;
   draggingId: React.RefObject<string | null>;
 }) {
+  const t = useTranslations();
   return (
     <>
       {/* Die Beschriftung stand mittig in einer bis zu 1560 px hohen Zeile —
@@ -361,7 +363,9 @@ function LaneRow({
               <details className="group/rest">
                 <summary className="cursor-pointer list-none rounded-md px-1.5 py-1 text-label text-muted-foreground hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
                   <span className="group-open/rest:hidden">+ {rest.length} weitere</span>
-                  <span className="hidden group-open/rest:inline">weniger zeigen</span>
+                  <span className="hidden group-open/rest:inline">
+                    {t("drumbeat.ui.wenigerZeigen")}
+                  </span>
                 </summary>
                 <div className="mt-1.5 space-y-1.5">
                   {rest.map((f) => (
@@ -398,6 +402,7 @@ function FeatureMoveMenu({
   lanes: ReadonlyArray<LaneDef>;
   onMove: (id: string, target: { targetPiId?: string; targetStatus?: FeatureStatus }) => void;
 }) {
+  const t = useTranslations();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -407,9 +412,11 @@ function FeatureMoveMenu({
         <MoreVertical className="size-3.5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <div className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Verschieben</div>
+        <div className="px-1.5 py-1 text-xs font-medium text-muted-foreground">
+          {t("drumbeat.ui.verschieben")}
+        </div>
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger>In PI</DropdownMenuSubTrigger>
+          <DropdownMenuSubTrigger>{t("drumbeat.ui.inPi")}</DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             {pis.map((p) => (
               <DropdownMenuItem
@@ -422,7 +429,7 @@ function FeatureMoveMenu({
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger>Status setzen</DropdownMenuSubTrigger>
+          <DropdownMenuSubTrigger>{t("drumbeat.ui.statusSetzen")}</DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             {lanes.map((l) => (
               <DropdownMenuItem

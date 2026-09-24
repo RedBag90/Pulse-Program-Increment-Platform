@@ -30,7 +30,10 @@ describe("groupCandidates", () => {
       c("Betrieb", 50, "rtb", "Logistik", null),
     ]);
     expect(g.map((x) => x.kind)).toEqual(["run", "grow"]);
-    expect(g.map((x) => x.label)).toEqual(["Run the Business", "Grow the Business"]);
+    expect(g.map((x) => x.label)).toEqual([
+      "budgeting.businessKind.run",
+      "budgeting.businessKind.grow",
+    ]);
   });
 
   it("leere Ebenen entstehen nicht", () => {
@@ -155,7 +158,11 @@ describe("worksheetSections", () => {
   });
 
   it("Run steht vorn, danach die Wertströme nach Betrag absteigend", () => {
-    expect(sections.map((s) => s.label)).toEqual(["Run the Business", "Produktion", "Logistik"]);
+    expect(sections.map((s) => s.label)).toEqual([
+      "budgeting.businessKind.run",
+      "Produktion",
+      "Logistik",
+    ]);
   });
 
   it("jeder Abschnitt trägt seine Zeilen und seine Summe", () => {

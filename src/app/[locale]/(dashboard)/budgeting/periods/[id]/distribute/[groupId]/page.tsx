@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
@@ -16,6 +17,7 @@ interface Props {
  * reicht ein. Ziel des My-Tasks-Hinweises.
  */
 export default async function GroupDistributePage({ params }: Props) {
+  const t = await getTranslations();
   const { id, groupId } = await params;
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
@@ -27,9 +29,9 @@ export default async function GroupDistributePage({ params }: Props) {
   return (
     <Page>
       <PageHeader
-        eyebrow="Participatory Budgeting"
-        title="Budget verteilen"
-        subtitle="Verteile den Topf auf die angemeldeten Positionen — Summe ≤ verteilbarer Topf."
+        eyebrow={t("budgeting.page.participatoryBudgeting")}
+        title={t("budgeting.page.budgetVerteilen")}
+        subtitle={t("budgeting.page.verteileDenTopfAuf")}
         actions={
           <Link
             // Zurück auf die Verteilung, nicht auf „Setup": von dort kam man
@@ -37,7 +39,7 @@ export default async function GroupDistributePage({ params }: Props) {
             href={`/budgeting/periods/${id}?tab=verteilung`}
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
-            ← Zur Verteilung
+            {t("budgeting.page.zurVerteilung")}
           </Link>
         }
       />

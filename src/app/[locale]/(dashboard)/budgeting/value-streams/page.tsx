@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
@@ -16,6 +17,7 @@ import { formatEUR } from "@/lib/formatting";
  */
 
 export default async function BudgetingValueStreamsPage() {
+  const t = await getTranslations();
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
@@ -28,14 +30,14 @@ export default async function BudgetingValueStreamsPage() {
   return (
     <Page>
       <PageHeader
-        eyebrow="Participatory Budgeting"
-        title="Wertströme"
-        subtitle="Betriebskosten und ART-Rahmen pflegen, und den Zuspruch einer abgeschlossenen Kachel darauf aufteilen."
+        eyebrow={t("budgeting.page.participatoryBudgeting")}
+        title={t("budgeting.ui.valueStreams")}
+        subtitle={t("budgeting.ui.valueStreamsSubtitle")}
       />
 
       {valueStreams.length === 0 ? (
         <p className="rounded-lg bg-card shadow-card px-4 py-3 text-sm text-muted-foreground">
-          Noch keine Wertströme.
+          {t("budgeting.ui.noValueStreams")}
         </p>
       ) : (
         <ul className="divide-y rounded-lg border">

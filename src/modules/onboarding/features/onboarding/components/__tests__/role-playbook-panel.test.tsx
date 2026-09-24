@@ -3,7 +3,10 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RolePlaybookPanel } from "@/modules/onboarding/features/onboarding/components/role-playbook-panel";
-import { subscribeTour, type TourRequest } from "@/modules/onboarding/features/onboarding/tour-channel";
+import {
+  subscribeTour,
+  type TourRequest,
+} from "@/modules/onboarding/features/onboarding/tour-channel";
 import { ROLE_PLAYBOOKS } from "@/modules/onboarding/domain/role-playbook";
 import { resolveTour } from "@/modules/onboarding/domain/role-tour";
 import { ROLES } from "@/modules/core/kernel/domain/roles";

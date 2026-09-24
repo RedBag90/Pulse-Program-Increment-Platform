@@ -1,6 +1,7 @@
+import { useTranslations } from "next-intl";
 import { LinkDependencyDialog } from "@/modules/drumbeat/features/dependencies/components/link-dependency-dialog";
 import { UnlinkDependencyButton } from "@/modules/drumbeat/features/dependencies/components/unlink-dependency-button";
-import { DEPENDENCY_TYPE_LABELS } from "@/modules/drumbeat/domain/status";
+import { DEPENDENCY_TYPE_KEYS } from "@/modules/drumbeat/domain/status";
 import { DEPENDENCY_TYPE_CLASS } from "@/modules/drumbeat/features/lib/status-badges";
 import type { DependencyEdge } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 
@@ -37,12 +38,13 @@ export function FeatureDependenciesTab({
   blockerWindows,
   blockerSummary,
 }: Props) {
+  const t = useTranslations();
   return (
     <div className="space-y-6">
       {blockerWindows && blockerWindows.length > 0 && blockerSummary && (
         <div className="rounded-lg border bg-muted/30 px-4 py-2 text-sm">
           <p>
-            <span className="font-medium">Frühestmöglicher Start: </span>
+            <span className="font-medium">{t("drumbeat.ui.fruehestmoeglicherStart")} </span>
             {blockerSummary.earliest
               ? blockerSummary.earliest.toISOString().slice(0, 10)
               : "unbestimmt"}
@@ -59,9 +61,9 @@ export function FeatureDependenciesTab({
       <section className="rounded-lg bg-card p-6 shadow-card">
         <header className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-medium">Ausgehende Dependencies</h2>
+            <h2 className="text-lg font-medium">{t("drumbeat.ui.ausgehendeDependencies")}</h2>
             <p className="text-sm text-muted-foreground">
-              Was dieses Feature blockiert oder wovon es abhaengt.
+              {t("drumbeat.ui.wasDiesesFeatureBlockiert")}
             </p>
           </div>
           {canEdit && artId && (
@@ -80,10 +82,8 @@ export function FeatureDependenciesTab({
 
       <section className="rounded-lg bg-card p-6 shadow-card">
         <header className="mb-3">
-          <h2 className="text-lg font-medium">Eingehende Dependencies</h2>
-          <p className="text-sm text-muted-foreground">
-            Was andere Features auf dieses richten — read-only auf dieser Seite.
-          </p>
+          <h2 className="text-lg font-medium">{t("drumbeat.ui.eingehendeDependencies")}</h2>
+          <p className="text-sm text-muted-foreground">{t("drumbeat.ui.wasAndereFeaturesAuf")}</p>
         </header>
         <EdgeList
           featureId={featureId}
@@ -113,6 +113,7 @@ function EdgeList({
   direction: "from" | "to";
   emptyHint: string;
 }) {
+  const t = useTranslations();
   if (edges.length === 0) {
     return (
       <p className="rounded-md border border-dashed px-4 py-3 text-sm text-muted-foreground">
@@ -131,7 +132,7 @@ function EdgeList({
             <span
               className={`rounded-full px-2 py-0.5 text-meta ${DEPENDENCY_TYPE_CLASS[edge.type]}`}
             >
-              {DEPENDENCY_TYPE_LABELS[edge.type]}
+              {t(DEPENDENCY_TYPE_KEYS[edge.type])}
             </span>
             <span>{edge.other.title}</span>
           </div>

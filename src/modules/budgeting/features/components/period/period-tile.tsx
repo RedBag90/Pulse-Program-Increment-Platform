@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { formatEUR } from "@/lib/formatting";
 import type { PeriodTile } from "@/modules/budgeting/server/views/periods-gallery";
@@ -31,6 +32,7 @@ const day = (d: Date | null): string =>
  * Moment, in dem ein Budget zu **gelten** beginnt.
  */
 export function PeriodTileCard({ tile, muted }: { tile: PeriodTile; muted?: boolean }) {
+  const t = useTranslations();
   const frac = tile.groupCount > 0 ? tile.submittedCount / tile.groupCount : 0;
 
   return (
@@ -46,11 +48,11 @@ export function PeriodTileCard({ tile, muted }: { tile: PeriodTile; muted?: bool
           <span
             className={`rounded-full px-2 py-0.5 text-xs font-medium ${VALIDITY_TONE[tile.validity] ?? "bg-muted"}`}
           >
-            {tile.validityLabel}
+            {t(tile.validityLabelKey)}
           </span>
           {tile.extended && (
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-              verlängert
+              {t("budgeting.period.verlaengert")}
             </span>
           )}
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
@@ -60,10 +62,19 @@ export function PeriodTileCard({ tile, muted }: { tile: PeriodTile; muted?: bool
       </div>
 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-        <Stat label="Topf" value={formatEUR(tile.poolTotal)} />
-        <Stat label="Zeitraum" value={`${day(tile.startDate)} – ${day(tile.endDate)}`} />
-        <Stat label="Gruppen" value={`${tile.groupCount} · ${tile.participantCount} Beteiligte`} />
-        <Stat label="Abgegeben" value={`${tile.submittedCount} / ${tile.groupCount}`} />
+        <Stat label={t("budgeting.period.topf")} value={formatEUR(tile.poolTotal)} />
+        <Stat
+          label={t("budgeting.period.zeitraum")}
+          value={`${day(tile.startDate)} – ${day(tile.endDate)}`}
+        />
+        <Stat
+          label={t("budgeting.period.gruppen")}
+          value={`${tile.groupCount} · ${tile.participantCount} Beteiligte`}
+        />
+        <Stat
+          label={t("budgeting.period.abgegeben")}
+          value={`${tile.submittedCount} / ${tile.groupCount}`}
+        />
       </dl>
 
       <p className="mt-3 text-xs text-muted-foreground">{tile.phase}</p>

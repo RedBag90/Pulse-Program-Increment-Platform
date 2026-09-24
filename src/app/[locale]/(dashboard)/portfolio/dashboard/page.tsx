@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { authorize } from "@/server/auth/authorize";
@@ -15,6 +16,7 @@ import { Page, PageHeader } from "@/components/layout";
  * aggregation/visualisation layer over each Epic's business-case inputs.
  */
 export default async function PortfolioDashboardPage() {
+  const t = await getTranslations();
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
@@ -40,17 +42,14 @@ export default async function PortfolioDashboardPage() {
   return (
     <Page>
       <PageHeader
-        title="Portfolio-Dashboard"
+        title={t("work.dashboard.portfolioDashboard")}
         subtitle={
           <>
-            Wirtschaftlichkeit über Zeit — Kosten, Business Value, ROI und Break-even je Epic.
-            Gerechnet wird mit Epics{" "}
-            <strong className="font-medium">ab L3.2 „Budget alloziert"</strong>: ab der
-            Investitionsentscheidung steht das Geld fest. Der Nutzen zählt davon getrennt erst ab{" "}
-            <strong className="font-medium">L4.2</strong> — geliefert ist geliefert. Pro Theme
-            aufgeschlüsselt:{" "}
+            {t.rich("work.dashboard.subtitle", {
+              b: (c) => <strong className="font-medium">{c}</strong>,
+            })}{" "}
             <Link href={"/ziele?tab=money" as never} className="text-primary hover:underline">
-              Ziele · Money
+              {t("work.dashboard.zieleMoney")}
             </Link>
             .
           </>
@@ -60,15 +59,14 @@ export default async function PortfolioDashboardPage() {
             href="/portfolio"
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
-            Portfolio
+            {t("work.dashboard.portfolio")}
           </Link>
         }
       />
 
       {data.epics.length === 0 ? (
         <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground">
-          Noch kein Epic mit alloziertem Budget. Das Dashboard rechnet ab L3.2 — sobald im
-          Budget-Meeting das erste Mal Geld vergeben ist, erscheinen hier Kosten und Nutzen.
+          {t("work.dashboard.nochKeinEpicMit")}
         </div>
       ) : (
         <PortfolioDashboard data={data} canEdit={canEdit} goalWaterfalls={goalWaterfalls} />

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Trash2 } from "lucide-react";
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { deleteTimelineAction } from "@/modules/drumbeat/features/cadence/actions/timeline";
@@ -16,11 +17,12 @@ export function DeleteTimelineButton({
   timelineId: string;
   timelineName: string;
 }) {
+  const t = useTranslations();
   return (
     <ConfirmMutateForm
       action={deleteTimelineAction}
       fields={{ id: timelineId }}
-      label={<span className="sr-only">Timeline löschen</span>}
+      label={<span className="sr-only">{t("drumbeat.ui.timelineLoeschen")}</span>}
       icon={<Trash2 className="size-4 text-destructive" />}
       confirmPrompt={`Timeline „${timelineName}" wirklich löschen?`}
       variant="ghost"

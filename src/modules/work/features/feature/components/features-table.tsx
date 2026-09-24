@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useMemo, type ReactNode } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Link } from "@/i18n/navigation";
@@ -9,12 +10,12 @@ import type {
   FeatureOverviewRow,
   FeaturesOverviewModel,
 } from "@/modules/work/server/views/features-overview";
-import { FEATURE_TYPES, FEATURE_TYPE_LABEL } from "@/modules/work/domain/portfolio-guardrails";
+import { FEATURE_TYPES, FEATURE_TYPE_KEYS } from "@/modules/work/domain/portfolio-guardrails";
 import {
   STATUS_LABELS,
   STATUS_DOT,
   STATUS_BADGE,
-  WSJF_TIER_LABELS,
+  WSJF_TIER_KEYS,
 } from "@/components/detail/initiative-labels";
 import { STICKY_THEAD } from "@/components/ui/table-chrome";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -210,6 +211,7 @@ export function FeaturesListView({
   emptyLabel = "Keine Features im aktuellen Filter.",
   showTotals = true,
 }: FeaturesListViewProps) {
+  const t = useTranslations();
   const { state, push } = useListState(paramPrefix);
 
   const show = useMemo(() => new Set(columns), [columns]);
@@ -338,9 +340,9 @@ export function FeaturesListView({
             className={SELECT_CLASS}
           >
             <option value="">Alle WSJF-Tiers</option>
-            {WSJF_TIERS.map((t) => (
-              <option key={t} value={t}>
-                {WSJF_TIER_LABELS[t]}
+            {WSJF_TIERS.map((wert) => (
+              <option key={wert} value={wert}>
+                {t(WSJF_TIER_KEYS[wert] ?? wert)}
               </option>
             ))}
           </select>
@@ -352,9 +354,9 @@ export function FeaturesListView({
           className={SELECT_CLASS}
         >
           <option value="">Alle Typen</option>
-          {FEATURE_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {FEATURE_TYPE_LABEL[t]}
+          {FEATURE_TYPES.map((wert) => (
+            <option key={wert} value={wert}>
+              {t(FEATURE_TYPE_KEYS[wert] ?? wert)}
             </option>
           ))}
         </select>

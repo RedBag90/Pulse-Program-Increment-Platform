@@ -1,16 +1,17 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Fragment, useActionState, useState } from "react";
 import { saveRtbAwardsAction } from "@/modules/budgeting/features/actions/rtb";
 import { Link } from "@/i18n/navigation";
 import { formatEUR } from "@/lib/formatting";
 import { SectionCard } from "@/components/ui/section-card";
-import { RTB_KINDS, RTB_KIND_LABELS, rtbKindOrDefault } from "@/modules/budgeting/domain/rtb-kind";
-import { RTB_INTERVAL_LABELS, rtbIntervalOrDefault } from "@/modules/budgeting/domain/rtb-interval";
+import { RTB_KINDS, RTB_KIND_KEYS, rtbKindOrDefault } from "@/modules/budgeting/domain/rtb-kind";
+import { RTB_INTERVAL_KEYS, rtbIntervalOrDefault } from "@/modules/budgeting/domain/rtb-interval";
 import {
   rtbAssignmentGroup,
   RTB_ASSIGNMENT_GROUPS,
-  RTB_ASSIGNMENT_GROUP_LABELS,
+  RTB_ASSIGNMENT_GROUP_KEYS,
 } from "@/modules/budgeting/domain/rtb-art-resolution";
 import type { RtbAwardView } from "@/modules/budgeting/server/services/rtb-award-service";
 
@@ -34,6 +35,7 @@ export function RtbAwardsSection({
   /** Wohin man geht, wenn es noch keine Position gibt — der Reiter „Einrichten". */
   setupHref: string;
 }) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(saveRtbAwardsAction, {});
   const [draft, setDraft] = useState<Record<string, string>>(() =>
     Object.fromEntries(view.rows.map((r) => [r.rtbItemId, String(r.amount)])),
@@ -78,7 +80,7 @@ export function RtbAwardsSection({
           Dieser Wertstrom hat keine aktive Position — es gibt nichts, worauf sich ein Zuspruch
           aufteilen liesse.{" "}
           <Link href={setupHref} className="text-primary hover:underline">
-            Positionen einrichten →
+            {t("budgeting.rtb.positionenEinrichten")}
           </Link>
         </p>
       </SectionCard>
@@ -89,14 +91,11 @@ export function RtbAwardsSection({
     <SectionCard
       title={`Zuspruch aufteilen · ${view.cycleKey}`}
       step={4}
-      description="Die Runde spricht dem Wertstrom eine Summe zu; wie sie sich auf Betrieb und die ART-Rahmen der ARTs verteilt, entscheidet er hier. Aus den Rahmen entsteht der Rahmen, den ein ART auf seine ART-Epics verteilen darf."
+      description={t("budgeting.rtb.dieRundeSprichtDem")}
       contentClassName="space-y-3"
     >
       {view.awarded == null ? (
-        <p className="text-sm text-muted-foreground">
-          Für dieses Halbjahr ist noch nichts zugesprochen — die Kachel ist nicht abgeschlossen. Bis
-          dahin gibt es nichts aufzuteilen, und die ART-Rahmen stehen auf 0 €.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("budgeting.rtb.fuerDiesesHalbjahrIst")}</p>
       ) : (
         <form action={action} className="space-y-2">
           <input type="hidden" name="valueStreamId" value={valueStreamId} />
@@ -124,7 +123,7 @@ export function RtbAwardsSection({
               </colgroup>
               <thead>
                 <tr className="border-b bg-surface-frame text-meta uppercase tracking-[0.1em] text-muted-foreground">
-                  <th className="p-2 text-left font-medium">Position</th>
+                  <th className="p-2 text-left font-medium">{t("budgeting.rtb.position")}</th>
                   {/*
                     Hier stand **„Art"** mit „Betrieb" / „ART-Rahmen" darin. Die
                     Kopfzeile setzt Versalien, gelesen wurde also „ART" — und
@@ -132,16 +131,16 @@ export function RtbAwardsSection({
                     Agile Release Train nennt. Die Art sagt jetzt der Block, die
                     Spalte nennt die **Zurechnung**.
                   */}
-                  <th className="p-2 text-left font-medium">Zurechnung</th>
-                  <th className="p-2 text-left font-medium">Periode</th>
-                  <th className="p-2 text-right font-medium">Beantragt</th>
+                  <th className="p-2 text-left font-medium">{t("budgeting.rtb.zurechnung")}</th>
+                  <th className="p-2 text-left font-medium">{t("budgeting.rtb.periode")}</th>
+                  <th className="p-2 text-right font-medium">{t("budgeting.rtb.beantragt")}</th>
                   {/*
                     „Zugesprochen", nicht „Zugeteilt": das ist das Ergebnis der
                     Kachel. „Zugeteilt" heisst auf diesen Flächen die Summe, die
                     aus Epic-Zuteilungen an einem ART hängt — zwei Zahlen, die
                     sich nicht denselben Namen teilen dürfen (Spec §2.5).
                   */}
-                  <th className="p-2 text-right font-medium">Zugesprochen</th>
+                  <th className="p-2 text-right font-medium">{t("budgeting.rtb.zugesprochen")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -159,7 +158,7 @@ export function RtbAwardsSection({
                       <tr className="border-b bg-surface-frame/60">
                         <td colSpan={3} className="px-2 pb-1.5 pt-3">
                           <span className="text-sm font-semibold uppercase tracking-[0.08em]">
-                            {RTB_KIND_LABELS[k]}
+                            {t(RTB_KIND_KEYS[k])}
                           </span>
                         </td>
                         <td className="px-2 pb-1.5 pt-3 text-right text-meta text-muted-foreground tabular-nums">
@@ -177,7 +176,7 @@ export function RtbAwardsSection({
                             <tr className="border-b">
                               <td colSpan={3} className="px-2 py-1.5 pl-4">
                                 <span className="text-sm font-medium">
-                                  {RTB_ASSIGNMENT_GROUP_LABELS[g]}
+                                  {t(RTB_ASSIGNMENT_GROUP_KEYS[g])}
                                 </span>
                               </td>
                               <td className="px-2 py-1.5 text-right text-meta text-muted-foreground tabular-nums">
@@ -207,7 +206,7 @@ export function RtbAwardsSection({
                                     )}
                                 </td>
                                 <td className="p-2 text-muted-foreground">
-                                  {RTB_INTERVAL_LABELS[rtbIntervalOrDefault(r.interval)]}
+                                  {t(RTB_INTERVAL_KEYS[rtbIntervalOrDefault(r.interval)])}
                                 </td>
                                 <td className="p-2 text-right tabular-nums">{formatEUR(r.ask)}</td>
                                 <td className="p-2 text-right">
@@ -255,8 +254,7 @@ export function RtbAwardsSection({
 
           {!view.saved && view.closedReason == null && (
             <p className="text-xs text-muted-foreground">
-              Die Beträge sind anteilig vorbelegt — ein Vorschlag, keine Entscheidung. Erst mit dem
-              Speichern gelten sie.
+              {t("budgeting.rtb.dieBetraegeSindAnteilig")}
             </p>
           )}
 

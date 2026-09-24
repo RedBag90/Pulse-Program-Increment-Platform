@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronRight, ChevronDown, Calculator } from "lucide-react";
@@ -8,7 +9,7 @@ import { Stat, StatStrip } from "@/components/ui/stat";
 import { SectionLabel } from "@/components/ui/section-label";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BreakEvenChart } from "@/components/charts/break-even-chart-lazy";
-import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
+import { STAGE_GATE_KEYS } from "@/components/detail/initiative-labels";
 import type {
   BcCalcDay,
   BcCalcMonth,
@@ -58,11 +59,12 @@ const monthLabel = (ym: string): string => {
 const gateRange = (a: string, b: string): string => (a === b ? a : `${a}→${b}`);
 
 function GateBadge({ gate }: { gate: string }) {
+  const t = useTranslations();
   const single = !gate.includes("→");
   return (
     <span
       className={`rounded-sm px-1.5 py-0.5 text-meta font-medium ${GATE_CLASS[gate] ?? "bg-muted text-muted-foreground"}`}
-      title={single ? (STAGE_GATE_LABELS[gate] ?? gate) : gate}
+      title={single ? t(STAGE_GATE_KEYS[gate] ?? gate) : gate}
     >
       {gate}
     </span>
@@ -87,6 +89,7 @@ function GateBadge({ gate }: { gate: string }) {
  *    seine Tage ueber `?bcMonth=` nach.
  */
 export function EpicBusinessCaseCalcTab({ rows, months, summary, dayMonth }: Props) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -146,8 +149,8 @@ export function EpicBusinessCaseCalcTab({ rows, months, summary, dayMonth }: Pro
     return (
       <EmptyState
         icon={<Calculator className="size-6" />}
-        title="Noch nichts zu rechnen"
-        body="Diese Auswertung braucht zwei Eingaben: Kostenscheiben im Business Case und mindestens eine KPI mit €-Wert je Einheit. Beides fehlt noch."
+        title={t("work.epic.nochNichtsZuRechnen")}
+        body={t("work.epic.dieseAuswertungBrauchtZwei")}
       />
     );
   }
@@ -155,14 +158,14 @@ export function EpicBusinessCaseCalcTab({ rows, months, summary, dayMonth }: Pro
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <SectionLabel>Wirtschaftlichkeit über die Zeit</SectionLabel>
+        <SectionLabel>{t("work.epic.wirtschaftlichkeitUeberDieZeit")}</SectionLabel>
         {summary.hasAllocation ? (
           <span className="rounded-full border border-success/40 bg-success-surface px-2 py-0.5 text-meta font-medium text-success">
-            Budget freigegeben — die Kurve rechnet mit der Allocation
+            {t("work.epic.budgetFreigegebenDieKurve")}
           </span>
         ) : (
           <span className="rounded-full border border-dashed border-warning/40 bg-warning-surface px-2 py-0.5 text-meta font-medium text-warning">
-            Kosten veranschlagt — die Kurve rechnet mit den Kostenscheiben
+            {t("work.epic.kostenVeranschlagtDieKurve")}
           </span>
         )}
       </div>
@@ -173,20 +176,29 @@ export function EpicBusinessCaseCalcTab({ rows, months, summary, dayMonth }: Pro
           gerendert. */}
       <div className="space-y-2">
         <StatStrip className="flex-wrap">
-          <Stat label="Veranschlagt" value={`${eurShort(summary.estimatedCost)} €`} />
-          <Stat label="Zugeteilt" value={`${eurShort(summary.totalCost)} €`} />
-          <Stat label="Nutzen p. a." value={`${eurShort(summary.recurringAnnualAtTarget)} €`} />
           <Stat
-            label="Break-even"
+            label={t("work.epic.veranschlagt")}
+            value={`${eurShort(summary.estimatedCost)} €`}
+          />
+          <Stat label={t("work.epic.zugeteilt")} value={`${eurShort(summary.totalCost)} €`} />
+          <Stat
+            label={t("work.epic.nutzenPA")}
+            value={`${eurShort(summary.recurringAnnualAtTarget)} €`}
+          />
+          <Stat
+            label={t("work.epic.breakEven")}
             value={summary.breakEvenDay ? dayLabel(summary.breakEvenDay) : "—"}
           />
         </StatStrip>
         <StatStrip className="flex-wrap">
-          <Stat label="Cost-Start" value={monthLabel(summary.costStart.slice(0, 7))} />
-          <Stat label="Go-Live" value={monthLabel(summary.goLive.slice(0, 7))} />
-          <Stat label="Einmalig" value={`${eurShort(summary.oneTimeAtTarget)} €`} />
           <Stat
-            label="Nutzen ÷ Kosten"
+            label={t("work.epic.costStart")}
+            value={monthLabel(summary.costStart.slice(0, 7))}
+          />
+          <Stat label={t("work.epic.goLive")} value={monthLabel(summary.goLive.slice(0, 7))} />
+          <Stat label={t("work.epic.einmalig")} value={`${eurShort(summary.oneTimeAtTarget)} €`} />
+          <Stat
+            label={t("work.epic.nutzenKosten")}
             value={
               summary.benefitCostRatioPct != null
                 ? `${Math.round(summary.benefitCostRatioPct)} %`
@@ -197,7 +209,7 @@ export function EpicBusinessCaseCalcTab({ rows, months, summary, dayMonth }: Pro
       </div>
 
       <div className="rounded-lg bg-card p-4 shadow-card">
-        <SectionLabel>Kosten, Nutzen und Break-even — kumuliert</SectionLabel>
+        <SectionLabel>{t("work.epic.kostenNutzenUndBreak")}</SectionLabel>
         <BreakEvenChart
           points={chartPoints}
           breakEvenMonth={summary.breakEvenDay?.slice(0, 7) ?? null}
@@ -208,13 +220,13 @@ export function EpicBusinessCaseCalcTab({ rows, months, summary, dayMonth }: Pro
         <table className="w-full min-w-[640px] border-collapse text-xs tabular-nums">
           <thead className={STICKY_THEAD}>
             <tr className="text-left text-muted-foreground">
-              <th className="px-3 py-2 font-medium">Zeitraum</th>
-              <th className="px-3 py-2 font-medium">Reifegrad</th>
-              <th className="px-3 py-2 text-right font-medium">Kosten €</th>
-              <th className="px-3 py-2 text-right font-medium">Benefit €</th>
-              <th className="px-3 py-2 text-right font-medium">Σ Benefit</th>
-              <th className="px-3 py-2 text-right font-medium">Σ Kosten</th>
-              <th className="px-3 py-2 text-right font-medium">Netto</th>
+              <th className="px-3 py-2 font-medium">{t("work.epic.zeitraum")}</th>
+              <th className="px-3 py-2 font-medium">{t("work.epic.reifegrad")}</th>
+              <th className="px-3 py-2 text-right font-medium">{t("work.epic.kosten")}</th>
+              <th className="px-3 py-2 text-right font-medium">{t("work.epic.benefit")}</th>
+              <th className="px-3 py-2 text-right font-medium">{t("work.epic.benefit2")}</th>
+              <th className="px-3 py-2 text-right font-medium">{t("work.epic.kosten2")}</th>
+              <th className="px-3 py-2 text-right font-medium">{t("work.epic.netto")}</th>
             </tr>
           </thead>
           <tbody>

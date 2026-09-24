@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useState, startTransition } from "react";
 import { CheckCircle2, CircleDot, Circle, Lock } from "lucide-react";
 import {
@@ -12,7 +13,7 @@ import type {
   TimelineEstimatePhase,
   TimelineManualPhase,
 } from "@/modules/work/domain/timeline";
-import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
+import { STAGE_GATE_KEYS } from "@/components/detail/initiative-labels";
 import { SectionLabel } from "@/components/ui/section-label";
 import { reifegradGroups } from "@/modules/work/features/portfolio/lib/reifegrad-groups";
 import { GateHistoryList } from "./gate/gate-history-list";
@@ -130,6 +131,7 @@ export function EpicTimelineTab({
   lifecycleSteps,
   gateHistory,
 }: Props) {
+  const t = useTranslations();
   const [saveState, saveAction, saving] = useActionState(saveTimelineAction, {});
   // Früher standen hier zwei fest verdrahtete Advance-Buttons (L1→L2 und
   // L3→L4) mit eigenen Sichtbarkeitsregeln — zwei von vier Stellen, an denen
@@ -167,11 +169,11 @@ export function EpicTimelineTab({
     // und wird hier nur angezeigt (der Service verwirft eingehende Werte).
     if (phase === "implementation") {
       return (
-        <span className="text-sm" title="Wird durch die L4.2-Abnahme gesetzt">
+        <span className="text-sm" title={t("work.epic.wirdDurchDieL")}>
           {actuals[phase] ? (
             fmt(actuals[phase])
           ) : (
-            <span className="text-muted-foreground/80">— per L4.2-Abnahme</span>
+            <span className="text-muted-foreground/80">{t("work.epic.perLAbnahme")}</span>
           )}
         </span>
       );
@@ -179,7 +181,7 @@ export function EpicTimelineTab({
     return canEdit ? (
       <input
         type="date"
-        aria-label="Actual"
+        aria-label={t("work.epic.actual")}
         value={actuals[phase]}
         onChange={(e) => setActuals((p) => ({ ...p, [phase]: e.target.value }))}
         className={`${INPUT} w-full self-start`}
@@ -241,7 +243,7 @@ export function EpicTimelineTab({
     return canEdit ? (
       <input
         type="date"
-        aria-label="Soll"
+        aria-label={t("work.epic.soll")}
         value={estimates[phase]}
         onChange={(e) => setEstimates((p) => ({ ...p, [phase]: e.target.value }))}
         className={`${INPUT} w-full`}
@@ -278,7 +280,11 @@ export function EpicTimelineTab({
   /** „7 Tage" · „läuft seit 12.6. · Tag 3" · „noch nicht begonnen". */
   function Dauer({ span }: { span: LifecycleSpan }) {
     if (span.days == null) {
-      return <span className="text-meta text-muted-foreground/70">noch nicht begonnen</span>;
+      return (
+        <span className="text-meta text-muted-foreground/70">
+          {t("work.epic.nochNichtBegonnen")}
+        </span>
+      );
     }
     const label = span.running
       ? `läuft seit ${fmt(span.from?.toISOString() ?? null)} · Tag ${span.days}`
@@ -295,15 +301,15 @@ export function EpicTimelineTab({
   return (
     <div className="space-y-6" data-tour="epic-timeline-tab">
       <section className="space-y-2 rounded-lg bg-card p-3.5 shadow-card">
-        <SectionLabel>Reifegrad-Wechsel</SectionLabel>
+        <SectionLabel>{t("work.epic.reifegradWechsel")}</SectionLabel>
         <GateHistoryList history={gateHistory} userLabels={userLabels} />
       </section>
 
       {/* Spaltenköpfe (Desktop) — der Versatz links entspricht der Bahn. */}
       <div className="hidden gap-x-3 pl-[4.5rem] sm:grid sm:grid-cols-[minmax(0,1fr)_9rem_9rem]">
         <SectionLabel>Prozess &amp; Tore</SectionLabel>
-        <SectionLabel>Soll</SectionLabel>
-        <SectionLabel>Ist</SectionLabel>
+        <SectionLabel>{t("work.epic.soll")}</SectionLabel>
+        <SectionLabel>{t("work.epic.ist")}</SectionLabel>
       </div>
 
       {/* Ein Block je Reifegrad-Gruppe: links das L-Kürzel, rechts die Bahn mit
@@ -316,7 +322,7 @@ export function EpicTimelineTab({
                 Verlauf jetzt allein. */}
             <div
               className="w-[2.5rem] shrink-0 pt-4 text-right"
-              title={STAGE_GATE_LABELS[g.level] ?? g.level}
+              title={t(STAGE_GATE_KEYS[g.level] ?? g.level)}
             >
               <span className="text-meta font-semibold tabular-nums text-muted-foreground">
                 {g.level}
@@ -413,13 +419,15 @@ export function EpicTimelineTab({
           </button>
           {saveState.error && <span className="text-sm text-destructive">{saveState.error}</span>}
           {saveState.success && (
-            <span className="text-sm text-emerald-600 dark:text-emerald-400">Gespeichert.</span>
+            <span className="text-sm text-emerald-600 dark:text-emerald-400">
+              {t("work.epic.gespeichert")}
+            </span>
           )}
         </div>
       ) : (
         <p className="flex items-center gap-2 border-t pt-4 text-xs text-muted-foreground">
           <Lock className="h-3.5 w-3.5" />
-          Nur der Epic Owner kann Termine bearbeiten.
+          {t("work.epic.nurDerEpicOwner")}
         </p>
       )}
     </div>

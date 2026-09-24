@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
@@ -21,6 +22,7 @@ import { Page, PageHeader } from "@/components/layout";
  * die laufende Kachel.
  */
 export default async function BudgetingPeriodsPage() {
+  const t = await getTranslations();
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
@@ -35,9 +37,9 @@ export default async function BudgetingPeriodsPage() {
   return (
     <Page>
       <PageHeader
-        eyebrow="Participatory Budgeting"
-        title="Budgeting-Zeiträume"
-        subtitle="Je Kachel ein Zeitraum — Beteiligte, Gruppen, Verteilung und Finalisierung leben darin."
+        eyebrow={t("budgeting.page.participatoryBudgeting")}
+        title={t("budgeting.page.budgetingZeitraeume")}
+        subtitle={t("budgeting.page.jeKachelEinZeitraum")}
         actions={
           model.canManage ? (
             <CreatePeriodDialog
@@ -55,16 +57,16 @@ export default async function BudgetingPeriodsPage() {
         <div data-tour="budget-pool">
           <StatStrip>
             <Stat
-              label="Laufende Kachel"
+              label={t("budgeting.page.laufendeKachel")}
               value={<span className="text-xl">{model.active.label}</span>}
               delta={{ tone: "flat", text: model.active.phase }}
             />
             <Stat
-              label="Topf"
+              label={t("budgeting.page.topf")}
               value={<span className="text-xl">{formatCompactEUR(model.active.poolTotal)}</span>}
             />
             <Stat
-              label="Abgaben"
+              label={t("budgeting.page.abgaben")}
               value={
                 <span className="text-xl">
                   {model.active.submittedCount} / {model.active.groupCount}
@@ -80,7 +82,7 @@ export default async function BudgetingPeriodsPage() {
               }}
             />
             <Stat
-              label="Letzter Stand"
+              label={t("budgeting.page.letzterStand")}
               value={<span className="text-xl">{model.lastCapturedLabel ?? "—"}</span>}
               delta={
                 model.lastCapturedLabel
@@ -103,7 +105,7 @@ export default async function BudgetingPeriodsPage() {
         <div className="space-y-6">
           {model.focus.length > 0 && (
             <section className="space-y-2">
-              <SectionLabel>Im Fokus</SectionLabel>
+              <SectionLabel>{t("budgeting.page.imFokus")}</SectionLabel>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {model.focus.map((t) => (
                   <PeriodTileCard key={t.id} tile={t} />
@@ -114,7 +116,7 @@ export default async function BudgetingPeriodsPage() {
 
           {model.past.length > 0 && (
             <section className="space-y-2">
-              <SectionLabel>Abgeschlossen</SectionLabel>
+              <SectionLabel>{t("budgeting.page.abgeschlossen")}</SectionLabel>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {model.past.map((t) => (
                   <PeriodTileCard key={t.id} tile={t} muted />

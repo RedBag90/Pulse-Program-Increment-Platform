@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
@@ -9,7 +10,7 @@ import type {
   CockpitView,
   FeatureStatus,
 } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
-import { FEATURE_STATUS_LABELS } from "@/modules/drumbeat/domain/status";
+import { FEATURE_STATUS_KEYS } from "@/modules/drumbeat/domain/status";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { CockpitViewTabs } from "./cockpit-view-tabs";
 
@@ -40,6 +41,7 @@ interface Props {
 }
 
 export function CockpitToolbar({ view, filters, filterOptions, featureCount }: Props) {
+  const t = useTranslations();
   const { setParam, setParams } = useUrlState();
 
   // Freitext-Suche: lokaler State, debounced in `?q=` geschrieben — jeder
@@ -88,24 +90,24 @@ export function CockpitToolbar({ view, filters, filterOptions, featureCount }: P
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Feature suchen …"
-          aria-label="Feature suchen"
+          placeholder={t("drumbeat.ui.featureSuchen")}
+          aria-label={t("drumbeat.ui.featureSuchen2")}
           className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm shadow-xs focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <MultiSelectFilter
-          label="Status"
+          label={t("drumbeat.ui.status")}
           sections={[
-            { options: STATUS_ORDER.map((s) => ({ value: s, label: FEATURE_STATUS_LABELS[s] })) },
+            { options: STATUS_ORDER.map((s) => ({ value: s, label: t(FEATURE_STATUS_KEYS[s]) })) },
           ]}
           selected={new Set(filters.status)}
           onToggle={(v) => toggleCsv("status", filters.status, v)}
           onClear={() => setParam("status", null)}
         />
         <MultiSelectFilter
-          label="Owner"
+          label={t("drumbeat.ui.owner")}
           sections={[{ options: filterOptions.owners }]}
           selected={new Set(filters.ownerIds)}
           onToggle={(v) => toggleCsv("owner", filters.ownerIds, v)}
@@ -113,7 +115,7 @@ export function CockpitToolbar({ view, filters, filterOptions, featureCount }: P
           disabled={filterOptions.owners.length === 0}
         />
         <MultiSelectFilter
-          label="Epic"
+          label={t("drumbeat.ui.epic")}
           sections={[{ options: filterOptions.epics }]}
           selected={new Set(filters.epicIds)}
           onToggle={(v) => toggleCsv("epic", filters.epicIds, v)}
@@ -130,7 +132,7 @@ export function CockpitToolbar({ view, filters, filterOptions, featureCount }: P
               : "bg-card text-muted-foreground hover:bg-muted/50"
           }`}
         >
-          Nur Blocker
+          {t("drumbeat.ui.nurBlocker")}
         </button>
         {activeFilters > 0 && (
           <button
@@ -138,7 +140,7 @@ export function CockpitToolbar({ view, filters, filterOptions, featureCount }: P
             onClick={resetAll}
             className="text-xs text-muted-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            Filter zurücksetzen
+            {t("drumbeat.ui.filterZuruecksetzen")}
           </button>
         )}
         <p className="whitespace-nowrap text-xs text-muted-foreground">

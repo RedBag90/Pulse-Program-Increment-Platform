@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 interface InitiativeHit {
@@ -37,6 +38,7 @@ export function FeaturePickerPopover({
   onCancel,
   initialQuery = "",
 }: Props) {
+  const t = useTranslations();
   const [query, setQuery] = useState(initialQuery);
   const [hits, setHits] = useState<InitiativeHit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -97,7 +99,7 @@ export function FeaturePickerPopover({
     <div
       ref={containerRef}
       role="dialog"
-      aria-label="Feature waehlen"
+      aria-label={t("drumbeat.ui.featureWaehlen")}
       className="fixed z-50 w-72 rounded-md border bg-popover p-2 text-popover-foreground shadow-lg"
       style={{ left: anchorX, top: anchorY }}
     >
@@ -106,13 +108,15 @@ export function FeaturePickerPopover({
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Feature suchen (Tenant-weit)…"
+        placeholder={t("drumbeat.ui.featureSuchenTenantWeit")}
         className="w-full rounded-md border bg-background px-2 py-1 text-sm"
       />
       <div className="mt-2 max-h-64 overflow-y-auto text-sm">
-        {loading && <p className="px-2 py-1 text-xs text-muted-foreground">Suche…</p>}
+        {loading && (
+          <p className="px-2 py-1 text-xs text-muted-foreground">{t("drumbeat.ui.suche")}</p>
+        )}
         {!loading && hits.length === 0 && (
-          <p className="px-2 py-1 text-xs text-muted-foreground">Keine Treffer.</p>
+          <p className="px-2 py-1 text-xs text-muted-foreground">{t("drumbeat.ui.keineTreffer")}</p>
         )}
         {hits.map((h) => (
           <button

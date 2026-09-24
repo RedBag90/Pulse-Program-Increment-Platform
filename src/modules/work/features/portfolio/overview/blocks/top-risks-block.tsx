@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { X } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -14,6 +15,7 @@ import { PORTFOLIO_WIP_LIMITS } from "@/modules/work/features/portfolio/overview
  * gate. Mirrors `TopWinsBlock` for visual symmetry on the executive page.
  */
 export function TopRisksBlock({ data }: { data: PortfolioOverview }) {
+  const t = useTranslations();
   const risks: { key: string; label: string; href?: string }[] = [];
 
   for (const blocked of data.blockedEpics.slice(0, 1)) {
@@ -47,9 +49,9 @@ export function TopRisksBlock({ data }: { data: PortfolioOverview }) {
 
   return (
     <Card className="space-y-3 p-4">
-      <SectionLabel>Top-Risiken</SectionLabel>
+      <SectionLabel>{t("work.overview.topRisiken")}</SectionLabel>
       {risks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Keine akuten Risiken.</p>
+        <p className="text-sm text-muted-foreground">{t("work.overview.keineAkutenRisiken")}</p>
       ) : (
         <ul className="space-y-2 text-xs">
           {risks.slice(0, 3).map((r) => (

@@ -1,9 +1,10 @@
-import { GATE_STEPS, gateOfStep, gateStepNumber } from "@/modules/work/domain/stage-gate";
+import { useTranslations } from "next-intl";
+import { GATE_STEPS, gateOfStep, gateStepNumberKey } from "@/modules/work/domain/stage-gate";
 import {
   mayHoldAllocation,
   requiresCurrentAllocation,
 } from "@/modules/budgeting/domain/allocation-eligibility";
-import { STAGE_SHORT } from "@/components/detail/initiative-labels";
+import { STAGE_SHORT_KEYS } from "@/components/detail/initiative-labels";
 
 /**
  * **Wer darf Budget tragen — und wer muss?**
@@ -15,6 +16,7 @@ import { STAGE_SHORT } from "@/components/detail/initiative-labels";
  * waere der Rueckfall gewesen.
  */
 export function AllocationRule() {
+  const t = useTranslations();
   return (
     <div className="overflow-x-auto rounded-lg bg-card shadow-card">
       <table className="w-full min-w-[440px] border-collapse text-sm">
@@ -37,13 +39,13 @@ export function AllocationRule() {
             return (
               <tr key={g}>
                 <td className="border-b border-border/60 px-4 py-2 font-mono text-xs text-foreground">
-                  {gateStepNumber(g)}
+                  {t(gateStepNumberKey(g))}
                 </td>
                 <td className="border-b border-border/60 px-4 py-2 text-muted-foreground">
                   {/* Nummernlose Schritte haben kein eigenes Kurzlabel — sie
                       erben das des Reifegrads, in dem sie leben. Ohne das
                       blieb die Zelle fuer „zur Analyse ausgewaehlt" leer. */}
-                  {STAGE_SHORT[g] ?? STAGE_SHORT[gateOfStep(g)] ?? "—"}
+                  {t(STAGE_SHORT_KEYS[g] ?? STAGE_SHORT_KEYS[gateOfStep(g)] ?? "—")}
                 </td>
                 <td className="border-b border-border/60 px-4 py-2">
                   {may ? (

@@ -70,7 +70,7 @@ function data(horizonOnOverview: boolean): PortfolioOverview {
     ),
     horizonOnOverview,
     budgetCycleKey: "2026-H1",
-    classFilter: { selected: [], hiddenLabel: null, hiddenClass: null, hiddenCount: 0 },
+    classFilter: { selected: [], hiddenLabelKey: null, hiddenClass: null, hiddenCount: 0 },
   } as unknown as PortfolioOverview;
 }
 

@@ -2,12 +2,13 @@
 // Schwellen, Baender, Woerter und Farben kommen aus dem Kernel. Sie hatte bis
 // September 2026 eigene Tabellen — mit eigenen Woertern („sehr gering" gegen
 // „Sehr niedrig"), also einer Erklaerung, die etwas anderes sagte als die Sache.
+import { useTranslations } from "next-intl";
 import {
   RISK_LEVELS,
   BAND_THRESHOLDS,
-  EXPOSURE_LABEL,
+  EXPOSURE_KEYS,
   EXPOSURE_TONE,
-  LEVEL_LABEL,
+  LEVEL_KEYS,
   riskExposure,
 } from "@/modules/core/kernel/domain/exposure";
 
@@ -21,6 +22,7 @@ import {
  * verschiebt, verschiebt sie hier mit.
  */
 export function ExposureMatrix() {
+  const t = useTranslations();
   // Wahrscheinlichkeit von oben nach unten absteigend — wie in der Matrix.
   const rows = [...RISK_LEVELS].reverse();
   return (
@@ -35,7 +37,7 @@ export function ExposureMatrix() {
                   key={i}
                   className="px-1 pb-1 font-mono text-label font-normal uppercase tracking-[0.1em] text-muted-foreground"
                 >
-                  {LEVEL_LABEL[i]}
+                  {t(LEVEL_KEYS[i])}
                 </th>
               ))}
             </tr>
@@ -44,7 +46,7 @@ export function ExposureMatrix() {
             {rows.map((p) => (
               <tr key={p}>
                 <th className="pr-2 text-right font-mono text-label font-normal uppercase tracking-[0.1em] text-muted-foreground">
-                  {LEVEL_LABEL[p]}
+                  {t(LEVEL_KEYS[p])}
                 </th>
                 {RISK_LEVELS.map((i) => {
                   const e = riskExposure(p, i);
@@ -52,7 +54,7 @@ export function ExposureMatrix() {
                     <td
                       key={i}
                       className={`rounded-sm px-2 py-2 font-medium tabular-nums ${EXPOSURE_TONE[e.band].badge}`}
-                      title={EXPOSURE_LABEL[e.band]}
+                      title={t(EXPOSURE_KEYS[e.band])}
                     >
                       {e.score}
                     </td>
@@ -65,13 +67,13 @@ export function ExposureMatrix() {
       </div>
       <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <span className="font-mono text-meta uppercase tracking-wider">Bänder</span>
-        {BAND_THRESHOLDS.map((t) => (
-          <span key={t.band} className="inline-flex items-center gap-1.5">
+        {BAND_THRESHOLDS.map((band) => (
+          <span key={band.band} className="inline-flex items-center gap-1.5">
             <span
               aria-hidden
-              className={`inline-block size-2.5 rounded-sm ${EXPOSURE_TONE[t.band].badge}`}
+              className={`inline-block size-2.5 rounded-sm ${EXPOSURE_TONE[band.band].badge}`}
             />
-            {EXPOSURE_LABEL[t.band]} <span className="tabular-nums">≤ {t.max}</span>
+            {t(EXPOSURE_KEYS[band.band])} <span className="tabular-nums">≤ {band.max}</span>
           </span>
         ))}
       </p>

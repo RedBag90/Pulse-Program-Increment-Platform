@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { formatEUR } from "@/lib/formatting";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
@@ -53,6 +54,7 @@ function Dot({ verdict }: { verdict: CoverageVerdict }) {
 }
 
 export function CoverageVerdictLine({ coverage }: { coverage: ArtCoverage }) {
+  const t = useTranslations();
   const { gap } = coverage;
   const verdict = coverageVerdict(coverage);
   // `gap > 0` steht doppelt, damit der Über-Betrag unten ohne `!` auskommt.
@@ -64,13 +66,13 @@ export function CoverageVerdictLine({ coverage }: { coverage: ArtCoverage }) {
       <p className="text-base">
         {verdict === "empty" ? (
           <>
-            <strong className="font-semibold">Nichts zugeteilt</strong> — für dieses Halbjahr hat
-            dieser ART weder eingeplante Features noch Budget.
+            <strong className="font-semibold">{t("budgeting.art.nichtsZugeteilt")}</strong>{" "}
+            {t("budgeting.art.fuerDiesesHalbjahrHat")}
           </>
         ) : verdict === "unknown" ? (
           <>
-            <strong className="font-semibold">Deckung nicht berechenbar</strong> — für diesen ART
-            liegt kein €-Satz je Job-Size-Punkt vor.
+            <strong className="font-semibold">{t("budgeting.art.deckungNichtBerechenbar")}</strong>{" "}
+            {t("budgeting.art.fuerDiesenArtLiegt")}
           </>
         ) : over ? (
           <>
@@ -80,8 +82,8 @@ export function CoverageVerdictLine({ coverage }: { coverage: ArtCoverage }) {
           </>
         ) : (
           <>
-            <strong className="font-semibold">Gedeckt</strong> — die eingeplanten Features bleiben{" "}
-            {formatEUR(underOf(gap) ?? 0)} unter dem Budget.
+            <strong className="font-semibold">{t("budgeting.art.gedeckt")}</strong> — die
+            eingeplanten Features bleiben {formatEUR(underOf(gap) ?? 0)} unter dem Budget.
           </>
         )}
       </p>
@@ -113,6 +115,7 @@ function CoverageFigures({
   allocated: number;
   gap: number | null;
 }) {
+  const t = useTranslations();
   const over = gap != null && gap > 0;
   const under = underOf(gap);
 
@@ -132,11 +135,13 @@ function CoverageFigures({
           </dd>
         </div>
         <div className="flex justify-between gap-4 px-3 py-2">
-          <dt>Zugeteiltes Budget</dt>
+          <dt>{t("budgeting.art.zugeteiltesBudget")}</dt>
           <dd className="font-semibold tabular-nums">{formatEUR(allocated)}</dd>
         </div>
         <div className="flex justify-between gap-4 px-3 py-2">
-          <dt className={over ? "font-semibold text-destructive" : "font-semibold"}>Lücke</dt>
+          <dt className={over ? "font-semibold text-destructive" : "font-semibold"}>
+            {t("budgeting.art.luecke")}
+          </dt>
           <dd className={`font-semibold tabular-nums ${over ? "text-destructive" : ""}`}>
             {under == null ? "—" : formatEUR(under)}
           </dd>
@@ -152,6 +157,7 @@ function CoverageFigures({
  * stand. Wer wissen will, woher sie kommt, klappt auf.
  */
 function RateDetails({ rate }: { rate: JobSizeRate }) {
+  const t = useTranslations();
   return (
     <details className="group/rate rounded-lg border">
       <summary className="cursor-pointer list-none px-3 py-2 text-sm text-muted-foreground marker:content-[''] hover:text-foreground">
@@ -189,9 +195,9 @@ function RateDetails({ rate }: { rate: JobSizeRate }) {
             )}
           </>
         ) : rate.source === "tenantDefault" ? (
-          <>— der tenant-weite Vorgabewert, weil sich kein Satz aus der Historie ableiten lässt.</>
+          <>{t("budgeting.art.derTenantWeiteVorgabewert")}</>
         ) : (
-          <>— weder aus der Historie ableitbar noch als Vorgabewert gesetzt.</>
+          <>{t("budgeting.art.wederAusDerHistorie")}</>
         )}
       </p>
 
@@ -232,6 +238,7 @@ export function ArtCoverageCard({ name, coverage }: { name: string; coverage: Ar
  * zu lassen und die Frage offen.
  */
 export function StreamCoverageCard({ name, stream }: { name: string; stream: StreamKpi }) {
+  const t = useTranslations();
   const verdict: CoverageVerdict =
     stream.plannedJobSize === 0 && stream.allocated === 0
       ? "empty"
@@ -249,13 +256,15 @@ export function StreamCoverageCard({ name, stream }: { name: string; stream: Str
         <p className="text-base">
           {verdict === "empty" ? (
             <>
-              <strong className="font-semibold">Nichts zugeteilt</strong> — für dieses Halbjahr hat
-              dieser Wertstrom weder eingeplante Features noch Budget.
+              <strong className="font-semibold">{t("budgeting.art.nichtsZugeteilt")}</strong>{" "}
+              {t("budgeting.art.fuerDiesesHalbjahrHat2")}
             </>
           ) : verdict === "unknown" ? (
             <>
-              <strong className="font-semibold">Deckung nicht berechenbar</strong> — für keines
-              seiner ARTs liegt ein €-Satz vor.
+              <strong className="font-semibold">
+                {t("budgeting.art.deckungNichtBerechenbar")}
+              </strong>{" "}
+              {t("budgeting.art.fuerKeinesSeinerArts")}
             </>
           ) : verdict === "over" ? (
             <>
@@ -268,8 +277,8 @@ export function StreamCoverageCard({ name, stream }: { name: string; stream: Str
             </>
           ) : (
             <>
-              <strong className="font-semibold">Gedeckt</strong> — die eingeplanten Features bleiben{" "}
-              {formatEUR(under ?? 0)} unter dem Budget.
+              <strong className="font-semibold">{t("budgeting.art.gedeckt")}</strong> — die
+              eingeplanten Features bleiben {formatEUR(under ?? 0)} unter dem Budget.
             </>
           )}
         </p>
@@ -285,7 +294,8 @@ export function StreamCoverageCard({ name, stream }: { name: string; stream: Str
       />
 
       <p className="text-sm text-muted-foreground">
-        Die Last ist die <strong className="font-medium text-foreground">Summe</strong> der
+        {t("budgeting.art.dieLastIstDie")}{" "}
+        <strong className="font-medium text-foreground">{t("budgeting.art.summe")}</strong> der
         ART-Rechnungen — nicht {stream.plannedJobSize} JS × einem Satz. Der €-Satz wird aus der
         Historie je ART abgeleitet und ist für jedes verschieden; einen Wertstrom-Satz gibt es
         nicht. Die Karten darunter zeigen die einzelnen Rechnungen.
@@ -318,6 +328,7 @@ export function CoverageOneLiner({
   kpiHref: string;
   cycleKey: string;
 }) {
+  const t = useTranslations();
   const verdict = coverageVerdict(coverage);
   const { gap } = coverage;
   const prozent =
@@ -332,7 +343,7 @@ export function CoverageOneLiner({
         </span>
       ) : verdict === "unknown" ? (
         <span className="text-muted-foreground">
-          Deckung nicht berechenbar — für dieses ART liegt kein €-Satz vor.
+          {t("budgeting.art.deckungNichtBerechenbarFuer")}
         </span>
       ) : verdict === "over" ? (
         <span>
@@ -341,7 +352,7 @@ export function CoverageOneLiner({
         </span>
       ) : (
         <span>
-          <strong className="font-medium">Gedeckt</strong>
+          <strong className="font-medium">{t("budgeting.art.gedeckt")}</strong>
           <span className="text-muted-foreground">
             {" "}
             · {formatEUR(underOf(gap) ?? 0)} unter dem Budget
@@ -349,7 +360,7 @@ export function CoverageOneLiner({
         </span>
       )}
       <Link href={kpiHref} className="text-primary hover:underline">
-        Wofür · eingeplant →
+        {t("budgeting.art.wofuerEingeplant")}
       </Link>
     </p>
   );

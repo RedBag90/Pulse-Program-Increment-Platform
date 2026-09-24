@@ -25,11 +25,11 @@ export const CONTRIBUTION_AXES = ["epic", "valueStream", "art", "solution"] as c
 export type ContributionAxis = (typeof CONTRIBUTION_AXES)[number];
 
 /** Wie der Schalter sie nennt. */
-export const CONTRIBUTION_AXIS_LABELS: Record<ContributionAxis, string> = {
-  epic: "je Epic",
-  valueStream: "Wertstrom",
-  art: "ART",
-  solution: "Solution",
+export const CONTRIBUTION_AXIS_KEYS: Record<ContributionAxis, string> = {
+  epic: "work.contributionAxis.epic",
+  valueStream: "work.contributionAxis.valueStream",
+  art: "work.contributionAxis.art",
+  solution: "work.contributionAxis.solution",
 };
 
 /** Wie die erste Spalte heisst, wenn nach dieser Achse gruppiert ist. */

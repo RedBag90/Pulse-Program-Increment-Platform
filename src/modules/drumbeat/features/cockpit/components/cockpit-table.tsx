@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
 import {
@@ -18,7 +19,7 @@ import type {
   FeatureStatus,
 } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { normalizePiKey, BACKLOG_COLUMN_ID } from "@/modules/drumbeat/domain/board-matrix";
-import { FEATURE_STATUS_LABELS, needsReasonForStatus } from "@/modules/drumbeat/domain/status";
+import { FEATURE_STATUS_KEYS, needsReasonForStatus } from "@/modules/drumbeat/domain/status";
 import { StatusBadge, WsjfBadge } from "@/modules/drumbeat/features/lib/status-badges";
 import { SearchSelect, type SearchSelectOption } from "@/components/ui/search-select";
 import { CockpitBulkBar } from "./cockpit-bulk-bar";
@@ -41,14 +42,15 @@ interface Props {
 }
 
 const STATUS_OPTIONS: ReadonlyArray<{ value: FeatureStatus; label: string }> = [
-  { value: "approved", label: FEATURE_STATUS_LABELS.approved },
-  { value: "in_progress", label: FEATURE_STATUS_LABELS.in_progress },
-  { value: "blocked", label: FEATURE_STATUS_LABELS.blocked },
-  { value: "completed", label: FEATURE_STATUS_LABELS.completed },
-  { value: "cancelled", label: FEATURE_STATUS_LABELS.cancelled },
+  { value: "approved", label: FEATURE_STATUS_KEYS.approved },
+  { value: "in_progress", label: FEATURE_STATUS_KEYS.in_progress },
+  { value: "blocked", label: FEATURE_STATUS_KEYS.blocked },
+  { value: "completed", label: FEATURE_STATUS_KEYS.completed },
+  { value: "cancelled", label: FEATURE_STATUS_KEYS.cancelled },
 ];
 
 export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }: Props) {
+  const t = useTranslations();
   const { setParam } = useUrlState();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [, startTransition] = useTransition();
@@ -190,7 +192,7 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
               <th className="w-10 px-2 py-2">
                 <input
                   type="checkbox"
-                  aria-label="Alle waehlen"
+                  aria-label={t("drumbeat.ui.alleWaehlen")}
                   checked={allChecked}
                   ref={(el) => {
                     if (el) el.indeterminate = someChecked;
@@ -198,12 +200,12 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
                   onChange={(e) => toggleAll(e.target.checked)}
                 />
               </th>
-              <th className="px-2 py-2 text-left">Titel</th>
-              <th className="px-2 py-2 text-left">ART</th>
+              <th className="px-2 py-2 text-left">{t("drumbeat.ui.titel")}</th>
+              <th className="px-2 py-2 text-left">{t("drumbeat.ui.art")}</th>
               <th className="px-2 py-2 text-left">PI</th>
-              <th className="px-2 py-2 text-left">Status</th>
-              <th className="px-2 py-2 text-right">WSJF</th>
-              <th className="px-2 py-2 text-left">Blocker</th>
+              <th className="px-2 py-2 text-left">{t("drumbeat.ui.status")}</th>
+              <th className="px-2 py-2 text-right">{t("drumbeat.ui.wsjf")}</th>
+              <th className="px-2 py-2 text-left">{t("drumbeat.ui.blocker")}</th>
             </tr>
           </thead>
           <tbody>
@@ -238,7 +240,7 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
                         value={normalizePiKey(f.piId)}
                         onChange={(v) => setPi(f.id, v)}
                         options={piOptions}
-                        placeholder="PI wählen"
+                        placeholder={t("drumbeat.ui.piWaehlen")}
                         ariaLabel={`PI für ${f.title}`}
                         className="min-w-36"
                       />
@@ -255,7 +257,7 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
                         value={f.status}
                         onChange={(v) => setStatus(f.id, v as FeatureStatus)}
                         options={STATUS_OPTIONS}
-                        placeholder="Status wählen"
+                        placeholder={t("drumbeat.ui.statusWaehlen")}
                         ariaLabel={`Status für ${f.title}`}
                         className="min-w-36"
                       />
@@ -279,7 +281,7 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
             {features.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-2 py-6 text-center text-sm text-muted-foreground">
-                  Keine Features im aktuellen Scope.
+                  {t("drumbeat.ui.keineFeaturesImAktuellen")}
                 </td>
               </tr>
             )}

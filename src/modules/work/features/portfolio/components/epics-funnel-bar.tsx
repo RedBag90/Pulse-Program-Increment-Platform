@@ -1,8 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { STAGE_GATES, SUB_STAGES_BY_GATE, type SubStage } from "@/modules/work/domain/stage-gate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
-import { STAGE_GATE_LABELS, SUB_STAGE_LABELS } from "@/components/detail/initiative-labels";
+import { STAGE_GATE_KEYS, SUB_STAGE_KEYS } from "@/components/detail/initiative-labels";
 
 interface Props {
   /** Pre-counted by the page-model. */
@@ -57,12 +58,13 @@ const SEGMENT_ACTIVE: Record<StageGate, string> = {
  * deckt sie bereits ab).
  */
 export function EpicsFunnelBar({ counts, subStageCounts, activeGate, onGateChange }: Props) {
+  const t = useTranslations();
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
 
   return (
     <div className="space-y-2" data-tour="epics-funnel-bar">
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>Reifegrad-Funnel</span>
+        <span>{t("work.epic.reifegradFunnel")}</span>
         <button
           type="button"
           onClick={() => onGateChange(null)}
@@ -86,9 +88,9 @@ export function EpicsFunnelBar({ counts, subStageCounts, activeGate, onGateChang
                 onClick={() => onGateChange(isActive ? null : (gate as StageGate))}
                 className={`flex flex-1 items-center justify-between gap-2 rounded-md px-3 py-2 text-xs font-medium transition-colors ${cls}`}
                 aria-pressed={isActive}
-                title={STAGE_GATE_LABELS[gate] ?? gate}
+                title={t(STAGE_GATE_KEYS[gate] ?? gate)}
               >
-                <span className="truncate">{STAGE_GATE_LABELS[gate] ?? gate}</span>
+                <span className="truncate">{t(STAGE_GATE_KEYS[gate] ?? gate)}</span>
                 <span className="shrink-0 rounded-full bg-background/60 px-1.5 text-label tabular-nums">
                   {count}
                 </span>
@@ -98,7 +100,7 @@ export function EpicsFunnelBar({ counts, subStageCounts, activeGate, onGateChang
                   {subSteps.map((s) => (
                     <span
                       key={s}
-                      title={`${s} ${SUB_STAGE_LABELS[s]}`}
+                      title={`${s} ${t(SUB_STAGE_KEYS[s] ?? s)}`}
                       className="flex flex-1 items-center justify-between gap-1 rounded-md bg-background/40 px-1.5 py-0.5 text-label text-muted-foreground"
                     >
                       <span className="truncate">{s}</span>

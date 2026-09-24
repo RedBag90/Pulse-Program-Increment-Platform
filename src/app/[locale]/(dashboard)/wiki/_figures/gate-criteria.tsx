@@ -1,5 +1,6 @@
+import { useTranslations } from "next-intl";
 import { GATE_CRITERIA_DOC } from "@/modules/work/domain/epic-lifecycle-doc";
-import { gateStepNumber } from "@/modules/work/domain/stage-gate";
+import { gateStepNumberKey } from "@/modules/work/domain/stage-gate";
 
 /**
  * **Was Pulse vor jedem Antrag prueft** — blockierend oder beratend, samt dem
@@ -12,13 +13,14 @@ import { gateStepNumber } from "@/modules/work/domain/stage-gate";
  * Erklaerung — **ohne ein einziges dupliziertes Wort**.
  */
 export function GateCriteria() {
+  const t = useTranslations();
   return (
     <div className="divide-y overflow-hidden rounded-lg bg-card shadow-card">
       {GATE_CRITERIA_DOC.map((doc) => (
         <div key={doc.stageTo} className="space-y-2.5 p-4">
           <p className="font-mono text-meta uppercase tracking-[0.1em] text-muted-foreground">
-            {gateStepNumber(doc.stageFrom)} <span aria-hidden>→</span>{" "}
-            <span className="text-foreground">{gateStepNumber(doc.stageTo)}</span>
+            {t(gateStepNumberKey(doc.stageFrom))} <span aria-hidden>→</span>{" "}
+            <span className="text-foreground">{t(gateStepNumberKey(doc.stageTo))}</span>
           </p>
           {doc.criteria.length === 0 ? (
             <p className="text-sm text-muted-foreground">Kein eigenes Kriterium.</p>

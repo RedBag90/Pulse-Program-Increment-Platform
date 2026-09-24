@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Stat, StatStrip } from "@/components/ui/stat";
 import { SectionLabel } from "@/components/ui/section-label";
@@ -42,6 +43,7 @@ function fmtDateTime(iso: string): string {
  * component: the snapshot is fully frozen and nothing here needs `useState`.
  */
 export function BudgetPlanRevisionView({ model, capturedBy, userLabels }: Props) {
+  const t = useTranslations();
   // Jede Zahl und jede Spalte kommt aus dem Page-Model — die Komponente rendert
   // nur noch. Zyklus-/Folgebudget stammen dort aus `summarizeSnapshot`, damit
   // Übersichtsliste und Detailsicht identische Zahlen zeigen.
@@ -75,7 +77,7 @@ export function BudgetPlanRevisionView({ model, capturedBy, userLabels }: Props)
           delta={{ tone: "flat", text: `${snapshot.epics.length} Epics priorisiert` }}
         />
         <Stat
-          label="Σ Folgebudgets"
+          label={t("budgeting.revision.folgebudgets")}
           value={<span className="text-xl">{formatEUR(followBudgetSum)}</span>}
           delta={{
             tone: "flat",
@@ -83,12 +85,12 @@ export function BudgetPlanRevisionView({ model, capturedBy, userLabels }: Props)
           }}
         />
         <Stat
-          label="Pool gesamt"
+          label={t("budgeting.revision.poolGesamt")}
           value={<span className="text-xl">{formatEUR(poolSum)}</span>}
           delta={{ tone: "flat", text: `${snapshot.periods.length} Halbjahre` }}
         />
         <Stat
-          label="Features im Zyklus"
+          label={t("budgeting.revision.featuresImZyklus")}
           value={<span className="text-xl">{cycleFeatureCount}</span>}
           delta={{ tone: "flat", text: `${snapshot.arts.length} ARTs` }}
         />
@@ -192,19 +194,20 @@ function EpicSection({
   snapshot: BudgetPlanSnapshot;
   displayPeriods: DisplayPeriod[];
 }) {
+  const t = useTranslations();
   // 3 fixed cols (Rang · Epic · Wertstrom) + N period cols + 1 Σ col.
   const colSpan = 3 + displayPeriods.length + 1;
   return (
     <section className="space-y-3">
-      <SectionLabel>Epics in Snapshot-Reihenfolge</SectionLabel>
+      <SectionLabel>{t("budgeting.revision.epicsInSnapshotReihenfolge")}</SectionLabel>
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full min-w-[960px] table-fixed text-sm">
           <TableColGroup leadingWeights={[1, 5, 3]} periodCount={displayPeriods.length} />
           <thead className="border-b bg-muted/40 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="px-3 py-2">Rang</th>
-              <th className="px-3 py-2">Epic</th>
-              <th className="px-3 py-2">Wertstrom</th>
+              <th className="px-3 py-2">{t("budgeting.revision.rang")}</th>
+              <th className="px-3 py-2">{t("budgeting.revision.epic")}</th>
+              <th className="px-3 py-2">{t("budgeting.revision.wertstrom")}</th>
               <PeriodHeaderCells periods={displayPeriods} />
             </tr>
           </thead>
@@ -215,7 +218,7 @@ function EpicSection({
                   colSpan={colSpan}
                   className="px-3 py-4 text-center text-xs text-muted-foreground"
                 >
-                  Keine Epics im Snapshot.
+                  {t("budgeting.revision.keineEpicsImSnapshot")}
                 </td>
               </tr>
             ) : (
@@ -251,17 +254,18 @@ function ValueStreamSection({
   snapshot: BudgetPlanSnapshot;
   displayPeriods: DisplayPeriod[];
 }) {
+  const t = useTranslations();
   const ordered: BudgetPlanSnapshotValueStream[] = snapshot.valueStreams;
   const colSpan = 1 + displayPeriods.length + 1;
   return (
     <section className="space-y-3">
-      <SectionLabel>Wertströme — Allokation je Halbjahr</SectionLabel>
+      <SectionLabel>{t("budgeting.revision.wertstroemeAllokationJeHalbjahr")}</SectionLabel>
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full min-w-[960px] table-fixed text-sm">
           <TableColGroup leadingWeights={[1]} periodCount={displayPeriods.length} />
           <thead className="border-b bg-muted/40 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="px-3 py-2">Wertstrom</th>
+              <th className="px-3 py-2">{t("budgeting.revision.wertstrom")}</th>
               <PeriodHeaderCells periods={displayPeriods} />
             </tr>
           </thead>
@@ -272,7 +276,7 @@ function ValueStreamSection({
                   colSpan={colSpan}
                   className="px-3 py-4 text-center text-xs text-muted-foreground"
                 >
-                  Keine Wertstrom-Allokationen.
+                  {t("budgeting.revision.keineWertstromAllokationen")}
                 </td>
               </tr>
             ) : (
@@ -297,19 +301,20 @@ function ArtSection({
   snapshot: BudgetPlanSnapshot;
   displayPeriods: DisplayPeriod[];
 }) {
+  const t = useTranslations();
   const arts: BudgetPlanSnapshotArt[] = snapshot.arts;
   // 2 fixed cols (ART · Achse) + N period cols + 1 Σ col.
   const colSpan = 2 + displayPeriods.length + 1;
   return (
     <section className="space-y-3">
-      <SectionLabel>ARTs — Budget vs. Demand je Halbjahr</SectionLabel>
+      <SectionLabel>{t("budgeting.revision.artsBudgetVsDemand")}</SectionLabel>
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full min-w-[960px] table-fixed text-sm">
           <TableColGroup leadingWeights={[5, 3]} periodCount={displayPeriods.length} />
           <thead className="border-b bg-muted/40 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="px-3 py-2">ART</th>
-              <th className="px-3 py-2">Achse</th>
+              <th className="px-3 py-2">{t("budgeting.ui.art")}</th>
+              <th className="px-3 py-2">{t("budgeting.revision.achse")}</th>
               <PeriodHeaderCells periods={displayPeriods} />
             </tr>
           </thead>
@@ -320,7 +325,7 @@ function ArtSection({
                   colSpan={colSpan}
                   className="px-3 py-4 text-center text-xs text-muted-foreground"
                 >
-                  Keine ARTs erfasst.
+                  {t("budgeting.revision.keineArtsErfasst")}
                 </td>
               </tr>
             </tbody>
@@ -341,7 +346,9 @@ function ArtSection({
                     <td rowSpan={2} className="px-3 py-2 align-top font-medium break-words">
                       {a.name}
                     </td>
-                    <td className="px-3 py-2 text-xs text-muted-foreground">Budget €</td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                      {t("budgeting.revision.budget")}
+                    </td>
                     <PeriodGrid
                       periods={displayPeriods}
                       byPeriod={a.budgetByPeriod}
@@ -350,7 +357,7 @@ function ArtSection({
                   </tr>
                   <tr>
                     <td className="px-3 py-2 text-xs text-muted-foreground">
-                      Demand (Σ Job Size · # Feat.)
+                      {t("budgeting.revision.demandJobSizeFeat")}
                     </td>
                     {displayPeriods.map((p) => {
                       const cell = a.loadByPeriod[p.key];
@@ -381,13 +388,13 @@ function ArtSection({
 }
 
 function FeaturesSection({ snapshot }: { snapshot: BudgetPlanSnapshot }) {
+  const t = useTranslations();
   const epicsWithFeatures = snapshot.epics.filter((e) => e.cycleFeatures.length > 0);
   return (
     <section className="space-y-3">
       <SectionLabel>Features im Zyklus · {snapshot.cycleLabel}</SectionLabel>
       <p className="text-xs text-muted-foreground">
-        Features, die zum Snapshot-Zeitpunkt einem PI im Zyklus zugewiesen waren — gruppiert nach
-        Epic in der Snapshot-Reihenfolge.
+        {t("budgeting.revision.featuresDieZumSnapshot")}
       </p>
       {epicsWithFeatures.length === 0 ? (
         <p className="rounded-lg border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
