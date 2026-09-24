@@ -12,6 +12,7 @@ import type {
 import type { SnapshotDisplayPeriod } from "@/modules/budgeting/domain/period-window";
 import { sumPeriods } from "@/modules/budgeting/domain/period-map";
 import type { BudgetPlanRevisionModel } from "@/modules/budgeting/domain/budget-plan-revision-model";
+import { UNASSIGNED_VALUE_STREAM_LABEL } from "@/modules/budgeting/domain/budgeting";
 
 /** A column the view renders — current cycle is flagged for tint. Re-uses the
  *  domain's `SnapshotDisplayPeriod` so the view and `computeDisplayPeriods`
@@ -230,7 +231,7 @@ function EpicSection({
                     </Link>
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground break-words">
-                    {e.valueStreamName ?? "Ohne Wertstrom"}
+                    {e.valueStreamName ?? UNASSIGNED_VALUE_STREAM_LABEL}
                   </td>
                   <PeriodGrid periods={displayPeriods} byPeriod={e.allocations} total={e.total} />
                 </tr>

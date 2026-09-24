@@ -77,15 +77,6 @@ export interface HorizonBudgetFigures {
   umgesetzt: number;
 }
 
-export const STAGE_GATE_LABEL: Record<StageGate, string> = {
-  L0: "Funnel",
-  L1: "Hypothese erstellen",
-  L2: "Analyzing",
-  L3: "Portfolio Backlog",
-  L4: "Implementing",
-  L5: "Done",
-};
-
 /**
  * Portfolio-Filter (Mehrfachauswahl je Dimension; leere Arrays = keine
  * Einschränkung). Wirkt „auf die gesamte Übersicht": der Loader reicht ihn an

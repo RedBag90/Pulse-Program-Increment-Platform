@@ -10,7 +10,12 @@ import type {
   FeaturesOverviewModel,
 } from "@/modules/work/server/views/features-overview";
 import { FEATURE_TYPES, FEATURE_TYPE_LABEL } from "@/modules/work/domain/portfolio-guardrails";
-import { STATUS_LABELS, STATUS_DOT, STATUS_BADGE } from "@/components/detail/initiative-labels";
+import {
+  STATUS_LABELS,
+  STATUS_DOT,
+  STATUS_BADGE,
+  WSJF_TIER_LABELS,
+} from "@/components/detail/initiative-labels";
 import { STICKY_THEAD } from "@/components/ui/table-chrome";
 import { EmptyState } from "@/components/ui/empty-state";
 import { OctagonX } from "lucide-react";
@@ -44,13 +49,6 @@ import { OctagonX } from "lucide-react";
 // ---------------------------------------------------------------------------
 
 export const WSJF_TIERS: readonly WsjfTier[] = ["high", "medium", "low", "none"];
-
-const TIER_LABEL: Record<WsjfTier, string> = {
-  high: "Hoch",
-  medium: "Mittel",
-  low: "Niedrig",
-  none: "Ungescored",
-};
 
 /**
  * Status-Vokabular kommt aus `@/components/detail/initiative-labels` — dort
@@ -342,7 +340,7 @@ export function FeaturesListView({
             <option value="">Alle WSJF-Tiers</option>
             {WSJF_TIERS.map((t) => (
               <option key={t} value={t}>
-                {TIER_LABEL[t]}
+                {WSJF_TIER_LABELS[t]}
               </option>
             ))}
           </select>

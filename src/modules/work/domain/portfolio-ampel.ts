@@ -32,13 +32,6 @@ export function thresholdTier(
   return "rose";
 }
 
-/** Deutsche Status-Labels für die Ampel-Tiers (Spec-Wording). */
-export const AMPEL_LABEL: Record<AmpelTier, string> = {
-  green: "Im Plan",
-  amber: "Gefährdet",
-  rose: "Kritisch",
-};
-
 /** Hex-Farbe je Ampel-Tier (für Chart-Bubbles/Balken); teilt sich den Goal-Farbraum. */
 export function ampelHex(tier: AmpelTier): string {
   return GOAL_STATUS_TIER_HEX[tier];

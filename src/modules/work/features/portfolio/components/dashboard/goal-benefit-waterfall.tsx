@@ -27,6 +27,7 @@ import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { epicColor, NEUTRAL_COLOR, TOP_EPIC_SERIES } from "./epic-colors";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
+import { STAGE_SHORT } from "@/components/detail/initiative-labels";
 
 /** Deckkraft der Estimate/Forecast-Anteile (Zeit-/Reifegrad-Konfidenz). */
 const FORECAST_OPACITY = 0.4;
@@ -42,14 +43,13 @@ const STAGE_COLORS: Record<StageGate, string> = {
   L4: "#f59e0b",
   L5: "#22c55e",
 };
-const STAGE_SUBLABEL: Record<StageGate, string> = {
-  L0: "Funnel",
-  L1: "Detailing",
-  L2: "Analyse",
-  L3: "Backlog",
-  L4: "Umsetzung",
-  L5: "Impact",
-};
+/**
+ * Die Unterzeile je Reifegrad — dieselben Kurzmarken wie überall sonst.
+ *
+ * Hier stand bis September 2026 die zweite Abschrift derselben veralteten
+ * Wortliste wie im Dashboard nebenan („Detailing", „Analyse", „Backlog").
+ */
+const stageSublabel = (gate: StageGate): string => STAGE_SHORT[gate] ?? gate;
 
 // ── Bucket-Dimension aus dem Ansicht-Umschalter des Dashboards ──────────────
 
@@ -98,7 +98,7 @@ function buildDimension(
       buckets: STAGE_ORDER.map((gate) => ({
         key: gate,
         label: gate,
-        sublabel: STAGE_SUBLABEL[gate],
+        sublabel: stageSublabel(gate),
         color: STAGE_COLORS[gate],
       })),
       keyOf: (e) => e.gate,

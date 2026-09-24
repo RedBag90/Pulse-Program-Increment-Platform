@@ -10,6 +10,8 @@
  * trägt, steht oben.
  */
 
+import { UNASSIGNED_VALUE_STREAM_LABEL } from "@/modules/budgeting/domain/budgeting";
+
 export const BUSINESS_KINDS = ["run", "grow"] as const;
 export type BusinessKind = (typeof BUSINESS_KINDS)[number];
 
@@ -18,7 +20,8 @@ export const BUSINESS_KIND_LABELS: Record<BusinessKind, string> = {
   grow: "Grow the Business",
 };
 
-export const NO_VALUE_STREAM = "Ohne Wertstrom";
+/** Weitergereicht aus {@link UNASSIGNED_VALUE_STREAM_LABEL} — dieselbe Zeile für dieselbe Sache. */
+export const NO_VALUE_STREAM = UNASSIGNED_VALUE_STREAM_LABEL;
 export const NO_SOLUTION = "ohne Solution";
 
 /** Ein Kandidat, so weit die Gliederung ihn kennen muss. */

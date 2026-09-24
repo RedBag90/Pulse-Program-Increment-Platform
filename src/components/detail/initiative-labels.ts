@@ -44,9 +44,6 @@ export const STAGE_DOT: Record<string, string> = {
   L5: "bg-emerald-500",
 };
 
-/** Der Analyse-Schritt traegt keine Nummer — er bewegt den Reifegrad nicht. */
-export const ANALYSIS_STEP_SHORT = "Zur Analyse ausgewählt";
-
 /**
  * Sub-Step-Labels innerhalb des Major-Gates L4 — dem einzigen, das seit dem
  * Neuschnitt noch zwei Schritte traegt. Die Eintritts-Stufe (L4.1) wird
@@ -175,4 +172,25 @@ export const WSJF_TIER_CLASS: Record<"high" | "medium" | "low" | "none" | "unsco
   low: "bg-muted text-muted-foreground",
   none: "bg-muted text-muted-foreground/70",
   unscored: "bg-muted text-muted-foreground",
+};
+
+/**
+ * Die **Wörter** zum WSJF-Rang — Gegenstück zu {@link WSJF_TIER_CLASS}, und
+ * aus demselben Grund hier.
+ *
+ * Bis September 2026 gab es sie dreimal, in drei verschiedenen Registern: die
+ * Epics-nahe Feature-Tabelle schrieb „Hoch/Mittel/Niedrig/Ungescored", die
+ * Listenzeile daneben **englisch** „High/Med/Low" — zwei Flächen desselben
+ * Moduls, die denselben Rang verschieden benannten —, und die Detailansicht im
+ * Drumbeat „WSJF hoch". Die dritte bleibt vorerst stehen: sie setzt das Wort
+ * „WSJF" in die Pille und beschriftet den Rang deshalb klein.
+ *
+ * Der Schlüssel deckt wie oben beide Namen für „kein Rang" ab.
+ */
+export const WSJF_TIER_LABELS: Record<"high" | "medium" | "low" | "none" | "unscored", string> = {
+  high: "Hoch",
+  medium: "Mittel",
+  low: "Niedrig",
+  none: "Ungescored",
+  unscored: "Ungescored",
 };

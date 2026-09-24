@@ -63,13 +63,6 @@ export const PRACTICE_LABELS: Record<Practice, string> = {
 
 export type OperatingModelTemplate = "team_level" | "essential_safe" | "portfolio_safe" | "custom";
 
-export const TEMPLATE_LABELS: Record<OperatingModelTemplate, string> = {
-  team_level: "Team-Level (Scrum/Kanban)",
-  essential_safe: "Essential SAFe (erstes ART)",
-  portfolio_safe: "Portfolio SAFe (volles Modell)",
-  custom: "Eigenes Modell",
-};
-
 export interface OperatingModelTemplateDef {
   practices: PracticeFlags;
   structure: StructureTargets;

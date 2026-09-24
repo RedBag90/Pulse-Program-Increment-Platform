@@ -7,6 +7,7 @@
 
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
+import { UNASSIGNED_VALUE_STREAM_LABEL } from "@/modules/budgeting/domain/budgeting";
 
 export interface PeriodArtBudget {
   artId: string | null;
@@ -56,7 +57,7 @@ export function buildPeriodValueStreams(
     if (!vs) {
       vs = {
         valueStreamId: c.valueStreamId,
-        valueStreamName: c.valueStreamId ? vsName(c.valueStreamId) : "Ohne Wertstrom",
+        valueStreamName: c.valueStreamId ? vsName(c.valueStreamId) : UNASSIGNED_VALUE_STREAM_LABEL,
         runTotal: 0,
         changeTotal: 0,
         total: 0,
@@ -117,7 +118,7 @@ export async function loadPeriodValueStreams(
       valueStreamId: c.valueStreamId,
       artId: c.artId,
     })),
-    (id) => (id ? (vsName.get(id) ?? id) : "Ohne Wertstrom"),
+    (id) => (id ? (vsName.get(id) ?? id) : UNASSIGNED_VALUE_STREAM_LABEL),
     (id) => (id ? (artName.get(id) ?? id) : "ohne ART"),
   );
 }

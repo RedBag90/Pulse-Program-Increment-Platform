@@ -49,10 +49,22 @@ export interface ChartMonth {
 /** Deckkraft der Forecast-Monate (Zukunft, > heute) — Zeit-Konfidenz-Achse. */
 export const FORECAST_OPACITY = 0.4;
 
-/** Show an x-axis label only at quarter starts to keep the monthly axis legible. */
-export function quarterTick(label: string): string {
-  const [mon] = label.split(" ");
-  return mon === "Jan" || mon === "Apr" || mon === "Jul" || mon === "Oct" ? label : "";
+/**
+ * Zeigt eine x-Achsen-Beschriftung nur zum Quartalsbeginn — sonst wird die
+ * Monatsachse unlesbar.
+ *
+ * **Entschieden wird am Schlüssel, nicht am Wort.** Bis September 2026 verglich
+ * diese Funktion die Beschriftung mit `"Jan"`, `"Apr"`, `"Jul"`, `"Oct"`. Das
+ * ging nur gut, solange die Achse englische Monatsnamen trug: auf einer
+ * deutschen Achse heisst der Oktober „Okt", und der Tick des vierten Quartals
+ * wäre stillschweigend verschwunden — ein Fehler, der beim Umschalten der
+ * Sprache aufgetreten wäre, nicht vorher.
+ *
+ * `key` ist `YYYY-MM`; der Monat entscheidet, die Sprache nicht.
+ */
+export function quarterTick(month: ChartMonth): string {
+  const m = Number(month.key.slice(5, 7));
+  return Number.isFinite(m) && m % 3 === 1 ? month.label : "";
 }
 
 /**

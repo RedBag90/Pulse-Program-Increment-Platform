@@ -18,8 +18,3 @@ export const TEAM_TYPE_LABELS: Record<TeamType, string> = {
 };
 
 export const isTeamType = makeTypeGuard(TEAM_TYPES);
-
-/** Display label for a stored team type, or an em dash when unset/unknown. */
-export function teamTypeLabel(v: string | null | undefined): string {
-  return v && isTeamType(v) ? TEAM_TYPE_LABELS[v] : "—";
-}

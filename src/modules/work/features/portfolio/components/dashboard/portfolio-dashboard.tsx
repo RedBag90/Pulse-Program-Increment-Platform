@@ -61,6 +61,7 @@ import {
   yAxis,
   type Row,
 } from "@/components/charts/stacked-chart";
+import { STAGE_SHORT } from "@/components/detail/initiative-labels";
 
 interface Props {
   data: PortfolioEconomicsData;
@@ -73,15 +74,17 @@ type GroupMode = "valueStream" | "art" | "epic" | "status";
 /** Sentinel der ART-Facette für Epics ohne Primär-Solution-ART. */
 const OHNE_ART = "Ohne ART";
 
-/** Stage-Gate (L0–L5) → Anzeigename für die „Nach Status"-Gruppierung. */
-const STAGE_LABELS: Record<StageGate, string> = {
-  L0: "L0 · Funnel",
-  L1: "L1 · Detailing",
-  L2: "L2 · Analyse",
-  L3: "L3 · Backlog",
-  L4: "L4 · Umsetzung",
-  L5: "L5 · Impact",
-};
+/**
+ * Stage-Gate (L0–L5) → Anzeigename für die „Nach Status"-Gruppierung.
+ *
+ * **Abgeleitet, nicht abgeschrieben.** Bis September 2026 stand hier eine
+ * eigene Wortliste — und zwar die von *vor* dem Reifegrad-Neuschnitt: L1 hiess
+ * „Detailing", L2 „Analyse", L3 „Backlog". Wer das Dashboard nach Status
+ * gruppierte, las drei Stufennamen, die es in der Epic-Liste daneben nicht
+ * mehr gab. Die Kurzmarken kommen jetzt aus {@link STAGE_SHORT}; das Präfix
+ * ist Formatierung, kein Vokabular.
+ */
+const stageLabel = (gate: StageGate): string => `${gate} · ${STAGE_SHORT[gate] ?? gate}`;
 
 /** Sequenzielle Farbrampe L0 (früh, grau) → L5 (Impact, grün). */
 const STAGE_COLORS: Record<StageGate, string> = {
@@ -297,7 +300,7 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
   }, [displaySeries]);
 
   const months = series.axis.months;
-  const ticks = months.map((m) => m.label).filter((l) => quarterTick(l) !== "");
+  const ticks = months.map(quarterTick).filter((l) => l !== "");
 
   // Benefit-Velocity: pro Gruppe zwei Segmente — gemessen (`benefit`) + Forecast-
   // Rest zum Plan (`benefitUplift`, Schlüssel `${id}#up`).
@@ -378,7 +381,7 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
       const gate = stageOf(e.title);
       return {
         id: e.id,
-        title: STAGE_LABELS[gate],
+        title: stageLabel(gate),
         color: STAGE_COLORS[gate],
         confirmed: !e.id.endsWith(":est"),
       };

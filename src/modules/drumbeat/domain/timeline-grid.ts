@@ -14,7 +14,12 @@
  * server-side PI guard (`pi-planning.ts` `validatePiDates`).
  */
 
-import { monthStart, addMonths, daysBetween } from "@/modules/core/kernel/domain/calendar";
+import {
+  monthStart,
+  addMonths,
+  daysBetween,
+  MONTH_LABELS_DE,
+} from "@/modules/core/kernel/domain/calendar";
 
 /**
  * Canonical PI-window type for the cadence/timeline domain: a Program
@@ -34,21 +39,6 @@ export type PiDateRange = Pick<PiWindow, "startDate" | "endDate">;
 
 const PX_PER_DAY = 6;
 const MONTHS_TO_SHOW = 12;
-
-const MONTH_LABELS_DE = [
-  "Jan",
-  "Feb",
-  "Mär",
-  "Apr",
-  "Mai",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Okt",
-  "Nov",
-  "Dez",
-] as const;
 
 // --- overlap (shared with the server PI guard) -----------------------------
 

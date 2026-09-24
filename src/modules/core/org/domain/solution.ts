@@ -16,11 +16,6 @@ export const INVESTMENT_MODES = ["investing", "extracting"] as const;
 export type InvestmentMode = (typeof INVESTMENT_MODES)[number];
 export const isInvestmentMode = makeTypeGuard(INVESTMENT_MODES);
 
-export const INVESTMENT_MODE_LABEL: Record<InvestmentMode, string> = {
-  investing: "Investing",
-  extracting: "Extracting",
-};
-
 /**
  * **Der Horizont, den ein Produkt haben kann.** Nicht jeder Horizont eines
  * *Vorhabens* ist auch einer für eine *Solution*: in H3 wird geforscht, und ob

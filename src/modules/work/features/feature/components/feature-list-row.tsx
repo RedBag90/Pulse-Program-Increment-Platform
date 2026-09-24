@@ -3,7 +3,12 @@
 import { useActionState, startTransition } from "react";
 import { ClipboardList, MoreHorizontal, ShieldAlert } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { STATUS_DOT, STATUS_LABELS, WSJF_TIER_CLASS } from "@/components/detail/initiative-labels";
+import {
+  STATUS_DOT,
+  STATUS_LABELS,
+  WSJF_TIER_CLASS,
+  WSJF_TIER_LABELS,
+} from "@/components/detail/initiative-labels";
 import {
   deleteFeatureAction,
   setFeaturePiAction,
@@ -12,7 +17,7 @@ import { setFeaturePiFormData } from "@/modules/work/features/feature/lib/featur
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { WsjfScoreDialog } from "@/modules/work/features/feature/components/wsjf-score-dialog";
-import type { FeatureListRow, WsjfTier } from "@/server/views/features-list";
+import type { FeatureListRow } from "@/server/views/features-list";
 
 interface Props {
   row: FeatureListRow;
@@ -27,13 +32,6 @@ const STATUS_FUNNEL_DOT: Record<string, string> = {
   approved: "bg-blue-400",
   in_progress: "bg-primary",
   completed: "bg-emerald-500",
-};
-
-const TIER_LABEL: Record<WsjfTier, string> = {
-  high: "High",
-  medium: "Med",
-  low: "Low",
-  none: "—",
 };
 
 function pctFromWsjf(n: number | null): string {
@@ -157,7 +155,7 @@ export function FeatureListRowComponent({
           <span
             className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-meta tabular-nums ${WSJF_TIER_CLASS[row.wsjfTier]}`}
           >
-            {TIER_LABEL[row.wsjfTier]}
+            {row.wsjfTier === "none" ? "—" : WSJF_TIER_LABELS[row.wsjfTier]}
             <span className="text-foreground/80">{pctFromWsjf(row.wsjfComputed)}</span>
           </span>
         </td>

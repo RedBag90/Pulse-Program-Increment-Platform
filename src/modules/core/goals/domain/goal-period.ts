@@ -1,3 +1,5 @@
+import { MONTH_LABELS_DE } from "@/modules/core/kernel/domain/calendar";
+
 /**
  * Ziel-Zeiträume (Objective + Key Result). Ein Period-Key ist genau eine von
  * drei kanonischen Formen (Kalenderquartale, UTC):
@@ -23,21 +25,6 @@ export interface GoalPeriod {
 const YEAR_RE = /^(\d{4})$/;
 const HALF_RE = /^(\d{4})-H([12])$/;
 const QUARTER_RE = /^(\d{4})-Q([1-4])$/;
-
-const MONTHS_DE = [
-  "Jan",
-  "Feb",
-  "Mär",
-  "Apr",
-  "Mai",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Okt",
-  "Nov",
-  "Dez",
-];
 
 /** Ist `s` ein gültiger kanonischer Period-Key? */
 export function isGoalPeriodKey(s: string): boolean {
@@ -102,7 +89,7 @@ export function goalPeriodDateLabel(keyOrPeriod: string | GoalPeriod): string {
   const p = typeof keyOrPeriod === "string" ? parseGoalPeriod(keyOrPeriod) : keyOrPeriod;
   if (!p) return "";
   const { startMonth, endMonth } = monthSpan(p);
-  return `${MONTHS_DE[startMonth]} – ${MONTHS_DE[endMonth]} ${p.year}`;
+  return `${MONTH_LABELS_DE[startMonth]} – ${MONTH_LABELS_DE[endMonth]} ${p.year}`;
 }
 
 /** Aktuelles Kalenderquartal (UTC). */
@@ -174,7 +161,7 @@ export function goalTimeframe(
 export function goalTimeframeLabel(tf: GoalTimeframe | null): string {
   if (!tf) return "—";
   if (tf.kind === "bucket") return goalPeriodLabel(tf.key);
-  const fmt = (d: Date): string => `${d.getUTCDate()}. ${MONTHS_DE[d.getUTCMonth()]}`;
+  const fmt = (d: Date): string => `${d.getUTCDate()}. ${MONTH_LABELS_DE[d.getUTCMonth()]}`;
   const sy = tf.start.getUTCFullYear();
   const ey = tf.end.getUTCFullYear();
   return sy === ey

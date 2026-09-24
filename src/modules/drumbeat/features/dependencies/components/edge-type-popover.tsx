@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import type { DependencyEdgeType } from "@/modules/drumbeat/server/views/breakdown-network-view";
 // Single source of truth für die Edge-Farben (graph-palette).
 import { EDGE_COLOR } from "@/modules/drumbeat/features/cockpit/components/graph-palette";
+import { DEPENDENCY_TYPE_LABELS } from "@/modules/drumbeat/domain/status";
 
 /**
  * Shared Edge-Type-Popover — wird vom Epic-Breakdown-Netzplan UND vom
@@ -22,11 +23,16 @@ export type EdgeTypeChange = (next: DependencyEdgeType) => void;
 
 export { EDGE_COLOR };
 
-export const EDGE_LABEL: Record<DependencyEdgeType, string> = {
-  blocks: "blocks",
-  depends_on: "depends on",
-  relates_to: "relates to",
-};
+/**
+ * Die Beschriftung der drei Kantentypen — **aus der Domäne**, nicht von hier.
+ *
+ * Bis September 2026 stand hier eine zweite Tabelle mit `"blocks"`,
+ * `"depends on"`, `"relates to"`: englische Wörter in einer deutschen
+ * Oberfläche, direkt neben `DEPENDENCY_TYPE_LABELS`, das dieselben drei Werte
+ * seit jeher deutsch beschriftet. Welche der beiden ein Nutzer zu sehen bekam,
+ * entschied allein, über welchen Netzplan er kam.
+ */
+export const EDGE_LABEL: Record<DependencyEdgeType, string> = DEPENDENCY_TYPE_LABELS;
 
 interface MenuProps {
   currentType: DependencyEdgeType;

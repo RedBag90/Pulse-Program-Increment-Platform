@@ -11,7 +11,11 @@
 
 import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import { occupiedWindow } from "@/modules/budgeting/domain/period-window";
-import { rollupByValueStream, type BudgetEpicView } from "@/modules/budgeting/domain/budgeting";
+import {
+  rollupByValueStream,
+  UNASSIGNED_VALUE_STREAM_LABEL,
+  type BudgetEpicView,
+} from "@/modules/budgeting/domain/budgeting";
 import { aggregateArtFeatureLoad } from "@/modules/budgeting/domain/art-budget";
 import { addPeriod, sumPeriods } from "@/modules/budgeting/domain/period-map";
 
@@ -245,7 +249,7 @@ export function buildBudgetPlanSnapshot(inputs: BuildBudgetPlanSnapshotInputs): 
   const valueStreams: BudgetPlanSnapshotValueStream[] = rollupByValueStream([...epics], axis)
     .map((r) => ({
       valueStreamId: r.valueStreamId ?? UNASSIGNED_VALUE_STREAM_ID,
-      name: r.valueStream ?? "Ohne Wertstrom",
+      name: r.valueStream ?? UNASSIGNED_VALUE_STREAM_LABEL,
       byPeriod: r.byPeriod,
       total: r.total,
     }))

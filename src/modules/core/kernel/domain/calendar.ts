@@ -27,8 +27,9 @@ export const MONTH_LABELS = [
  *
  * Getrennt von `MONTH_LABELS`, weil das englische Set in technischen Kontexten
  * gebraucht wird und ein stiller Tausch dort Beschriftungen umgestellt hätte.
- * Zwei weitere handgeschriebene Kopien leben noch in `goal-period.ts` und
- * `timeline-grid.ts`; sie gehören hierher, sobald jemand sie anfasst.
+ *
+ * Die beiden handgeschriebenen Kopien in `goal-period.ts` und `timeline-grid.ts`
+ * sind im September 2026 hierher gezogen — seitdem ist dies die einzige.
  */
 export const MONTH_LABELS_DE = [
   "Jan",
