@@ -155,15 +155,15 @@ export const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/budgeting/value-streams",
     "/budgeting/value-streams/[id]",
     "/budgeting/periods/[id]",
-    "/budgeting/run-the-business",
     // Run steht jetzt auch an der Struktur-Fläche selbst (Kachel und Tabelle),
     // nicht mehr nur auf der eigenen Solutions-Seite.
     "/structure",
     "/structure/solution/[id]",
-    // **Keine `/budgeting/arts`-Route mehr.** Beide — Liste und Detail — sind
-    // seit der Zusammenlegung reine Wegweiser auf die Wertstromseite. Sie laden
-    // nichts, also kann an ihnen auch nichts veralten; die Fläche, die die Zahl
-    // wirklich zeigt, steht weiter oben.
+    // **Keine `/budgeting/arts`-Route mehr**, und seit 2026-09-25 auch kein
+    // `/budgeting/run-the-business`: alle drei sind seit der Zusammenlegung
+    // reine Wegweiser auf die Wertstromseite. Sie laden nichts, also kann an
+    // ihnen auch nichts veralten; die Fläche, die die Zahl wirklich zeigt,
+    // steht weiter oben.
   ],
   // Timeline mutations ripple anywhere PIs surface (planning, PI detail) and
   // the structure tab that hosts the management UI.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import {
   createRtbItemAction,
   updateRtbItemAction,
@@ -482,8 +482,11 @@ function RtbAssignmentGroupRows({
  * Die geöffnete Zeile. Trägt zum ersten Mal auch **Art** und **ART** — die
  * Server-Action nimmt beide entgegen, das alte Zeilen-Formular schickte sie nie
  * mit, sodass eine einmal angelegte Zuordnung unveränderlich war.
+ *
+ * Exportiert **nur für den Test**: was hier zu prüfen ist — dass ein
+ * erfolgreiches Speichern die Zeile zuklappt — braucht keine Tabelle drumherum.
  */
-function RowEditor({
+export function RowEditor({
   item,
   onClose,
   solutions,
@@ -495,6 +498,24 @@ function RowEditor({
   const [state, action, pending] = useActionState(updateRtbItemAction, {});
   const [kind, setKind] = useState<string>(item.kind ?? "run");
 
+  /**
+   * **Nach dem Speichern klappt die Zeile zu** — und erst dadurch sieht man,
+   * was man getan hat.
+   *
+   * Jedes Merkmal für „inaktiv" wohnt in der **eingeklappten** Zeile: gedämpft,
+   * der Name durchgestrichen, „inaktiv" statt der Jahreszahl. Beim Bearbeiten
+   * wird genau diese Zeile durch dieses Formular ersetzt. Wer hier
+   * deaktivierte und dann speicherte, sah deshalb nichts — bis zum Neuladen,
+   * und hielt das Speichern für gescheitert. Geschrieben war es längst.
+   *
+   * Nebenbei löst das ein zweites Problem: die Eingaben unten sind
+   * `defaultValue` und beim ersten Rendern eingefroren. Ein offener Editor
+   * hätte den frischen Serverstand ohnehin nicht gezeigt.
+   */
+  useEffect(() => {
+    if (state.success) onClose();
+  }, [state, onClose]);
+
   return (
     <div className="space-y-2">
       <form action={action} className="flex flex-wrap items-end gap-2">
@@ -503,7 +524,7 @@ function RowEditor({
         {canUseArts && (
           <>
             <label className="text-xs">
-              {t("budgeting.rtb.art")}
+              {t("budgeting.rtb.kostenart")}
               <select
                 name="kind"
                 value={kind}
@@ -542,6 +563,30 @@ function RowEditor({
             </label>
           </>
         )}
+        {/*
+          Dieselbe Ordnung wie im Anlege-Formular — und **eigenständig
+          bedingt**: `showSolution` und `canUseArts` haengen beide an `scoped`,
+          koennen aber auseinanderlaufen (ein Wertstrom mit Solutions, aber
+          ohne ART). Im selben `canUseArts`-Block waere das Feld dort
+          verschwunden.
+        */}
+        {showSolution && (
+          <label className="text-xs">
+            {t("budgeting.rtb.solution")}
+            <select
+              name="solutionId"
+              defaultValue={item.solutionId ?? ""}
+              className={`block ${input} w-40`}
+            >
+              <option value="">{t("budgeting.rtb.uebergreifend")}</option>
+              {solutions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <label className="text-xs">
           {t("budgeting.rtb.position2")}
@@ -572,24 +617,6 @@ function RowEditor({
             ))}
           </select>
         </label>
-        {showSolution && (
-          <label className="text-xs">
-            {t("budgeting.rtb.solution")}
-            <select
-              name="solutionId"
-              defaultValue={item.solutionId ?? ""}
-              className={`block ${input} w-40`}
-            >
-              <option value="">{t("budgeting.rtb.uebergreifend")}</option>
-              {solutions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-
         <button type="submit" disabled={pending} className={btn}>
           {pending ? "…" : "Speichern"}
         </button>
@@ -608,6 +635,18 @@ function RowEditor({
           pendingLabel="…"
           size="sm"
         />
+        {/*
+          **Der Zustand bekommt eigene Worte.** Der Knopf daneben trägt seine
+          Handlung, nicht seinen Zustand (`Deaktivieren` heisst „ist aktiv") —
+          das ist die Hausregel und bleibt so. Nur war er bisher das
+          **einzige** Zeichen dafür, woran man ist, und ein Knopftext ist ein
+          schlechter Ort, um einen Zustand abzulesen.
+        */}
+        {!item.active && (
+          <span className="text-xs text-muted-foreground">
+            {t("budgeting.rtb.positionDeaktiviert")}
+          </span>
+        )}
         <ConfirmMutateForm
           action={deleteRtbItemAction}
           fields={{ id: item.id }}
@@ -620,6 +659,10 @@ function RowEditor({
           onSuccess={onClose}
         />
       </div>
+
+      {/* Beide Knöpfe oben sind eigene Formulare mit eigener Aktion — wer das
+          nicht weiss, drückt danach „Speichern", um sie zu bestätigen. */}
+      <p className="text-xs text-muted-foreground">{t("budgeting.rtb.zustandWirktSofort")}</p>
 
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}
     </div>
@@ -710,39 +753,66 @@ function AddForm({
       */}
       {template?.caveat != null && <p className="text-xs text-warning">{template.caveat}</p>}
 
-      {canUseArts && (
+      {(canUseArts || showSolution) && (
         <div className="flex flex-wrap items-end gap-2">
-          <label className="text-xs">
-            {t("budgeting.rtb.art")}
-            <select
-              name="kind"
-              value={kind}
-              onChange={(e) => setKind(e.target.value)}
-              className={`block ${input} w-44`}
-            >
-              {RTB_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {t(RTB_KIND_KEYS[k])}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs">
-            {t("budgeting.ui.art")}
-            <select
-              name="artId"
-              required={isChangeKind(kind)}
-              defaultValue=""
-              className={`block ${input} w-40`}
-            >
-              <option value="">{isChangeKind(kind) ? "— bitte wählen" : "— kein ART"}</option>
-              {arts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          {canUseArts && (
+            <>
+              <label className="text-xs">
+                {t("budgeting.rtb.kostenart")}
+                <select
+                  name="kind"
+                  value={kind}
+                  onChange={(e) => setKind(e.target.value)}
+                  className={`block ${input} w-44`}
+                >
+                  {RTB_KINDS.map((k) => (
+                    <option key={k} value={k}>
+                      {t(RTB_KIND_KEYS[k])}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs">
+                {t("budgeting.ui.art")}
+                <select
+                  name="artId"
+                  required={isChangeKind(kind)}
+                  defaultValue=""
+                  className={`block ${input} w-40`}
+                >
+                  <option value="">{isChangeKind(kind) ? "— bitte wählen" : "— kein ART"}</option>
+                  {arts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+          {/*
+            **Die Solution steht neben dem ART, nicht am Zeilenende.** Beide
+            beantworten dieselbe Frage — wohin zählt diese Position —, und der
+            Erklärsatz darunter nennt sie in einem Atemzug. Vorher stand er
+            *über* einem Feld, das erst zwei Zeilen tiefer am rechten Rand
+            auftauchte.
+
+            Eigenständig bedingt: `showSolution` und `canUseArts` koennen
+            auseinanderlaufen.
+          */}
+          {showSolution && (
+            <label className="text-xs">
+              {t("budgeting.rtb.solution")}
+              <select name="solutionId" defaultValue="" className={`block ${input} w-40`}>
+                <option value="">{t("budgeting.rtb.uebergreifend")}</option>
+                {solutions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
       )}
 
@@ -794,19 +864,10 @@ function AddForm({
             ))}
           </select>
         </label>
-        {showSolution && (
-          <label className="text-xs">
-            {t("budgeting.rtb.solution")}
-            <select name="solutionId" defaultValue="" className={`block ${input} w-40`}>
-              <option value="">{t("budgeting.rtb.uebergreifend")}</option>
-              {solutions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
+      </div>
+
+      {/* Abgesetzt statt inmitten der Eingaben — sie schliessen die Eingabe ab. */}
+      <div className="flex flex-wrap items-center gap-2">
         <button type="submit" disabled={pending} className={btn}>
           {pending ? "…" : "Hinzufügen"}
         </button>

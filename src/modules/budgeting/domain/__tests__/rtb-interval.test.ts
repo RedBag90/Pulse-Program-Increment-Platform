@@ -7,8 +7,10 @@ import {
   sumRtbCycle,
   rtbAskByValueStream,
   RTB_INTERVALS,
+  RTB_INTERVAL_KEYS,
   type RtbAmountLike,
 } from "@/modules/budgeting/domain/rtb-interval";
+import { catalogTranslate } from "@/test/helpers/catalog";
 
 const item = (over: Partial<RtbAmountLike> = {}): RtbAmountLike => ({
   plannedAmount: 120_000,
@@ -136,4 +138,27 @@ describe("rtbAskByValueStream — eine Zeile je Wertstrom", () => {
 
     expect(ask.get("vs1")).toBe(4_000);
   });
+});
+
+/**
+ * **Drei Perioden, drei Wörter — und das ist keine Kosmetik.**
+ *
+ * `RTB_INTERVAL_KEYS.half_yearly` zeigte auf denselben Katalog-Eintrag wie
+ * `yearly`. Die Auswahl las sich „monatlich · jährlich · jährlich", und die
+ * erste der beiden gleichen war `half_yearly`: ein Betrag je Halbjahr, als
+ * Jahresbetrag beschriftet. Die Rechnung war die ganze Zeit richtig — nur
+ * wusste niemand, welche Zeile er gerade wählt.
+ *
+ * `catalogTranslate` wirft bei einem fehlenden Schlüssel; zusammen mit der
+ * Eindeutigkeit prüft das beides auf einmal.
+ */
+describe("RTB_INTERVAL_KEYS", () => {
+  for (const locale of ["de", "en"] as const) {
+    it(`gibt jeder Periode ein eigenes Wort (${locale})`, () => {
+      const t = catalogTranslate(locale);
+      const woerter = RTB_INTERVALS.map((i) => t(RTB_INTERVAL_KEYS[i]));
+
+      expect(new Set(woerter).size, woerter.join(" · ")).toBe(RTB_INTERVALS.length);
+    });
+  }
 });

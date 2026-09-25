@@ -31,9 +31,21 @@ export function rtbIntervalOrDefault(s: string | null | undefined): RtbInterval 
   return isRtbInterval(s) ? s : "half_yearly";
 }
 
+/**
+ * **Drei Perioden, drei Wörter.**
+ *
+ * `half_yearly` zeigte hier auf `…rtbInterval.yearly` — dieselbe Zeile wie
+ * `yearly`. Die Auswahl las sich deshalb „monatlich · jährlich · jährlich",
+ * und wer die erste der beiden gleichen wählte, speicherte `half_yearly`:
+ * einen Betrag je Halbjahr, beschriftet als Jahresbetrag. Über einem Geldfeld.
+ *
+ * Der Eintrag `…rtbInterval.halfYearly` („je Halbjahr") gab es die ganze Zeit;
+ * er wurde bei der i18n-Umstellung (`0babe4a9`) angelegt und nie verdrahtet.
+ * Die Rechnung unten war nie betroffen — nur das Etikett log.
+ */
 export const RTB_INTERVAL_KEYS: Record<RtbInterval, string> = {
   monthly: "budgeting.rtbInterval.monthly",
-  half_yearly: "budgeting.rtbInterval.yearly",
+  half_yearly: "budgeting.rtbInterval.halfYearly",
   yearly: "budgeting.rtbInterval.yearly",
 };
 
