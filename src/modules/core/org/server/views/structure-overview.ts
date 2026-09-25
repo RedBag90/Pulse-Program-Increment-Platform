@@ -21,7 +21,7 @@
  */
 
 import type { StructureTree } from "@/modules/core/org/server/services/structure";
-import { horizonLabel, isHorizon, type Horizon } from "@/modules/core/org/domain/horizon";
+import { horizonLabelKey, isHorizon, type Horizon } from "@/modules/core/org/domain/horizon";
 import { nestSolutionsByArt } from "@/modules/core/org/domain/structure-nesting";
 import {
   isInvestmentMode,
@@ -120,9 +120,11 @@ function toSolution(sol: {
     horizon,
     rawHorizon: sol.horizon,
     status: horizon ? solutionStatusOf(horizon, mode) : null,
-    // Ein unbekannter Horizont steht roh da statt still auf H1 zu fallen — eine
-    // falsche Auskunft wäre schlimmer als eine unschöne.
-    statusLabelKey: horizon ? horizonLabel(horizon, mode) : sol.horizon,
+    // **Ein Feld, das `…Key` heisst, trägt einen Schlüssel.** Hier stand im
+    // else-Zweig der Rohwert aus der Datenbank, und zwei Flächen schicken ihn
+    // durch `t()` — ein unbekannter Horizont hätte die Struktur-Seite geworfen.
+    // Der Rohwert bleibt als `rawHorizon` erhalten, wo er hingehört.
+    statusLabelKey: horizon ? horizonLabelKey(horizon, mode) : "org.horizon.none",
     money: null,
   };
 }

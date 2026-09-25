@@ -3,7 +3,7 @@ import {
   parseBusinessCase,
   businessCaseHasContent,
   computeBusinessCaseTotals,
-  costSliceLabel,
+  costSliceMonths,
 } from "@/modules/work/domain/business-case";
 
 describe("parseBusinessCase", () => {
@@ -139,10 +139,10 @@ describe("computeBusinessCaseTotals", () => {
   });
 });
 
-describe("costSliceLabel", () => {
+describe("costSliceMonths", () => {
   it("labels each slice with its 6-month window", () => {
-    expect(costSliceLabel(0)).toBe("Monate 1–6");
-    expect(costSliceLabel(1)).toBe("Monate 7–12");
-    expect(costSliceLabel(3)).toBe("Monate 19–24");
+    expect(costSliceMonths(0)).toEqual({ von: 1, bis: 6 });
+    expect(costSliceMonths(1)).toEqual({ von: 7, bis: 12 });
+    expect(costSliceMonths(3)).toEqual({ von: 19, bis: 24 });
   });
 });

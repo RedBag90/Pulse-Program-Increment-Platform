@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { HORIZON_HELP_KEYS, horizonLabel, isHorizon } from "@/modules/core/org/domain/horizon";
+import { HORIZON_HELP_KEYS, horizonLabelKey, isHorizon } from "@/modules/core/org/domain/horizon";
 import { HORIZON_BADGE_CLASS } from "@/modules/core/org/features/solution/components/horizon-tokens";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -40,7 +40,14 @@ export function HorizonBadge({
   // Die Regel „H1 zerfällt in Investing/Extracting" steht in der Domäne, nicht
   // hier — der Organisations-Baum beschriftet seine Solution-Zeilen aus
   // derselben Quelle.
-  const label = h ? (short ? h.toUpperCase() : horizonLabel(h, investmentMode)) : "Ohne";
+  // Vorher stand hier die **rohe** Rückgabe von `horizonLabel` — auf dem
+  // Bildschirm also `org.horizon.h2`. Und das „Ohne" daneben war seit jeher
+  // unübersetzt.
+  const label = h
+    ? short
+      ? h.toUpperCase()
+      : t(horizonLabelKey(h, investmentMode))
+    : t("org.horizon.none");
 
   const pill = (
     <span

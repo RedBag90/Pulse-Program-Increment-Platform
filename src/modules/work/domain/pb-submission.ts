@@ -104,8 +104,13 @@ export function derivePbInfo(source: PbSource): PbCandidateInfo {
 }
 
 /** Menschlicher Quellen-Label für den Readout-Header. */
-export function pbSourceLabel(source: PbSourceKind): string {
-  return source === "lbc" ? "aus Lean Business Case" : "";
+/**
+ * **Schlüssel statt Wort.** Sie hiess `pbSourceLabel` und gab ein deutsches
+ * Etikett zurück — in einer Domänen-Datei, die keinen Übersetzer hat.
+ * `null` = diese Quelle sagt nichts dazu.
+ */
+export function pbSourceKey(source: PbSourceKind): string | null {
+  return source === "lbc" ? "work.pbSource.lbc" : null;
 }
 
 // ---------------------------------------------------------------------------

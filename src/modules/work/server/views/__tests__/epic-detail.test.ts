@@ -60,6 +60,11 @@ function makeEpic(over: EpicOverrides = {}): EpicDetailInputs["epic"] {
     impactRecognizedAt: over.impactRecognizedAt ?? null,
     children: over.children ?? [],
     valueStream: null,
+    // Der Typ führt beide seit jeher; die Attrappe tat es nicht, und der
+    // `as unknown as`-Cast hat es verdeckt. Aufgefallen ist es erst, als die
+    // Zeitleiste die Namen der Solutions brauchte.
+    art: null,
+    solutionLinks: [],
   } as unknown as EpicDetailInputs["epic"];
 }
 

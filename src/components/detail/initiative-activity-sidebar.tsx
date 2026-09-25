@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import type { FieldChange } from "@/modules/core/kernel/domain/change-log";
 import { useState } from "react";
 import { Activity, FileText, Layers, Target, type LucideIcon } from "lucide-react";
 import { useLocale } from "next-intl";
@@ -14,6 +15,47 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 /** A single audit entry, pre-serialised on the server for the client boundary. */
+/**
+ * **Was sich geändert hat, unter dem Ereignis.**
+ *
+ * Ein Wert kommt entweder als Katalog-Schlüssel (Aufzählungen, Ja/Nein) oder
+ * als fertiger Text (ein aufgelöster Name, ein Datum) — die Unterscheidung
+ * trifft der View, nicht diese Zeile. Fehlen beide Werte, steht nur der
+ * Feldname da: bei Freitext ist das Absicht, bei einer Id heisst es „Name
+ * nicht zur Hand".
+ */
+export function ChangeLines({ changes }: { changes: readonly FieldChange[] }) {
+  const t = useTranslations();
+  if (changes.length === 0) return null;
+  return (
+    <ul className="mt-1 space-y-0.5">
+      {changes.map((c) => {
+        const wert = (v: FieldChange["from"]) =>
+          v == null ? null : v.kind === "key" ? t(v.key) : v.text;
+        const von = wert(c.from);
+        const nach = wert(c.to);
+        return (
+          <li key={c.field} className="text-meta text-muted-foreground">
+            <span className="text-foreground/80">{t(c.labelKey)}</span>
+            {nach != null && (
+              <>
+                {": "}
+                {von != null && (
+                  <>
+                    <span className="line-through opacity-70">{von}</span>
+                    {" → "}
+                  </>
+                )}
+                <span className="text-foreground/80">{nach}</span>
+              </>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export interface ActivityItem {
   id: string;
   action: string;
@@ -25,6 +67,12 @@ export interface ActivityItem {
   comment?: string | undefined;
   /** Context for the comment, e.g. the party ("Finance") or section ("Breakdown"). */
   detail?: string | undefined;
+  /**
+   * **Welche Felder sich geändert haben** — aus `auditEvent.changes`, im View
+   * aufgelöst. Leer, solange eine Fläche sie nicht liefert (Feature-Historie);
+   * die Zeile sagt dann weiterhin nur, *dass* etwas geändert wurde.
+   */
+  changes?: FieldChange[] | undefined;
 }
 
 /**
@@ -116,49 +164,66 @@ export function InitiativeActivitySidebar({
         </select>
       </div>
 
-      {shown.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 p-8 text-center text-sm text-muted-foreground">
-          <Activity className="h-5 w-5" />
-          {t("common.detail.keineAktivitaet")}
-        </div>
-      ) : (
-        <ul className="divide-y">
-          {shown.map((e) => {
-            const actor = e.actorId ? userLabel(e.actorId, userLabels) : null;
-            const gruppe = actionGroup(e.action);
-            const Icon = GROUP_ICON[gruppe] ?? Activity;
-            return (
-              <li key={e.id} className="flex gap-3 px-3 py-2.5 transition-colors hover:bg-muted/50">
-                <Avatar size="sm" className="mt-0.5">
-                  <AvatarFallback>{actor ? initials(actor) : "—"}</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm leading-snug">
-                    {actor && <span className="font-medium text-foreground">{actor}</span>}{" "}
-                    <span className="text-muted-foreground">{t(actionLabelKey(e.action))}</span>
-                    {e.detail && (
-                      <span className="ml-1 rounded-sm bg-muted px-1.5 py-0.5 text-meta text-muted-foreground">
-                        {e.detail}
-                      </span>
-                    )}
-                  </p>
-                  {e.comment && (
-                    <p className="mt-1 whitespace-pre-wrap border-l-2 border-border pl-2 text-sm text-foreground/80">
-                      {e.comment}
+      {/*
+        **Die Spalte bestimmt nicht mehr die Seitenhöhe.** Die Schale legt
+        Reiter, Inhalt und Spalte in eine Zeile mit `min-h-[70vh]` und ohne
+        `max-h`: die Zeile wuchs also auf die Höhe ihres grössten Kindes, und
+        das war diese Liste mit bis zu fünfzig dreizeiligen Einträgen. Das
+        `overflow-auto` am Inhalt half nicht — was nie gestaucht wird, scrollt
+        auch nie.
+
+        Nichts wird versteckt: alle Einträge bleiben erreichbar, der Hinweis
+        auf ältere ebenso. Es ändert sich nur, wer die Höhe vorgibt.
+      */}
+      <div className="lg:max-h-[70vh] lg:overflow-y-auto">
+        {shown.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 p-8 text-center text-sm text-muted-foreground">
+            <Activity className="h-5 w-5" />
+            {t("common.detail.keineAktivitaet")}
+          </div>
+        ) : (
+          <ul className="divide-y">
+            {shown.map((e) => {
+              const actor = e.actorId ? userLabel(e.actorId, userLabels) : null;
+              const gruppe = actionGroup(e.action);
+              const Icon = GROUP_ICON[gruppe] ?? Activity;
+              return (
+                <li
+                  key={e.id}
+                  className="flex gap-3 px-3 py-2.5 transition-colors hover:bg-muted/50"
+                >
+                  <Avatar size="sm" className="mt-0.5">
+                    <AvatarFallback>{actor ? initials(actor) : "—"}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm leading-snug">
+                      {actor && <span className="font-medium text-foreground">{actor}</span>}{" "}
+                      <span className="text-muted-foreground">{t(actionLabelKey(e.action))}</span>
+                      {e.detail && (
+                        <span className="ml-1 rounded-sm bg-muted px-1.5 py-0.5 text-meta text-muted-foreground">
+                          {e.detail}
+                        </span>
+                      )}
                     </p>
-                  )}
-                  <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                    <Icon className="h-3 w-3 shrink-0" />
-                    {t(`common.activity.group.${gruppe}`)}
-                    {" · "}
-                    {relativeTime(e.occurredAt, now, locale)}
-                  </p>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                    {e.changes && <ChangeLines changes={e.changes} />}
+                    {e.comment && (
+                      <p className="mt-1 whitespace-pre-wrap border-l-2 border-border pl-2 text-sm text-foreground/80">
+                        {e.comment}
+                      </p>
+                    )}
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                      <Icon className="h-3 w-3 shrink-0" />
+                      {t(`common.activity.group.${gruppe}`)}
+                      {" · "}
+                      {relativeTime(e.occurredAt, now, locale)}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
       {truncated && (
         <p className="border-t px-3 py-2 text-xs text-muted-foreground">
           {t("common.detail.nurDieLetztenEreignisse")}

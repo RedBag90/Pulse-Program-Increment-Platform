@@ -106,7 +106,9 @@
         "timeline": "Timeline",
         "other": "Frühere Änderungen"
       }
-    }
+    },
+    "ja": "ja",
+    "nein": "nein"
   },
   "nav": {
     "portfolio": "Portfolio",
@@ -1739,6 +1741,34 @@
     "benefitKind": {
       "oneTime": "Einmaliger Nutzen",
       "recurring": "Wiederkehrender Nutzen"
+    },
+    "auditField": {
+      "title": "Titel",
+      "description": "Beschreibung",
+      "needsSteeringAttention": "Für das Steering markiert",
+      "stagedForBudgeting": "Für die PB-Liste vorgemerkt",
+      "helpRequested": "Unterstützung erbeten",
+      "plannedStartAt": "Geplanter Start",
+      "plannedEndAt": "Geplantes Ende",
+      "epicType": "Epic-Typ",
+      "investmentHorizon": "Horizont",
+      "intendedClass": "Einordnung",
+      "valueStreamId": "Wertstrom",
+      "artId": "ART",
+      "primarySolutionId": "Primär-Solution"
+    },
+    "funnelStation": {
+      "h3": "Analysen",
+      "h2": "Piloten",
+      "h1Investing": "Up-and-coming",
+      "h1Extracting": "Up and running",
+      "h0": "Decommissioning"
+    },
+    "businessCase": {
+      "kostenscheibe": "Monate {von}–{bis}"
+    },
+    "pbSource": {
+      "lbc": "aus Lean Business Case"
     }
   },
   "budgeting": {
@@ -2628,7 +2658,8 @@
       "h2": "H2 · Emerging",
       "h1": "H1 · Investing",
       "h0": "H0 · Decommissioning",
-      "none": "Ohne Horizont"
+      "none": "Ohne Horizont",
+      "h1Extracting": "H1 · Extracting"
     },
     "solutionStatus": {
       "emerging": "Emerging",

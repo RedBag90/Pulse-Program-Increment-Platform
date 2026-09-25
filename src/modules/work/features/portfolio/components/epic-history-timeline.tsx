@@ -11,6 +11,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { actionLabelKey, userLabel } from "@/components/detail/initiative-labels";
+import { ChangeLines } from "@/components/detail/initiative-activity-sidebar";
+import type { FieldChange } from "@/modules/core/kernel/domain/change-log";
 
 interface HistoryEvent {
   id: string;
@@ -19,6 +21,7 @@ interface HistoryEvent {
   actorId?: string | null | undefined;
   occurredAt: Date | string;
   comment?: string | null | undefined;
+  changes?: FieldChange[] | undefined;
 }
 
 /** Klassifiziert ein Audit-Event nach Aktions-Typ → Icon + semantische Farbe. */
@@ -94,6 +97,10 @@ export function EpicHistoryTimeline({
                   {new Date(e.occurredAt).toLocaleString("de-DE")}
                 </span>
               </div>
+              {/* Dieselbe Darstellung wie in der Aktivitätenspalte — zwei
+                  Fassungen derselben Aufstellung wären wieder zwei
+                  Wahrheiten. */}
+              {e.changes && <ChangeLines changes={e.changes} />}
               {e.comment && (
                 <p className="mt-1 border-l-2 border-border pl-2 text-sm whitespace-pre-wrap text-foreground/80">
                   {e.comment}

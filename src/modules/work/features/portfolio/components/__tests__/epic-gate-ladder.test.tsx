@@ -55,4 +55,18 @@ describe("EpicGateLadder", () => {
     expect(punkte[3]?.className).toContain("ring-primary/20");
     expect(punkte[4]?.className).toContain("border-border");
   });
+
+  /**
+   * **Die Leiste sagt, was sie ist.** Die Auskunft stand nur im `aria-label`;
+   * auf dem Bildschirm waren es sieben Punkte mit Marken und kein Wort dazu.
+   *
+   * Geprüft wird über den **zugänglichen Namen**, nicht über den blossen Text:
+   * das deckt Überschrift und Verknüpfung in einem. Ein `SectionLabel`, das
+   * danebensteht, ohne dass die Liste darauf zeigt, bestünde diesen Test nicht.
+   */
+  it("ist über ihre sichtbare Überschrift auffindbar", () => {
+    render(<EpicGateLadder current="L1" />);
+
+    expect(screen.getByRole("list", { name: "Reifegrad" })).toBeTruthy();
+  });
 });

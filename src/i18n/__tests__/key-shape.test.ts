@@ -130,3 +130,120 @@ describe("Ein Schlüssel gehört in t()", () => {
     expect(funde.join("\n"), `Roher Schlüssel in JSX:\n${funde.join("\n")}`).toBe("");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Eine `…Label`-Funktion in `domain/` nimmt einen Übersetzer
+// ---------------------------------------------------------------------------
+
+/**
+ * **Viermal dasselbe Muster ist kein Zufall, sondern eine fehlende Regel.**
+ *
+ * `gateStepKey` gab bei unbekanntem Schritt den Rohwert zurück und liess
+ * `t()` werfen. `horizonLabel` gab links ein Wort, rechts einen Schlüssel.
+ * `horizonShort` schnitt aus einer Schlüssel-Tabelle ab, als wäre sie noch
+ * eine Etiketten-Liste. `RTB_INTERVAL_KEYS` zeigte zweimal auf denselben
+ * Eintrag. Jedes Mal `string` gegen `string`, jedes Mal schwieg der Compiler.
+ *
+ * Die Regel dagegen:
+ *
+ * > Eine exportierte Funktion in `domain/`, deren Name auf `Label` endet,
+ * > nimmt einen `Translate` entgegen. Wer keinen nimmt, liefert kein Etikett,
+ * > sondern einen Schlüssel — und heisst dann `…Key`.
+ *
+ * Sie hat zwei echte Lecks gefunden, die niemand gemeldet hatte:
+ * `pbSourceLabel` gab „aus Lean Business Case" zurück, `costSliceLabel` baute
+ * „Monate 1–6". Beide heissen jetzt anders und liefern Schlüssel bzw. Zahlen.
+ */
+describe("Eine …Label-Funktion in domain/ nimmt einen Übersetzer", () => {
+  /**
+   * **Fünf Ausnahmen, jede mit Grund** — und das ist die Grenze: wäre die
+   * Liste lang, wäre der Wächter keiner mehr.
+   *
+   * Alle fünf bauen **sprachneutrale Codes**, keine Wörter: `H2 2026`,
+   * `Q1 2026`, `FY 2026`. Ein Übersetzer hätte dort nichts zu übersetzen.
+   */
+  const AUSNAHMEN = new Map([
+    ["halfYearLabel", "baut H2 2026 — eine Notation, kein Wort"],
+    ["cycleLabel", "dasselbe für den Budget-Zyklus"],
+    ["goalPeriodLabel", "Q1 2026 · H1 2026 · FY 2026"],
+    ["goalPeriodDateLabel", "Datumsbereich eines Ziel-Zeitraums"],
+    ["goalTimeframeLabel", "dasselbe, über mehrere Zeiträume"],
+  ]);
+
+  const LABEL_FN = /export function (\w*Label)\s*\(([\s\S]*?)\)\s*:/g;
+
+  it("hat für jede Ausnahme noch eine Funktion", () => {
+    // Eine Ausnahme, die auf nichts mehr zeigt, ist Ballast — und verdeckt,
+    // dass die Regel inzwischen strenger sein könnte.
+    const namen = new Set<string>();
+    for (const pfad of dateien(SRC)) {
+      if (!pfad.includes("/domain/")) continue;
+      for (const m of readFileSync(pfad, "utf8").matchAll(LABEL_FN)) namen.add(m[1]!);
+    }
+    for (const name of AUSNAHMEN.keys()) {
+      expect(namen.has(name), `Ausnahme ohne Funktion: ${name}`).toBe(true);
+    }
+  });
+
+  it("nimmt überall sonst einen Translate entgegen", () => {
+    const funde: string[] = [];
+    for (const pfad of dateien(SRC)) {
+      if (!pfad.includes("/domain/")) continue;
+      const quelle = readFileSync(pfad, "utf8");
+      for (const m of quelle.matchAll(LABEL_FN)) {
+        const [, name, parameter] = m;
+        if (AUSNAHMEN.has(name!)) continue;
+        if (parameter!.includes("Translate")) continue;
+        const zeile = quelle.slice(0, m.index ?? 0).split("\n").length;
+        funde.push(`${pfad.replace(SRC, "src")}:${zeile}  ${name}`);
+      }
+    }
+    expect(funde.join("\n"), `…Label ohne Übersetzer:\n${funde.join("\n")}`).toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Wer auf derselben Route bleibt, scrollt nicht an den Anfang
+// ---------------------------------------------------------------------------
+
+/**
+ * **Der Befund:** die Reiterleiste in `entity-detail-shell.tsx` navigierte ohne
+ * `scroll={false}` — und Next scrollt dabei den **nächstgelegenen scrollbaren
+ * Vorfahren** des neuen Inhalts. Das ist auf diesen Seiten nicht das Fenster,
+ * sondern ein inneres `<main>`; der Leser sprang bei jedem Reiterwechsel an
+ * den Anfang. Eine Stelle, sechs Detailseiten.
+ *
+ * **Die Regel ist eng, und das ist Absicht.** Sie gilt nur für Navigationen,
+ * die auf **derselben Route** bleiben und bloss Suchparameter tauschen —
+ * erkennbar daran, dass der Ziel-Pfad aus `pathname` oder `basePath` gebaut
+ * wird. Wer die Seite wechselt, *soll* oben anfangen; eine Regel „jede
+ * Navigation trägt `scroll: false`" hätte 33 Stellen gemeldet, von denen die
+ * allermeisten richtig sind.
+ *
+ * Die fünfzehn Stellen, die Suchparameter setzen, halten sie heute schon —
+ * festgehalten hat sie niemand, und genau deshalb ist die sechzehnte
+ * durchgerutscht.
+ */
+describe("Gleiche Route, gleiche Bildlaufposition", () => {
+  const ROUTER = /router\.(?:push|replace)\(\s*`\$\{(?:pathname|basePath)\}[\s\S]{0,200}?\)\s*;/g;
+  const LINK = /<Link\b[^>]{0,400}?href=\{`\$\{(?:basePath|pathname)\}\?[^>]{0,300}?>/g;
+
+  it("gibt bei jeder Navigation auf derselben Route `scroll: false` mit", () => {
+    const funde: string[] = [];
+    for (const pfad of dateien(SRC)) {
+      const quelle = readFileSync(pfad, "utf8");
+      for (const rx of [ROUTER, LINK]) {
+        for (const m of quelle.matchAll(rx)) {
+          // **Nicht `includes("scroll")`.** Der erste Anlauf prüfte auf die
+          // Zeichenfolge — und übersah den Rückbau, weil im selben Tag ein
+          // Kommentar über „scrollbare Vorfahren" stand. Geprüft wird der
+          // Schalter, nicht das Wort.
+          if (/scroll=\{false\}|scroll:\s*false/.test(m[0])) continue;
+          const zeile = quelle.slice(0, m.index ?? 0).split("\n").length;
+          funde.push(`${pfad.replace(SRC, "src")}:${zeile}`);
+        }
+      }
+    }
+    expect(funde.join("\n"), `Navigation ohne scroll:false:\n${funde.join("\n")}`).toBe("");
+  });
+});

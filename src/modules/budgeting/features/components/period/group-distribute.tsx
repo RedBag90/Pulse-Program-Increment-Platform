@@ -11,7 +11,7 @@ import {
   setGroupAmountAction,
   submitGroupDistributionAction,
 } from "@/modules/budgeting/features/actions/distribution";
-import { pbSourceLabel } from "@/modules/work/domain/pb-submission";
+import { pbSourceKey } from "@/modules/work/domain/pb-submission";
 import { CandidateWorksheet } from "@/modules/budgeting/features/components/period/candidate-worksheet";
 
 const EUR = (n: number) => `${n.toLocaleString("de-DE")} €`;
@@ -154,7 +154,7 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
                 <summary className="cursor-pointer select-none">
                   {t("budgeting.period.budgetInfo")}
                   <span className="ml-1 text-muted-foreground/70">
-                    · {pbSourceLabel(c.info.source)}
+                    {pbSourceKey(c.info.source) != null && <> · {t(pbSourceKey(c.info.source)!)}</>}
                   </span>
                 </summary>
                 <dl className="mt-1 space-y-0.5 pl-3">

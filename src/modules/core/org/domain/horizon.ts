@@ -43,23 +43,40 @@ export const HORIZON_KEYS: Record<Horizon, string> = {
  * Deshalb steht die Regel **einmal** hier: der Baum liest sie, das
  * Horizont-Abzeichen liest sie. Eine zweite Liste gibt es nicht mehr.
  *
+ * **Sie hiess bis September 2026 `horizonLabel` und gab links ein Wort, rechts
+ * einen Schlüssel zurück** — beides `string`, der Compiler blind. Das Abzeichen
+ * rendert die Rückgabe roh: auf dem Bildschirm stand `org.horizon.h2`. Und
+ * `structure-map`/`structure-table` schicken sie durch `t()`, wo das Wort
+ * „H1 · Extracting" **wirft** — derselbe Absturz wie `t("L3.1")`, nur noch
+ * nicht ausgelöst. Jetzt ist in beiden Zweigen ein Schlüssel, und der Name
+ * sagt es.
+ *
  * `mode` ist bewusst lose typisiert — die Leser reichen die Spalte durch, wie
  * sie aus der Datenbank kommt.
  */
-export function horizonLabel(horizon: Horizon, mode: string | null | undefined): string {
-  return horizon === "h1" && mode === "extracting" ? "H1 · Extracting" : HORIZON_KEYS[horizon];
+export function horizonLabelKey(horizon: Horizon, mode: string | null | undefined): string {
+  return horizon === "h1" && mode === "extracting"
+    ? "org.horizon.h1Extracting"
+    : HORIZON_KEYS[horizon];
 }
 
 /**
  * **Nur die Stufe** — „H1" statt „H1 · Investing".
  *
  * Für Flächen, die neben dem Horizont ohnehin schon sagen, was die Solution
- * tut, oder die schlicht keinen Platz für den Zusatz haben. Sie schneidet aus
- * `HORIZON_KEYS` ab, statt eine zweite Etikettenliste aufzumachen — genau die
- * war der Fehler, den `horizonLabel` oben beschreibt.
+ * tut, oder die schlicht keinen Platz für den Zusatz haben.
+ *
+ * **Sie schnitt bis September 2026 aus `HORIZON_KEYS` ab** — `"H1 · Investing"`
+ * auf `"H1"`. Seit die Tabelle Schlüssel führt, enthält `org.horizon.h1` kein
+ * „ · " mehr, und die Funktion gab den **ganzen Schlüssel** zurück. Sie hat
+ * ohne einen Compiler-Mucks ihre Bedeutung verloren; das Rollenverzeichnis
+ * zeigte den Schlüssel.
+ *
+ * Die Stufe steht ohnehin im Horizont selbst. Kein Katalog nötig, keine zweite
+ * Quelle.
  */
 export function horizonShort(horizon: Horizon): string {
-  return HORIZON_KEYS[horizon].split(" · ")[0]!;
+  return horizon.toUpperCase();
 }
 
 /** Erklärtexte je Horizont — Quelle für Tooltips + Legende (Helfer-Schicht). */

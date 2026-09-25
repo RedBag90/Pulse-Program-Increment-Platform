@@ -291,8 +291,18 @@ export function EntityDetailShell({
                       {inhalt}
                     </button>
                   ) : (
+                    /*
+                      **`scroll={false}`, sonst springt die Seite an den
+                      Anfang.** Next scrollt beim Navigieren den
+                      nächstgelegenen scrollbaren Vorfahren des neuen Inhalts —
+                      und das ist auf diesen Seiten nicht das Fenster, sondern
+                      der innere Inhaltsbereich. Die fünfzehn Filter-Stellen
+                      geben den Schalter längst mit; diese eine nicht, und sie
+                      trägt die Reiterleiste von sechs Detailseiten.
+                    */
                     <Link
                       href={`${basePath}?tab=${tab.key}${tabSuffix}`}
+                      scroll={false}
                       aria-current={active ? "page" : undefined}
                       title={titel}
                       className={cls}

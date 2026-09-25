@@ -4,6 +4,7 @@ import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { AuditLogTable } from "@/features/admin/components/audit-log-table";
 import { Page, PageHeader, PageSection } from "@/components/layout";
+import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 
 interface Props {
@@ -98,9 +99,15 @@ export default async function AuditLogPage({ searchParams }: Props) {
         >
           {t("admin.page.filter")}
         </button>
-        <a href="?" className="rounded-md border px-4 py-1.5 hover:bg-muted/50">
+        {/* Hier standen drei `<a href="?…">`: ein blanker Anker lädt das
+            **Dokument** neu — die einzige Fläche im Projekt, auf der die
+            Beschwerde „die komplette Seite wird neu geladen" wörtlich
+            zutraf. Das `<form method="get">` darüber bleibt: ein Filter ohne
+            JavaScript ist hier die richtige Wahl, und ein Absenden **ist**
+            eine neue Seite. */}
+        <Link href="?" scroll={false} className="rounded-md border px-4 py-1.5 hover:bg-muted/50">
           {t("admin.page.clear")}
-        </a>
+        </Link>
       </form>
 
       <PageSection>
@@ -120,17 +127,18 @@ export default async function AuditLogPage({ searchParams }: Props) {
         {/* Pagination */}
         <div className="flex justify-between text-sm">
           {params.cursor && (
-            <a href="?" className="text-primary hover:underline">
+            <Link href="?" scroll={false} className="text-primary hover:underline">
               {t("admin.page.firstPage")}
-            </a>
+            </Link>
           )}
           {nextCursor && (
-            <a
+            <Link
               href={`?${new URLSearchParams({ ...params, cursor: nextCursor }).toString()}`}
+              scroll={false}
               className="text-primary hover:underline ml-auto"
             >
               {t("admin.page.nextPage")}
-            </a>
+            </Link>
           )}
         </div>
       </PageSection>

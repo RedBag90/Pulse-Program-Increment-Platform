@@ -160,6 +160,12 @@ export function computeBusinessCaseTotals(
 }
 
 /** Label for cost slice `index` — months `6i+1 … 6i+6`. */
-export function costSliceLabel(index: number): string {
-  return `Monate ${index * 6 + 1}–${index * 6 + 6}`;
+/**
+ * **Die Grenzen einer Kostenscheibe, nicht ihr Etikett.** Sie hiess
+ * `costSliceLabel` und baute „Monate 1–6" zusammen — ein deutsches Wort in
+ * einer Domänen-Datei. Den Satz baut jetzt der Katalog
+ * (`work.businessCase.kostenscheibe`).
+ */
+export function costSliceMonths(index: number): { von: number; bis: number } {
+  return { von: index * 6 + 1, bis: index * 6 + 6 };
 }

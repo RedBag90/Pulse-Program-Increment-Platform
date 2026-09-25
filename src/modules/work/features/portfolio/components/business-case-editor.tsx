@@ -12,7 +12,7 @@ import { SectionLabel } from "@/components/ui/section-label";
 import { InfoHint } from "@/components/ui/info-hint";
 import { Link } from "@/i18n/navigation";
 import {
-  costSliceLabel,
+  costSliceMonths,
   type BusinessCaseFields,
   type BusinessCaseVersion,
 } from "@/modules/work/domain/business-case";
@@ -242,14 +242,14 @@ export function BusinessCaseEditor({
                   {slices.map((amount, i) => (
                     <div key={i} className="flex items-center gap-3">
                       <span className="w-24 shrink-0 text-sm text-muted-foreground @sm:w-32">
-                        {costSliceLabel(i)}
+                        {t("work.businessCase.kostenscheibe", costSliceMonths(i))}
                       </span>
                       <Input
                         type="number"
                         step="any"
                         min={0}
                         name={`costSlice_${i}`}
-                        aria-label={costSliceLabel(i)}
+                        aria-label={t("work.businessCase.kostenscheibe", costSliceMonths(i))}
                         value={amount}
                         onChange={(e) =>
                           setSlices((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))

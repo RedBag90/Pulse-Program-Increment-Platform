@@ -48,6 +48,22 @@ import {
 } from "@/modules/work/server/services/stage-gate-transition";
 import { computeEpicRevisionVisibility } from "@/modules/work/domain/epic-revision-visibility";
 import { epicNextStep, type EpicNextStep } from "@/modules/work/domain/epic-next-step";
+import { fieldChanges, type FieldChangeContext } from "@/modules/work/domain/audit-field-changes";
+import { EPIC_TYPE_KEYS, HORIZON_KEYS } from "@/modules/work/domain/portfolio-guardrails";
+import { EPIC_CLASS_KEYS } from "@/modules/work/domain/pb-submission";
+
+/**
+ * Die Aufzählungs-Tabellen, die die Zeitleiste braucht — je Feld eine.
+ *
+ * Sie stehen hier und nicht in `audit-field-changes.ts`, damit die reine
+ * Funktion nicht drei Domänen-Module importiert, um eine Karte zu füllen. Was
+ * fehlt, zeigt keinen Wert; das ist die Regel aus G2.
+ */
+const EPIC_ENUM_KEYS: Record<string, Record<string, string>> = {
+  epicType: EPIC_TYPE_KEYS,
+  investmentHorizon: HORIZON_KEYS,
+  intendedClass: EPIC_CLASS_KEYS,
+};
 import {
   epicLifecycleSteps,
   type LifecycleStep,
@@ -574,12 +590,39 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
   // The right-hand activity feed merges audit events and approval comments into
   // one stream, newest-first (page lines 282-307).
   const activityTruncated = historyEvents.length > ACTIVITY_PAGE_SIZE;
+
+  /**
+   * **Die Namen, die eine Id lesbar machen** — und nur die, die ohnehin geladen
+   * sind: der Wertstrom, das ART und die Solutions des Epics, dazu die ARTs
+   * seiner Kind-Features.
+   *
+   * Eine Id, die hier fehlt, zeigt **keinen Wert** — die Zeile sagt dann nur,
+   * *dass* sich der Wertstrom geändert hat. Das trifft alte Einträge, die auf
+   * einen Wertstrom zeigen, in dem das Epic längst nicht mehr liegt. Sie
+   * nachzuladen hiesse, für eine Zeitleiste beliebig viele Namen aufzulösen;
+   * eine UUID auf dem Bildschirm wäre der schlechtere Handel.
+   */
+  const namen = new Map<string, string>();
+  if (epic.valueStream) namen.set(epic.valueStream.id, epic.valueStream.name);
+  if (epic.art) namen.set(epic.art.id, epic.art.name);
+  for (const link of epic.solutionLinks) namen.set(link.solution.id, link.solution.name);
+  for (const c of epic.children) if (c.art) namen.set(c.art.id, c.art.name);
+
+  const changeCtx: FieldChangeContext = {
+    nameOf: (id) => namen.get(id) ?? null,
+    enumKey: (field, value) => EPIC_ENUM_KEYS[field]?.[value] ?? null,
+    // Das Read-Model reicht ISO durch; die Oberfläche formatiert in der
+    // Sprache des Lesers, wie überall sonst auch.
+    formatDay: (iso) => iso.slice(0, 10),
+  };
+
   const auditItems: ActivityItem[] = historyEvents.slice(0, ACTIVITY_PAGE_SIZE).map((e) => ({
     id: e.id,
     action: e.action,
     occurredAt: e.occurredAt.toISOString(),
     actorId: e.actorId,
     comment: auditComment(e.changes),
+    changes: fieldChanges(e.changes, changeCtx),
   }));
 
   // Die Kommentare der Abnehmer stecken jetzt im Audit-Strom: jede

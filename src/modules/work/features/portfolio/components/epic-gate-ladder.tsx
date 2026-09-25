@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import { SectionLabel } from "@/components/ui/section-label";
 import {
   LADDER_STEPS,
   gateOfStep,
@@ -23,6 +24,9 @@ import {
  * Quelle, aus der die Gate-Karte und der Antrag sie nehmen; eine zweite,
  * abgeschriebene Liste gäbe es sonst schon wieder.
  */
+/** Die Überschrift trägt sie selbst — die Leiter zeigt per `aria-labelledby` darauf. */
+const UEBERSCHRIFT_ID = "epic-gate-ladder-heading";
+
 export function EpicGateLadder({ current }: { current: GateStep }) {
   const t = useTranslations();
   // Steht das Epic auf einem Schritt, der auf dieser Leiter nicht vorkommt,
@@ -34,46 +38,55 @@ export function EpicGateLadder({ current }: { current: GateStep }) {
   return (
     /* Der Tour-Anker zog vom abgeloesten Stepper hierher: er meint „die Stelle,
        an der der Reifegrad steht", und das ist jetzt die Leiter. */
-    <ol
-      className="flex items-start"
-      aria-label={t("work.epic.reifegrad")}
-      data-tour="epic-lifecycle-stepper"
-    >
-      {LADDER_STEPS.map((step, i) => {
-        const done = i < at;
-        const now = i === at;
-        return (
-          <li key={step} className="relative flex min-w-0 flex-1 flex-col items-center gap-1.5">
-            {/* Der Faden zur vorigen Stufe — er läuft hinter dem Punkt durch. */}
-            {i > 0 && (
+    <div className="space-y-1.5" data-tour="epic-lifecycle-stepper">
+      {/*
+        **Die Leiste sagt jetzt, was sie ist.** Die Auskunft stand nur im
+        `aria-label` — für Vorleseprogramme also da, für Augen nicht. Der
+        Docblock oben beschreibt seit jeher „eine Leiter mit der Überschrift
+        „Reifegrad""; beim Eindampfen des Fünf-Kachel-Steppers auf eine Zeile
+        ist die Benennung mit den Kacheln verschwunden.
+
+        `aria-labelledby` statt eines zweiten `aria-label`: sonst stünde
+        dieselbe Angabe zweimal, und ein Vorleseprogramm läse sie zweimal.
+      */}
+      <SectionLabel id={UEBERSCHRIFT_ID}>{t("work.epic.reifegrad")}</SectionLabel>
+      <ol className="flex items-start" aria-labelledby={UEBERSCHRIFT_ID}>
+        {LADDER_STEPS.map((step, i) => {
+          const done = i < at;
+          const now = i === at;
+          return (
+            <li key={step} className="relative flex min-w-0 flex-1 flex-col items-center gap-1.5">
+              {/* Der Faden zur vorigen Stufe — er läuft hinter dem Punkt durch. */}
+              {i > 0 && (
+                <span
+                  aria-hidden
+                  className={`absolute left-[-50%] top-[6px] h-0.5 w-full ${
+                    done || now ? "bg-primary" : "bg-border"
+                  }`}
+                />
+              )}
               <span
                 aria-hidden
-                className={`absolute left-[-50%] top-[6px] h-0.5 w-full ${
-                  done || now ? "bg-primary" : "bg-border"
+                className={`relative z-10 size-3.5 rounded-full border-2 ${
+                  done
+                    ? "border-primary bg-primary"
+                    : now
+                      ? "border-primary bg-card ring-3 ring-primary/20"
+                      : "border-border bg-card"
                 }`}
               />
-            )}
-            <span
-              aria-hidden
-              className={`relative z-10 size-3.5 rounded-full border-2 ${
-                done
-                  ? "border-primary bg-primary"
-                  : now
-                    ? "border-primary bg-card ring-3 ring-primary/20"
-                    : "border-border bg-card"
-              }`}
-            />
-            <span
-              className={`truncate font-mono text-label tracking-tight ${
-                now ? "font-semibold text-primary" : "text-muted-foreground"
-              }`}
-              title={gateStepLabel(step, t)}
-            >
-              {gateStepNumberLabel(step, t)}
-            </span>
-          </li>
-        );
-      })}
-    </ol>
+              <span
+                className={`truncate font-mono text-label tracking-tight ${
+                  now ? "font-semibold text-primary" : "text-muted-foreground"
+                }`}
+                title={gateStepLabel(step, t)}
+              >
+                {gateStepNumberLabel(step, t)}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }

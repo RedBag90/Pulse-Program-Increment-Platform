@@ -181,7 +181,7 @@ describe("buildStructureOverview", () => {
     );
     expect(o.valueStreams[0]!.arts[0]!.solutions.map((s) => [s.statusLabelKey, s.status])).toEqual([
       ["org.horizon.h1", "investing"],
-      ["H1 · Extracting", "extracting"],
+      ["org.horizon.h1Extracting", "extracting"],
       ["org.horizon.h2", "emerging"],
     ]);
   });
@@ -274,7 +274,7 @@ describe("groupByStatus", () => {
     expect(groupByStatus(flattenSolutions(o)).map((g) => [g.labelKey, g.rows.length])).toEqual([
       ["org.horizon.h2", 1],
       ["org.horizon.h1", 1],
-      ["H1 · Extracting", 1],
+      ["org.horizon.h1Extracting", 1],
     ]);
   });
 

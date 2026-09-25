@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
-import { costSliceLabel, type BusinessCaseFields } from "@/modules/work/domain/business-case";
+import { costSliceMonths, type BusinessCaseFields } from "@/modules/work/domain/business-case";
 import type { BenefitHypothesisFields } from "@/modules/work/domain/benefit-hypothesis";
 
 /** One compared field: its label and the baseline / new rendered values. */
@@ -20,7 +20,12 @@ function lines(v: string[] | undefined): string {
 
 function slices(v: BusinessCaseFields["costSlices"]): string {
   if (!v || v.length === 0) return "—";
-  return v.map((s, i) => `${costSliceLabel(i)}: ${s.amount ?? "—"}`).join("\n");
+  return v
+    .map((s, i) => {
+      const { von, bis } = costSliceMonths(i);
+      return `${von}–${bis}: ${s.amount ?? "—"}`;
+    })
+    .join("\n");
 }
 
 /** Field rows for a Business Case comparison. `approvals` is omitted (replaced by the workflow). */

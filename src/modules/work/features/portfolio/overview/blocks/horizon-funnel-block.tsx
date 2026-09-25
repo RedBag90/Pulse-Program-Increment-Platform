@@ -12,7 +12,6 @@ import {
   HORIZON_HEX,
   HORIZON_NONE_HEX,
 } from "@/modules/core/org/features/solution/components/horizon-tokens";
-import { HORIZON_KEYS, type Horizon } from "@/modules/work/domain/portfolio-guardrails";
 import {
   fitFunnel,
   halfAt,
@@ -43,15 +42,34 @@ import {
  */
 
 /**
- * Der Bandkopf im Trichter. Nur H1 weicht von `HORIZON_KEYS` ab: dort steht
- * „H1 · Investing", was im Trichter das Gegenteil der Daten behaupten kann —
- * gemessen sind in Large Test Corp **alle drei** H1-Produkte in der Ernte. Am
- * Badge stimmt das Label weiterhin, weil der Modus dort danebensteht; ein
- * globaler Umtext wäre eine eigene Entscheidung.
+ * **Die Köpfe im Trichter stehen je Station, nicht je Band** — und sie tragen
+ * Klarnamen statt H-Codes.
+ *
+ * Hier stand `{...HORIZON_KEYS, h1: "H1 · Investing & Extracting"}`: eine
+ * Tabelle, die drei Schlüssel und ein Wort mischte, und die Zeichenstelle
+ * rendert sie **roh**. Auf dem Bildschirm standen deshalb drei
+ * `org.horizon.*` neben einem deutschen Notbehelf — den sein eigener Docblock
+ * als solchen benannte.
+ *
+ * Der Trichter rechnet seit dem Fünf-Stationen-Umbau ohnehin in `STATIONS`
+ * (`h3, h2, h1.1, h1.2, h0`), jede mit eigener Öffnung und eigenem Ziel; nur
+ * die Beschriftung war je Band geblieben. Jetzt bekommt H1 zwei Köpfe, links
+ * und rechts seiner Trennlinie.
+ *
+ * **Nur hier.** Abzeichen, Struktur-Baum und Rollenverzeichnis zeigen weiter
+ * „H2 · Emerging" — die Codes tragen Spalten und Filter, die Klarnamen tragen
+ * den Trichter. Zwei Vokabulare für dieselbe Sache, bewusst, und beide aus dem
+ * Katalog.
  */
-const BAND_TITLE: Record<Horizon, string> = {
-  ...HORIZON_KEYS,
-  h1: "H1 · Investing & Extracting",
+const STATION_TITLE_KEYS: Record<Station, string> = {
+  h3: "work.funnelStation.h3",
+  h2: "work.funnelStation.h2",
+  // Die Stations-Ids tragen einen Punkt (`h1.1`), Katalog-Schlüssel dürfen das
+  // nicht: der Paritätstest liest sie als Verschachtelung und findet dort
+  // keinen Text. Die Namen sagen ohnehin mehr als die Nummern.
+  "h1.1": "work.funnelStation.h1Investing",
+  "h1.2": "work.funnelStation.h1Extracting",
+  h0: "work.funnelStation.h0",
 };
 
 /**
@@ -475,16 +493,19 @@ function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: Funne
                 // einzubrennen, der im dunklen Thema als Fleck stehen bliebe.
                 fill={`color-mix(in srgb, ${HORIZON_HEX[b.horizon]} 7%, transparent)`}
               />
-              <text
-                x={(b.x0 + b.x1) / 2}
-                y={26}
-                textAnchor="middle"
-                fontSize={13}
-                fontWeight={700}
-                fill={HORIZON_HEX[b.horizon]}
-              >
-                {BAND_TITLE[b.horizon]}
-              </text>
+              {b.stations.map((st) => (
+                <text
+                  key={st.station}
+                  x={(st.x0 + st.x1) / 2}
+                  y={26}
+                  textAnchor="middle"
+                  fontSize={13}
+                  fontWeight={700}
+                  fill={HORIZON_HEX[b.horizon]}
+                >
+                  {t(STATION_TITLE_KEYS[st.station])}
+                </text>
+              ))}
               <text
                 x={(b.x0 + b.x1) / 2}
                 y={42}
