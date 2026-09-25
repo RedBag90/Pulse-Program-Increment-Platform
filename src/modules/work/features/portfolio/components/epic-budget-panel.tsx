@@ -42,7 +42,7 @@ export function EpicBudgetPanel({
   fundable: { may: boolean; firstStep: string };
 }) {
   const t = useTranslations();
-  // Kein Geld: erklären statt nur melden. Vor L3.1 *kann* keines da sein — das
+  // Kein Geld: erklären statt nur melden. Vor L2 *kann* keines da sein — das
   // ist eine andere Aussage als „es wurde keines zugeteilt".
   if (standing == null || standing.state === "none") {
     return (

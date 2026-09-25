@@ -85,33 +85,55 @@ export function BusinessCaseEditor({
         <input type="hidden" name="epicId" value={epicId} />
 
         <fieldset disabled={readOnly} className="space-y-6 border-0 p-0 m-0 min-w-0">
-          <div>
-            <FieldLabel htmlFor="bc-stakeholders" field="keyStakeholders">
-              {t("work.epic.keyStakeholders")}
-            </FieldLabel>
-            <Input
-              id="bc-stakeholders"
-              name="keyStakeholders"
-              defaultValue={current.keyStakeholders}
-              placeholder={BUSINESS_CASE_FIELD_HELP.keyStakeholders.placeholder}
-            />
-          </div>
-
-          <div>
-            <FieldLabel htmlFor="bc-description" field="initiativeDescription">
-              {t("work.epic.initiativeDescription")}
-            </FieldLabel>
-            <Textarea
-              id="bc-description"
-              name="initiativeDescription"
-              rows={4}
-              defaultValue={current.initiativeDescription}
-              placeholder={BUSINESS_CASE_FIELD_HELP.initiativeDescription.placeholder}
-            />
-          </div>
-
-          <div className="grid gap-4 @md:grid-cols-2">
+          {/**
+           * **Ein Raster für alle drei Zeilen, mit demselben Umbruchpunkt.**
+           *
+           * Vorher standen hier drei verschiedene Breiten-Regeln: die beiden
+           * oberen Felder über die volle Breite, darunter ein Paar, das bei
+           * `@md` auf zwei Spalten umbrach, und darunter ein Trio, das erst
+           * bei `@lg` auf drei umbrach. Die Raster teilten keine einzige
+           * Spaltenkante — nichts stand untereinander, was zusammengehört.
+           *
+           * Jetzt dreimal `@lg:grid-cols-3`: links jeweils das lange Feld über
+           * zwei Spalten (so breit wie *In scope* + *Out of scope* zusammen),
+           * rechts das kurze über eine (so breit wie *What you need to believe
+           * in*).
+           *
+           * `items-start`, weil „Key stakeholders" ein einzeiliges Feld neben
+           * einem vierzeiligen ist: ohne die Angabe zöge das Raster es auf
+           * dieselbe Höhe und liesse ein leeres Kästchen stehen.
+           *
+           * Container-Queries, nicht Viewport: das `@container` sitzt am
+           * `<form>`, weil die Fläche in einer Spalte stehen kann.
+           */}
+          <div className="grid items-start gap-4 @lg:grid-cols-3">
+            <div className="@lg:col-span-2">
+              <FieldLabel htmlFor="bc-description" field="initiativeDescription">
+                {t("work.epic.initiativeDescription")}
+              </FieldLabel>
+              <Textarea
+                id="bc-description"
+                name="initiativeDescription"
+                rows={4}
+                defaultValue={current.initiativeDescription}
+                placeholder={BUSINESS_CASE_FIELD_HELP.initiativeDescription.placeholder}
+              />
+            </div>
             <div>
+              <FieldLabel htmlFor="bc-stakeholders" field="keyStakeholders">
+                {t("work.epic.keyStakeholders")}
+              </FieldLabel>
+              <Input
+                id="bc-stakeholders"
+                name="keyStakeholders"
+                defaultValue={current.keyStakeholders}
+                placeholder={BUSINESS_CASE_FIELD_HELP.keyStakeholders.placeholder}
+              />
+            </div>
+          </div>
+
+          <div className="grid items-start gap-4 @lg:grid-cols-3">
+            <div className="@lg:col-span-2">
               <FieldLabel htmlFor="bc-outcome" field="businessOutcomeHypothesis">
                 {t("work.epic.businessOutcomeHypothesis")}
               </FieldLabel>
@@ -132,7 +154,7 @@ export function BusinessCaseEditor({
                   href={`/portfolio/epics/${epicId}?tab=kpis` as never}
                   className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                 >
-                  In „KPI &amp; Nutzen“ pflegen <ArrowRight className="size-3" />
+                  {t("work.epic.inKpiUndNutzenPflegen")} <ArrowRight className="size-3" />
                 </Link>
               </div>
               {/* Bestandswert mitsenden, damit der Full-Replace-Save den
@@ -145,7 +167,7 @@ export function BusinessCaseEditor({
               />
               {kpiNames.length === 0 ? (
                 <p className="rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
-                  Noch keine KPI erfasst — pflege sie im Reiter „KPI &amp; Nutzen“.
+                  {t("work.epic.nochKeineKpiErfasst")}
                 </p>
               ) : (
                 <ul className="flex flex-wrap gap-1.5">
@@ -430,9 +452,7 @@ function EffectTile({
           <Lightbulb className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
           <div className="space-y-2">
             <p className="leading-snug">
-              Kein {title.toLowerCase()} — verknüpfe im Reiter „KPI &amp; Nutzen“ ein Ziel
-              (Erfolgs-KPI) und pflege die Einheiten-Umrechnung je Ziel-Ebene, damit die Kaskade bis
-              zum Top-Ziel rechnet.
+              {t("work.epic.keineKaskade", { art: title.toLowerCase() })}
             </p>
             <Link
               href={`/portfolio/epics/${epicId}?tab=kpis` as never}

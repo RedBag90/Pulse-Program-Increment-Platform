@@ -13,7 +13,7 @@ import type { EpicBudgetStandingView } from "@/modules/work/server/views/epic-de
  * nicht gemerkt — er muss über das **Gerenderte** gehen.
  */
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
-const FUNDABLE = { may: true, firstStep: "L3.1" };
+const FUNDABLE = { may: true, firstStep: "L2" };
 
 const standing = (over: Partial<EpicBudgetStandingView> = {}): EpicBudgetStandingView => ({
   state: "applies",
@@ -135,18 +135,18 @@ describe("EpicBudgetPanel", () => {
     expect(screen.getByText("Gebunden")).toBeTruthy();
   });
 
-  it("ohne Budget vor L3.1: erklärt, statt nur zu melden", () => {
+  it("ohne Budget vor L2: erklärt, statt nur zu melden", () => {
     render(
       <EpicBudgetPanel
         standing={standing({ state: "none" })}
         allocationState={null}
-        fundable={{ may: false, firstStep: "L3.1" }}
+        fundable={{ may: false, firstStep: "L2" }}
       />,
     );
-    expect(screen.getByText(/Budget gibt es erst ab L3\.1/)).toBeTruthy();
+    expect(screen.getByText(/Budget gibt es erst ab L2/)).toBeTruthy();
   });
 
-  it("ohne Budget ab L3.1: schlicht keins zugeteilt", () => {
+  it("ohne Budget ab L2: schlicht keins zugeteilt", () => {
     render(
       <EpicBudgetPanel
         standing={standing({ state: "none" })}

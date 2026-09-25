@@ -40,6 +40,8 @@ const EPIC = {
   plannedEndAt: null,
   valueStream: { id: "vs1", name: "Elefanten-Wertstrom 1" },
   artId: null,
+  art: null,
+  portfolioOverrideAt: null,
   primarySolution: null,
   investmentHorizon: null,
   businessCaseApprovedAt: null,

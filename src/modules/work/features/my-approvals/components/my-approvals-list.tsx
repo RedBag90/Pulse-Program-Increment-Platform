@@ -3,7 +3,7 @@ import { Link } from "@/i18n/navigation";
 import { PageSection } from "@/components/layout";
 import { ApprovalActions } from "@/modules/work/features/my-approvals/components/approval-actions";
 import type { MyApprovalRow } from "@/modules/work/server/services/my-approvals";
-import { gateStepKey } from "@/modules/work/domain/stage-gate";
+import { gateStepLabel } from "@/modules/work/domain/stage-gate";
 
 /**
  * „Meine Freigaben" — der persönliche Posteingang, nach Art gruppiert.
@@ -27,7 +27,9 @@ function ContextCell({ row }: { row: MyApprovalRow }) {
   if (row.context.fromGate && row.context.toGate) {
     // Bisher stand hier der rohe Schrittcode — dieselbe Beschriftung wie auf
     // der Gate-Karte, damit „L4" und „L4.1" nicht zwei Dinge zu sein scheinen.
-    bits.push(`${t(gateStepKey(row.context.fromGate))} → ${t(gateStepKey(row.context.toGate))}`);
+    bits.push(
+      `${gateStepLabel(row.context.fromGate, t)} → ${gateStepLabel(row.context.toGate, t)}`,
+    );
   }
   if (row.context.roleLabelKey) bits.push(t(row.context.roleLabelKey));
   if (row.context.valueStreamName) bits.push(row.context.valueStreamName);

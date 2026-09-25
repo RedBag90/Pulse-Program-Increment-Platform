@@ -65,15 +65,28 @@ export const STATUS_DOT: Record<string, string> = {
   cancelled: "bg-muted-foreground/20",
 };
 
-/** QS / lifecycle status labels (`draft → in_review → approved`, plus delivery states). */
-export const STATUS_LABELS: Record<string, string> = {
-  draft: "Entwurf",
-  in_review: "In Prüfung",
-  approved: "Freigegeben",
-  in_progress: "In Umsetzung",
-  blocked: "Blockiert",
-  completed: "Abgeschlossen",
-  cancelled: "Abgebrochen",
+/**
+ * Lebenszyklus-Status als **Katalog-Schlüssel** (`draft → in_review →
+ * approved`, dazu die Lieferzustände). ADR-0024, Regel 2.
+ *
+ * Hier standen deutsche Wörter, und fünf Flächen lasen sie — auf `/en/` stand
+ * damit mitten im Englischen „Freigegeben". Der i18n-Wächter sieht eine
+ * Konstanten-Tabelle nicht.
+ *
+ * **`approved` heisst jetzt „Offen".** Der alte Name stammt aus dem
+ * Feature-QS-Freigabelauf, den es seit Juni 2026 nicht mehr gibt (siehe
+ * `work.status.approved` im Katalog): ein Feature, das niemand mehr freigibt,
+ * ist nicht „freigegeben", es ist offen — geplant und noch nicht begonnen.
+ * Der Datenwert bleibt `approved`; nur das Wort ändert sich.
+ */
+export const STATUS_KEYS: Record<string, string> = {
+  draft: "work.status.draft",
+  in_review: "work.status.inReview",
+  approved: "work.status.approved",
+  in_progress: "work.status.inProgress",
+  blocked: "work.status.blocked",
+  completed: "work.status.completed",
+  cancelled: "work.status.cancelled",
 };
 
 /**
@@ -91,47 +104,161 @@ export const STATUS_BADGE: Record<string, string> = {
 };
 
 /**
- * Friendly German labels for audit actions — shared by the Activity sidebar and
- * the History tab so both read the same. Unknown actions degrade gracefully via
- * {@link actionLabel}.
+ * **Audit-Aktion → Beschriftung und Reiter.**
+ *
+ * Hier standen 31 deutsche Sätze, hartcodiert. Zwei Dinge fehlten ihnen:
+ *
+ * 1. **Die Sprache.** Eine Konstanten-Tabelle sieht der i18n-Wächter nicht; auf
+ *    `/en/` stand die Aktivitäten-Spalte deshalb komplett deutsch da.
+ * 2. **Neun Aktionen.** `epic.solutions.set`, die sechs
+ *    `initiative.stage_gate.*` und zwei weitere fehlten — für sie griff der
+ *    Rückfall `action.replace(/[._]/g, " ")`, und im Feed stand „epic solutions
+ *    set".
+ *
+ * **`group` ist neu und beantwortet die eigentliche Frage.** Der Filter bot
+ * bisher „epic" und „initiative" an — die ersten Segmente der Aktionsnamen,
+ * roh gerendert. Dasselbe Ding trägt historisch beide Präfixe, die Aufteilung
+ * war also nicht bloss unübersetzt, sondern bedeutungslos. Gruppiert wird
+ * jetzt nach dem **Reiter**, in dem die Änderung passiert ist.
+ *
+ * Damit das überhaupt geht, mussten drei Aktionen aufgespalten werden:
+ * `saveBenefitHypothesis`, `saveBusinessCase` und `saveTimeline` schrieben
+ * alle `initiative.updated` ohne unterscheidbare Nutzlast. Bestandszeilen
+ * bleiben unzuordenbar — sie landen sichtbar unter „Frühere Änderungen", statt
+ * geraten zu werden.
  */
-const ACTION_LABELS: Record<string, string> = {
-  "initiative.created": "Initiative erstellt",
-  "initiative.updated": "Initiative aktualisiert",
-  "initiative.deleted": "Initiative gelöscht",
-  "initiative.stage_gate.advanced": "Stage Gate geändert",
-  "wsjf.scored": "WSJF bewertet",
-  "kpi.created": "KPI erstellt",
-  "kpi.updated": "KPI aktualisiert",
-  "kpi.deleted": "KPI gelöscht",
-  // Epic multi-party approval workflow
-  "epic.hypothesis.submitted": "Hypothese zur QS eingereicht",
-  "epic.hypothesis.approved": "Hypothese freigegeben",
-  "epic.hypothesis.rejected": "Hypothese zurückgegeben",
-  "epic.approval.configured": "Approver konfiguriert",
-  "epic.business_case.submitted": "Business Case zur Freigabe eingereicht",
-  "epic.business_case.reopened": "Business Case zur Überarbeitung geöffnet",
-  "epic.approval.granted": "Freigabe erteilt",
-  "epic.approval.rejected": "Freigabe abgelehnt",
-  "epic.section.signed_off": "Abschnitt abgenommen",
-  "epic.revision.started": "Neue Revision gestartet",
-  "epic.owner.assigned": "Epic Owner zugewiesen",
-  "feature.owner.assigned": "Feature-Owner zugewiesen",
-  "feature.solution.set": "Solution am Feature gesetzt",
-  "feature.parent.set": "Epic-Zuordnung geändert",
-  "pi.capacity.updated": "PI-Kapazität gesetzt",
-  "feature.delivery.transitioned": "Feature-Status geändert",
-  "budget_plan.revision.captured": "Budget-Plan-Revision erfasst",
-  "timeline.created": "Timeline erstellt",
-  "timeline.updated": "Timeline geändert",
-  "timeline.deleted": "Timeline gelöscht",
-  "timeline.art.joined": "ART einer Timeline zugeordnet",
-  "timeline.art.left": "ART aus einer Timeline gelöst",
+export interface ActionMeta {
+  /** Katalog-Schlüssel der Beschriftung. */
+  key: string;
+  /** Der Reiter, in dem die Änderung passiert ist — die Gruppe im Feed. */
+  group: string;
+}
+
+export const ACTION_META: Record<string, ActionMeta> = {
+  "initiative.created": { key: "common.activity.action.initiativeCreated", group: "overview" },
+  "initiative.updated": { key: "common.activity.action.initiativeUpdated", group: "overview" },
+  "initiative.deleted": { key: "common.activity.action.initiativeDeleted", group: "overview" },
+  "initiative.stage_gate.advanced": { key: "common.activity.action.gateAdvanced", group: "gate" },
+  "initiative.stage_gate.requested": { key: "common.activity.action.gateRequested", group: "gate" },
+  "initiative.stage_gate.approval.granted": {
+    key: "common.activity.action.gateApprovalGranted",
+    group: "gate",
+  },
+  "initiative.stage_gate.approval.rejected": {
+    key: "common.activity.action.gateApprovalRejected",
+    group: "gate",
+  },
+  "initiative.stage_gate.request.rejected": {
+    key: "common.activity.action.gateRequestRejected",
+    group: "gate",
+  },
+  "initiative.stage_gate.request.withdrawn": {
+    key: "common.activity.action.gateRequestWithdrawn",
+    group: "gate",
+  },
+  "initiative.stage_gate.reverted": { key: "common.activity.action.gateReverted", group: "gate" },
+  "wsjf.scored": { key: "common.activity.action.wsjfScored", group: "breakdown" },
+  "kpi.created": { key: "common.activity.action.kpiCreated", group: "kpis" },
+  "kpi.updated": { key: "common.activity.action.kpiUpdated", group: "kpis" },
+  "kpi.deleted": { key: "common.activity.action.kpiDeleted", group: "kpis" },
+  "epic.hypothesis.saved": {
+    key: "common.activity.action.hypothesisSaved",
+    group: "benefit-hypothesis",
+  },
+  "epic.hypothesis.submitted": {
+    key: "common.activity.action.hypothesisSubmitted",
+    group: "benefit-hypothesis",
+  },
+  "epic.hypothesis.approved": {
+    key: "common.activity.action.hypothesisApproved",
+    group: "benefit-hypothesis",
+  },
+  "epic.hypothesis.rejected": {
+    key: "common.activity.action.hypothesisRejected",
+    group: "benefit-hypothesis",
+  },
+  "epic.approval.configured": { key: "common.activity.action.approvalConfigured", group: "gate" },
+  "epic.business_case.saved": {
+    key: "common.activity.action.businessCaseSaved",
+    group: "business-case",
+  },
+  "epic.business_case.submitted": {
+    key: "common.activity.action.businessCaseSubmitted",
+    group: "business-case",
+  },
+  "epic.business_case.reopened": {
+    key: "common.activity.action.businessCaseReopened",
+    group: "business-case",
+  },
+  "epic.timeline.saved": { key: "common.activity.action.timelineSaved", group: "timeline" },
+  "epic.approval.granted": { key: "common.activity.action.approvalGranted", group: "gate" },
+  "epic.approval.rejected": { key: "common.activity.action.approvalRejected", group: "gate" },
+  "epic.section.signed_off": { key: "common.activity.action.sectionSignedOff", group: "gate" },
+  "epic.revision.started": {
+    key: "common.activity.action.revisionStarted",
+    group: "business-case",
+  },
+  "epic.owner.assigned": { key: "common.activity.action.epicOwnerAssigned", group: "overview" },
+  "epic.solutions.set": { key: "common.activity.action.epicSolutionsSet", group: "overview" },
+  "epic.portfolio_override.set": {
+    key: "common.activity.action.portfolioOverrideSet",
+    group: "overview",
+  },
+  "epic.approved": { key: "common.activity.action.epicApproved", group: "gate" },
+  "feature.owner.assigned": {
+    key: "common.activity.action.featureOwnerAssigned",
+    group: "breakdown",
+  },
+  "feature.solution.set": { key: "common.activity.action.featureSolutionSet", group: "breakdown" },
+  "feature.parent.set": { key: "common.activity.action.featureParentSet", group: "breakdown" },
+  "feature.delivery.transitioned": {
+    key: "common.activity.action.featureDelivery",
+    group: "breakdown",
+  },
+  "pi.capacity.updated": { key: "common.activity.action.piCapacity", group: "breakdown" },
+  "budget_plan.revision.captured": {
+    key: "common.activity.action.budgetPlanCaptured",
+    group: "overview",
+  },
+  "timeline.created": { key: "common.activity.action.timelineCreated", group: "timeline" },
+  "timeline.updated": { key: "common.activity.action.timelineUpdated", group: "timeline" },
+  "timeline.deleted": { key: "common.activity.action.timelineDeleted", group: "timeline" },
+  "timeline.art.joined": { key: "common.activity.action.timelineArtJoined", group: "timeline" },
+  "timeline.art.left": { key: "common.activity.action.timelineArtLeft", group: "timeline" },
 };
 
+/** Die Gruppen in Lesereihenfolge; `other` sammelt, was sich nicht zuordnen lässt. */
+export const ACTIVITY_GROUPS = [
+  "overview",
+  "gate",
+  "benefit-hypothesis",
+  "business-case",
+  "breakdown",
+  "kpis",
+  "timeline",
+  "other",
+] as const;
+
 /** An audit action's display label, falling back to a de-dotted form. */
-export function actionLabel(action: string): string {
-  return ACTION_LABELS[action] ?? action.replace(/[._]/g, " ");
+/**
+ * Der **Katalog-Schlüssel** einer Aktion — nicht ihr Wort.
+ *
+ * Hiess bis September 2026 `actionLabel` und gab ein deutsches Wort zurück.
+ * Der Name bleibt wichtig: ein `gateLabel`, das einen Schlüssel lieferte, hat
+ * in derselben Woche dafür gesorgt, dass auf dem Bildschirm wörtlich
+ * „work.gateStep.analysis" stand.
+ *
+ * Unbekannte Aktionen fallen auf ihren eigenen Namen zurück — sichtbar roh,
+ * und das ist richtig: eine erfundene Beschriftung verstünde niemand, der
+ * rohe Name lässt sich suchen.
+ */
+export function actionLabelKey(action: string): string {
+  return ACTION_META[action]?.key ?? action.replace(/[._]/g, " ");
+}
+
+/** Der Reiter, in dem eine Aktion passiert ist; Unbekanntes sammelt `other`. */
+export function actionGroup(action: string): string {
+  return ACTION_META[action]?.group ?? "other";
 }
 
 /**

@@ -19,7 +19,7 @@ import {
   type FeatureStatus,
 } from "@/modules/drumbeat/domain/status";
 import { DependencyBadge, StatusBadge } from "@/modules/drumbeat/features/lib/status-badges";
-import { STATUS_LABELS } from "@/components/detail/initiative-labels";
+import { STATUS_KEYS } from "@/components/detail/initiative-labels";
 import { Page, PageHeader } from "@/components/layout";
 
 interface Props {
@@ -389,12 +389,13 @@ function DependencyRow({
 /** Status-Badge des Endpunkts — Registry-Badge fuer Delivery-Status, sonst
  *  generisches Label (z. B. QS-States). */
 function EndpointStatus({ status }: { status: string }) {
+  const t = useTranslations();
   if ((FEATURE_STATUSES as readonly string[]).includes(status)) {
     return <StatusBadge status={status as FeatureStatus} />;
   }
   return (
     <span className="rounded-full bg-muted px-2 py-0.5 text-meta text-muted-foreground">
-      {STATUS_LABELS[status] ?? status}
+      {t(STATUS_KEYS[status] ?? status)}
     </span>
   );
 }

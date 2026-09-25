@@ -3,7 +3,14 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Activity, FileText, Layers, Target, type LucideIcon } from "lucide-react";
-import { actionLabel, userLabel, initials } from "@/components/detail/initiative-labels";
+import { useLocale } from "next-intl";
+import {
+  ACTIVITY_GROUPS,
+  actionGroup,
+  actionLabelKey,
+  userLabel,
+  initials,
+} from "@/components/detail/initiative-labels";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 /** A single audit entry, pre-serialised on the server for the client boundary. */
@@ -20,30 +27,34 @@ export interface ActivityItem {
   detail?: string | undefined;
 }
 
-/** Coarse category used by the "Show everything" filter — the action's first segment. */
-function category(action: string): string {
-  return action.split(".")[0] ?? action;
-}
-
-/** A small lucide glyph per action category — purely decorative context. */
-const CATEGORY_ICON: Record<string, LucideIcon> = {
-  epic: Layers,
-  kpi: Target,
-  initiative: FileText,
+/**
+ * **Ein Symbol je Reiter** — Kontext, keine Aussage.
+ *
+ * Vorher hing es am ersten Segment des Aktionsnamens und führte einen Eintrag
+ * für `kpi`, der nie greifen konnte: KPI-Ereignisse schreiben
+ * `resourceType: "kpi"` und erscheinen in diesem Feed gar nicht.
+ */
+const GROUP_ICON: Record<string, LucideIcon> = {
+  overview: FileText,
+  gate: Layers,
+  kpis: Target,
 };
-function categoryIcon(action: string): LucideIcon {
-  return CATEGORY_ICON[category(action)] ?? Activity;
-}
 
-function relativeTime(iso: string, now: number): string {
-  const diffMs = now - new Date(iso).getTime();
-  const min = Math.round(diffMs / 60_000);
-  if (min < 1) return "gerade eben";
-  if (min < 60) return `vor ${min} Minute${min === 1 ? "" : "n"}`;
+/**
+ * Relative Zeit in der Sprache des Lesers.
+ *
+ * Hier stand `vor ${min} Minute${min === 1 ? "" : "n"}` — eine deutsche
+ * Pluralregel im Quelltext. `Intl.RelativeTimeFormat` kennt sie für jede
+ * Sprache, die das Routing führt.
+ */
+function relativeTime(iso: string, now: number, locale: string): string {
+  const fmt = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  const min = Math.round((now - new Date(iso).getTime()) / 60_000);
+  if (min < 1) return fmt.format(0, "minute");
+  if (min < 60) return fmt.format(-min, "minute");
   const hrs = Math.round(min / 60);
-  if (hrs < 24) return `vor ${hrs} Stunde${hrs === 1 ? "" : "n"}`;
-  const days = Math.round(hrs / 24);
-  return `vor ${days} Tag${days === 1 ? "" : "en"}`;
+  if (hrs < 24) return fmt.format(-hrs, "hour");
+  return fmt.format(-Math.round(hrs / 24), "day");
 }
 
 /**
@@ -68,11 +79,20 @@ export function InitiativeActivitySidebar({
   truncated?: boolean;
 }) {
   const t = useTranslations();
+  const locale = useLocale();
   const [filter, setFilter] = useState("all");
   const now = Date.now();
 
-  const categories = [...new Set(events.map((e) => category(e.action)))].sort();
-  const shown = filter === "all" ? events : events.filter((e) => category(e.action) === filter);
+  /**
+   * **Gefiltert und gruppiert wird nach dem Reiter**, nicht nach dem ersten
+   * Segment des Aktionsnamens. Das bot bisher „epic" und „initiative" an — roh
+   * gerendert, und beides bezeichnet dasselbe Ding: das Vokabular trägt
+   * historisch beide Präfixe. Die Aufteilung war nicht bloss unübersetzt,
+   * sondern bedeutungslos.
+   */
+  const vorhanden = new Set(events.map((e) => actionGroup(e.action)));
+  const gruppen = ACTIVITY_GROUPS.filter((g) => vorhanden.has(g));
+  const shown = filter === "all" ? events : events.filter((e) => actionGroup(e.action) === filter);
 
   // Unter `lg` rutscht die Spalte unter den Inhalt statt ihn zu verengen.
   return (
@@ -88,9 +108,9 @@ export function InitiativeActivitySidebar({
           className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <option value="all">{t("common.detail.allesAnzeigen")}</option>
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
+          {gruppen.map((g) => (
+            <option key={g} value={g}>
+              {t(`common.activity.group.${g}`)}
             </option>
           ))}
         </select>
@@ -105,7 +125,8 @@ export function InitiativeActivitySidebar({
         <ul className="divide-y">
           {shown.map((e) => {
             const actor = e.actorId ? userLabel(e.actorId, userLabels) : null;
-            const Icon = categoryIcon(e.action);
+            const gruppe = actionGroup(e.action);
+            const Icon = GROUP_ICON[gruppe] ?? Activity;
             return (
               <li key={e.id} className="flex gap-3 px-3 py-2.5 transition-colors hover:bg-muted/50">
                 <Avatar size="sm" className="mt-0.5">
@@ -114,7 +135,7 @@ export function InitiativeActivitySidebar({
                 <div className="min-w-0 flex-1">
                   <p className="text-sm leading-snug">
                     {actor && <span className="font-medium text-foreground">{actor}</span>}{" "}
-                    <span className="text-muted-foreground">{actionLabel(e.action)}</span>
+                    <span className="text-muted-foreground">{t(actionLabelKey(e.action))}</span>
                     {e.detail && (
                       <span className="ml-1 rounded-sm bg-muted px-1.5 py-0.5 text-meta text-muted-foreground">
                         {e.detail}
@@ -128,7 +149,9 @@ export function InitiativeActivitySidebar({
                   )}
                   <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                     <Icon className="h-3 w-3 shrink-0" />
-                    {relativeTime(e.occurredAt, now)}
+                    {t(`common.activity.group.${gruppe}`)}
+                    {" · "}
+                    {relativeTime(e.occurredAt, now, locale)}
                   </p>
                 </div>
               </li>

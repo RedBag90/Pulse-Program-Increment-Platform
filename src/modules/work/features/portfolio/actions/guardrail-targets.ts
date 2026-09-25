@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateRoute } from "@/server/http/revalidation";
 import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
 import { saveValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
@@ -63,8 +63,8 @@ export const saveValueStreamGuardrailTargetsAction = createServerAction({
     // `/value-streams/[id]` gibt es seit dem Umzug in den Struktur-Bereich
     // nicht mehr — der Aufruf lief ins Leere, und der Guardrails-Reiter stand
     // nach dem Speichern veraltet da.
-    revalidatePath("/structure/value-stream/[id]", "page");
-    revalidatePath("/portfolio/guardrails", "page");
+    revalidateRoute("/structure/value-stream/[id]");
+    revalidateRoute("/portfolio/guardrails");
   },
   mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveGuardrails" }, t),
 });

@@ -119,7 +119,12 @@ describe("buildGateHistory — der glatte Weg", () => {
   it("hängt an jeden Antrag den Kriterien-Schnappschuss", () => {
     const r = buildGateHistory(base({ moves: plain("L2") }));
     const keys = (r.transitions[0]!.readiness as { key: string }[]).map((c) => c.key);
-    expect(keys).toEqual(["hypothesis_drafted", "owner_nominated"]);
+    expect(keys).toEqual([
+      "hypothesis_drafted",
+      "owner_nominated",
+      "intended_class_set",
+      "goal_linked",
+    ]);
   });
 });
 

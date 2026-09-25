@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 import { FEATURE_DELIVERY_STATUSES } from "@/modules/work/domain/feature-status";
 import { canDeliveryTransition } from "@/modules/core/kernel/domain/initiative-status";
-import { STATUS_LABELS } from "@/components/detail/initiative-labels";
+import { STATUS_KEYS } from "@/components/detail/initiative-labels";
 
 /**
  * Die **Schreibmaschine eines Features** — und zwar nicht abgezeichnet, sondern
@@ -16,11 +16,11 @@ export function DeliveryChain() {
   return (
     <div className="divide-y overflow-hidden rounded-lg bg-card shadow-card">
       {FEATURE_DELIVERY_STATUSES.map((from) => {
-        const to = FEATURE_DELIVERY_STATUSES.filter((t) => canDeliveryTransition(from, t));
+        const to = FEATURE_DELIVERY_STATUSES.filter((ziel) => canDeliveryTransition(from, ziel));
         return (
           <div key={from} className="grid gap-2 p-4 sm:grid-cols-[190px_minmax(0,1fr)]">
             <p className="text-sm font-medium text-foreground">
-              {STATUS_LABELS[from]}{" "}
+              {t(STATUS_KEYS[from] ?? from)}{" "}
               <code className="font-mono text-meta font-normal text-muted-foreground">{from}</code>
             </p>
             <p className="text-sm leading-relaxed text-muted-foreground">
@@ -29,13 +29,13 @@ export function DeliveryChain() {
                   {t("wiki.ui.endzustandKeineKanteHinaus")}
                 </span>
               ) : (
-                to.map((t, i) => (
-                  <span key={t}>
+                to.map((ziel, i) => (
+                  <span key={ziel}>
                     {i > 0 && " · "}
                     <span aria-hidden className="text-muted-foreground/70">
                       →
                     </span>{" "}
-                    {STATUS_LABELS[t]}
+                    {t(STATUS_KEYS[ziel] ?? ziel)}
                   </span>
                 ))
               )}

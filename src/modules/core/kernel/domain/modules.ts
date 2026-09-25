@@ -114,7 +114,19 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
     // Work: sie tragen den Grow-Anteil aus den Primär-Epics". Der Grow-Anteil
     // ist geblieben — er heisst jetzt `epic.` und wird über die Primär-Epics
     // gelesen. Die Solution selbst ist Struktur und damit `core`.
-    actions: ["epic.", "feature.", "portfolio_filter.manage"],
+    // `dependency.` liegt hier seit September 2026 und nicht mehr bei
+    // Drumbeat. Der Netzplan im Epic ist eine **Work**-Fläche — seine Aktionen
+    // stehen unter `work/features/portfolio/actions/breakdown-network.ts` —,
+    // aber das Recht hing am Nachbarmodul: wer Work ohne Drumbeat hatte, bekam
+    // beim Verbinden zweier Features „Dieses Modul ist in diesem Bereich nicht
+    // verfügbar". Abhängigkeiten gehören dorthin, wo der Inhalt eines Epics
+    // definiert wird.
+    //
+    // Die eigene Fläche `/dependencies` bleibt Drumbeat — sie hängt am
+    // **Segment**, nicht an der Aktion. Und `applyModulePrerequisites` sorgt
+    // dafür, dass Drumbeat nie ohne Work kommt: ein Drumbeat-Mandant verliert
+    // dabei nichts.
+    actions: ["epic.", "feature.", "dependency.", "portfolio_filter.manage"],
     home: "/portfolio",
   },
   drumbeat: {
@@ -124,7 +136,7 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
     // `/structure/timelines` und wird über `PATH_OVERRIDES` gegated — sie ist
     // deshalb kein eigenes Einstiegssegment mehr.
     segments: ["umsetzung", "implementation", "pi", "pi-planning", "dependencies", "roadmap"],
-    actions: ["pi.", "dependency.", "timeline.manage", "pi_standard.manage"],
+    actions: ["pi.", "timeline.manage", "pi_standard.manage"],
     home: "/umsetzung",
   },
   budgeting: {

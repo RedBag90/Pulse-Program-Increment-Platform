@@ -403,7 +403,10 @@ export async function saveBenefitHypothesis(
 
     return ok({
       result: undefined,
-      audit: { action: "initiative.updated", resourceType: "initiative", resourceId: epicId },
+      // **Eigene Aktion statt `initiative.updated`.** Drei Reiter schrieben
+      // dieselbe Zeile ohne unterscheidbare Nutzlast; die Aktivitäten-Spalte
+      // konnte daraus nicht sagen, wo etwas passiert ist.
+      audit: { action: "epic.hypothesis.saved", resourceType: "initiative", resourceId: epicId },
     });
   });
 }
@@ -457,7 +460,11 @@ export async function saveBusinessCase(
 
     return ok({
       result: undefined,
-      audit: { action: "initiative.updated", resourceType: "initiative", resourceId: epicId },
+      audit: {
+        action: "epic.business_case.saved",
+        resourceType: "initiative",
+        resourceId: epicId,
+      },
     });
   });
 }
@@ -529,7 +536,7 @@ export async function saveTimeline(
 
     return ok({
       result: undefined,
-      audit: { action: "initiative.updated", resourceType: "initiative", resourceId: epicId },
+      audit: { action: "epic.timeline.saved", resourceType: "initiative", resourceId: epicId },
     });
   });
 }
@@ -873,6 +880,12 @@ export async function getEpic(db: PrismaClient, tenantId: TenantId, id: EpicId) 
           architectLeadId: true,
         },
       },
+      // Der ART des Epics — bisher kam nur `artId` durch. Der **Name** wird
+      // gebraucht, damit das Zuordnungs-Formular den gespeicherten ART auch
+      // dann anzeigen kann, wenn die Optionsliste noch lädt: ein
+      // kontrolliertes `<select>` ohne passende Option fällt sonst sichtbar
+      // auf seinen Platzhalter.
+      art: { select: { id: true, name: true } },
       // Primär-Solution → abgeleiteter Horizont; alle Links → Solutions-Abschnitt.
       primarySolution: { select: { id: true, horizon: true } },
       solutionLinks: {

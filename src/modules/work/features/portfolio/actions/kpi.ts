@@ -76,6 +76,55 @@ export const createKpiAction = createServerAction({
  * Kalkulations-Notiz. Jedes Formular sendet nur die Felder, die es ändert —
  * absente Felder bleiben unverändert; "" löscht (Wert/Notiz).
  */
+/**
+ * **Stammdaten einer KPI: Name, Einheit, Baseline, Ziel.**
+ *
+ * Der Dienst `updateKpi` nimmt die vier seit jeher entgegen — nur reichte sie
+ * niemand durch, und die Fläche bot sie ausschliesslich beim **Anlegen** an.
+ * Eine einmal angelegte KPI liess sich deshalb weder umbenennen noch umzielen:
+ * wer sich vertippt hatte, löschte sie und legte sie neu an, und verlor dabei
+ * die ganze Messreihe.
+ *
+ * **Baseline und Ziel sind nach L4.2 gesperrt.** Mit der Abnahme „Umsetzung
+ * fertig" friert die gelieferte **Menge** ein (ADR-0024 / Wiki „Die Wirkung");
+ * ein nachträglich verschobenes Ziel würde die eingefrorene Zielerreichung
+ * rückwirkend verändern — aus 70 % würden 90 %, ohne dass jemand etwas
+ * geliefert hätte. Der **Name** bleibt jederzeit änderbar: er benennt die
+ * Messung, er misst sie nicht.
+ */
+export const updateKpiBasicsAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    initiativeId: z.string().uuid(),
+    name: z.string().min(1).max(200),
+    unit: strField,
+    baseline: numStrField,
+    target: numStrField,
+  }),
+  action: "epic.update",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) => {
+    const baseline = parseValue(input.baseline, undefined);
+    const target = parseValue(input.target, undefined);
+    return updateKpi(ctx, {
+      id: input.id as KpiId,
+      name: input.name,
+      // `unit` kennt kein `null` — der Leerstring ist die Löschung.
+      ...(input.unit !== undefined && { unit: input.unit }),
+      // Baseline und Ziel sind Zahlen ohne Leerwert — ein leeres Feld heisst
+      // „nicht anfassen", nicht „auf null setzen": die beiden tragen die
+      // Nutzen-Rechnung, und eine stille Null wäre dort eine Aussage.
+      // Baseline und Ziel sind Zahlen ohne Leerwert — ein leeres Feld heisst
+      // „nicht anfassen", nicht „auf null setzen": die beiden tragen die
+      // Nutzen-Rechnung, und eine stille Null wäre dort eine Aussage.
+      ...(typeof baseline === "number" && { baseline }),
+      ...(typeof target === "number" && { target }),
+    });
+  },
+  revalidate: "epic",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveKpi" }, t),
+});
+
 export const updateKpiDetailsAction = createServerAction({
   schema: z.object({
     id: z.string().uuid(),

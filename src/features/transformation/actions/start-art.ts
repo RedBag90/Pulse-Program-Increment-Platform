@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidateRoute } from "@/server/http/revalidation";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { startArt } from "@/modules/core/org/server/services/art-setup";
@@ -39,8 +39,8 @@ export const startArtAction = createServerAction({
       rteId: input.rteId ?? null,
     }),
   onSuccess: () => {
-    revalidatePath("/structure", "page");
-    revalidatePath("/transformation", "page");
+    revalidateRoute("/structure");
+    revalidateRoute("/transformation");
   },
   mapError: (e, t) =>
     formatDomainError(

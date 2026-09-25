@@ -54,6 +54,15 @@ export type AuditAction =
   // Ausnahme von der Kostenregel (Guardrail 3): dieses Epic bleibt
   // Portfolio-Sache, obwohl seine Kosten unter dem Limit liegen.
   | "epic.portfolio_override.set"
+  // **Drei eigene Speicher-Aktionen statt eines Sammel-`initiative.updated`.**
+  // Hypothese, Business Case und Zeitfenster schrieben bis September 2026
+  // dieselbe Zeile ohne unterscheidbare Nutzlast — die Aktivitäten-Spalte
+  // konnte daraus nicht sagen, in welchem Reiter die Änderung passiert ist.
+  // Bestandszeilen bleiben unzuordenbar und sammeln sich unter „Frühere
+  // Änderungen"; das ist ehrlicher als eine geratene Zuordnung.
+  | "epic.hypothesis.saved"
+  | "epic.business_case.saved"
+  | "epic.timeline.saved"
   | "epic.business_case.submitted"
   | "epic.business_case.reopened"
   | "epic.approval.granted"

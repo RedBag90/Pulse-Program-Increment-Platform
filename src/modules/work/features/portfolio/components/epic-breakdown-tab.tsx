@@ -22,6 +22,7 @@ import { CreateFeatureDialog } from "@/modules/work/features/feature/components/
 import { DeleteFeatureButton } from "@/modules/work/features/feature/components/delete-feature-button";
 import { FeaturePiSelect } from "@/modules/work/features/feature/components/feature-pi-select";
 import { FeatureStatusSelect } from "@/modules/work/features/feature/components/feature-status-select";
+import { WsjfScoreDialog } from "@/modules/work/features/feature/components/wsjf-score-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -101,6 +102,16 @@ interface Props {
   epicTitle: string;
   /** Wertstrom des Epics — begrenzt die ART-Auswahl beim Anlegen eines Features. */
   epicValueStreamId: string | null;
+  /**
+   * **Das ART des Epics.** Ein neues Feature gehört dorthin, und der Dialog
+   * braucht es: ohne die Angabe hält er den ART für eine offene Frage und
+   * macht daraus eine Pflichtauswahl.
+   *
+   * Nicht zu verwechseln mit den `artIds` aus `epic-detail.ts` — das sind die
+   * ARTs der **Kind-Features**, also wo die Arbeit heute liegt, nicht wohin
+   * eine neue gehört.
+   */
+  epicArtId: string | null;
   canEdit: boolean;
   features: BreakdownFeature[];
   /** PI options keyed by ART — a child Feature's PI picker only lists its ART's PIs. */
@@ -227,6 +238,7 @@ export function EpicBreakdownTab({
   tenantId,
   epicTitle,
   epicValueStreamId,
+  epicArtId,
   canEdit,
   features,
   pisByArt,
@@ -332,6 +344,8 @@ export function EpicBreakdownTab({
           <CreateFeatureDialog
             epics={[{ id: epicId, title: epicTitle, valueStreamId: epicValueStreamId }]}
             context={{ epicId }}
+            {...(epicArtId ? { artId: epicArtId } : {})}
+            compact
           />
         )}
       </div>
@@ -387,6 +401,8 @@ export function EpicBreakdownTab({
               <CreateFeatureDialog
                 epics={[{ id: epicId, title: epicTitle, valueStreamId: epicValueStreamId }]}
                 context={{ epicId }}
+                {...(epicArtId ? { artId: epicArtId } : {})}
+                compact
               />
             ) : undefined
           }
@@ -408,17 +424,66 @@ export function EpicBreakdownTab({
             : {})}
           {...(canEdit
             ? {
+                /**
+                 * **Das PI steht jetzt in seiner eigenen Spalte**, nicht
+                 * doppelt. Vorher rendete die `pi`-Spalte den Namen als Text
+                 * und `renderActions` daneben noch einmal ein Auswahlfeld —
+                 * zweimal „Backlog" in derselben Zeile, einmal lesend, einmal
+                 * ändernd. Man musste raten, welches gilt.
+                 */
+                renderPi: (row: FeatureOverviewRow) => {
+                  const f = byId.get(row.id);
+                  if (!f) return null;
+                  return (
+                    <FeaturePiSelect
+                      featureId={f.id}
+                      artId={f.artId}
+                      currentPiId={f.piId}
+                      pis={pisByArt[f.artId] ?? []}
+                    />
+                  );
+                },
+                /**
+                 * **Die WSJF-Zahl ist der Auslöser.** Sie war bis September
+                 * 2026 nur eine Zahl; wer sie ändern wollte, klappte die ganze
+                 * Bearbeitungsfläche der Zeile auf und scrollte an Titel,
+                 * Beschreibung und Akzeptanzkriterien vorbei. Derselbe Dialog
+                 * wie auf der Feature-Detailseite, nur von hier aus.
+                 */
+                renderWsjf: (row: FeatureOverviewRow) => {
+                  const f = byId.get(row.id);
+                  if (!f) return null;
+                  return (
+                    <WsjfScoreDialog
+                      featureId={f.id}
+                      artId={f.artId}
+                      current={{
+                        bv: f.wsjf.bv > 0 ? f.wsjf.bv : null,
+                        tc: f.wsjf.tc > 0 ? f.wsjf.tc : null,
+                        rr: f.wsjf.rr > 0 ? f.wsjf.rr : null,
+                        js: f.wsjf.js > 0 ? f.wsjf.js : null,
+                      }}
+                      renderTrigger={({ onClick, score }) => (
+                        <button
+                          type="button"
+                          onClick={onClick}
+                          // Dieselbe Schriftgrösse wie der Zeilentext daneben:
+                          // die Zelle erbt `text-xs tabular-nums` von der
+                          // Tabelle, der Knopf darf sie nicht überschreiben.
+                          className="tabular-nums text-primary hover:underline"
+                          title={t("work.epic.wsjfBearbeiten")}
+                        >
+                          {score ?? "—"}
+                        </button>
+                      )}
+                    />
+                  );
+                },
                 renderActions: (row: FeatureOverviewRow) => {
                   const f = byId.get(row.id);
                   if (!f) return null;
                   return (
                     <div className="flex items-center justify-end gap-2">
-                      <FeaturePiSelect
-                        featureId={f.id}
-                        artId={f.artId}
-                        currentPiId={f.piId}
-                        pis={pisByArt[f.artId] ?? []}
-                      />
                       <button
                         type="button"
                         onClick={() => setExpandedId((v) => (v === f.id ? null : f.id))}

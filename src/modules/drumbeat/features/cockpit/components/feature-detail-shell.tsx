@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import {
   EntityDetailShell,
   resolveTab,
@@ -14,7 +15,7 @@ import { FeatureHistoryTab } from "@/modules/drumbeat/features/cockpit/component
 import { StatusBadge } from "@/modules/drumbeat/features/lib/status-badges";
 import { FeatureStatusSelect } from "@/modules/work/features/feature/components/feature-status-select";
 import { FEATURE_STATUSES, type FeatureStatus } from "@/modules/drumbeat/domain/status";
-import { STATUS_LABELS } from "@/components/detail/initiative-labels";
+import { STATUS_KEYS } from "@/components/detail/initiative-labels";
 import type { ReactNode } from "react";
 import type { FeatureDetailModel } from "@/modules/drumbeat/server/views/feature-detail";
 
@@ -90,6 +91,7 @@ export function FeatureDetailShell({
   basePath,
   headerActions,
 }: Props) {
+  const t = useTranslations();
   const active = resolveTab(FEATURE_DETAIL_TABS, activeTab);
   // Nicht-Embed: entweder die vom Caller uebergebene Rueck-Navigation
   // (z. B. ART) oder der Hub als Default. Embed (Slide-Over) hat keine.
@@ -106,7 +108,7 @@ export function FeatureDetailShell({
     <StatusBadge status={model.status as FeatureStatus} />
   ) : (
     <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
-      {STATUS_LABELS[model.status] ?? model.status}
+      {t(STATUS_KEYS[model.status] ?? model.status)}
     </span>
   );
 

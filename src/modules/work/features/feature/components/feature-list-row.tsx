@@ -6,7 +6,7 @@ import { ClipboardList, MoreHorizontal, ShieldAlert } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import {
   STATUS_DOT,
-  STATUS_LABELS,
+  STATUS_KEYS,
   WSJF_TIER_CLASS,
   WSJF_TIER_KEYS,
 } from "@/components/detail/initiative-labels";
@@ -98,7 +98,7 @@ export function FeatureListRowComponent({
         <div className="flex items-center gap-2">
           <span
             className={`inline-block size-2 shrink-0 rounded-full ${STATUS_FUNNEL_DOT[row.status] ?? "bg-muted-foreground/40"}`}
-            title={STATUS_LABELS[row.status] ?? row.status}
+            title={t(STATUS_KEYS[row.status] ?? row.status)}
             aria-hidden
           />
           <div className="min-w-0 flex-1">
@@ -148,7 +148,7 @@ export function FeatureListRowComponent({
           <span
             className={`size-1.5 rounded-full ${STATUS_DOT[row.status] ?? "bg-muted-foreground/40"}`}
           />
-          <span className="text-muted-foreground">{STATUS_LABELS[row.status] ?? row.status}</span>
+          <span className="text-muted-foreground">{t(STATUS_KEYS[row.status] ?? row.status)}</span>
         </span>
       </td>
 

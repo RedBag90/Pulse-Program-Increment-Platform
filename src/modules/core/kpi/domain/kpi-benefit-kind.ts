@@ -16,7 +16,8 @@ export function benefitKindOrDefault(s: string | null | undefined): BenefitKind 
   return isBenefitKind(s) ? s : "recurring";
 }
 
-export const BENEFIT_KIND_LABELS: Record<BenefitKind, string> = {
-  one_time: "Einmaliger Nutzen",
-  recurring: "Wiederkehrender Nutzen",
+/** Katalog-Schlüssel, keine Wörter — die Fläche übersetzt (ADR-0024, Regel 2). */
+export const BENEFIT_KIND_KEYS: Record<BenefitKind, string> = {
+  one_time: "work.benefitKind.oneTime",
+  recurring: "work.benefitKind.recurring",
 };

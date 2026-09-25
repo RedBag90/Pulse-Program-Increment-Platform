@@ -149,4 +149,78 @@ describe("CreateFeatureDialog", () => {
     expect(pi.value).toBe("");
     expect(optionTitles(pi)).toEqual(["— Backlog —", "PI 1"]);
   });
+
+  /**
+   * **Die einfache Fassung — und der Fehler, den sie beim ersten Anlauf hatte.**
+   *
+   * `compact` blendete die übrigen Felder nur aus und liess ihre Pflicht
+   * stehen. Fünf der sechs Pflichtfelder lagen darin: das ART und alle vier
+   * WSJF-Werte. `hidden` ist `display:none`, und ein `required`-Feld ohne
+   * Darstellung blockiert `reportValidity`, **ohne fokussierbar zu sein** —
+   * das Abschicken passierte nicht, und die Meldung stand in der Konsole.
+   *
+   * Beide Zusicherungen kommen ohne Klick aus: gemessen wird die Form des
+   * Formulars, nicht was ein Klick daraus macht.
+   */
+  describe("compact", () => {
+    /** `display:none` erbt — gesucht wird deshalb die ganze Kette nach oben. */
+    const inAusgeblendetem = (el: Element): boolean => {
+      for (let n: Element | null = el; n; n = n.parentElement) {
+        if (n.classList.contains("hidden")) return true;
+      }
+      return false;
+    };
+
+    it("legt kein Pflichtfeld in den Klappbereich", () => {
+      render(<CreateFeatureDialog open onOpenChange={() => {}} artId="art-1" compact />);
+      const versteckte = [...document.querySelectorAll("[required]")]
+        .filter(inAusgeblendetem)
+        .map((el) => el.getAttribute("name"));
+      expect(versteckte).toEqual([]);
+    });
+
+    /**
+     * Mit vorgegebenem ART ist der ART keine Frage mehr, sondern ein
+     * verstecktes Feld — genau die Angabe, die im Deliverables-Reiter fehlte
+     * und die Auswahl zur Pflicht machte.
+     */
+    it("macht aus dem vorgegebenen ART ein verstecktes Feld statt einer Auswahl", () => {
+      render(<CreateFeatureDialog open onOpenChange={() => {}} artId="art-1" compact />);
+      expect(screen.queryByLabelText(/^ART/)).toBeNull();
+      const hidden = document.querySelector('input[name="artId"]') as HTMLInputElement | null;
+      expect(hidden?.value).toBe("art-1");
+    });
+
+    /** Ohne ART am Epic bleibt die Auswahl — aber sichtbar, nicht im Klappbereich. */
+    it("zeigt die ART-Auswahl offen, wenn die Seite keins kennt", () => {
+      render(<CreateFeatureDialog open onOpenChange={() => {}} compact />);
+      const art = screen.getByLabelText(/^ART/) as HTMLSelectElement;
+      expect(art.required).toBe(true);
+      expect(inAusgeblendetem(art)).toBe(false);
+    });
+
+    /** Wie beim Schnellanlegen im Netzplan: 3/3/3/3, statt vier Fragen. */
+    it("belegt WSJF mit 3 vor", () => {
+      render(<CreateFeatureDialog open onOpenChange={() => {}} artId="art-1" compact />);
+      for (const name of [
+        "wsjfBusinessValue",
+        "wsjfTimeCriticality",
+        "wsjfRiskReduction",
+        "wsjfJobSize",
+      ]) {
+        const sel = document.querySelector(`select[name="${name}"]`) as HTMLSelectElement;
+        expect(sel.value, name).toBe("3");
+      }
+    });
+
+    /** Die volle Fassung fragt weiterhin — eine stille 3 wäre dort eine Behauptung. */
+    it("lässt die volle Fassung unberührt", () => {
+      render(
+        <CreateFeatureDialog open onOpenChange={() => {}} artId="art-1" artValueStreamId="vs-1" />,
+      );
+      const sel = document.querySelector('select[name="wsjfBusinessValue"]') as HTMLSelectElement;
+      expect(sel.value).toBe("");
+      expect(sel.required).toBe(true);
+    });
+  });
 });

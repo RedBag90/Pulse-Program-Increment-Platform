@@ -4,7 +4,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidateRoute } from "@/server/http/revalidation";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 import type { Prisma } from "@/generated/prisma";
 
@@ -35,7 +35,7 @@ export async function saveJiraProjectMapAction(
     data: { projectKeyMap: projectKeyMap as Prisma.InputJsonValue },
   });
 
-  revalidatePath("/admin/integrations");
+  revalidateRoute("/admin/integrations");
   return { success: true };
 }
 
@@ -53,6 +53,6 @@ export async function disconnectJiraAction(): Promise<JiraActionState> {
     where: { tenantId: principal.tenantId as TenantId },
   });
 
-  revalidatePath("/admin/integrations");
+  revalidateRoute("/admin/integrations");
   return { success: true };
 }

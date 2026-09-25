@@ -55,6 +55,8 @@ function facts(step: GateStep, over: Partial<EpicGateFacts> = {}): EpicGateFacts
     kpiCount: 0,
     dependencyCount: 0,
     drumbeatEnabled: true,
+    intendedClass: null,
+    hasGoalLink: false,
     // **Nach den Standardwerten, vor `over`.** Zwei Schritte bewegen den
     // Reifegrad nicht; wer auf ihnen steht, ist allein am Stempel erkennbar.
     // Ohne das lieferte `facts("analysis")` ein Epic, das `currentGateStep` als

@@ -5,7 +5,7 @@ import { useActionState, useState, startTransition } from "react";
 import { Undo2 } from "lucide-react";
 import { revertStageGateAction } from "@/modules/work/features/portfolio/actions/stage-gate";
 import { GATE_STEPS, type GateStep } from "@/modules/work/domain/stage-gate";
-import { gateStepKey } from "@/modules/work/domain/stage-gate";
+import { gateStepLabel } from "@/modules/work/domain/stage-gate";
 
 /**
  * Rückstufung um genau einen Reifegrad.
@@ -50,7 +50,7 @@ export function GateRevertDialog({ epicId, current }: { epicId: string; current:
   return (
     <div className="w-full space-y-2 rounded-md border border-warning/40 bg-warning-surface/60 p-2.5">
       <p className="text-xs font-medium">
-        Zurückstufen auf {t(gateStepKey(target))} — bitte begründen
+        Zurückstufen auf {gateStepLabel(target, t)} — bitte begründen
       </p>
       <p className="text-xs text-muted-foreground">
         Die Freigabe-Stempel des verlassenen Reifegrads werden dabei zurückgesetzt; ein offener

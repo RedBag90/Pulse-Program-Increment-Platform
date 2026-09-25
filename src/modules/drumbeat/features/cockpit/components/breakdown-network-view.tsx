@@ -37,6 +37,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { detectCycle } from "@/modules/core/kernel/domain/dependency-graph";
 import {
@@ -758,6 +759,7 @@ export function BreakdownNetworkView({
   canCreateFeature,
   savedPositions,
 }: Props) {
+  const { resolvedTheme } = useTheme();
   const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
@@ -1327,6 +1329,16 @@ export function BreakdownNetworkView({
             onConnect={onConnect}
             fitView
             fitViewOptions={{ padding: 0.15 }}
+            /**
+             * **React Flow bringt seine eigenen Farben mit, und sie sind
+             * hell.** `dist/style.css` setzt die Bedienelemente — Zoom-Knöpfe,
+             * MiniMap, Kanten — auf weisse Flächen mit dunklen Symbolen; im
+             * dunklen Modus verschwand die Navigation damit vor dem
+             * Hintergrund. `colorMode` schaltet die eingebauten Variablen um,
+             * gespeist aus demselben `next-themes`, dem auch die Toasts
+             * folgen (`components/ui/sonner.tsx`).
+             */
+            colorMode={resolvedTheme === "dark" ? "dark" : "light"}
             proOptions={{ hideAttribution: true }}
           >
             <Background />

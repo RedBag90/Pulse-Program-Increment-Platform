@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useActionState, startTransition } from "react";
-import { gateStepNumberKey } from "@/modules/work/domain/stage-gate";
+import { gateStepNumberLabel } from "@/modules/work/domain/stage-gate";
 import { AlertTriangle, ArrowUp, Coins, MoreHorizontal, ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { STAGE_GATE_KEYS, SUB_STAGE_KEYS } from "@/components/detail/initiative-labels";
@@ -327,10 +327,10 @@ function GovernanceBadges({ row }: { row: EpicListRow }) {
       {gateRequest && (
         <span
           className="inline-flex h-5 items-center gap-0.5 rounded-md bg-primary/10 px-1.5 text-label font-medium tabular-nums text-primary"
-          title={`Wechsel nach ${t(gateStepNumberKey(gateRequest.toGate))} beantragt — ${gateRequest.pendingCount} von ${gateRequest.totalCount} Abnahmen offen`}
+          title={`Wechsel nach ${gateStepNumberLabel(gateRequest.toGate, t)} beantragt — ${gateRequest.pendingCount} von ${gateRequest.totalCount} Abnahmen offen`}
         >
           <ArrowUp className="size-3" />
-          {t(gateStepNumberKey(gateRequest.toGate))}
+          {gateStepNumberLabel(gateRequest.toGate, t)}
           <span className="text-primary/70">
             {gateRequest.totalCount - gateRequest.pendingCount}/{gateRequest.totalCount}
           </span>

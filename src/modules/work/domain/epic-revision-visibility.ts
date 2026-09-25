@@ -57,11 +57,11 @@ const BC_LOCK_TOO_EARLY =
   "Der Business Case wird bearbeitbar, sobald das Epic auf L1 steht — die " +
   "Hypothese wird mit diesem Schritt freigegeben.";
 const BC_LOCK_REQUESTED =
-  "Der Wechsel auf L3.1 ist beantragt. Bis die fünf Parteien entschieden haben, " +
+  "Der Wechsel auf L2 ist beantragt. Bis die fünf Parteien entschieden haben, " +
   "ist der Business Case gesperrt.";
 const BC_LOCK_APPROVED =
-  "Der Business Case ist mit dem Schritt auf L3.1 freigegeben und damit gesperrt. " +
-  "Für Änderungen das Epic auf L2 zurückstufen.";
+  "Der Business Case ist mit dem Schritt auf L2 freigegeben und damit gesperrt. " +
+  "Für Änderungen das Epic auf die Analyse zurückstufen.";
 
 /** Rang des Reifegrads — nur die Grobstufe zählt, L3.1 und L3.2 liegen beide „ab L3". */
 const RANK: Record<StageGate, number> = { L0: 0, L1: 1, L2: 2, L3: 3, L4: 4, L5: 5 };

@@ -10,7 +10,7 @@ import {
   History,
   type LucideIcon,
 } from "lucide-react";
-import { actionLabel, userLabel } from "@/components/detail/initiative-labels";
+import { actionLabelKey, userLabel } from "@/components/detail/initiative-labels";
 
 interface HistoryEvent {
   id: string;
@@ -81,7 +81,7 @@ export function EpicHistoryTimeline({
             </span>
             <div className="min-w-0 flex-1 rounded-lg bg-card px-3 py-2 shadow-card">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-                <span className="font-medium">{actionLabel(e.action)}</span>
+                <span className="font-medium">{t(actionLabelKey(e.action))}</span>
                 {e.detail && (
                   <span className="rounded-sm bg-muted px-1.5 py-0.5 text-meta text-muted-foreground">
                     {e.detail}

@@ -21,11 +21,24 @@ describe("featureStartBlockedReason", () => {
         featureStartBlockedReason({ piId: "pi1", parentId: "e1", parentStageGate: gate }),
       ).toBeNull();
     }
-    for (const gate of ["L0", "L1", "L2", "L3.1", "L3.2"]) {
+    for (const gate of ["L0", "L1", "L2"]) {
       expect(
         featureStartBlockedReason({ piId: "pi1", parentId: "e1", parentStageGate: gate }),
       ).toContain(GATE);
     }
+  });
+
+  /**
+   * Hier standen bis zum Reifegrad-Neuschnitt `"L3.1"` und `"L3.2"` in der
+   * blockierenden Liste — Werte, die `stage_gate` nie getragen hat. Was sie
+   * belegten, war nicht „diese Unterstufe blockiert", sondern **„was die
+   * Liste nicht kennt, blockiert"**. Das steht jetzt als eigene Aussage da,
+   * mit einem Wert, den es nirgends gibt.
+   */
+  it("blockiert, was kein Reifegrad ist", () => {
+    expect(
+      featureStartBlockedReason({ piId: "pi1", parentId: "e1", parentStageGate: "L9" }),
+    ).toContain(GATE);
   });
 
   /**

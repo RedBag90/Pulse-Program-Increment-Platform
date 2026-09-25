@@ -58,6 +58,8 @@ function facts(over: Partial<EpicGateFacts> = {}): EpicGateFacts {
     multiPartyApproval: true,
     budgetingEnabled: true,
     drumbeatEnabled: true,
+    intendedClass: null,
+    hasGoalLink: false,
     ...over,
   };
 }

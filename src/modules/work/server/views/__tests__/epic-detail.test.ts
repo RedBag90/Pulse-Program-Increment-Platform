@@ -19,7 +19,7 @@ const noStanding = {
 /** Was der Budget-Port ohne Zuteilung liefert. */
 const noAllocation = {
   allocationState: null,
-  fundable: { may: true, firstStep: "L3.1" },
+  fundable: { may: true, firstStep: "L2" },
 };
 
 /**
@@ -234,7 +234,7 @@ describe("buildEpicDetailModel — degradation matrix", () => {
           allocatedByPeriod: { "2026-H1": 400, "2026-H2": 600 },
           standing: { ...noStanding, state: "applies", currentAmount: 400, periods },
           allocationState: { key: "committed", label: "Gebunden" },
-          fundable: { may: true, firstStep: "L3.1" },
+          fundable: { may: true, firstStep: "L2" },
         },
       }),
     );
@@ -242,7 +242,7 @@ describe("buildEpicDetailModel — degradation matrix", () => {
     if (m.budgeting.disabled) return;
     expect(m.budgeting.standing.periods).toEqual(periods);
     expect(m.budgeting.allocationState).toEqual({ key: "committed", label: "Gebunden" });
-    expect(m.budgeting.fundable).toEqual({ may: true, firstStep: "L3.1" });
+    expect(m.budgeting.fundable).toEqual({ may: true, firstStep: "L2" });
   });
 
   it("ohne Budgeting bleibt der Slice abgeschaltet — kein leerer Stand", () => {

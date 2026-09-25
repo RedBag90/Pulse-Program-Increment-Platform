@@ -45,7 +45,7 @@ export function WsjfScoreDialog({ featureId, artId, current, renderTrigger }: Pr
     async (prev: FeatureActionState, formData: FormData) => {
       const result = await scoreFeatureAction(prev, formData);
       if (result.success) {
-        toast.success("WSJF score updated");
+        toast.success(t("work.feature.wsjfAktualisiert"));
         setOpen(false);
       }
       return result;

@@ -12,7 +12,7 @@ import type {
 } from "@/modules/work/server/views/features-overview";
 import { FEATURE_TYPES, FEATURE_TYPE_KEYS } from "@/modules/work/domain/portfolio-guardrails";
 import {
-  STATUS_LABELS,
+  STATUS_KEYS,
   STATUS_DOT,
   STATUS_BADGE,
   WSJF_TIER_KEYS,
@@ -191,6 +191,23 @@ export interface FeaturesListViewProps {
   onOpen?: (row: FeatureOverviewRow) => void;
   /** Ersetzt die Status-Zelle — z. B. durch ein Dropdown, wenn der Nutzer darf. */
   renderStatus?: (row: FeatureOverviewRow) => ReactNode;
+  /**
+   * Ersetzt die **PI-Zelle**.
+   *
+   * Der Deliverables-Reiter zeigte das PI zweimal: hier als Text und rechts in
+   * `renderActions` noch einmal als Auswahlfeld — in derselben Zeile zweimal
+   * „Backlog", einmal lesend, einmal ändernd. Mit diesem Slot steht beides an
+   * einer Stelle, wie beim Status.
+   */
+  renderPi?: (row: FeatureOverviewRow) => ReactNode;
+  /**
+   * Ersetzt die **WSJF-Zelle**.
+   *
+   * Die Zahl war bis September 2026 nur eine Zahl; wer sie ändern wollte,
+   * klappte die ganze Bearbeitungsfläche der Zeile auf. Mit dem Slot kann sie
+   * selbst der Auslöser sein — wie auf der Feature-Detailseite.
+   */
+  renderWsjf?: (row: FeatureOverviewRow) => ReactNode;
   /** Zusätzliche Spalte ganz rechts. */
   renderActions?: (row: FeatureOverviewRow) => ReactNode;
   /** Zeile über die volle Breite unterhalb der Zeile — das Inline-Formular. */
@@ -206,6 +223,8 @@ export function FeaturesListView({
   paramPrefix = "",
   onOpen,
   renderStatus,
+  renderPi,
+  renderWsjf,
   renderActions,
   renderExpanded,
   emptyLabel = "Keine Features im aktuellen Filter.",
@@ -255,7 +274,7 @@ export function FeaturesListView({
             }`}
           >
             <span className={`size-2 rounded-full ${STATUS_DOT[s]}`} />
-            <span>{STATUS_LABELS[s]}</span>
+            <span>{t(STATUS_KEYS[s] ?? s)}</span>
             <span
               className={`tabular-nums ${state.status === s ? "text-primary-foreground" : "text-muted-foreground"}`}
             >
@@ -408,6 +427,8 @@ export function FeaturesListView({
                   colCount={colCount}
                   {...(onOpen ? { onOpen } : {})}
                   {...(renderStatus ? { renderStatus } : {})}
+                  {...(renderPi ? { renderPi } : {})}
+                  {...(renderWsjf ? { renderWsjf } : {})}
                   {...(renderActions ? { renderActions } : {})}
                   {...(renderExpanded ? { renderExpanded } : {})}
                 />
@@ -433,6 +454,8 @@ interface RowProps {
   colCount: number;
   onOpen?: (row: FeatureOverviewRow) => void;
   renderStatus?: (row: FeatureOverviewRow) => ReactNode;
+  renderPi?: (row: FeatureOverviewRow) => ReactNode;
+  renderWsjf?: (row: FeatureOverviewRow) => ReactNode;
   renderActions?: (row: FeatureOverviewRow) => ReactNode;
   renderExpanded?: (row: FeatureOverviewRow) => ReactNode;
 }
@@ -444,6 +467,8 @@ function FeatureTableRow({
   colCount,
   onOpen,
   renderStatus,
+  renderPi,
+  renderWsjf,
   renderActions,
   renderExpanded,
 }: RowProps) {
@@ -520,7 +545,9 @@ function FeatureTableRow({
 
         {show.has("pi") && (
           <td className="py-2 pr-3 text-xs">
-            {row.pi ? (
+            {renderPi ? (
+              renderPi(row)
+            ) : row.pi ? (
               <Link
                 href={`/pi/${row.pi.id}`}
                 className="text-primary hover:underline"
@@ -542,7 +569,7 @@ function FeatureTableRow({
               <span
                 className={`inline-block rounded-sm px-1.5 py-0.5 font-medium ${STATUS_BADGE[statusKey] ?? "bg-muted text-muted-foreground"}`}
               >
-                {STATUS_LABELS[statusKey]}
+                {t(STATUS_KEYS[statusKey] ?? statusKey)}
               </span>
             ) : (
               <span className="text-muted-foreground">{row.status}</span>
@@ -552,7 +579,7 @@ function FeatureTableRow({
 
         {showWsjf && (
           <td className="py-2 pr-4 text-right text-xs tabular-nums text-muted-foreground">
-            {formatWsjf(row.wsjfComputed)}
+            {renderWsjf ? renderWsjf(row) : formatWsjf(row.wsjfComputed)}
           </td>
         )}
 

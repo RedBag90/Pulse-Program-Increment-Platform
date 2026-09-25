@@ -5,7 +5,9 @@ import {
   GATE_STEP_NUMBER_KEYS,
   LADDER_STEPS,
   gateStepKey,
+  gateStepLabel,
   gateStepNumberKey,
+  gateStepNumberLabel,
 } from "@/modules/work/domain/stage-gate";
 import { catalogTranslate } from "@/test/helpers/catalog";
 
@@ -20,7 +22,7 @@ describe("Beschriftung der beantragbaren Schritte", () => {
     // Der Schlüssel unterscheidet sich vom Major-Gate; dass auch die Wörter
     // auseinandergehen, prüft `initiative-labels.test.tsx` nebenan.
     expect(gateStepKey("L4")).toBe("work.gateStep.l4");
-    expect(catalogTranslate("de")(gateStepKey("L4"))).toContain("L4.1");
+    expect(gateStepLabel("L4", catalogTranslate("de"))).toContain("L4.1");
   });
 
   it("lässt den gespeicherten Wert unangetastet — L4 bleibt ein Schritt namens L4", () => {
@@ -28,8 +30,27 @@ describe("Beschriftung der beantragbaren Schritte", () => {
     expect(GATE_STEPS).not.toContain("L4.1");
   });
 
-  it("fällt bei unbekannten Werten auf den Wert selbst zurück", () => {
-    expect(gateStepKey("L9")).toBe("L9");
+  /**
+   * **Dieser Test hielt den Fehler fest, der im September 2026 die Epic-Liste
+   * abstürzen liess.**
+   *
+   * Er lautete `expect(gateStepKey("L9")).toBe("L9")` — der Rückfall auf den
+   * Rohwert, als Absicht dokumentiert. Zweiundzwanzig Aufrufstellen schrieben
+   * `t(gateStepKey(x))`, und `t("L3.1")` wirft. Der Rückfall war nicht falsch
+   * gedacht, nur am falschen Ort: er gehört dorthin, wo übersetzt wird.
+   */
+  it("gibt für unbekannte Werte keinen Schlüssel zurück", () => {
+    expect(gateStepKey("L9")).toBeUndefined();
+    expect(gateStepNumberKey("L9")).toBeUndefined();
+  });
+
+  it("zeigt einen unbekannten Schritt als Rohwert, statt zu werfen", () => {
+    // `catalogTranslate` wirft bei jedem Schlüssel, den `de.json` nicht kennt —
+    // genau wie `next-intl` zur Laufzeit. Käme hier ein Schlüssel heraus, wäre
+    // dieser Aufruf der Absturz.
+    const t = catalogTranslate("de");
+    expect(gateStepLabel("L3.1", t)).toBe("L3.1");
+    expect(gateStepNumberLabel("L3.1", t)).toBe("L3.1");
   });
 });
 
@@ -52,7 +73,7 @@ describe("Marke der beantragbaren Schritte", () => {
     for (const locale of ["de", "en"] as const) {
       const t = catalogTranslate(locale);
       for (const step of GATE_STEPS) {
-        const marke = t(gateStepNumberKey(step));
+        const marke = gateStepNumberLabel(step, t);
         if (!/^L[0-9.]+$/.test(marke)) {
           expect(LADDER_STEPS, `${step} (${locale}) trägt keine Nummer`).not.toContain(step);
         }
@@ -62,8 +83,8 @@ describe("Marke der beantragbaren Schritte", () => {
 
   it("nennt den nummernlosen Analyse-Schritt in beiden Sprachen mit einem Wort", () => {
     expect(gateStepNumberKey("analysis")).toBe("work.gateStepNumber.analysis");
-    expect(catalogTranslate("de")(gateStepNumberKey("analysis"))).toBe("Analyse");
-    expect(catalogTranslate("en")(gateStepNumberKey("analysis"))).toBe("Analysis");
+    expect(gateStepNumberLabel("analysis", catalogTranslate("de"))).toBe("Analyse");
+    expect(gateStepNumberLabel("analysis", catalogTranslate("en"))).toBe("Analysis");
   });
 
   it("lässt die Leiter kürzer als den Antragsweg", () => {

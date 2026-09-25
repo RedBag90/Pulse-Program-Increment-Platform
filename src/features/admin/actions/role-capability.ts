@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidateRoute } from "@/server/http/revalidation";
 import { headers } from "next/headers";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
@@ -108,7 +108,7 @@ export async function setRoleCapabilityAction(
     });
   });
 
-  revalidatePath("/admin/roles");
+  revalidateRoute("/admin/roles");
   return { success: true };
 }
 
@@ -160,7 +160,7 @@ export async function removeRoleCapabilityAction(
     });
   });
 
-  revalidatePath("/admin/roles");
+  revalidateRoute("/admin/roles");
   return { success: true };
 }
 
@@ -221,6 +221,6 @@ export async function resetRoleToDefaultAction(
     });
   });
 
-  revalidatePath("/admin/roles");
+  revalidateRoute("/admin/roles");
   return { success: true };
 }

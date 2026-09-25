@@ -46,13 +46,13 @@ describe("FeatureStatusSelect", () => {
     // `approved → approved` ist keine erlaubte Kante; ohne die Ausnahme wäre die
     // ausgewählte Option deaktiviert.
     render(<FeatureStatusSelect featureId="f1" status="approved" label="Antragsstrecke" />);
-    expect(optionByLabel("Freigegeben").disabled).toBe(false);
+    expect(optionByLabel("Offen").disabled).toBe(false);
   });
 
   it("aus einem Endzustand führt keine Kante heraus", () => {
     render(<FeatureStatusSelect featureId="f1" status="completed" label="Antragsstrecke" />);
     expect(optionByLabel("Abgeschlossen").disabled).toBe(false);
-    for (const l of ["Freigegeben", "In Umsetzung", "Blockiert", "Abgebrochen"]) {
+    for (const l of ["Offen", "In Umsetzung", "Blockiert", "Abgebrochen"]) {
       expect(optionByLabel(l).disabled).toBe(true);
     }
   });
@@ -68,7 +68,7 @@ describe("FeatureStatusSelect", () => {
 
   it("ausserhalb der Liefer-FSM steht nur Text — kein Feld mit falschem Wert", () => {
     // Ohne diese Weiche zeigte das `<select>` fuer `draft` stumm die erste
-    // Option („Freigegeben"), weil keine Option zum Wert passt.
+    // Option („Offen"), weil keine Option zum Wert passt.
     render(<FeatureStatusSelect featureId="f1" status="draft" label="Antragsstrecke" />);
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     expect(screen.getByText("Entwurf")).toBeInTheDocument();

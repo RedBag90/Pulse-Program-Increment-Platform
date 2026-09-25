@@ -129,9 +129,9 @@ describe("buildRoleDirectory", () => {
    */
   it("übernimmt die Tore aus der hereingereichten Karte", () => {
     const [d] = buildRoleDirectory([vs()], labelOf, {
-      "vs-1": { "vs.finance": ["L3.2", "L5"], "vs.portfolio": ["L1", "L2"] },
+      "vs-1": { "vs.finance": ["L3", "L5"], "vs.portfolio": ["L1", "L2"] },
     });
-    expect(d?.entries.find((e) => e.key === "vs.finance")?.gates).toEqual(["L3.2", "L5"]);
+    expect(d?.entries.find((e) => e.key === "vs.finance")?.gates).toEqual(["L3", "L5"]);
     expect(d?.entries.find((e) => e.key === "vs.portfolio")?.gates).toEqual(["L1", "L2"]);
     // Ohne Eintrag bleibt die Liste leer statt undefined — die Fläche muss
     // nicht prüfen.

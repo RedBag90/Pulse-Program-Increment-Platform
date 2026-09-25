@@ -2,8 +2,8 @@ import { useTranslations } from "next-intl";
 import {
   LADDER_STEPS,
   gateOfStep,
-  gateStepKey,
-  gateStepNumberKey,
+  gateStepLabel,
+  gateStepNumberLabel,
   type GateStep,
 } from "@/modules/work/domain/stage-gate";
 
@@ -19,7 +19,7 @@ import {
  * **Sieben Punkte, nicht acht.** Die Stufen kommen aus `LADDER_STEPS`, nicht
  * aus `GATE_STEPS`: „Zur Analyse ausgewählt" ist ein beantragter Schritt, aber
  * kein Reifegrad — auf einer Leiter mit der Überschrift „Reifegrad" misst er
- * nichts. Die Beschriftung kommt aus `gateStepKey`, also aus derselben
+ * nichts. Die Beschriftung kommt aus `gateStepLabel`, also aus derselben
  * Quelle, aus der die Gate-Karte und der Antrag sie nehmen; eine zweite,
  * abgeschriebene Liste gäbe es sonst schon wieder.
  */
@@ -67,9 +67,9 @@ export function EpicGateLadder({ current }: { current: GateStep }) {
               className={`truncate font-mono text-label tracking-tight ${
                 now ? "font-semibold text-primary" : "text-muted-foreground"
               }`}
-              title={t(gateStepKey(step))}
+              title={gateStepLabel(step, t)}
             >
-              {t(gateStepNumberKey(step))}
+              {gateStepNumberLabel(step, t)}
             </span>
           </li>
         );

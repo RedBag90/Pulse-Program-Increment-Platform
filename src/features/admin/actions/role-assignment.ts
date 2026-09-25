@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidateRoute } from "@/server/http/revalidation";
 import { assignRole, removeRole } from "@/server/services/role-assignment";
 import { createServerAction } from "@/server/http/server-action";
 import { ROLES } from "@/modules/core/kernel/domain/roles";
@@ -34,7 +34,7 @@ export const assignRoleAction = createServerAction({
         teamIds: input.teamIds.split(",").filter(Boolean),
       },
     }),
-  onSuccess: () => revalidatePath("/admin/users"),
+  onSuccess: () => revalidateRoute("/admin/users"),
   mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.assignRole" }, t),
 });
 
@@ -52,7 +52,7 @@ export const removeRoleAction = createServerAction({
       targetUserId: input.targetUserId as UserId,
       role: input.role,
     }),
-  onSuccess: () => revalidatePath("/admin/users"),
+  onSuccess: () => revalidateRoute("/admin/users"),
   mapError: (e, t) =>
     formatDomainError(
       e,

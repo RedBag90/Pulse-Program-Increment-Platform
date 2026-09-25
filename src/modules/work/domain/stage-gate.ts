@@ -1,3 +1,4 @@
+import type { Translate } from "@/i18n/translate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 
 // ---------------------------------------------------------------------------
@@ -123,9 +124,34 @@ export const LADDER_STEPS: readonly GateStep[] = GATE_STEPS.filter(
   (step) => !NUMBERLESS.includes(step),
 );
 
-/** Katalog-Schlüssel eines Schritts; unbekannte Werte fallen auf sich selbst zurück. */
-export function gateStepKey(step: string): string {
-  return GATE_STEP_KEYS[step as GateStep] ?? step;
+/**
+ * Katalog-Schlüssel eines Schritts — **`undefined`, wenn es keinen gibt.**
+ *
+ * Hier stand `?? step`: ein unbekannter Schritt kam als sein eigener Rohwert
+ * zurück. Die zweiundzwanzig Aufrufstellen schrieben durchweg
+ * `t(gateStepKey(x))`, und `t("L3.1")` **wirft** — genau daran ist im
+ * September 2026 die Epic-Liste abgestürzt, als eine Antragszeile aus der Zeit
+ * vor dem Reifegrad-Neuschnitt auftauchte.
+ *
+ * Der Rückfall war nicht falsch gedacht, nur am falschen Ort: er gehört
+ * dorthin, wo übersetzt wird. Deshalb ist diese Funktion jetzt ehrlich und
+ * {@link gateStepLabel} die, die man aufruft.
+ */
+export function gateStepKey(step: string): string | undefined {
+  return GATE_STEP_KEYS[step as GateStep];
+}
+
+/**
+ * Der **angezeigte Name** eines Schritts, übersetzt.
+ *
+ * Kennt der Katalog den Schritt nicht, steht sein Rohwert da — `L3.1` statt
+ * eines Absturzes. Hässlich, aber lesbar, und man kann danach suchen. Ein
+ * unbekannter Reifegrad ist ein Datenbefund, kein Grund, die Seite
+ * abzuräumen.
+ */
+export function gateStepLabel(step: string, t: Translate): string {
+  const key = gateStepKey(step);
+  return key === undefined ? step : t(key);
 }
 
 /**
@@ -161,8 +187,14 @@ export const GATE_STEP_NUMBER_KEYS: Record<GateStep, string> = {
   L5: "work.gateStepNumber.l5",
 };
 
-export function gateStepNumberKey(step: string): string {
-  return GATE_STEP_NUMBER_KEYS[step as GateStep] ?? step;
+export function gateStepNumberKey(step: string): string | undefined {
+  return GATE_STEP_NUMBER_KEYS[step as GateStep];
+}
+
+/** Die angezeigte Nummer, übersetzt — Rückfall wie bei {@link gateStepLabel}. */
+export function gateStepNumberLabel(step: string, t: Translate): string {
+  const key = gateStepNumberKey(step);
+  return key === undefined ? step : t(key);
 }
 
 /** Erlaubte Schritt-Wechsel: ein Schritt vor oder zurück. */

@@ -103,6 +103,23 @@ interface Props {
    * auseinanderlaufen können. Ohne diese Prop bleibt die Schiene, wie sie war.
    */
   currentGate?: string;
+  /**
+   * Die Reiter, auf denen für den **nächsten** Schritt noch etwas offen ist —
+   * sie tragen den Ring.
+   *
+   * Bis September 2026 entschied darüber `tab.gate === currentGate`: ein
+   * exakter Treffer gegen genau einen Reifegrad. `EPIC_TABS` vergibt aber nur
+   * `L0` und `L1`; stand ein Epic auf `analysis`, traf kein einziger Reiter,
+   * und alle Ringe verschwanden — ausgerechnet mitten in der Arbeit Richtung
+   * L2.
+   *
+   * Der Ring zeigt jetzt, **wo noch etwas zu tun ist**, nicht, welcher Reiter
+   * zu einem Reifegrad gehört. Die Zuordnung Kriterium → Reiter liefert
+   * `work/domain/gate-criterion-target.ts`. Fehlt die Angabe, gilt weiter der
+   * alte Vergleich — Flächen ohne Kriterien-Achse (das Feature-Detail) ändern
+   * sich damit nicht.
+   */
+  attentionTabs?: ReadonlySet<string>;
   /** Detail route **without query**, e.g. `/structure/value-stream/<id>`; tab
    *  links append `?tab=`. Wer hier eine Query anhängt, erzeugt ein zweites
    *  `?` — der Tab-Parameter kommt dann nie an. Für zusätzliche Parameter gibt
@@ -142,6 +159,7 @@ export function EntityDetailShell({
   tabs,
   activeTab,
   currentGate,
+  attentionTabs,
   basePath,
   tabQuery,
   onTabChange,
@@ -221,12 +239,18 @@ export function EntityDetailShell({
                   ? "bg-primary/10 font-medium text-primary lg:border-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground lg:border-transparent"
               }`;
-              // Steht dieser Reiter auf dem Reifegrad, auf dem der Vorgang
-              // gerade ist? Nur dann der Ring. Die uebrigen bekommen **nichts**
-              // — kein grauer Punkt: eine Schiene, in der jede Zeile eine Marke
+              // Ist auf diesem Reiter für den nächsten Schritt noch etwas
+              // offen? Nur dann der Ring. Die uebrigen bekommen **nichts** —
+              // kein grauer Punkt: eine Schiene, in der jede Zeile eine Marke
               // traegt, hebt nichts mehr hervor.
-              const dran = tab.gate != null && tab.gate === currentGate;
-              const titel = tab.gate != null ? `${tab.label} · Reifegrad ${tab.gate}` : tab.label;
+              const dran =
+                attentionTabs != null
+                  ? attentionTabs.has(tab.key)
+                  : tab.gate != null && tab.gate === currentGate;
+              const titel =
+                tab.gate != null
+                  ? `${tab.label} · ${t("common.detail.reifegrad")} ${tab.gate}`
+                  : tab.label;
               // Einmal gebaut, zweimal eingesetzt: Link und Knopf unterscheiden
               // sich im Verhalten, nicht im Inhalt.
               const inhalt = (

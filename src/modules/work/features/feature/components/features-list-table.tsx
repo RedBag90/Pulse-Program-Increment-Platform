@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { FEATURE_STATUSES, type FeatureStatus } from "@/server/views/features-list";
-import { STATUS_LABELS } from "@/components/detail/initiative-labels";
+import { STATUS_KEYS } from "@/components/detail/initiative-labels";
 import { FeatureListRowComponent } from "@/modules/work/features/feature/components/feature-list-row";
 import type { FeatureListRow } from "@/server/views/features-list";
 
@@ -155,7 +155,7 @@ function StatusGroupedBody({
                     <ChevronRight className="size-4 text-muted-foreground" />
                   )}
                   <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {STATUS_LABELS[status] ?? status}
+                    {t(STATUS_KEYS[status] ?? status)}
                   </span>
                   <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
                     {statusRows.length}

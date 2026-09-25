@@ -114,6 +114,26 @@ export interface EpicGateFacts {
    * herausgefiltert, nicht als unerfüllt gezeigt.
    */
   drumbeatEnabled: boolean;
+
+  /**
+   * Die **erwartete** Einordnung (`intendedClass`), nicht die abgeleitete.
+   *
+   * Vor L2 hat ein Epic gar keine Klasse — sie entsteht mit der
+   * Business-Case-Freigabe aus den Kosten gegen das Portfolio-Limit. Was es
+   * vorher trägt, ist die Angabe aus dem Anlege-Dialog: eine Erwartung. Das
+   * L1-Kriterium fragt nach genau dieser, nicht nach der Klasse.
+   */
+  intendedClass: string | null;
+
+  /**
+   * Hängt dieses Epic an mindestens einem Ziel?
+   *
+   * Das blosse Anhängen zählt. Ein **bezifferter** Beitrag — KPI,
+   * Umrechnungsfaktor, Wirkungsart — ist eine spätere Entscheidung unter einem
+   * anderen Recht (`kpi.bind`); ihn hier zu verlangen hiesse, einen
+   * Portfolio-Manager für einen L1-Antrag zu brauchen.
+   */
+  hasGoalLink: boolean;
 }
 
 /** Ein ausgewertetes Kriterium: was verlangt wird, und ob es erfüllt ist. */
@@ -128,6 +148,8 @@ export interface GateCriterion {
    */
   helpKey: string;
   satisfied: boolean;
+  /** Kommt in mehreren Toren vor — erfüllt wird es dann ausgeblendet. */
+  recurring: boolean;
   /**
    * `true` = verhindert den Antrag. `false` = beratend: die Checkliste zeigt
    * das Kriterium, blockiert aber nicht.
@@ -188,6 +210,22 @@ export interface CriterionRule {
   satisfied: (facts: EpicGateFacts) => boolean;
   blocking: boolean;
   /**
+   * **Kommt dieses Kriterium in mehreren Toren hintereinander vor?**
+   *
+   * „Epic Owner ist benannt" steht in L1, in der Analyse-Entscheidung und in
+   * L2. Einmal benannt, bleibt es dauerhaft grün — und stand danach in jeder
+   * Folge-Checkliste als abgehakter Punkt, der nichts mehr zu tun gab. Die
+   * Anzeige blendet erfüllte wiederkehrende Kriterien deshalb aus; verliert
+   * das Epic seinen Owner, stehen sie sofort wieder da.
+   *
+   * Bewusst **nicht** über `applies` gelöst: das bedeutet „gehört nicht zur
+   * Sache", und das wäre hier falsch — der Punkt gehört sehr wohl dazu, er ist
+   * nur erledigt. Und bewusst nicht für alle erfüllten Kriterien: eines, das
+   * nur in *einem* Tor vorkommt, bestätigt mit seinem Haken, dass der Schritt
+   * getan ist.
+   */
+  recurring?: boolean;
+  /**
    * Wann dieses Kriterium überhaupt zur Sache gehört. Fehlt es, gilt es immer.
    *
    * Ein nicht zutreffendes Kriterium wird **herausgefiltert**, nicht als
@@ -229,6 +267,8 @@ const OWNER_NOMINATED: CriterionRule = {
   key: "owner_nominated",
   labelKey: "work.gateCriteria.ownerNominated.label",
   helpKey: "work.gateCriteria.ownerNominated.help",
+  // Steht in drei Toren hintereinander — siehe `recurring`.
+  recurring: true,
   satisfied: (f) => f.ownerId != null,
   blocking: false,
 };
@@ -241,8 +281,41 @@ const OWNER_NOMINATED: CriterionRule = {
  * L0 hat keinen Eintrag: dorthin führt kein Vorwärts-Antrag (nur ein Revert,
  * der eigene Regeln hat).
  */
+/**
+ * **Die erwartete Einordnung ist gesetzt.**
+ *
+ * Beratend, nicht blockierend: vor L2 ist sie ohnehin nur eine Erwartung, und
+ * ein Epic ohne sie ist kein fehlerhaftes Epic — nur eines, bei dem niemand
+ * gesagt hat, womit er rechnet. Die Abnehmer sehen die offene Stelle und
+ * entscheiden.
+ */
+const INTENDED_CLASS_SET: CriterionRule = {
+  key: "intended_class_set",
+  labelKey: "work.gateCriteria.intendedClassSet.label",
+  helpKey: "work.gateCriteria.intendedClassSet.help",
+  satisfied: (f) => f.intendedClass != null && f.intendedClass !== "",
+  blocking: false,
+};
+
+/**
+ * **Das Epic zahlt auf ein Ziel ein.**
+ *
+ * Ein Vorhaben, das an keiner Strategie hängt, kann am Ende keinen Nutzen
+ * nachweisen — die KPI-Kette beginnt an dieser Verknüpfung. Trotzdem
+ * beratend: welches Ziel es ist, entscheidet sich manchmal erst beim
+ * Ausarbeiten der Hypothese, und ein blockierendes Kriterium erzwänge eine
+ * frühe Festlegung, die später umgehängt wird.
+ */
+const GOAL_LINKED: CriterionRule = {
+  key: "goal_linked",
+  labelKey: "work.gateCriteria.goalLinked.label",
+  helpKey: "work.gateCriteria.goalLinked.help",
+  satisfied: (f) => f.hasGoalLink,
+  blocking: false,
+};
+
 export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> = {
-  L1: [HYPOTHESIS_DRAFTED, OWNER_NOMINATED],
+  L1: [HYPOTHESIS_DRAFTED, OWNER_NOMINATED, INTENDED_CLASS_SET, GOAL_LINKED],
   // Die Analyse-Entscheidung ist das Spiegelbild von L1, eine Stufe weiter:
   // dieselbe Form, der nächste Nachweis. Der Business Case steht hier
   // ausdrücklich **nicht** — dieser Schritt ist die Entscheidung, mit der
@@ -283,8 +356,13 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
       // Kriterium beratend ist, ist das ein Hinweis und keine Sackgasse.
       satisfied: (f) => f.dependencyCount > 0,
       blocking: false,
-      // Ohne Drumbeat gibt es den Reiter nicht — siehe `budget_allocated`.
-      applies: (f) => f.drumbeatEnabled,
+      // **Kein `applies` mehr.** Bis September 2026 stand hier
+      // `(f) => f.drumbeatEnabled`, mit der Begründung „ohne Drumbeat gibt es
+      // den Reiter nicht". Das stimmte, solange Abhängigkeiten Drumbeat waren;
+      // seit `dependency.` zu `work` gehört (`kernel/domain/modules.ts`), ist
+      // der Reiter da, und das Kriterium gehört zur Sache. Der Filter war eine
+      // Folge der Modulgrenze, nicht des Kriteriums — und er hat es aus der
+      // L2-Liste verschwinden lassen, ohne dass jemand danach gesucht hätte.
     },
     {
       key: "kpis_defined",
@@ -377,6 +455,7 @@ export function gateReadiness(facts: EpicGateFacts, to: GateStep): GateReadiness
     helpKey: rule.helpKey,
     satisfied: rule.satisfied(facts),
     blocking: rule.blocking,
+    recurring: rule.recurring ?? false,
   }));
   return {
     from: currentGateStep(facts),

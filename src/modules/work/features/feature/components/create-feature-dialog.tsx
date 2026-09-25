@@ -75,6 +75,17 @@ export interface CreateFeatureDialogProps {
   epics?: Epic[];
   /** Routen-Kontext zur Vorbelegung von ART / Epic im globalen „+"-Menü. */
   context?: CreateContext;
+  /**
+   * **Die einfache Fassung**: nur Titel und Typ stehen offen, alles Weitere
+   * hinter „Mehr Felder". Für Flächen, auf denen ART, Epic und Solution durch
+   * den Kontext schon feststehen — der Deliverables-Reiter eines Epics.
+   *
+   * Sie beantwortet die Pflichtfelder, statt sie zu verstecken: die WSJF-Werte
+   * sind mit `3` vorbelegt (wie beim Schnellanlegen im Netzplan) und damit
+   * keine Frage mehr. Wo der Kontext kein ART kennt, steht dessen Auswahl
+   * **sichtbar** über dem Klappbereich — siehe den Kommentar am Formular.
+   */
+  compact?: boolean;
 }
 
 const initialState: ActionState = {};
@@ -103,8 +114,10 @@ export function CreateFeatureDialog({
   artValueStreamId,
   epics,
   context,
+  compact = false,
 }: CreateFeatureDialogProps) {
   const t = useTranslations();
+  const [mehr, setMehr] = useState(false);
   const isControlled = open !== undefined;
   const [selfOpen, setSelfOpen] = useState(false);
   const dialogOpen = open ?? selfOpen;
@@ -197,137 +210,6 @@ export function CreateFeatureDialog({
             <DialogTitle>{t("work.feature.featureAnlegen")}</DialogTitle>
           </DialogHeader>
           <form action={action} className="space-y-4">
-            {artId !== undefined ? (
-              <input type="hidden" name="artId" value={artId} />
-            ) : (
-              <div className="space-y-1.5">
-                <Label htmlFor="f-art">
-                  {t("work.feature.art")} <span className="text-destructive">*</span>
-                </Label>
-                <select
-                  id="f-art"
-                  name="artId"
-                  required
-                  value={artSel}
-                  onChange={(e) => setArtSel(e.target.value)}
-                  disabled={arts.loading}
-                  className={SELECT_CLASS}
-                >
-                  <option value="">
-                    {arts.loading
-                      ? "Wird geladen …"
-                      : artOptions.length === 0
-                        ? "Kein ART in diesem Wertstrom"
-                        : "ART wählen …"}
-                  </option>
-                  {artOptions.map((art) => (
-                    <option key={art.id} value={art.id}>
-                      {art.name}
-                    </option>
-                  ))}
-                </select>
-                {arts.error && <p className="text-xs text-destructive">{arts.error}</p>}
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <Label htmlFor="f-parent">{t("work.feature.epic")}</Label>
-              <select
-                id="f-parent"
-                name="parentId"
-                value={epicId}
-                onChange={(e) => setEpicSel(e.target.value)}
-                disabled={fetchedEpics.loading}
-                className={SELECT_CLASS}
-              >
-                <option value="">
-                  {fetchedEpics.loading ? "Wird geladen …" : "— ohne Epic —"}
-                </option>
-                {epicOptions.map((epic) => (
-                  <option key={epic.id} value={epic.id}>
-                    {epic.title}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-muted-foreground">{t("work.feature.ohneEpicWirdEs")}</p>
-              {fetchedEpics.error && (
-                <p className="text-xs text-destructive">{fetchedEpics.error}</p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="f-solution">{t("work.feature.solution")}</Label>
-              <select
-                key={`sol-${vsId}`}
-                id="f-solution"
-                name="primarySolutionId"
-                defaultValue=""
-                disabled={!vsId || solutions.loading}
-                className={SELECT_CLASS}
-              >
-                <option value="">
-                  {!vsId
-                    ? "Zuerst ein ART wählen …"
-                    : solutions.loading
-                      ? "Wird geladen …"
-                      : "— später zuordnen —"}
-                </option>
-                {solutionOptions.map((sol) => (
-                  <option key={sol.id} value={sol.id}>
-                    {sol.name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-muted-foreground">
-                {t("work.feature.ohneEigeneZuordnungGilt")}
-              </p>
-              {solutions.error && <p className="text-xs text-destructive">{solutions.error}</p>}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="f-pi">{t("work.feature.programIncrement")}</Label>
-              <select
-                id="f-pi"
-                name="piId"
-                defaultValue=""
-                disabled={!effectiveArtId || pis.loading}
-                className={SELECT_CLASS}
-              >
-                <option value="">
-                  {!effectiveArtId
-                    ? "Zuerst ein ART wählen …"
-                    : pis.loading
-                      ? "Wird geladen …"
-                      : "— Backlog —"}
-                </option>
-                {pis.data.map((pi) => (
-                  <option key={pi.id} value={pi.id}>
-                    {pi.name}
-                  </option>
-                ))}
-              </select>
-              {pis.error && <p className="text-xs text-destructive">{pis.error}</p>}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="f-owner">{t("work.feature.verantwortlich")}</Label>
-              {/*
-                `SearchSelect` ist kein natives `<select>` — der Wert erreicht
-                die FormData deshalb über ein verstecktes Feld.
-              */}
-              <input type="hidden" name="ownerId" value={ownerSel} />
-              <SearchSelect
-                value={ownerSel}
-                onChange={setOwnerSel}
-                options={peopleOptions}
-                ariaLabel={t("work.feature.verantwortlich")}
-                placeholder={people.loading ? "Wird geladen …" : "Person wählen …"}
-                emptyLabel={t("work.feature.niemand")}
-                disabled={people.loading}
-              />
-              {people.error && <p className="text-xs text-destructive">{people.error}</p>}
-            </div>
-
             <div className="space-y-1.5">
               <Label htmlFor="f-title">
                 {t("work.feature.titel")} <span className="text-destructive">*</span>
@@ -363,55 +245,227 @@ export function CreateFeatureDialog({
               </select>
             </div>
 
-            <fieldset className="border border-border rounded-md p-4 space-y-3">
-              <legend className="text-sm font-medium px-1">
-                {t("work.feature.wsjfBewertung")}
-              </legend>
-              {(
-                [
-                  ["wsjfBusinessValue", "Geschäftswert"],
-                  ["wsjfTimeCriticality", "Zeitkritikalität"],
-                  ["wsjfRiskReduction", "Risikoreduktion / Chancenerschliessung"],
-                  ["wsjfJobSize", "Aufwand (Job Size)"],
-                ] as const
-              ).map(([name, label]) => (
-                <div key={name} className="space-y-1">
-                  <Label htmlFor={`f-${name}`}>
-                    {label} <span className="text-destructive">*</span>
-                  </Label>
-                  <select
-                    id={`f-${name}`}
-                    name={name}
-                    required
-                    defaultValue=""
-                    className={SELECT_CLASS}
-                  >
-                    <option value="" disabled>
-                      {t("work.feature.waehlen")}
+            {artId !== undefined ? (
+              <input type="hidden" name="artId" value={artId} />
+            ) : (
+              <div className="space-y-1.5">
+                <Label htmlFor="f-art">
+                  {t("work.feature.art")} <span className="text-destructive">*</span>
+                </Label>
+                <select
+                  id="f-art"
+                  name="artId"
+                  required
+                  value={artSel}
+                  onChange={(e) => setArtSel(e.target.value)}
+                  disabled={arts.loading}
+                  className={SELECT_CLASS}
+                >
+                  <option value="">
+                    {arts.loading
+                      ? "Wird geladen …"
+                      : artOptions.length === 0
+                        ? "Kein ART in diesem Wertstrom"
+                        : "ART wählen …"}
+                  </option>
+                  {artOptions.map((art) => (
+                    <option key={art.id} value={art.id}>
+                      {art.name}
                     </option>
-                    {FIBONACCI.map((v) => (
-                      <option key={v} value={v}>
-                        {v}
+                  ))}
+                </select>
+                {arts.error && <p className="text-xs text-destructive">{arts.error}</p>}
+              </div>
+            )}
+            {/**
+             * **Die einfache Fassung zuerst, der Rest auf Wunsch.**
+             *
+             * Im Deliverables-Reiter eines Epics sind ART, Epic und
+             * Solution durch den Kontext bereits beantwortet — sie stehen
+             * als versteckte Felder, nicht als Fragen. Was blieb, war ein
+             * Formular mit neun Feldern für etwas, das im Netzplan zwei
+             * braucht: Titel und Typ, WSJF mit 3/3/3/3 vorbelegt.
+             *
+             * Die übrigen Felder sind deshalb nicht weg, sondern
+             * eingeklappt: wer PI, Verantwortlichkeit oder eine Bewertung
+             * gleich setzen will, bleibt im Dialog statt ins Detail zu
+             * wechseln. Sie bleiben **montiert** — ein ausgeblendetes
+             * Formularfeld sendet mit, ein ausgehängtes verlöre seinen
+             * Wert.
+             *
+             * **Und die Regel, ohne die das nicht trägt: kein Pflichtfeld
+             * im Klappbereich.** Der erste Anlauf blendete die übrigen
+             * Felder nur aus und liess ihre Pflicht stehen — fünf der sechs
+             * Pflichtfelder lagen darin. `hidden` ist `display:none`, und
+             * ein `required`-Feld ohne Darstellung blockiert die Prüfung
+             * des Browsers, **ohne fokussierbar zu sein**: das Abschicken
+             * passierte nicht, und die Meldung stand in der Konsole. Der
+             * ART steht deshalb oben (als verstecktes Feld, wo der Kontext
+             * ihn kennt), und die WSJF-Auswahl ist hier eine Verfeinerung
+             * mit Vorgabe, keine Frage.
+             */}
+            {compact && (
+              <button
+                type="button"
+                onClick={() => setMehr((v) => !v)}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                {mehr ? t("work.feature.wenigerFelder") : t("work.feature.mehrFelder")}
+              </button>
+            )}
+            <div className={compact && !mehr ? "hidden" : "space-y-4"}>
+              <div className="space-y-1.5">
+                <Label htmlFor="f-parent">{t("work.feature.epic")}</Label>
+                <select
+                  id="f-parent"
+                  name="parentId"
+                  value={epicId}
+                  onChange={(e) => setEpicSel(e.target.value)}
+                  disabled={fetchedEpics.loading}
+                  className={SELECT_CLASS}
+                >
+                  <option value="">
+                    {fetchedEpics.loading ? "Wird geladen …" : "— ohne Epic —"}
+                  </option>
+                  {epicOptions.map((epic) => (
+                    <option key={epic.id} value={epic.id}>
+                      {epic.title}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">{t("work.feature.ohneEpicWirdEs")}</p>
+                {fetchedEpics.error && (
+                  <p className="text-xs text-destructive">{fetchedEpics.error}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="f-solution">{t("work.feature.solution")}</Label>
+                <select
+                  key={`sol-${vsId}`}
+                  id="f-solution"
+                  name="primarySolutionId"
+                  defaultValue=""
+                  disabled={!vsId || solutions.loading}
+                  className={SELECT_CLASS}
+                >
+                  <option value="">
+                    {!vsId
+                      ? "Zuerst ein ART wählen …"
+                      : solutions.loading
+                        ? "Wird geladen …"
+                        : "— später zuordnen —"}
+                  </option>
+                  {solutionOptions.map((sol) => (
+                    <option key={sol.id} value={sol.id}>
+                      {sol.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  {t("work.feature.ohneEigeneZuordnungGilt")}
+                </p>
+                {solutions.error && <p className="text-xs text-destructive">{solutions.error}</p>}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="f-pi">{t("work.feature.programIncrement")}</Label>
+                <select
+                  id="f-pi"
+                  name="piId"
+                  defaultValue=""
+                  disabled={!effectiveArtId || pis.loading}
+                  className={SELECT_CLASS}
+                >
+                  <option value="">
+                    {!effectiveArtId
+                      ? "Zuerst ein ART wählen …"
+                      : pis.loading
+                        ? "Wird geladen …"
+                        : "— Backlog —"}
+                  </option>
+                  {pis.data.map((pi) => (
+                    <option key={pi.id} value={pi.id}>
+                      {pi.name}
+                    </option>
+                  ))}
+                </select>
+                {pis.error && <p className="text-xs text-destructive">{pis.error}</p>}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="f-owner">{t("work.feature.verantwortlich")}</Label>
+                {/*
+                `SearchSelect` ist kein natives `<select>` — der Wert erreicht
+                die FormData deshalb über ein verstecktes Feld.
+              */}
+                <input type="hidden" name="ownerId" value={ownerSel} />
+                <SearchSelect
+                  value={ownerSel}
+                  onChange={setOwnerSel}
+                  options={peopleOptions}
+                  ariaLabel={t("work.feature.verantwortlich")}
+                  placeholder={people.loading ? "Wird geladen …" : "Person wählen …"}
+                  emptyLabel={t("work.feature.niemand")}
+                  disabled={people.loading}
+                />
+                {people.error && <p className="text-xs text-destructive">{people.error}</p>}
+              </div>
+
+              <fieldset className="border border-border rounded-md p-4 space-y-3">
+                <legend className="text-sm font-medium px-1">
+                  {t("work.feature.wsjfBewertung")}
+                </legend>
+                {compact && (
+                  <p className="text-xs text-muted-foreground">
+                    {t("work.feature.wsjfIstVorbelegt")}
+                  </p>
+                )}
+                {(
+                  [
+                    ["wsjfBusinessValue", "Geschäftswert"],
+                    ["wsjfTimeCriticality", "Zeitkritikalität"],
+                    ["wsjfRiskReduction", "Risikoreduktion / Chancenerschliessung"],
+                    ["wsjfJobSize", "Aufwand (Job Size)"],
+                  ] as const
+                ).map(([name, label]) => (
+                  <div key={name} className="space-y-1">
+                    <Label htmlFor={`f-${name}`}>
+                      {label} <span className="text-destructive">*</span>
+                    </Label>
+                    <select
+                      id={`f-${name}`}
+                      name={name}
+                      required={!compact}
+                      defaultValue={compact ? "3" : ""}
+                      className={SELECT_CLASS}
+                    >
+                      <option value="" disabled>
+                        {t("work.feature.waehlen")}
                       </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </fieldset>
+                      {FIBONACCI.map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </fieldset>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="f-ac">{t("work.feature.akzeptanzkriterien")}</Label>
-              <Textarea
-                id="f-ac"
-                name="acceptanceCriteria"
-                rows={4}
-                placeholder={t("work.feature.gegebenNwennNdann")}
-              />
-              <p className="text-xs text-muted-foreground">
-                {t("work.feature.einKriteriumJeZeile")}
-              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="f-ac">{t("work.feature.akzeptanzkriterien")}</Label>
+                <Textarea
+                  id="f-ac"
+                  name="acceptanceCriteria"
+                  rows={4}
+                  placeholder={t("work.feature.gegebenNwennNdann")}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("work.feature.einKriteriumJeZeile")}
+                </p>
+              </div>
             </div>
-
             {state.error && (
               <p role="alert" className="text-sm text-destructive">
                 {state.error}

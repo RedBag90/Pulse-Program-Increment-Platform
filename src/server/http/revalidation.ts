@@ -8,9 +8,12 @@ import { revalidatePath } from "next/cache";
 // hardcoding paths in each `onSuccess`; "which pages show ARTs?" is answered
 // here, once, rather than smeared across every ART/Team/Feature action.
 //
-// Paths use the App Router template form (`/structure/art/[id]`) revalidated
-// with the `"page"` type, which refreshes *all* instances of that dynamic
-// route — no per-call ids to thread. Static routes are revalidated as-is.
+// Paths use the App Router template form (`/structure/art/[id]`) and are
+// written **without** `[locale]` und ohne Routen-Gruppe — dieselbe Schreibweise, die die
+// Inhalts-Verweise in Wiki und Onboarding benutzen und die `appRoutes()` im
+// Test liest. Das Segment setzt `revalidateFor` davor; die Begründung steht
+// dort. Revalidiert wird mit dem `"page"`-Typ, der *alle* Instanzen der
+// Vorlage trifft — keine Ids durchzureichen.
 // The set per resource is a deliberate superset: over-revalidation is cheap and
 // removes the per-action drift that the structure-hub consolidation suffered.
 // ---------------------------------------------------------------------------
@@ -183,12 +186,68 @@ export const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   roleOnboarding: ["/meine-rolle"],
 };
 
-/** Revalidates every route registered for the given resource. */
+/**
+ * **Das Routen-Präfix gehört in den Aufruf, nicht in die Registry.**
+ *
+ * Bis September 2026 fehlte es ganz — und damit lief **jeder** Aufruf im
+ * Projekt folgenlos durch. `routing.ts` steht auf `localePrefix: "always"`:
+ * es gibt keine Route `/portfolio/epics`, nur `/de/…` und `/en/…`. Die Tags,
+ * die eine gerenderte Seite trägt, leitet Next aus der **Routen-Vorlage** ab
+ * (`/[locale]/portfolio/epics/[id]/page`), die Registry emittierte
+ * `/portfolio/epics/[id]/page`. Keine einzige Überschneidung, 25 Gruppen lang.
+ *
+ * Aufgefallen ist es nicht, weil die Epic-Detailseite trotzdem frisch aussah:
+ * Next hängt eine neue Flight-Payload der *aktuellen* Seite an die
+ * Action-Antwort, sobald irgendein `revalidatePath` lief. Was ausfiel, waren
+ * alle **anderen** Flächen und der Data-Cache — namentlich die
+ * 60-Sekunden-`unstable_cache` in `server/services/tenant-users.ts`. Daher das
+ * Muster „erst nach einer Weile stimmt es".
+ *
+ * **Die Routen-Gruppe muss mit.** `createWorkStore` legt zwei Formen ab —
+ * `page` roh (`/[locale]/(dashboard)/portfolio/epics/[id]/page`) und
+ * `route: normalizeAppPath(page)` ohne Gruppen —, und `getImplicitTags` nimmt
+ * die **rohe**. `revalidatePath` normalisiert seinerseits nichts. Wer die
+ * Adresse einsetzt, die im Browser steht, trifft deshalb nichts; `(dashboard)`
+ * gehört genauso hinein wie `[locale]`. Nachgelesen in
+ * `next/dist/server/async-storage/work-store.js`,
+ * `server/lib/implicit-tags.js` und `web/spec-extension/revalidate.js`.
+ *
+ * **Ein Aufruf trifft beide Sprachen.** Weil das Tag aus der Vorlage kommt und
+ * nicht aus der konkreten URL, ist `[locale]` darin ein Platzhalter wie `[id]`
+ * — je Locale einen Aufruf abzusetzen wäre verdoppelte Arbeit ohne Wirkung.
+ *
+ * **Dass alle Registry-Routen unter `(dashboard)` liegen, ist eine Annahme**,
+ * und sie war schon einmal still gebrochen. `revalidation.test.ts` prüft sie
+ * deshalb gegen den Dateibaum: eine verschachtelte Gruppe macht den Lauf rot,
+ * statt die Revalidierung wieder stumm zu stellen.
+ *
+ * **Und `"page"` gilt jetzt für jeden Pfad.** Vorher entschied
+ * `path.includes("[")` darüber; mit dem Präfix trägt jeder Pfad eine eckige
+ * Klammer, und `revalidatePath` ohne `type` tut bei einer dynamischen Route
+ * nichts ausser zu warnen. Die Fallunterscheidung ist damit nicht nur
+ * überflüssig, sie wäre schädlich.
+ */
+/** Locale-Segment **und** Routen-Gruppe — beides führt Next im Tag. */
+const ROUTE_PREFIX = "/[locale]/(dashboard)";
+
+/** Revalidates every route registered for the given resource, in both locales. */
 export function revalidateFor(resource: RevalidationResource): void {
-  for (const path of REGISTRY[resource]) {
-    // Dynamic-segment templates need the "page" type to revalidate all matches;
-    // static routes are revalidated directly.
-    if (path.includes("[")) revalidatePath(path, "page");
-    else revalidatePath(path);
-  }
+  for (const path of REGISTRY[resource]) revalidateRoute(path);
+}
+
+/**
+ * **Eine einzelne Route auffrischen — der einzige Weg dorthin.**
+ *
+ * Nicht jede Fläche gehört in die Registry: `/admin/users` nach einer
+ * Rollenänderung ist keine Frage von „welche Seiten zeigen Ressource X", es
+ * ist eine Seite und ihre eigene Aktion. Für die gab es bisher den direkten
+ * Aufruf von `revalidatePath` — an **sechzehn** Stellen in acht Dateien, und
+ * alle sechzehn ohne das Locale-Segment.
+ *
+ * Deshalb steht das hier und nicht dort: solange `revalidatePath` überall
+ * erreichbar war, musste jede Fundstelle die Regel einzeln kennen. Ein Wächter
+ * (`revalidation.test.ts`) hält den Import jetzt auf diese Datei fest.
+ */
+export function revalidateRoute(path: string): void {
+  revalidatePath(`${ROUTE_PREFIX}${path}`, "page");
 }

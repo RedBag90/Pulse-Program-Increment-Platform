@@ -62,7 +62,17 @@ describe("Kein roher Text in der Oberfläche", () => {
     expect(alle.length).toBeGreaterThan(600);
   });
 
-  it("findet nirgends ein Literal, das ein Nutzer liest", () => {
+  /**
+   * **Eigene Frist, und sie ist kein Schönheitsfehler.**
+   *
+   * Dieser Wächter liest jede `.ts`/`.tsx` unter `src/` — allein rund zwei
+   * Sekunden, unter der Last der übrigen Arbeiter im Gesamtlauf auch sieben.
+   * Gegen Vitests Vorgabe von 5 s schlug er dadurch sporadisch fehl, und zwar
+   * mit „Test timed out" statt mit einer Fundliste: ein rot, das **nichts über
+   * den Quelltext aussagt**. Genau so wird ein Wächter irgendwann als
+   * „flaky" abgeschaltet.
+   */
+  it("findet nirgends ein Literal, das ein Nutzer liest", { timeout: 30_000 }, () => {
     const violations = alle.flatMap((pfad) => untranslatedLiterals(pfad));
     expect(
       violations,

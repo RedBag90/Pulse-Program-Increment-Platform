@@ -18,6 +18,7 @@ import {
   useNodesState,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { useTheme } from "next-themes";
 import type {
   CockpitPiSlot,
   CockpitDependency,
@@ -223,6 +224,7 @@ export function CockpitNetwork({
   pis,
   selectedPiId,
 }: Props) {
+  const { resolvedTheme } = useTheme();
   const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
@@ -341,6 +343,9 @@ export function CockpitNetwork({
         fitView
         fitViewOptions={{ padding: 0.15, minZoom: MIN_ZOOM }}
         minZoom={MIN_ZOOM}
+        // React Flow bringt eigene, helle Farben mit (`dist/style.css`);
+        // ohne `colorMode` verschwindet die Navigation im dunklen Modus.
+        colorMode={resolvedTheme === "dark" ? "dark" : "light"}
         proOptions={{ hideAttribution: true }}
         onConnect={(c: Connection) => {
           if (!canLinkDependency) return;

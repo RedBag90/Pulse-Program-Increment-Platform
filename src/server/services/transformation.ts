@@ -118,10 +118,16 @@ export async function computePracticeAdoption(
     db.initiative.count({ where: epic }),
     db.initiative.count({ where: { ...epic, stageGate: { not: "L0" } } }),
     // Die Mehrparteien-Freigabe hat keine eigene Phase mehr: sie ist die
-    // Abnahme des Schritts L2 → L3.1. „In/über Freigabe" heißt also: das Epic
+    // Abnahme des Schritts **nach L2**. „In/über Freigabe" heißt also: das Epic
     // hat diesen Schritt beantragt.
+    //
+    // **Hier stand bis September 2026 `"L3.1"`** — der Name aus der Zeit vor
+    // dem Reifegrad-Neuschnitt. Der Code schreibt seither `L2`; die Abfrage
+    // traf damit nichts und lieferte still **0**. Sie warf nicht, sie zählte
+    // einfach niemanden mehr, und die Kennzahl sah aus wie eine Organisation
+    // ohne Freigaben.
     db.initiative.count({
-      where: { ...epic, gateTransitions: { some: { toGate: "L3.1", kind: "forward" } } },
+      where: { ...epic, gateTransitions: { some: { toGate: "L2", kind: "forward" } } },
     }),
     db.dependency.count({ where: { tenantId } }),
   ]);

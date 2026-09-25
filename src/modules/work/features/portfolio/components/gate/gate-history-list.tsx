@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 import { ArrowUp, Undo2 } from "lucide-react";
-import { gateStepKey } from "@/modules/work/domain/stage-gate";
+import { gateStepLabel } from "@/modules/work/domain/stage-gate";
 import type { EpicGateHistoryView } from "@/modules/work/server/views/epic-detail";
 
 /**
@@ -11,11 +11,12 @@ import type { EpicGateHistoryView } from "@/modules/work/server/views/epic-detai
  * hat, liess sich damit nicht beantworten. Jetzt ist jeder Antrag eine Zeile.
  */
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: "offen",
-  approved: "vollzogen",
-  rejected: "abgelehnt",
-  withdrawn: "zurückgezogen",
+/** Katalog-Schlüssel, keine Wörter — die Fläche übersetzt (ADR-0024, Regel 2). */
+const STATUS_KEYS: Record<string, string> = {
+  pending: "work.gate.requestStatus.pending",
+  approved: "work.gate.requestStatus.approved",
+  rejected: "work.gate.requestStatus.rejected",
+  withdrawn: "work.gate.requestStatus.withdrawn",
 };
 
 const STATUS_CLASS: Record<string, string> = {
@@ -26,7 +27,8 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 // `fromGate`/`toGate` einer Antragszeile sind Schritte, keine Major-Gates.
-const gateLabel = gateStepKey;
+// Der frühere Alias `gateLabel` ist weg: er hiess „Label" und lieferte einen
+// Schlüssel — siehe `epic-gate-card.tsx`.
 
 /** ISO → de-DE, wie im Timeline-Tab. */
 function day(iso: string): string {
@@ -59,10 +61,10 @@ export function GateHistoryList({
           )}
           <span className="flex-1">
             <span className="font-medium">
-              {gateLabel(h.fromGate)} → {gateLabel(h.toGate)}
+              {gateStepLabel(h.fromGate, t)} → {gateStepLabel(h.toGate, t)}
             </span>
             <span className={`ml-1.5 ${STATUS_CLASS[h.status] ?? ""}`}>
-              {STATUS_LABEL[h.status] ?? h.status}
+              {t(STATUS_KEYS[h.status] ?? h.status)}
             </span>
             <span className="text-muted-foreground">
               {" · "}

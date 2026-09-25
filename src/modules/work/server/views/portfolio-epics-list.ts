@@ -124,7 +124,11 @@ interface EpicRow {
   createdAt: Date;
   /** All bound KPIs (`Kpi` rows on the Epic). */
   kpis: KpiRow[];
-  /** Offener Gate-Antrag des Epics, vom Loader aufgelöst. */
+  /**
+   * Offener Gate-Antrag des Epics, vom Loader aufgelöst. `toGate` darf hier
+   * `GateStep` heissen, weil `countPendingGateRequests` es prüft: Zeilen mit
+   * einem Schritt ausserhalb von `GATE_STEPS` kommen gar nicht erst an.
+   */
   pendingGateRequest?: { toGate: GateStep; pendingCount: number; totalCount: number } | null;
   /** Count of child Features (direct only). */
   childFeatureCount: number;

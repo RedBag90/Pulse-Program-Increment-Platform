@@ -106,7 +106,7 @@ WSJF =  ────────────────────────
               kind: "table",
               head: ["Status", "What I am saying"],
               rows: [
-                ["_Approved_", "planned, not started yet"],
+                ["_Open_", "planned, not started yet"],
                 ["_In delivery_", "being worked on right now"],
                 ["_Blocked_", "it cannot go on at the moment — **not a blemish, a signal**"],
                 ["_Done_", "finished"],

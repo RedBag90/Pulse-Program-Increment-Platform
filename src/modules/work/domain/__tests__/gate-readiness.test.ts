@@ -43,6 +43,8 @@ function facts(stageGate: StageGate, over: Partial<EpicGateFacts> = {}): EpicGat
     kpiCount: 0,
     dependencyCount: 0,
     drumbeatEnabled: true,
+    intendedClass: null,
+    hasGoalLink: false,
     ...over,
   };
 }
@@ -96,11 +98,28 @@ describe("gateReadiness — L1 (Selektion ins Detailing)", () => {
     }
   });
 
-  it("der fehlende Epic Owner ist beratend — er blockiert nicht", () => {
+  it("die drei weichen Kriterien sind beratend — sie blockieren nicht", () => {
+    // Owner, Einordnung und Zielverbindung fehlen alle drei, und der Antrag
+    // geht trotzdem raus: an L1 blockiert allein die ausgearbeitete Hypothese.
+    // Die Abnehmer sehen die offenen Stellen und entscheiden.
     const f = facts("L0", { hasHypothesisContent: true, ownerId: null });
     const r = gateReadiness(f, "L1");
     expect(r.ready).toBe(true);
-    expect(keys(f, "L1", "unsatisfied")).toEqual(["owner_nominated"]);
+    expect(keys(f, "L1", "unsatisfied")).toEqual([
+      "owner_nominated",
+      "intended_class_set",
+      "goal_linked",
+    ]);
+  });
+
+  it("erkennt Einordnung und Zielverbindung, wenn sie da sind", () => {
+    const f = facts("L0", {
+      hasHypothesisContent: true,
+      ownerId: "u1",
+      intendedClass: "portfolio",
+      hasGoalLink: true,
+    });
+    expect(keys(f, "L1", "unsatisfied")).toEqual([]);
   });
 });
 
@@ -164,17 +183,22 @@ describe("gateReadiness — L2 (Business-Case-Freigabe)", () => {
     expect(keys(facts("L2"), "L2", "blocking")).toEqual(["business_case_drafted"]);
   });
 
-  it("zeigt die Abhängigkeiten gar nicht, wo es das Drumbeat-Modul nicht gibt", () => {
-    // Ohne Drumbeat gibt es den Reiter nicht, in dem man das Kriterium erfüllen
-    // würde. Ein Kreuz, das nie grün wird, wäre eine Sackgasse; ein Häkchen
-    // wäre eine Falschaussage. Also: weg damit — dieselbe Entscheidung wie beim
-    // Budget-Kriterium.
-    expect(keys(facts("L2", { drumbeatEnabled: false }), "L2", "all")).not.toContain(
-      "dependencies_mapped",
-    );
-    expect(keys(facts("L2", { drumbeatEnabled: true }), "L2", "all")).toContain(
-      "dependencies_mapped",
-    );
+  it("zeigt die Abhängigkeiten auch ohne Drumbeat — sie gehören zu Work", () => {
+    // **Die Umkehrung einer früheren Entscheidung**, und zwar samt ihrer
+    // Begründung. Bis September 2026 stand hier `applies: drumbeatEnabled`,
+    // weil „ohne Drumbeat gibt es den Reiter nicht, in dem man das Kriterium
+    // erfüllen würde". Seit `dependency.` zu `work` gehört, gibt es ihn — und
+    // das Kriterium verschwand trotzdem aus der L2-Liste, ohne dass jemand
+    // danach gesucht hätte.
+    //
+    // Das Budget-Kriterium nebenan behält sein `applies`: Budgeting ist
+    // weiterhin ein eigenes Modul.
+    for (const drumbeatEnabled of [true, false]) {
+      expect(
+        keys(facts("L2", { drumbeatEnabled }), "L2", "all"),
+        String(drumbeatEnabled),
+      ).toContain("dependencies_mapped");
+    }
   });
 
   it("hakt die Reiter ab, sobald dort Inhalt steht", () => {

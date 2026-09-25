@@ -8,12 +8,13 @@ import {
   deleteKpiAction,
   recordKpiMeasurementAction,
   updateKpiWeightAction,
+  updateKpiBasicsAction,
   updateKpiDetailsAction,
 } from "@/modules/work/features/portfolio/actions/kpi";
 import { linkEpicToGoalAction } from "@/modules/core/goals/features/actions/ziele";
 import {
   benefitKindOrDefault,
-  BENEFIT_KIND_LABELS,
+  BENEFIT_KIND_KEYS,
 } from "@/modules/core/kpi/domain/kpi-benefit-kind";
 import {
   recurringIntervalOrDefault,
@@ -82,6 +83,13 @@ interface Props {
   initiativeId: string;
   kpis: KpiRow[];
   canEdit: boolean;
+  /**
+   * Der L4.2-Stempel als ISO-Tag. Steht er, ist die **Menge** festgeschrieben
+   * (ADR-0024 / Wiki „Die Wirkung") — Baseline und Ziel sind dann gesperrt,
+   * weil ein verschobenes Ziel die eingefrorene Zielerreichung rückwirkend
+   * verändern würde. Der Name bleibt änderbar.
+   */
+  quantityFrozenAtIso?: string | null;
   /** Verknüpfte Ziele dieses Epics (Einheiten-Kaskade); leer = keine. */
   goalLinks?: EpicGoalLinkWithOutcome[];
   /** Sign-off state for the KPIs section (omit to hide the banner). */
@@ -139,12 +147,15 @@ function KpiItem({
   kpi,
   initiativeId,
   canEdit,
+  quantityFrozen,
 }: {
   kpi: KpiRow;
   initiativeId: string;
   canEdit: boolean;
+  quantityFrozen: boolean;
 }) {
   const t = useTranslations();
+  const [basicsState, basicsAction, basicsPending] = useActionState(updateKpiBasicsAction, {});
   const [delState, delAction, delPending] = useActionState(deleteKpiAction, {});
   const [measState, measAction, measPending] = useActionState(recordKpiMeasurementAction, {});
   const [weightState, weightAction, weightPending] = useActionState(updateKpiWeightAction, {});
@@ -175,7 +186,7 @@ function KpiItem({
                 : "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200"
             }
           >
-            {BENEFIT_KIND_LABELS[kind]}
+            {t(BENEFIT_KIND_KEYS[kind])}
             {kind === "recurring" &&
               ` · ${RECURRING_INTERVAL_LABELS[recurringIntervalOrDefault(kpi.recurringInterval)]}`}
           </Badge>
@@ -214,6 +225,57 @@ function KpiItem({
       {/* Bearbeiten (Default eingeklappt) */}
       {canEdit && editing && (
         <div className="mt-3 space-y-3 border-t pt-3">
+          {/**
+           * **Stammdaten** — bis September 2026 gab es sie nur beim Anlegen.
+           * Wer sich im Namen vertippt hatte, musste die KPI löschen und neu
+           * anlegen, und verlor dabei die ganze Messreihe.
+           */}
+          <form action={basicsAction} className="grid gap-2 sm:grid-cols-2">
+            <input type="hidden" name="id" value={kpi.id} />
+            <input type="hidden" name="initiativeId" value={initiativeId} />
+            <label className="flex flex-col gap-1 text-xs font-medium">
+              {t("work.epic.name")}
+              <Input name="name" defaultValue={kpi.name} required />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium">
+              {t("work.epic.einheit")}
+              <Input name="unit" defaultValue={kpi.unit ?? ""} />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium">
+              {t("work.epic.baseline")}
+              <Input
+                type="number"
+                step="any"
+                name="baseline"
+                defaultValue={kpi.baseline ?? ""}
+                disabled={quantityFrozen}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium">
+              {t("work.epic.ziel")}
+              <Input
+                type="number"
+                step="any"
+                name="target"
+                defaultValue={kpi.target ?? ""}
+                disabled={quantityFrozen}
+              />
+            </label>
+            {quantityFrozen && (
+              <p className="text-label text-muted-foreground sm:col-span-2">
+                {t("work.epic.mengeEingefroren")}
+              </p>
+            )}
+            {basicsState.error && (
+              <p className="text-xs text-destructive sm:col-span-2">{basicsState.error}</p>
+            )}
+            <div className="sm:col-span-2">
+              <Button type="submit" variant="secondary" size="sm" disabled={basicsPending}>
+                {t("work.epic.speichern")}
+              </Button>
+            </div>
+          </form>
+
           {/* Messwert erfassen */}
           <form action={measAction} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="id" value={kpi.id} />
@@ -529,6 +591,9 @@ function LinkedGoalRow({
   const [state, action, pending] = useActionState(linkEpicToGoalAction, {});
   const chosen = kpis.find((k) => k.id === link.kpiId) ?? null;
   const [kind, setKind] = useState<string>(link.impactKind || "recurring");
+  // Kontrolliert, damit die Beschriftung des Faktor-Feldes der Auswahl folgen
+  // kann — mit `defaultValue` wüsste sie nichts von ihr.
+  const [kpiId, setKpiId] = useState(link.kpiId ?? "");
   const [editing, setEditing] = useState(false);
   const goalSpec = {
     metricType: link.goalMetricType,
@@ -569,7 +634,7 @@ function LinkedGoalRow({
               </span>
             </p>
             <Badge variant="outline">
-              {BENEFIT_KIND_LABELS[benefitKindOrDefault(link.impactKind)]}
+              {t(BENEFIT_KIND_KEYS[benefitKindOrDefault(link.impactKind)])}
             </Badge>
           </>
         ) : (
@@ -608,7 +673,12 @@ function LinkedGoalRow({
           <input type="hidden" name="goalId" value={link.objectiveId} />
           <label className="flex flex-col gap-1 text-xs font-medium">
             {t("work.common.kpi")}
-            <select name="kpiId" defaultValue={link.kpiId ?? ""} className={`${selectCls} w-48`}>
+            <select
+              name="kpiId"
+              value={kpiId}
+              onChange={(e) => setKpiId(e.target.value)}
+              className={`${selectCls} w-48`}
+            >
               <option value="">{t("work.epic.waehlen")}</option>
               {kpis.map((k) => (
                 <option key={k.id} value={k.id}>
@@ -619,7 +689,24 @@ function LinkedGoalRow({
             </select>
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium">
-            {link.goalUnit ? `${link.goalUnit} je 1 KPI-Einheit` : "Ziel-Einheit je 1 KPI-Einheit"}
+            {/**
+             * **Was der Faktor umrechnet, steht jetzt im Feld.**
+             *
+             * Hier stand „{Ziel-Einheit} je 1 KPI-Einheit" — die eine Hälfte
+             * konkret, die andere generisch, obwohl die KPI-Einheit zwei
+             * Zeilen darüber im Auswahlfeld sichtbar ist. Dafür muss die
+             * Auswahl kontrolliert sein: mit `defaultValue` weiss die
+             * Beschriftung nichts von ihr.
+             *
+             * Derselbe Satzbau wie beim Beitrag eines Unterziels zum
+             * Elternziel — die beiden Faktoren werden ohnehin ständig
+             * verwechselt (Wiki „Die Wirkung": *zwei Faktoren, die man
+             * verwechselt*), da sollen sie wenigstens gleich aussehen.
+             */}
+            {t("work.epic.jeEinheit", {
+              ziel: link.goalUnit || t("work.epic.zielEinheit"),
+              kpi: kpis.find((k) => k.id === kpiId)?.unit || t("work.epic.kpiEinheit"),
+            })}
             <Input
               type="number"
               step="any"
@@ -637,8 +724,8 @@ function LinkedGoalRow({
               onChange={(e) => setKind(e.target.value)}
               className={`${selectCls} w-44`}
             >
-              <option value="recurring">{BENEFIT_KIND_LABELS.recurring}</option>
-              <option value="one_time">{BENEFIT_KIND_LABELS.one_time}</option>
+              <option value="recurring">{t(BENEFIT_KIND_KEYS.recurring)}</option>
+              <option value="one_time">{t(BENEFIT_KIND_KEYS.one_time)}</option>
             </select>
           </label>
           {kind === "recurring" && (
@@ -711,7 +798,13 @@ function LinkedGoalsSection({
 }
 
 /** KPIs tab — read-first tiles per KPI with edit-on-demand + linked-goal cascade. */
-export function EpicKpisTab({ initiativeId, kpis, canEdit, goalLinks }: Props) {
+export function EpicKpisTab({
+  initiativeId,
+  kpis,
+  canEdit,
+  goalLinks,
+  quantityFrozenAtIso,
+}: Props) {
   const t = useTranslations();
   return (
     <div className="space-y-6">
@@ -731,7 +824,13 @@ export function EpicKpisTab({ initiativeId, kpis, canEdit, goalLinks }: Props) {
         ) : (
           <div className="space-y-3">
             {kpis.map((kpi) => (
-              <KpiItem key={kpi.id} kpi={kpi} initiativeId={initiativeId} canEdit={canEdit} />
+              <KpiItem
+                key={kpi.id}
+                kpi={kpi}
+                initiativeId={initiativeId}
+                canEdit={canEdit}
+                quantityFrozen={quantityFrozenAtIso != null}
+              />
             ))}
           </div>
         )}

@@ -51,7 +51,8 @@ import { EpicTimelineTab } from "@/modules/work/features/portfolio/components/ep
 import { EpicOwnerAssign } from "@/modules/work/features/portfolio/components/epic-owner-assign";
 import { EpicGateLadder } from "@/modules/work/features/portfolio/components/epic-gate-ladder";
 import { HorizonBadge } from "@/modules/core/org/features/solution/components/horizon-badge";
-import { currentGateStep, gateStepKey } from "@/modules/work/domain/stage-gate";
+import { currentGateStep, gateStepLabel } from "@/modules/work/domain/stage-gate";
+import { tabsNeedingAttention } from "@/modules/work/domain/gate-criterion-target";
 import { EPIC_CLASS_KEYS } from "@/modules/work/domain/pb-submission";
 import { EPIC_TYPE_KEYS, isEpicType } from "@/modules/work/domain/portfolio-guardrails";
 import { resolveEpicHorizon } from "@/modules/work/domain/epic-horizon";
@@ -253,10 +254,22 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
 
   const { epic, timeline, benefitHypothesis, businessCase, kpiRows } = model;
 
-  // Zuordenbare Solutions = Solutions im Value Stream des Epics (für die Zuordnung).
-  const availableSolutions = epic.valueStreamId
+  /**
+   * Zuordenbare Solutions = die Solutions **des ARTs** dieses Epics.
+   *
+   * Bis September 2026 stand hier der Wertstrom. Welcher Zug eine Solution
+   * baut, ist aber seit 2026-09-19 ein Pflichtfeld an ihr (`Solution.artId`),
+   * und ein Epic gehört genau einem ART — die Wertstrom-Frage war eine Stufe
+   * zu grob. Die Verengung ist sicher: `assertArtInStream` hält den ART einer
+   * Solution im selben Wertstrom, die neue Menge ist also eine Teilmenge der
+   * alten.
+   *
+   * Ohne ART: leer. Die Fläche sagt dann, dass zuerst ein ART fehlt, statt
+   * „keine Solutions" zu behaupten.
+   */
+  const availableSolutions = epic.artId
     ? await db.solution.findMany({
-        where: { tenantId, valueStreamId: epic.valueStreamId, deletedAt: null },
+        where: { tenantId, artId: epic.artId, deletedAt: null },
         select: { id: true, name: true, horizon: true },
         orderBy: { name: "asc" },
       })
@@ -305,7 +318,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           <>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
               <span aria-hidden className="size-1.5 rounded-full bg-current" />
-              {t(gateStepKey(gateNow))}
+              {gateStepLabel(gateNow, t)}
             </span>
             {epicClassification ? (
               <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
@@ -339,6 +352,11 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
         tabs={tabs}
         activeTab={activeTab}
         currentGate={gateNow}
+        // Der Ring folgt den **offenen Kriterien des nächsten Schritts**, nicht
+        // einem exakten Reifegrad-Vergleich — siehe `attentionTabs`.
+        attentionTabs={tabsNeedingAttention(
+          model.gate.disabled ? [] : (model.gate.readiness?.criteria ?? []),
+        )}
         basePath={`/portfolio/epics/${epic.id}`}
         headerActions={
           model.canEdit ? (
@@ -415,8 +433,10 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             }
             goalsSlot={
               <EpicGoalsBadge
+                epicId={epic.id}
                 goalLinks={goalLinks.links}
                 atGate={gateNow === OVERVIEW_PANELS_GATE}
+                canEdit={model.canEdit}
               />
             }
           />
@@ -492,6 +512,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
         {activeTab === "business-case-calc" && (
           <EpicBusinessCaseCalcTab
             dayMonth={bcMonth}
+            budgetingEnabled={enabled.budgeting}
             {...buildEpicBusinessCaseCalcForTab(
               {
                 createdAt: epic.createdAt,
@@ -571,6 +592,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             tenantId={tenantId}
             epicTitle={epic.title}
             epicValueStreamId={epic.valueStreamId}
+            epicArtId={epic.artId}
             canEdit={model.canEdit}
             features={model.breakdownFeatures}
             pisByArt={model.drumbeat.disabled ? {} : model.drumbeat.pisByArt}
@@ -590,6 +612,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             tenantId={tenantId}
             epicTitle={epic.title}
             epicValueStreamId={epic.valueStreamId}
+            epicArtId={epic.artId}
             canEdit={model.canEdit}
             features={model.breakdownFeatures}
             pisByArt={model.drumbeat.disabled ? {} : model.drumbeat.pisByArt}
@@ -613,6 +636,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             initiativeId={epic.id}
             kpis={kpiRows}
             canEdit={model.canEdit}
+            quantityFrozenAtIso={epic.implementationCompletedAt?.toISOString() ?? null}
             goalLinks={goalLinks.links.map((link) => ({
               ...link,
               outcome: kpiOutcome({

@@ -20,7 +20,7 @@ import {
   type TenantApprover,
 } from "@/modules/work/features/portfolio/components/approver-picker";
 import { userLabel } from "@/components/detail/initiative-labels";
-import { gateStepKey } from "@/modules/work/domain/stage-gate";
+import { gateStepLabel } from "@/modules/work/domain/stage-gate";
 import { SectionLabel } from "@/components/ui/section-label";
 
 // L0 ist der Funnel-Start — dorthin führt kein Vorwärts-Antrag, also keine
@@ -196,7 +196,7 @@ export function GateApproverRulesSection({
       for (const g of changed) {
         const res = await saveGateApproverRuleAction({}, buildFd(g, drafts[g]!));
         if (res.error) {
-          setError(`${t(gateStepKey(g))}: ${res.error}`);
+          setError(`${gateStepLabel(g, t)}: ${res.error}`);
           return;
         }
       }
@@ -290,7 +290,7 @@ export function GateApproverRulesSection({
           return (
             <li key={gate} className="rounded-lg bg-card p-3 shadow-card">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium">{t(gateStepKey(gate))}</span>
+                <span className="text-sm font-medium">{gateStepLabel(gate, t)}</span>
                 {!editing && (
                   <span className="rounded-full bg-muted px-2 py-0.5 text-label text-muted-foreground">
                     {SOURCE_LABELS[b.source]}

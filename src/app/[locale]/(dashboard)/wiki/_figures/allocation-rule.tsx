@@ -1,5 +1,5 @@
 import { useTranslations } from "next-intl";
-import { GATE_STEPS, gateOfStep, gateStepNumberKey } from "@/modules/work/domain/stage-gate";
+import { GATE_STEPS, gateOfStep, gateStepNumberLabel } from "@/modules/work/domain/stage-gate";
 import {
   mayHoldAllocation,
   requiresCurrentAllocation,
@@ -39,7 +39,7 @@ export function AllocationRule() {
             return (
               <tr key={g}>
                 <td className="border-b border-border/60 px-4 py-2 font-mono text-xs text-foreground">
-                  {t(gateStepNumberKey(g))}
+                  {gateStepNumberLabel(g, t)}
                 </td>
                 <td className="border-b border-border/60 px-4 py-2 text-muted-foreground">
                   {/* Nummernlose Schritte haben kein eigenes Kurzlabel — sie

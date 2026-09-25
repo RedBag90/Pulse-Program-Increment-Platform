@@ -9,7 +9,7 @@ import { FeatureParentAssign } from "@/modules/work/features/feature/components/
 import { FeatureEditForm } from "@/modules/work/features/feature/components/feature-edit-form";
 import { WsjfScoreDialog } from "@/modules/work/features/feature/components/wsjf-score-dialog";
 import { FeatureClassificationForm } from "./feature-classification-form";
-import { STATUS_DOT, STATUS_LABELS } from "@/components/detail/initiative-labels";
+import { STATUS_DOT, STATUS_KEYS } from "@/components/detail/initiative-labels";
 import { WSJF_TIER_CLASS } from "@/components/detail/initiative-labels";
 import { formatDate } from "@/lib/formatting";
 import { formatWsjf } from "@/modules/core/kernel/domain/wsjf";
@@ -195,12 +195,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function StatusPill({ status }: { status: string }) {
+  const t = useTranslations();
   return (
     <span className="inline-flex items-center gap-1.5 text-sm">
       <span
         className={`size-2 shrink-0 rounded-full ${STATUS_DOT[status] ?? "bg-muted-foreground/40"}`}
       />
-      <span>{STATUS_LABELS[status] ?? status}</span>
+      <span>{t(STATUS_KEYS[status] ?? status)}</span>
     </span>
   );
 }

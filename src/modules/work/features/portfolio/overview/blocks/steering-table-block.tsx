@@ -3,11 +3,12 @@ import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
 import { STICKY_THEAD } from "@/components/ui/table-chrome";
-import { STATUS_LABELS } from "@/components/detail/initiative-labels";
+import { STATUS_KEYS } from "@/components/detail/initiative-labels";
 import { STAGE_SHORT_KEYS } from "@/components/detail/initiative-labels";
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 import { isClassShown, rollUpBySolution } from "@/modules/work/domain/epic-class-filter";
 import { rollupTone } from "@/modules/work/features/portfolio/overview/blocks/class-rollup";
+import { SteeringUnmarkButton } from "@/modules/work/features/portfolio/overview/blocks/steering-unmark-button";
 
 /**
  * „Zur Steuerung markiert" — Tabelle der Initiativen (Epics) mit
@@ -42,8 +43,8 @@ export function SteeringTableBlock({ data }: { data: PortfolioOverview }) {
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {rollups.length > 0
-            ? "In dieser Klasse ist nichts markiert."
-            : "Keine Initiative für das nächste Steering-Meeting markiert."}
+            ? t("work.overview.inDieserKlasseNichtsMarkiert")
+            : t("work.overview.keineInitiativeMarkiert")}
         </p>
       ) : (
         <div className="max-h-96 overflow-auto rounded-lg bg-card shadow-card">
@@ -58,6 +59,10 @@ export function SteeringTableBlock({ data }: { data: PortfolioOverview }) {
                 <th className="px-3 py-2 text-right font-medium">
                   {t("work.overview.tageSeitUpdate")}
                 </th>
+                {/* Kopflos: der Knopf erklärt sich über sein `aria-label`, und
+                    eine Überschrift „Aktion" wäre eine Spalte Text für ein
+                    Symbol. */}
+                <th className="w-8 px-2 py-2" />
               </tr>
             </thead>
             <tbody>
@@ -75,12 +80,15 @@ export function SteeringTableBlock({ data }: { data: PortfolioOverview }) {
                     {t(STAGE_SHORT_KEYS[r.stageGate] ?? r.stageGate)}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
-                    {STATUS_LABELS[r.status] ?? r.status}
+                    {t(STATUS_KEYS[r.status] ?? r.status)}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">{r.ownerName ?? "—"}</td>
                   <td className="px-3 py-2 text-muted-foreground">{r.valueStreamName ?? "—"}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
                     {r.daysSinceUpdate}
+                  </td>
+                  <td className="px-2 py-2 text-right">
+                    <SteeringUnmarkButton epicId={r.id} title={r.title} />
                   </td>
                 </tr>
               ))}

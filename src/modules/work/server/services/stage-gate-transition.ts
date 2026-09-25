@@ -26,7 +26,7 @@ import {
 } from "@/modules/work/domain/approval-primitives";
 import { type EpicGateFacts, gateReadiness } from "@/modules/work/domain/gate-readiness";
 import { isHorizon } from "@/modules/work/domain/portfolio-guardrails";
-import { type GateStep } from "@/modules/work/domain/stage-gate";
+import { isGateStep, type GateStep } from "@/modules/work/domain/stage-gate";
 import { withImplementationActual } from "@/modules/work/domain/timeline";
 import { isoDay } from "@/modules/core/kernel/domain/calendar";
 import {
@@ -146,6 +146,10 @@ export async function loadEpicGateFacts(
       // den einen aus dem anderen ein — siehe `domain/epic-horizon.ts`.
       investmentHorizon: true,
       primarySolution: { select: { horizon: true } },
+      // **Die erwartete Einordnung** — vor L2 das Einzige, was das Epic über
+      // seine Grösse sagt; die echte Klasse entsteht erst mit der
+      // Business-Case-Freigabe aus den Kosten.
+      intendedClass: true,
     },
   });
   if (!row) return null;
@@ -166,14 +170,22 @@ export async function loadEpicGateFacts(
     loadPractices(tx, tenantId),
     tx.kpi.count({ where: { tenantId, initiativeId: epicId } }),
   ]);
+  // Zahlt dieses Epic überhaupt auf ein Ziel ein? Das blosse Anhängen genügt —
+  // ein **bezifferter** Beitrag (`kpiId` + `conversionFactor`) ist eine
+  // spätere, eigene Entscheidung und steht unter einem anderen Recht.
+  const goalLinkCount = await tx.goalEpicLink.count({ where: { tenantId, epicId } });
   const childIds = children.map((c) => c.id);
 
   // Eine Kante zählt, sobald **ein** Ende an einem Child-Feature hängt —
   // dieselbe Lesart wie im Reiter selbst (`listBreakdownDependencies`). Work
   // ist Eigentümer dieser Kanten (siehe `services/dependency-edge.ts`), der
   // Direktzugriff verletzt ADR-0013 also nicht.
+  //
+  // **Ohne Drumbeat-Vorbehalt**, seit `dependency.` zu Work gehört: das
+  // Kriterium wird nicht mehr herausgefiltert, und eine Zählung, die dann
+  // immer 0 liefert, machte es sichtbar und unerfüllbar zugleich.
   const dependencyCount =
-    drumbeatEnabled && childIds.length > 0
+    childIds.length > 0
       ? await tx.dependency.count({
           where: { tenantId, OR: [{ fromId: { in: childIds } }, { toId: { in: childIds } }] },
         })
@@ -194,6 +206,8 @@ export async function loadEpicGateFacts(
     kpiCount,
     dependencyCount,
     drumbeatEnabled,
+    intendedClass: row.intendedClass,
+    hasGoalLink: goalLinkCount > 0,
     selectedForDetailingAt: row.selectedForDetailingAt,
     selectedForAnalyzingAt: row.selectedForAnalyzingAt,
     implementationStartedAt: row.implementationStartedAt,
@@ -1170,16 +1184,23 @@ export async function countPendingGateRequests(
       approvals: { select: { status: true } },
     },
   });
-  return new Map(
-    rows.map((r) => [
+  // `to_gate` steht in der Datenbank als freie Zeichenkette. Ein Antrag auf
+  // einen Schritt, den das Vokabular nicht mehr kennt (L3.1/L3.2 aus der Zeit
+  // vor dem Reifegrad-Neuschnitt), ist kein Antrag, den eine Liste anzeigen
+  // sollte — er fällt hier heraus, statt sich als `GateStep` auszugeben.
+  const entries: [string, { toGate: GateStep; pendingCount: number; totalCount: number }][] = [];
+  for (const r of rows) {
+    if (!isGateStep(r.toGate)) continue;
+    entries.push([
       r.initiativeId,
       {
-        toGate: r.toGate as GateStep,
+        toGate: r.toGate,
         pendingCount: r.approvals.filter((a) => a.status === "pending").length,
         totalCount: r.approvals.length,
       },
-    ]),
-  );
+    ]);
+  }
+  return new Map(entries);
 }
 
 /** Die konfigurierten Abnehmer-Regeln (Tenant-Default + optional ein Wertstrom). */

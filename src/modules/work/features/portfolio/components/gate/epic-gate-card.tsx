@@ -20,7 +20,8 @@ import {
   withdrawGateTransitionAction,
 } from "@/modules/work/features/portfolio/actions/stage-gate";
 import { setEpicHelpRequestedAction } from "@/modules/work/features/portfolio/actions/epic";
-import { gateStepKey } from "@/modules/work/domain/stage-gate";
+import { CRITERION_TARGET } from "@/modules/work/domain/gate-criterion-target";
+import { gateStepLabel } from "@/modules/work/domain/stage-gate";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import type { EpicGateSlice } from "@/modules/work/server/views/epic-detail";
 import {
@@ -66,59 +67,16 @@ const CLARIFY =
 
 // Hier werden **Schritte** benannt, nicht Major-Gates: `L4` heißt deshalb
 // „L4.1 Umsetzung läuft" — dieselbe Zahl, die danach am Epic steht.
-const gateLabel = gateStepKey;
-
 /**
- * Sprungziel je Freigabe-Kriterium: der Ort, an dem man es erfüllt. Nach
- * Kriterium-`key` (SSOT: `gate-readiness.ts`). Tab-Ziele landen auf der
- * Epic-Seite via `?tab=`, zwei Kriterien zeigen in andere Bereiche.
+ * **Kein `gateLabel`-Alias mehr.**
  *
- * Der Link steht seit September 2026 **in der Checklistenzeile**, nicht mehr in
- * einem Popover, das man erst aufklappen musste. Fehlt ein Eintrag, rendert die
- * Zeile ohne Link — ein Test über die L2-Kriterien hält das im Blick.
+ * Hier stand `const gateLabel = gateStepLabel;` — ein Name, der über seinen
+ * Rückgabewert log: `gateStepLabel` liefert einen **Schlüssel**, kein Wort. Wer
+ * „Label" liest, schreibt `{gateLabel(x)}` und nicht `{gateStepLabel(x, t)}`,
+ * und genau das ist an drei Stellen passiert: auf dem Bildschirm stand
+ * wörtlich „work.gateStep.analysis". Der Compiler sieht das nicht — ein
+ * Schlüssel ist eine gültige Zeichenkette.
  */
-const CRITERION_TARGET: Record<string, { href: (epicId: string) => string; label: string }> = {
-  hypothesis_drafted: {
-    href: (id) => `/portfolio/epics/${id}?tab=benefit-hypothesis`,
-    label: "Zur Hypothese",
-  },
-  hypothesis_approved: {
-    href: (id) => `/portfolio/epics/${id}?tab=benefit-hypothesis`,
-    label: "Zur Hypothese",
-  },
-  owner_nominated: {
-    href: (id) => `/portfolio/epics/${id}?tab=overview`,
-    label: "Zum Overview",
-  },
-  business_case_drafted: {
-    href: (id) => `/portfolio/epics/${id}?tab=business-case`,
-    label: "Zum Business Case",
-  },
-  deliverables_drafted: {
-    href: (id) => `/portfolio/epics/${id}?tab=breakdown`,
-    label: "Zu den Deliverables",
-  },
-  dependencies_mapped: {
-    href: (id) => `/portfolio/epics/${id}?tab=dependencies`,
-    label: "Zu den Dependencies",
-  },
-  kpis_defined: {
-    href: (id) => `/portfolio/epics/${id}?tab=kpis`,
-    label: "Zu KPI & Nutzen",
-  },
-  budget_allocated: {
-    href: () => "/budgeting/periods",
-    label: "Zum Budgeting",
-  },
-  feature_started: {
-    href: (id) => `/portfolio/epics/${id}?tab=breakdown`,
-    label: "Zu den Deliverables",
-  },
-  features_completed: {
-    href: (id) => `/umsetzung?epic=${id}`,
-    label: "Zum Delivery-Cockpit",
-  },
-};
 
 interface Props {
   epicId: string;
@@ -158,12 +116,18 @@ export function EpicGateCard({ epicId, gate, approvers, userLabels, classDrift }
           {gate.next && (
             <h2 className="flex items-center gap-1.5 text-sm font-semibold">
               <ListChecks className="size-4 shrink-0 text-primary" aria-hidden />
-              {t("work.gate.todosFor", { step: t(gateLabel(gate.next)) })}
+              {t("work.gate.todosFor", { step: gateStepLabel(gate.next, t) })}
             </h2>
           )}
           <p className={gate.next ? "mt-0.5 text-xs text-muted-foreground" : "text-sm"}>
             <span className={gate.next ? "" : "font-medium"}>{t("work.gate.reifegradHeute")}</span>{" "}
-            {gateLabel(gate.current)}
+            {/* `gateLabel` liefert einen **Katalog-Schlüssel**, kein Wort. Ohne
+                das `t()` stand hier bis September 2026 wörtlich
+                „work.gateStep.analysis" auf dem Bildschirm — die Überschrift
+                drei Zeilen höher macht es richtig, diese Zeile war die
+                Ausnahme. Genau die Art Fehler, die kein Compiler sieht: ein
+                Schlüssel ist eine gültige Zeichenkette. */}
+            {gateStepLabel(gate.current, t)}
           </p>
         </div>
         {gate.canRevert && <GateRevertDialog epicId={epicId} current={gate.current} />}
@@ -300,11 +264,24 @@ function NoRequest({
   // erstmals sichtbar.
   const driftBlocks = classDrift != null && classDrift.drift !== "none" && gate.next === "L2";
 
+  /**
+   * **Erfüllte wiederkehrende Kriterien fallen heraus.**
+   *
+   * „Epic Owner ist benannt" steht in drei Toren hintereinander und bleibt
+   * nach der ersten Benennung dauerhaft grün — in jeder Folge-Checkliste ein
+   * abgehakter Punkt, der nichts mehr zu tun gibt. Erfüllte Kriterien, die nur
+   * in *einem* Tor vorkommen, bleiben stehen: ihr Haken sagt, dass der Schritt
+   * getan ist.
+   */
+  const sichtbareKriterien = (gate.readiness?.criteria ?? []).filter(
+    (c) => !(c.recurring && c.satisfied),
+  );
+
   return (
     <div className="space-y-3">
-      {gate.readiness && gate.readiness.criteria.length > 0 && (
+      {sichtbareKriterien.length > 0 && (
         <ul className="space-y-1.5">
-          {gate.readiness.criteria.map((c) => {
+          {sichtbareKriterien.map((c) => {
             const target = CRITERION_TARGET[c.key];
             return (
               <li
@@ -356,7 +333,7 @@ function NoRequest({
                     href={target.href(epicId)}
                     className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline"
                   >
-                    {target.label}
+                    {t(target.labelKey)}
                     <ArrowRight className="size-3.5" aria-hidden />
                   </Link>
                 )}
@@ -392,7 +369,7 @@ function NoRequest({
           className={PRIMARY}
         >
           <ArrowUp className="size-3.5" />
-          {pending ? "…" : `Push nach ${gateLabel(gate.next)} beantragen`}
+          {pending ? "…" : t("work.gate.pushBeantragen", { step: gateStepLabel(gate.next, t) })}
         </button>
       )}
 
@@ -440,8 +417,10 @@ function OpenRequest({
   return (
     <div className="space-y-3 rounded-md border border-primary/40 bg-primary/5 p-3">
       <p className="text-xs">
-        <span className="font-medium">Push nach {gateLabel(request.toGate)} beantragt</span> von{" "}
-        {name(request.requestedBy)}
+        <span className="font-medium">
+          {t("work.gate.pushBeantragt", { step: gateStepLabel(request.toGate, t) })}
+        </span>{" "}
+        {t("work.gate.von")} {name(request.requestedBy)}
         {request.quorum === "any" && (
           <span className="text-muted-foreground">{t("work.gate.eineAbnahmeGenuegt")}</span>
         )}

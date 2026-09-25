@@ -2,7 +2,7 @@ import { useTranslations } from "next-intl";
 import {
   GATE_STEPS,
   GATE_STEP_KEYS,
-  gateStepNumberKey,
+  gateStepNumberLabel,
   type GateStep,
 } from "@/modules/work/domain/stage-gate";
 
@@ -17,7 +17,7 @@ import {
 function detail(step: GateStep): string {
   const t = useTranslations();
   const label = t(GATE_STEP_KEYS[step] ?? step);
-  const mark = t(gateStepNumberKey(step));
+  const mark = gateStepNumberLabel(step, t);
   return label.startsWith(`${mark} `) ? label.slice(mark.length + 1) : label;
 }
 
@@ -45,7 +45,7 @@ export function GateLadder() {
         {GATE_STEPS.map((g) => (
           <li key={g} className="flex-1 px-2.5 py-3 text-center">
             <p className="font-mono text-meta uppercase tracking-[0.1em] text-muted-foreground">
-              {t(gateStepNumberKey(g))}
+              {gateStepNumberLabel(g, t)}
             </p>
             <p className="mt-1 text-xs leading-snug text-foreground">{detail(g)}</p>
           </li>

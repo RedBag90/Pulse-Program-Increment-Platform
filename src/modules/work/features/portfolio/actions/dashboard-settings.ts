@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateRoute } from "@/server/http/revalidation";
 import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
 import { savePortfolioDashboardSettings } from "@/modules/work/server/services/portfolio-dashboard";
@@ -120,9 +120,9 @@ export const savePortfolioDashboardSettingsAction = createServerAction({
   },
   service: (ctx, input) => savePortfolioDashboardSettings(ctx, input),
   onSuccess: () => {
-    revalidatePath("/portfolio/dashboard", "page");
-    revalidatePath("/portfolio/guardrails", "page");
-    revalidatePath("/pi-planning", "page");
+    revalidateRoute("/portfolio/dashboard");
+    revalidateRoute("/portfolio/guardrails");
+    revalidateRoute("/pi-planning");
   },
   mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveSettings" }, t),
 });

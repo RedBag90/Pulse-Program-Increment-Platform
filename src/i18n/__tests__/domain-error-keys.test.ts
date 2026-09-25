@@ -46,7 +46,9 @@ describe("DomainError trägt Schlüssel, keine Sätze", () => {
     expect(alle.length).toBeGreaterThan(600);
   });
 
-  it("findet nirgends einen ausgeschriebenen Grund", () => {
+  // Dieselbe Baum-Wanderung wie beim JSX-Wächter nebenan, dieselbe Frist —
+  // die Begründung steht dort.
+  it("findet nirgends einen ausgeschriebenen Grund", { timeout: 30_000 }, () => {
     const violations = alle.flatMap((pfad) => untranslatedErrorReasons(pfad));
     expect(
       violations,

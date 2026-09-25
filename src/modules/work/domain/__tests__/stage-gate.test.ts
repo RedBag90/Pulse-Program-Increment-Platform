@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import {
   STAGE_GATES,
   STAGE_GATE_TRANSITIONS,
@@ -213,5 +215,82 @@ describe("carriesDeliveryLoad — das Lieferfenster", () => {
   it("schließt L3.1 unten und L5 oben aus — beide Ränder sind Aussagen", () => {
     expect(carriesDeliveryLoad("L2")).toBe(false);
     expect(carriesDeliveryLoad("L5")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Das alte Vokabular
+// ---------------------------------------------------------------------------
+
+/**
+ * **`"L3.1"` und `"L3.2"` sind keine Werte mehr.**
+ *
+ * Der Reifegrad-Neuschnitt hat sie im September 2026 durch `L2` und `L3`
+ * ersetzt — aber vier Stellen sprachen weiter die alte Sprache, und keine
+ * davon meldete sich:
+ *
+ *  - `seed-offsite.ts` **schrieb** `toGate: "L3.1"`, und die Epic-Liste stürzte
+ *    darüber ab (`t("L3.1")` wirft);
+ *  - drei Abfragen (`transformation.ts`, zweimal `portfolio-dashboard.ts`)
+ *    **fragten** danach und lieferten still **0** — „Epics mit beantragter
+ *    BC-Freigabe" zählte seit dem Umbau niemanden mehr.
+ *
+ * Ein Absturz ist laut; die drei Abfragen waren leise, und das ist schlimmer.
+ * Genau diese vier hätte diese Prüfung bei der Umstellung gemeldet.
+ *
+ * **Was sie misst.** Nur den Wert selbst: ein Zeichenketten-Literal, das
+ * *genau* `L3.1` oder `L3.2` ist. Prosa darüber ist ausdrücklich erlaubt — der
+ * Bestand erklärt an vielen Stellen, was vor dem Neuschnitt galt, und ein
+ * Wächter, der Geschichtsschreibung verbietet, nähme dem Code sein Gedächtnis.
+ * Kommentare fallen deshalb vorher heraus.
+ */
+describe("Das alte Reifegrad-Vokabular lebt nicht mehr im Code", () => {
+  /** Das Wanderungs-Skript muss beide Namen kennen — es ist der Übersetzer. */
+  const UEBERSPRUNGEN = new Set(["generated", "scripts", "node_modules"]);
+
+  /**
+   * Eine einzige Ausnahme, und sie beweist die Regel: dieser Test hält fest,
+   * dass ein **unbekannter** Schritt als Rohwert dasteht statt zu werfen. Dafür
+   * braucht er einen Schritt, den es nicht gibt.
+   */
+  const AUSNAHMEN = new Set(["src/modules/work/domain/__tests__/gate-step-labels.test.ts"]);
+
+  const ALTE_WERTE = /["'`]L3\.[12]["'`]/g;
+
+  /** Längentreu ersetzt, damit die gemeldete Zeilennummer stimmt. */
+  function ohneKommentare(src: string): string {
+    return src
+      .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+      .replace(/\/\/[^\n]*/g, (m) => " ".repeat(m.length));
+  }
+
+  function dateien(dir: string): string[] {
+    return readdirSync(dir).flatMap((name) => {
+      const pfad = join(dir, name);
+      if (statSync(pfad).isDirectory()) return UEBERSPRUNGEN.has(name) ? [] : dateien(pfad);
+      return name.endsWith(".ts") || name.endsWith(".tsx") ? [pfad] : [];
+    });
+  }
+
+  const alle = [
+    ...dateien(join(process.cwd(), "src")),
+    ...dateien(join(process.cwd(), "prisma")),
+  ].map((p) => p.replace(process.cwd() + "/", ""));
+
+  it("geht über den ganzen Baum, nicht über eine Liste", () => {
+    expect(alle.length).toBeGreaterThan(600);
+  });
+
+  it("findet nirgends mehr ein L3.1 oder L3.2 als Wert", () => {
+    const funde: string[] = [];
+    for (const rel of alle) {
+      if (AUSNAHMEN.has(rel)) continue;
+      const src = ohneKommentare(readFileSync(join(process.cwd(), rel), "utf8"));
+      for (const m of src.matchAll(ALTE_WERTE)) {
+        const zeile = src.slice(0, m.index ?? 0).split("\n").length;
+        funde.push(`  · ${rel}:${zeile}  ${m[0]}`);
+      }
+    }
+    expect(funde.join("\n"), `Altes Reifegrad-Vokabular als Wert:\n${funde.join("\n")}`).toBe("");
   });
 });

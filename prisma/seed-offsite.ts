@@ -685,8 +685,15 @@ async function main() {
         id: uid(`offsite:gate:${e.slug}`),
         tenantId,
         initiativeId: epicIds[e.slug]!,
-        fromGate: "L2",
-        toGate: "L3.1",
+        // **Das neue Vokabular.** Bis September 2026 stand hier
+        // `L2 → L3.1` — die Namen aus der Zeit vor dem Reifegrad-Neuschnitt.
+        // Der Seed erzeugte damit Zeilen, die der laufende Code nicht kennt:
+        // `GATE_STEPS` führt kein `L3.1`, und die Epic-Liste stürzte darüber
+        // ab. Die Zuordnung ist dieselbe wie im Wanderungs-Skript
+        // (`scripts/2026-09-22-reifegrad-neuschnitt.ts`): L2 → analysis,
+        // L3.1 → L2.
+        fromGate: "analysis",
+        toGate: "L2",
         kind: "forward",
         status: "approved",
         quorum: "all",

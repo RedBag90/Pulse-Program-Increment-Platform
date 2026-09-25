@@ -342,19 +342,26 @@ export async function getPortfolioGuardrailsInputs(db: PrismaClient, tenantId: T
  * `BoEngagementEpicInput`, ohne dass der Service auf den View zeigt.
  */
 export async function getBusinessOwnerEngagementInputs(db: PrismaClient, tenantId: TenantId) {
+  // **Der Schritt heisst `L2`, nicht mehr `L3.1`.** Beide Filter unten trugen
+  // bis September 2026 den alten Namen aus der Zeit vor dem
+  // Reifegrad-Neuschnitt. Der Code schreibt seither `L2` — die Abfragen trafen
+  // nichts und lieferten still eine leere Liste. Die Guardrail
+  // „Business-Owner-Engagement" zeigte deshalb dauerhaft, dass niemand
+  // zeichnet: kein Fehler, kein Hinweis, nur eine Null, die wie ein Befund
+  // aussah.
   const [epics, userLabels] = await Promise.all([
     db.initiative.findMany({
       where: {
         tenantId,
         level: InitiativeLevel.EPIC,
         deletedAt: null,
-        gateTransitions: { some: { toGate: "L3.1", kind: "forward" } },
+        gateTransitions: { some: { toGate: "L2", kind: "forward" } },
       },
       select: {
         id: true,
         title: true,
         gateTransitions: {
-          where: { toGate: "L3.1", kind: "forward" },
+          where: { toGate: "L2", kind: "forward" },
           select: {
             requestedAt: true,
             approvals: {

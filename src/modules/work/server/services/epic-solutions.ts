@@ -33,7 +33,7 @@ export async function setEpicSolutions(
     const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
       id: epicId,
       action: "epic.update",
-      select: { id: true, valueStreamId: true },
+      select: { id: true, valueStreamId: true, artId: true },
     });
     if (!loaded.ok) return loaded;
     const epic = loaded.value;
@@ -47,14 +47,26 @@ export async function setEpicSolutions(
     }
 
     if (solutionIds.length > 0) {
-      if (epic.valueStreamId == null) {
-        return err({ kind: "conflict" as const, reason: "work.errors.epicWithoutValueStream" });
+      /**
+       * **Geprüft wird gegen den ART, nicht mehr gegen den Wertstrom.**
+       *
+       * Welcher Zug eine Solution baut, steht seit 2026-09-19 als Pflichtfeld
+       * an ihr; ein Epic gehört genau einem ART. Die Wertstrom-Prüfung liess
+       * deshalb Zuordnungen durch, die die Fläche gar nicht mehr anbietet —
+       * und eine Schranke, die weiter ist als die Auswahl davor, prüft nichts.
+       *
+       * Die Verengung ist sicher und nicht bloss enger: `assertArtInStream`
+       * (`org/server/services/solution.ts`) hält den ART einer Solution im
+       * selben Wertstrom. Was den ART besteht, besteht den Wertstrom ohnehin.
+       */
+      if (epic.artId == null) {
+        return err({ kind: "conflict" as const, reason: "work.errors.epicWithoutArt" });
       }
       const valid = await tx.solution.findMany({
         where: {
           id: { in: solutionIds },
           tenantId: mctx.tenantId,
-          valueStreamId: epic.valueStreamId,
+          artId: epic.artId,
           ...notDeleted,
         },
         select: { id: true },
@@ -62,7 +74,7 @@ export async function setEpicSolutions(
       if (valid.length !== solutionIds.length) {
         return err({
           kind: "conflict" as const,
-          reason: "work.errors.solutionsOtherValueStream",
+          reason: "work.errors.solutionsOtherArt",
         });
       }
     }

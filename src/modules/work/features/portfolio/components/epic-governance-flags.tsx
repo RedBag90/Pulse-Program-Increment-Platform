@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, startTransition } from "react";
+import { useTranslations } from "next-intl";
 import { setEpicFlagAction } from "@/modules/work/features/portfolio/actions/epic";
 
 interface Props {
@@ -10,12 +11,13 @@ interface Props {
 }
 
 const FLAGS = [
-  { flag: "steering", label: "Im nächsten Steering-Meeting behandeln" },
-  { flag: "budgeting", label: "Fürs nächste Budget-Meeting vormerken" },
+  { flag: "steering", labelKey: "work.epic.imNaechstenSteeringMeeting" },
+  { flag: "budgeting", labelKey: "work.epic.fuersNaechsteBudgetMeeting" },
 ] as const;
 
 /** Governance flags on the Epic overview — surface it in the next steering / budget meeting. */
 export function EpicGovernanceFlags({ epicId, needsSteeringAttention, stagedForBudgeting }: Props) {
+  const t = useTranslations();
   const [, submit, busy] = useActionState(setEpicFlagAction, {});
   const checked: Record<(typeof FLAGS)[number]["flag"], boolean> = {
     steering: needsSteeringAttention,
@@ -32,7 +34,7 @@ export function EpicGovernanceFlags({ epicId, needsSteeringAttention, stagedForB
 
   return (
     <ul className="space-y-1.5">
-      {FLAGS.map(({ flag, label }) => (
+      {FLAGS.map(({ flag, labelKey }) => (
         <li key={flag}>
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -41,7 +43,7 @@ export function EpicGovernanceFlags({ epicId, needsSteeringAttention, stagedForB
               disabled={busy}
               onChange={(e) => toggle(flag, e.target.checked)}
             />
-            <span>{label}</span>
+            <span>{t(labelKey)}</span>
           </label>
         </li>
       ))}

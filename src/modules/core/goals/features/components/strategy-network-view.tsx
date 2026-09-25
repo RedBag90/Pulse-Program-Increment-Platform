@@ -16,6 +16,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { useTheme } from "next-themes";
 import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import { keyResultProgress, type RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
 import { goalTimeframeLabel } from "@/modules/core/goals/domain/goal-period";
@@ -77,6 +78,7 @@ const NODE_WIDTH = 240;
 const NODE_HEIGHT = 140;
 
 export function StrategyNetworkView({ themes, userLabels = {} }: Props) {
+  const { resolvedTheme } = useTheme();
   const t = useTranslations();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [offTrackOnly, setOffTrackOnly] = useState(false);
@@ -155,6 +157,9 @@ export function StrategyNetworkView({ themes, userLabels = {} }: Props) {
           edges={edges}
           nodeTypes={NODE_TYPES}
           fitView
+          // React Flow bringt eigene, helle Farben mit (`dist/style.css`);
+          // ohne `colorMode` verschwindet die Navigation im dunklen Modus.
+          colorMode={resolvedTheme === "dark" ? "dark" : "light"}
           proOptions={{ hideAttribution: true }}
           nodesDraggable={false}
           nodesConnectable={false}

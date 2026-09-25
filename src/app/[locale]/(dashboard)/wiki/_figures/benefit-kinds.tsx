@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 import {
   BENEFIT_KINDS,
-  BENEFIT_KIND_LABELS,
+  BENEFIT_KIND_KEYS,
   benefitKindOrDefault,
 } from "@/modules/core/kpi/domain/kpi-benefit-kind";
 
@@ -27,7 +27,7 @@ export function BenefitKinds() {
       {BENEFIT_KINDS.map((k) => (
         <div key={k} className="space-y-1 p-4">
           <p className="text-sm font-medium text-foreground">
-            {BENEFIT_KIND_LABELS[k]}{" "}
+            {t(BENEFIT_KIND_KEYS[k])}{" "}
             <code className="font-mono text-meta font-normal text-muted-foreground">{k}</code>
             {k === fallback && (
               <span className="ml-2 rounded-sm border bg-muted px-1.5 py-0.5 font-mono text-label uppercase tracking-[0.1em] text-muted-foreground">

@@ -5,7 +5,7 @@ import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 import type { Prisma } from "@/generated/prisma";
-import { revalidatePath } from "next/cache";
+import { revalidateRoute } from "@/server/http/revalidation";
 
 export async function saveAdoProjectMapAction(
   map: Record<string, string>,
@@ -22,7 +22,7 @@ export async function saveAdoProjectMapAction(
     where: { tenantId: principal.tenantId as TenantId },
     data: { projectMap: map as Prisma.InputJsonValue },
   });
-  revalidatePath("/admin/integrations");
+  revalidateRoute("/admin/integrations");
   return {};
 }
 
@@ -36,6 +36,6 @@ export async function disconnectAdoAction(): Promise<{ error?: string }> {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   await db.azureDevOpsConfig.delete({ where: { tenantId: principal.tenantId as TenantId } });
-  revalidatePath("/admin/integrations");
+  revalidateRoute("/admin/integrations");
   return {};
 }

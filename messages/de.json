@@ -30,7 +30,9 @@
       "standard": "Standard",
       "ok": "OK",
       "abbrechen": "Abbrechen",
-      "erklaerung": "Erklärung"
+      "erklaerung": "Erklärung",
+      "speichernLaeuft": "Speichern…",
+      "aenderungenSpeichern": "Änderungen speichern"
     },
     "detail": {
       "bereiche": "Bereiche",
@@ -39,7 +41,8 @@
       "aktivitaetFiltern": "Aktivität filtern",
       "allesAnzeigen": "Alles anzeigen",
       "keineAktivitaet": "Keine Aktivität",
-      "nurDieLetztenEreignisse": "Nur die letzten 50 Ereignisse — ältere stehen im Reiter „History“."
+      "nurDieLetztenEreignisse": "Nur die letzten 50 Ereignisse — ältere stehen im Reiter „History“.",
+      "reifegrad": "Reifegrad"
     },
     "charts": {
       "freigegebenesBudget": "freigegebenes Budget",
@@ -47,6 +50,62 @@
       "keineEpicsAusgewaehlt": "Keine Epics ausgewählt.",
       "keinBeitragInDiesem": "kein Beitrag in diesem Monat",
       "kurveWirdGeladen": "Kurve wird geladen…"
+    },
+    "activity": {
+      "action": {
+        "initiativeCreated": "Initiative erstellt",
+        "initiativeUpdated": "Angaben im Overview geändert",
+        "initiativeDeleted": "Initiative gelöscht",
+        "gateAdvanced": "Reifegrad geändert",
+        "gateRequested": "Reifegrad-Wechsel beantragt",
+        "gateApprovalGranted": "Abnahme erteilt",
+        "gateApprovalRejected": "Abnahme abgelehnt",
+        "gateRequestRejected": "Antrag abgelehnt",
+        "gateRequestWithdrawn": "Antrag zurückgezogen",
+        "gateReverted": "Reifegrad zurückgestuft",
+        "wsjfScored": "WSJF bewertet",
+        "kpiCreated": "KPI erstellt",
+        "kpiUpdated": "KPI aktualisiert",
+        "kpiDeleted": "KPI gelöscht",
+        "hypothesisSaved": "Hypothese bearbeitet",
+        "hypothesisSubmitted": "Hypothese zur QS eingereicht",
+        "hypothesisApproved": "Hypothese freigegeben",
+        "hypothesisRejected": "Hypothese zurückgegeben",
+        "approvalConfigured": "Abnehmer konfiguriert",
+        "businessCaseSaved": "Business Case bearbeitet",
+        "businessCaseSubmitted": "Business Case zur Freigabe eingereicht",
+        "businessCaseReopened": "Business Case zur Überarbeitung geöffnet",
+        "timelineSaved": "Zeitfenster bearbeitet",
+        "approvalGranted": "Freigabe erteilt",
+        "approvalRejected": "Freigabe abgelehnt",
+        "sectionSignedOff": "Abschnitt abgenommen",
+        "revisionStarted": "Neue Revision gestartet",
+        "epicOwnerAssigned": "Epic Owner zugewiesen",
+        "epicSolutionsSet": "Solutions zugeordnet",
+        "portfolioOverrideSet": "Als Portfolio-Sache erklärt",
+        "epicApproved": "Epic freigegeben",
+        "featureOwnerAssigned": "Feature-Owner zugewiesen",
+        "featureSolutionSet": "Solution am Feature gesetzt",
+        "featureParentSet": "Epic-Zuordnung geändert",
+        "featureDelivery": "Feature-Status geändert",
+        "piCapacity": "PI-Kapazität gesetzt",
+        "budgetPlanCaptured": "Budget-Plan-Revision erfasst",
+        "timelineCreated": "Timeline erstellt",
+        "timelineUpdated": "Timeline geändert",
+        "timelineDeleted": "Timeline gelöscht",
+        "timelineArtJoined": "ART einer Timeline zugeordnet",
+        "timelineArtLeft": "ART aus einer Timeline gelöst"
+      },
+      "group": {
+        "overview": "Overview",
+        "gate": "Reifegrad",
+        "benefit-hypothesis": "Hypothese",
+        "business-case": "Business Case",
+        "breakdown": "Deliverables",
+        "kpis": "KPI & Nutzen",
+        "timeline": "Timeline",
+        "other": "Frühere Änderungen"
+      }
     }
   },
   "nav": {
@@ -846,7 +905,7 @@
     "status": {
       "draft": "Entwurf",
       "inReview": "In Prüfung",
-      "approved": "Freigegeben",
+      "approved": "Offen",
       "inProgress": "In Umsetzung",
       "blocked": "Blockiert",
       "completed": "Abgeschlossen",
@@ -967,7 +1026,11 @@
       "ziele": "Ziele",
       "zuruecksetzen": "Zurücksetzen",
       "portfolioUebersicht": "Portfolio-Übersicht",
-      "strategischerBezugFundingUnd": "Strategischer Bezug, Funding und Flow auf einen Blick."
+      "strategischerBezugFundingUnd": "Strategischer Bezug, Funding und Flow auf einen Blick.",
+      "steuerungsmerkerEntfernen": "Von der Steuerungs-Liste nehmen",
+      "steuerungsmerkerEntfernenFuer": "„{title}\" von der Steuerungs-Liste nehmen",
+      "inDieserKlasseNichtsMarkiert": "In dieser Klasse ist nichts markiert.",
+      "keineInitiativeMarkiert": "Keine Initiative für das nächste Steering-Meeting markiert."
     },
     "gate": {
       "todosFor": "To-dos für {step}",
@@ -994,7 +1057,26 @@
       "inKlaerungSchicken": "In Klärung schicken",
       "ablehnen": "Ablehnen",
       "zurueckstufen": "Zurückstufen",
-      "blockReason": "Reifegrad {gate} verlangt: {criteria}."
+      "blockReason": "Reifegrad {gate} verlangt: {criteria}.",
+      "target": {
+        "hypothese": "Zur Hypothese",
+        "overview": "Zum Overview",
+        "businessCase": "Zum Business Case",
+        "deliverables": "Zu den Deliverables",
+        "dependencies": "Zu den Dependencies",
+        "kpis": "Zu KPI & Nutzen",
+        "budgeting": "Zum Budgeting",
+        "cockpit": "Zum Delivery-Cockpit"
+      },
+      "pushBeantragen": "Push nach {step} beantragen",
+      "pushBeantragt": "Push nach {step} beantragt",
+      "von": "von",
+      "requestStatus": {
+        "pending": "offen",
+        "approved": "vollzogen",
+        "rejected": "abgelehnt",
+        "withdrawn": "zurückgezogen"
+      }
     },
     "epic": {
       "keineNutzerImMandanten": "Keine Nutzer im Mandanten.",
@@ -1267,7 +1349,32 @@
       "reifegradTimeline": "Reifegrad-Timeline",
       "businessCase": "Business Case",
       "benefitHypothese": "Benefit Hypothese",
-      "history": "History"
+      "history": "History",
+      "artWaehlen": "ART wählen…",
+      "keineArtsImWertstrom": "Keine ARTs in diesem Wertstrom",
+      "imNaechstenSteeringMeeting": "Im nächsten Steering-Meeting behandeln",
+      "fuersNaechsteBudgetMeeting": "Fürs nächste Budget-Meeting vormerken",
+      "nochNichtEingeordnet": "Noch nicht eingeordnet",
+      "einordnungErwartung": "Erwartung — die Klasse entsteht mit der Business-Case-Freigabe aus den Kosten.",
+      "einordnungAbgeleitet": "abgeleitet aus den Kosten gegen das Portfolio-Limit",
+      "einordnungUeberschrieben": "überschrieben am {datum} — Portfolio-Sache trotz kleinerer Kosten",
+      "alsPortfolioSacheFuehren": "Als Portfolio-Sache führen",
+      "begruendungPflicht": "Begründung (Pflicht)",
+      "horizontEingefroren": "eingefroren mit der Business-Case-Freigabe am {datum}",
+      "horizontAmEpic": "am Epic gesetzt",
+      "horizontAusSolution": "aus Primär-Solution",
+      "horizontOhne": "kein Horizont — weder am Epic gesetzt noch aus einer Solution ableitbar",
+      "kpiEinheit": "KPI-Einheit",
+      "kpiFaktorImKpiTab": "KPI / Faktor im Reiter „KPI & Nutzen\" festlegen",
+      "zielVerknuepfen": "+ Ziel verknüpfen",
+      "verknuepfen": "Verknüpfen",
+      "verknuepfungLoesenFuer": "Verknüpfung zu „{titel}\" lösen",
+      "inKpiUndNutzenPflegen": "In „KPI & Nutzen\" pflegen",
+      "keineKaskade": "Kein {art} — verknüpfe im Reiter „KPI & Nutzen\" ein Ziel (Erfolgs-KPI) und pflege die Einheiten-Umrechnung je Ziel-Ebene, damit die Kaskade bis zum Top-Ziel rechnet.",
+      "mengeEingefroren": "Baseline und Ziel sind seit der Abnahme „Umsetzung fertig\" (L4.2) festgeschrieben — die gelieferte Menge steht damit. Änderbar bleibt der Wert je Einheit.",
+      "jeEinheit": "{ziel} je 1 {kpi}",
+      "zielEinheit": "Ziel-Einheit",
+      "wsjfBearbeiten": "WSJF bearbeiten"
     },
     "dashboard": {
       "benefitWasserfall": "Benefit-Wasserfall",
@@ -1332,7 +1439,14 @@
       "alsPrimaerSetzen": "Als primär setzen",
       "zuordnungGespeichert": "Zuordnung gespeichert.",
       "solutionAnlegen": "Solution anlegen",
-      "einMarkiertDiePrimaer": "Ein ★ markiert die Primär-Solution (liefert den Horizont)."
+      "einMarkiertDiePrimaer": "Ein ★ markiert die Primär-Solution (liefert den Horizont).",
+      "zuerstArtZuordnen": "Zuerst einen ART zuordnen — die Solutions kommen von ihm.",
+      "keineSolutionsImArt": "Keine Solutions im ART dieses Epics.",
+      "nochKeineZugeordnet": "Noch keine Solution zugeordnet.",
+      "solutionHinzufuegen": "Solution hinzufügen …",
+      "solutionSuchen": "Solution suchen …",
+      "zuordnungLoesenFuer": "Zuordnung zu „{name}\" lösen",
+      "zuordnungSpeichern": "Zuordnung speichern"
     },
     "common": {
       "art": "ART",
@@ -1399,6 +1513,7 @@
       "typ": "Typ",
       "ungesetzt": "— ungesetzt",
       "wsjfBewertung": "WSJF-Bewertung",
+      "wsjfIstVorbelegt": "WSJF ist mit 3/3/3/3 vorbelegt — anpassen, wo der Wert schon feststeht.",
       "waehlen": "Wählen …",
       "akzeptanzkriterien": "Akzeptanzkriterien",
       "gegebenNwennNdann": "Gegeben …\\nWenn …\\nDann …",
@@ -1421,7 +1536,10 @@
       "savedSuccessfully": "Gespeichert.",
       "art": "ART",
       "wsjf": "WSJF",
-      "pi": "PI"
+      "pi": "PI",
+      "wsjfAktualisiert": "WSJF aktualisiert",
+      "mehrFelder": "Mehr Felder",
+      "wenigerFelder": "Weniger Felder"
     },
     "myApprovals": {
       "begruendungErforderlich": "Begründung (erforderlich)",
@@ -1476,6 +1594,14 @@
       "implementationConfirmed": {
         "label": "Umsetzung ist als abgeschlossen bestätigt (L4.2)",
         "help": "Der Abschluss der Umsetzung wurde beantragt und abgenommen (Schritt L4.2). Erst danach lässt sich der realisierte Impact bestätigen (L5)."
+      },
+      "intendedClassSet": {
+        "label": "Einordnung des Epics ist angegeben",
+        "help": "Womit rechnest du — Portfolio-Epic oder ART-Epic? Das ist eine Erwartung, keine Entscheidung: die Klasse entsteht später aus den Kosten des freigegebenen Business Case. Einstellbar im Overview unter „Einordnung\"."
+      },
+      "goalLinked": {
+        "label": "Zielverbindung hergestellt",
+        "help": "Auf welches Ziel zahlt dieses Vorhaben ein? Ohne diese Verknüpfung beginnt die KPI-Kette nirgends, und am Ende lässt sich kein Nutzen nachweisen. Herzustellen im Overview unter „Strategische Beiträge\"."
       }
     },
     "lifecycle": {
@@ -1590,7 +1716,9 @@
       "requestAlreadyDecided": "Dieser Antrag ist bereits entschieden.",
       "youAlreadyDecided": "Sie haben diesen Antrag bereits entschieden.",
       "requestOutOfDate": "Der Antrag bezieht sich auf {expected}, das Epic steht inzwischen auf {actual}.",
-      "onlyOpenWithdraws": "Nur ein offener Antrag lässt sich zurückziehen."
+      "onlyOpenWithdraws": "Nur ein offener Antrag lässt sich zurückziehen.",
+      "epicWithoutArt": "Das Epic hat keinen ART — ohne ihn gibt es keine zuordenbaren Solutions.",
+      "solutionsOtherArt": "Alle Solutions müssen zum ART des Epics gehören."
     },
     "adoption": {
       "featuresScored": "{n}/{total} Features bewertet",
@@ -1607,6 +1735,10 @@
       "responseDays": "Die Reaktionszeit muss mindestens einen Tag betragen.",
       "portfolioThreshold": "Das Portfolio-Limit muss eine Zahl ≥ 0 sein.",
       "invalid": "Die Guardrail-Ziele sind ungültig."
+    },
+    "benefitKind": {
+      "oneTime": "Einmaliger Nutzen",
+      "recurring": "Wiederkehrender Nutzen"
     }
   },
   "budgeting": {
@@ -1910,7 +2042,7 @@
   },
   "drumbeat": {
     "featureStatus": {
-      "approved": "Freigegeben",
+      "approved": "Offen",
       "inProgress": "In Umsetzung",
       "blocked": "Blockiert",
       "completed": "Abgeschlossen",

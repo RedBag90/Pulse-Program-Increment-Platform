@@ -61,6 +61,8 @@ describe("GATE_CRITERIA_DOC", () => {
       kpiCount: 0,
       dependencyCount: 0,
       drumbeatEnabled: true,
+      intendedClass: null,
+      hasGoalLink: false,
     };
     const doc = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L2");
     const evaluated = gateReadiness(facts, "L2");

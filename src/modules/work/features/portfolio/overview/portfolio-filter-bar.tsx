@@ -5,7 +5,7 @@ import { useUrlState } from "@/lib/hooks/use-url-state";
 import { SavedFilterControls } from "@/components/ui/saved-filter-controls";
 import type { FilterCriteria } from "@/server/services/saved-filter";
 import { MultiSelectFilter, type MultiSelectSection } from "@/components/ui/multi-select-filter";
-import { STATUS_LABELS } from "@/components/detail/initiative-labels";
+import { STATUS_KEYS } from "@/components/detail/initiative-labels";
 import { STAGE_SHORT_KEYS } from "@/components/detail/initiative-labels";
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import { EPIC_CLASS_KEYS } from "@/modules/work/domain/pb-submission";
@@ -88,7 +88,7 @@ export function PortfolioFilterBar({
     },
   ];
   const statusSections: MultiSelectSection[] = [
-    { options: STATUS_OPTIONS.map((s) => ({ value: s, label: STATUS_LABELS[s] ?? s })) },
+    { options: STATUS_OPTIONS.map((s) => ({ value: s, label: STATUS_KEYS[s] ?? s })) },
   ];
   const ownerSections: MultiSelectSection[] = [
     { options: owners.map((o) => ({ value: o.id, label: o.label })) },

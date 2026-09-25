@@ -51,6 +51,8 @@ export interface EpicOverviewTabProps {
     valueStream: { id: string; name: string } | null;
     /** Direkte ART-Zuordnung (Pflichtfeld beim Anlegen). */
     artId: string | null;
+    art: { id: string; name: string } | null;
+    portfolioOverrideAt: Date | null;
     /** Die Primär-Solution — sie liefert den Horizont, solange am Epic keiner steht. */
     primarySolution: { id: string; horizon: string } | null;
     /** Der am Epic gesetzte Horizont; friert mit der Business-Case-Freigabe ein. */
@@ -330,6 +332,7 @@ export function EpicOverviewTab({
               currentDescription={epic.description ?? ""}
               currentValueStreamId={epic.valueStream?.id ?? ""}
               currentArtId={epic.artId ?? ""}
+              currentArtName={epic.art?.name ?? null}
             />
           ) : (
             <p className="text-sm">
@@ -368,6 +371,11 @@ export function EpicOverviewTab({
             businessCaseApprovedAtIso={epic.businessCaseApprovedAt?.toISOString() ?? null}
             canEdit={canEdit}
             canOverrideHorizon={canOverrideHorizon}
+            intendedClass={classification?.intended ?? null}
+            derivedClass={classification?.classification.epicClass ?? null}
+            portfolioThreshold={classification?.classification.threshold ?? null}
+            portfolioOverrideAtIso={epic.portfolioOverrideAt?.toISOString() ?? null}
+            valueStreamId={epic.valueStream?.id ?? null}
           />
         </Panel>
 
@@ -412,6 +420,7 @@ export function EpicOverviewTab({
             linkedIds={linkedSolutions.map((l) => l.solution.id)}
             primaryId={epic.primarySolution?.id ?? null}
             canEdit={canEdit}
+            hasArt={epic.artId != null}
           />
         </Panel>
 

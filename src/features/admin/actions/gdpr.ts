@@ -8,7 +8,7 @@ import { extractRequestMeta } from "@/server/audit/emit";
 import { eraseUserRecords } from "@/server/services/gdpr";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { isErr } from "@/modules/core/kernel/domain/errors";
-import { revalidatePath } from "next/cache";
+import { revalidateRoute } from "@/server/http/revalidation";
 import { redirect } from "next/navigation";
 import type { UserId } from "@/modules/core/kernel/domain/types";
 
@@ -56,6 +56,6 @@ export async function eraseUserAction(userId: string): Promise<{ error?: string 
   const result = await eraseUserRecords(ctx, { userId: userId as UserId });
   if (isErr(result)) return { error: "Failed to erase the user's records." };
 
-  revalidatePath("/admin/users");
+  revalidateRoute("/admin/users");
   redirect("/admin/users");
 }

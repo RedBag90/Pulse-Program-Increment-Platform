@@ -86,6 +86,11 @@ export const updateEpicAction = createServerAction({
     // der Service validiert final, dass die ART zum Wertstrom gehört.
     valueStreamId: z.string().uuid().optional(),
     artId: z.string().uuid().optional(),
+    // Die **erwartete** Einordnung. Kein Leerwert: sie ist beim Anlegen Pflicht,
+    // und „wieder unbekannt" ist keine Aussage, die jemand treffen will. Die
+    // *echte* Klasse entsteht davon unberührt aus den Kosten des freigegebenen
+    // Business Case; überschreiben kann sie nur `setPortfolioOverrideAction`.
+    intendedClass: z.enum(["portfolio", "art"]).optional(),
   }),
   action: "epic.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -104,6 +109,7 @@ export const updateEpicAction = createServerAction({
         valueStreamId: input.valueStreamId as ValueStreamId,
       }),
       ...(input.artId !== undefined && { artId: input.artId as ArtId }),
+      ...(input.intendedClass !== undefined && { intendedClass: input.intendedClass }),
     }),
   revalidate: "epic",
   mapError: (e, t) =>

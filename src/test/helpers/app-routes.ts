@@ -39,6 +39,40 @@ export function appRoutes(): Set<string> {
 }
 
 /**
+ * Dieselben Routen, aber als **rohe App-Pfade** — mit `[locale]` und der
+ * Routen-Gruppe, so wie Next sie intern führt
+ * (`/[locale]/(dashboard)/portfolio/epics/[id]`).
+ *
+ * Der Unterschied ist nicht kosmetisch, er ist der Grund für einen Fehler, der
+ * zwei Jahre gelebt hat: `revalidatePath` vergleicht gegen genau diese
+ * Schreibweise. `createWorkStore` legt beide Formen ab — `page` roh und
+ * `route: normalizeAppPath(page)` normalisiert —, und `getImplicitTags` nimmt
+ * die **rohe**. Wer die Adresse einsetzt, die im Browser steht, trifft nichts.
+ *
+ * Schlüssel ist die Adresse (Registry-Schreibweise), Wert der rohe Pfad.
+ */
+export function appRoutePaths(): Map<string, string> {
+  const base = join(process.cwd(), "src/app/[locale]/(dashboard)");
+  const paths = new Map<string, string>();
+  const walk = (dir: string, route: string, roh: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        const isGroup = entry.name.startsWith("(") && entry.name.endsWith(")");
+        walk(
+          join(dir, entry.name),
+          isGroup ? route : `${route}/${entry.name}`,
+          `${roh}/${entry.name}`,
+        );
+      } else if (entry.name === "page.tsx") {
+        paths.set(route === "" ? "/" : route, roh);
+      }
+    }
+  };
+  walk(base, "", "/[locale]/(dashboard)");
+  return paths;
+}
+
+/**
  * Alle `data-tour`-Werte, die im Quelltext wirklich ausgegeben werden.
  *
  * Ein fehlender Anker ist kein Absturz, sondern ein Fallback auf eine zentrierte

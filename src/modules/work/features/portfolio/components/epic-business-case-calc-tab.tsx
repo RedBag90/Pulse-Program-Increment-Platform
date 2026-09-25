@@ -23,6 +23,11 @@ interface Props {
   summary: BcCalcSummary;
   /** `yyyy-mm` des Monats, dessen Tage geladen wurden. */
   dayMonth?: string | undefined;
+  /**
+   * Ist das **Budget-Modul** freigeschaltet? Ohne es gibt es keine Zuteilung,
+   * die die Kachel „Zugeteilt" meinen könnte — sie entfällt dann ganz.
+   */
+  budgetingEnabled: boolean;
 }
 
 /**
@@ -88,17 +93,39 @@ function GateBadge({ gate }: { gate: string }) {
  *    oeffnet. Jetzt traegt das Payload Monate; der aufgeklappte Monat holt
  *    seine Tage ueber `?bcMonth=` nach.
  */
-export function EpicBusinessCaseCalcTab({ rows, months, summary, dayMonth }: Props) {
+/** URL-Wert für „alle Jahre zugeklappt" — siehe `openYears`. */
+const ZUGEKLAPPT = "none";
+
+export function EpicBusinessCaseCalcTab({
+  rows,
+  months,
+  summary,
+  dayMonth,
+  budgetingEnabled,
+}: Props) {
   const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
 
+  /**
+   * **„Noch nichts gewählt" und „alles zugeklappt" sind zwei Zustände.**
+   *
+   * Bis September 2026 waren sie einer: das letzte Jahr zuzuklappen ergab eine
+   * leere Liste, `setParam` löschte daraufhin den Parameter, und die
+   * Vorbelegung öffnete das Break-even-Jahr wieder. Das Zuklappen hob sich
+   * selbst auf — man kam nie auf die reine Jahresübersicht, wegen der man
+   * zuklappt.
+   *
+   * `ZUGEKLAPPT` ist deshalb ein eigener Wert in der URL, nicht die Abwesenheit
+   * des Parameters. Er ist teilbar wie jeder andere Ansichtszustand hier.
+   */
   const openYears = useMemo(() => {
     const raw = params.get("bcYear");
+    if (raw === ZUGEKLAPPT) return new Set<string>();
+    if (raw !== null && raw !== "") return new Set(raw.split(","));
     // Ohne Auswahl steht das Jahr des Break-even offen — die Zeile, wegen der
     // man diesen Reiter aufmacht.
-    if (raw !== null) return new Set(raw ? raw.split(",") : []);
     const fallback = summary.breakEvenDay?.slice(0, 4) ?? months[0]?.month.slice(0, 4);
     return new Set(fallback ? [fallback] : []);
   }, [params, summary.breakEvenDay, months]);
@@ -173,14 +200,32 @@ export function EpicBusinessCaseCalcTab({ rows, months, summary, dayMonth }: Pro
       {/* „Investition" war eine Zahl fuer zwei Begriffe — Veranschlagt und
           Zugeteilt stehen jetzt nebeneinander, mit denselben Worten wie im
           Overview. Und der Einmal-Nutzen wurde bisher berechnet, aber nie
-          gerendert. */}
+          gerendert.
+
+          **Die Kachel „Zugeteilt" hat zweimal gelogen**, und beide Male mit
+          einer Zahl, die echt aussah:
+
+          1. `summary.totalCost` sind „die Kosten, welche die Kurve tatsächlich
+             trägt" — mit Zuteilung folgt sie ihr, **ohne Zuteilung den
+             Kostenscheiben**. Unter dem Etikett „Zugeteilt" stand damit der
+             Schätzwert, sobald nichts zugeteilt war. `summary.hasAllocation`
+             sagt genau das, und zwei Zeilen darüber wird es schon benutzt.
+          2. Ohne das Budget-Modul kann es gar keine Zuteilung geben. Dort
+             gehört die Kachel nicht auf null gesetzt, sondern weggelassen —
+             eine Null wäre eine Aussage über Geld, das Fehlen eine über das
+             Modul. */}
       <div className="space-y-2">
         <StatStrip className="flex-wrap">
           <Stat
             label={t("work.epic.veranschlagt")}
             value={`${eurShort(summary.estimatedCost)} €`}
           />
-          <Stat label={t("work.epic.zugeteilt")} value={`${eurShort(summary.totalCost)} €`} />
+          {budgetingEnabled && (
+            <Stat
+              label={t("work.epic.zugeteilt")}
+              value={summary.hasAllocation ? `${eurShort(summary.totalCost)} €` : "—"}
+            />
+          )}
           <Stat
             label={t("work.epic.nutzenPA")}
             value={`${eurShort(summary.recurringAnnualAtTarget)} €`}
@@ -246,14 +291,17 @@ export function EpicBusinessCaseCalcTab({ rows, months, summary, dayMonth }: Pro
                   gate={gateRange(first.gateFrom, last.gateTo)}
                   forecast={ms.every((m) => m.isForecast)}
                   open={yOpen}
-                  onToggle={() =>
+                  onToggle={() => {
+                    const naechste = yOpen
+                      ? [...openYears].filter((y) => y !== year)
+                      : [...openYears, year];
+                    // Leere Liste heisst **ausdrücklich zugeklappt**, nicht
+                    // „keine Auswahl" — sonst springt die Vorbelegung ein.
                     setParam(
                       "bcYear",
-                      [...(yOpen ? [...openYears].filter((y) => y !== year) : [...openYears, year])]
-                        .sort()
-                        .join(","),
-                    )
-                  }
+                      naechste.length === 0 ? ZUGEKLAPPT : naechste.sort().join(","),
+                    );
+                  }}
                   netClass={netClass}
                 >
                   {yOpen &&

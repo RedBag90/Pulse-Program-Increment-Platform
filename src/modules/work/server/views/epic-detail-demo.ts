@@ -150,6 +150,7 @@ export function demoEpicDetailInputs(): EpicDetailInputs {
       vmoId: null,
       businessOwnerId: null,
     },
+    art: null,
     primarySolution: null,
     solutionLinks: [],
     children: [

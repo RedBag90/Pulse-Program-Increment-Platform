@@ -1,8 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { setFeatureDeliveryStatusAction } from "@/modules/work/features/feature/actions/feature";
-import { STATUS_LABELS } from "@/components/detail/initiative-labels";
+import { STATUS_KEYS } from "@/components/detail/initiative-labels";
 import {
   DELIVERY_STATUSES,
   canDeliveryTransition,
@@ -22,7 +23,7 @@ import {
  * dass es sie gibt, und dass sie von hier aus nicht erreichbar sind — aus
  * `completed` und `cancelled` führt gar keine Kante mehr heraus.
  *
- * Beschriftet wird aus `STATUS_LABELS`, derselben Quelle wie die Statuspille und
+ * Beschriftet wird aus `STATUS_KEYS`, derselben Quelle wie die Statuspille und
  * die Filterchips der Features-Übersicht. Der Reiter führte dafür bis eben eine
  * dritte Schreibweise („Bereit", „Fertig") — die ist damit weg.
  */
@@ -47,6 +48,7 @@ function isDeliveryStatus(s: string): boolean {
 }
 
 export function FeatureStatusSelect({ featureId, status, label, size = "sm", disabled }: Props) {
+  const t = useTranslations();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -65,7 +67,9 @@ export function FeatureStatusSelect({ featureId, status, label, size = "sm", dis
   // Liefer-FSM. Ein `<select>` ohne passende Option zeigt stumm den ersten
   // Eintrag — hier stuende dann „Freigegeben", obwohl das Feature Entwurf ist.
   if (!isDeliveryStatus(status)) {
-    return <span className="text-sm text-muted-foreground">{STATUS_LABELS[status] ?? status}</span>;
+    return (
+      <span className="text-sm text-muted-foreground">{t(STATUS_KEYS[status] ?? status)}</span>
+    );
   }
 
   return (
@@ -86,7 +90,7 @@ export function FeatureStatusSelect({ featureId, status, label, size = "sm", dis
           // Der aktuelle Zustand bleibt wählbar, sonst zeigte das Feld ihn nicht an.
           disabled={s !== status && !canDeliveryTransition(status, s)}
         >
-          {STATUS_LABELS[s] ?? s}
+          {t(STATUS_KEYS[s] ?? s)}
         </option>
       ))}
     </select>
