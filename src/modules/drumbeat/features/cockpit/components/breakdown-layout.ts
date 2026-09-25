@@ -12,6 +12,7 @@ import { NODE_W_BREAKDOWN } from "@/modules/drumbeat/domain/graph-constants";
 import { EDGE_COLOR } from "@/modules/drumbeat/features/cockpit/components/graph-palette";
 import { swimlaneLayout } from "@/modules/drumbeat/domain/graph-layout";
 import { resolveCollisions, type PlacementInput } from "@/modules/drumbeat/domain/graph-collision";
+import { assignHandles } from "@/modules/drumbeat/domain/graph-handles";
 
 /**
  * Layout math for the Epic-Breakdown Netzplan — the two dagre-/swimlane-based
@@ -194,8 +195,10 @@ export function layoutGraph(
     });
   }
 
+  const handles = assignHandles(edges);
   const rfEdges: Edge[] = edges.map((e) => {
     const s = edgeStyle(e.type);
+    const anschluss = handles.get(e.id);
     const sourceArtId = artById.get(e.source) ?? "";
     const data: InsertableEdgeData = {
       type: e.type,
@@ -208,6 +211,9 @@ export function layoutGraph(
       id: e.id,
       source: e.source,
       target: e.target,
+      // Ohne eigene Anschlüsse liefen alle Kanten eines Knotens durch denselben
+      // Punkt — und zwei mit gleichen Endpunkten erzeugten dasselbe `d`.
+      ...(anschluss ?? {}),
       type: "insertable",
       label: ctx.t(EDGE_LABEL[e.type]),
       animated: s.animated,
@@ -291,8 +297,10 @@ export function layoutByPi(
     });
   }
 
+  const handles = assignHandles(edges);
   const rfEdges: Edge[] = edges.map((e) => {
     const s = edgeStyle(e.type);
+    const anschluss = handles.get(e.id);
     const sourceArtId = artById.get(e.source) ?? "";
     const data: InsertableEdgeData = {
       type: e.type,
@@ -305,6 +313,9 @@ export function layoutByPi(
       id: e.id,
       source: e.source,
       target: e.target,
+      // Ohne eigene Anschlüsse liefen alle Kanten eines Knotens durch denselben
+      // Punkt — und zwei mit gleichen Endpunkten erzeugten dasselbe `d`.
+      ...(anschluss ?? {}),
       type: "insertable",
       label: ctx.t(EDGE_LABEL[e.type]),
       animated: s.animated,

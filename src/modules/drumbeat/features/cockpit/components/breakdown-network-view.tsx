@@ -61,6 +61,13 @@ import {
 import { updateFeatureAction } from "@/modules/work/features/feature/actions/feature";
 import { saveBreakdownLayoutAction } from "@/modules/work/features/portfolio/actions/breakdown-layout";
 import { useBreakdownRealtime } from "@/modules/work/features/portfolio/hooks/use-breakdown-realtime";
+import {
+  HANDLE_SLOTS,
+  handleOffsetPercent,
+  sourceHandleId,
+  targetHandleId,
+} from "@/modules/drumbeat/domain/graph-handles";
+import { hopsFor, polylineOf, withHops, type Point } from "@/modules/drumbeat/domain/edge-hops";
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { clearBreakdownLayoutAction } from "@/modules/work/features/portfolio/actions/breakdown-layout";
 import { mergeOptimisticEdges } from "@/modules/drumbeat/features/cockpit/lib/optimistic-edges";
@@ -213,6 +220,18 @@ interface BreakdownInteractionCtx {
 }
 
 const BreakdownInteractionContext = createContext<BreakdownInteractionCtx | null>(null);
+
+/**
+ * **Eine Stelle besitzt die Geometrie.**
+ *
+ * Für Leitungsbrücken muss jemand *alle* Linien kennen — eine Kante allein
+ * kann nicht wissen, ob sie eine andere kreuzt. Bisher rechnete jede ihre
+ * eigene und keine wusste von den anderen.
+ *
+ * Hier liegt die fertige Linie je Kante. Wer nichts findet, zeichnet seine
+ * eigene: die Brücken sind eine Zugabe, keine Voraussetzung.
+ */
+const EdgePathContext = createContext<ReadonlyMap<string, string>>(new Map());
 
 function useBreakdownInteraction(): BreakdownInteractionCtx {
   const ctx = useContext(BreakdownInteractionContext);
@@ -417,6 +436,46 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
   );
 }
 
+/**
+ * **Eine Reihe von Anschlüssen statt eines einzigen.**
+ *
+ * Vorher hatte jeder Knoten genau ein Ziel links und eine Quelle rechts, beide
+ * ohne Id: jede Kante lief durch denselben Punkt, und zwei mit gleichen
+ * Endpunkten zeichneten dieselbe Linie. Welche Kante welchen Anschluss nimmt,
+ * entscheidet `assignHandles` — hier steht nur, wo sie sitzen.
+ */
+function HandleRow({
+  type,
+  position,
+  connectable,
+  visible,
+}: {
+  type: "source" | "target";
+  position: Position;
+  connectable: boolean;
+  visible: boolean;
+}) {
+  return (
+    <>
+      {Array.from({ length: HANDLE_SLOTS }, (_, slot) => (
+        <Handle
+          key={slot}
+          id={type === "source" ? sourceHandleId(slot) : targetHandleId(slot)}
+          type={type}
+          position={position}
+          isConnectable={connectable}
+          style={{ top: `${handleOffsetPercent(slot)}%` }}
+          className={
+            visible && connectable
+              ? "!size-2 !border !border-background !bg-foreground/60 !opacity-0 transition-opacity group-hover:!opacity-100"
+              : "!size-0 !border-none !opacity-0"
+          }
+        />
+      ))}
+    </>
+  );
+}
+
 const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
   const t = useTranslations();
   const node = data as unknown as FeatureNodeData;
@@ -433,16 +492,7 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
     // Feste Box: `NODE_HEIGHT` ist keine Schätzung mehr, sondern die Höhe, die
     // dieser Knoten einnimmt. Siehe den Docblock der Konstante.
     <div className="group relative" style={{ width: NODE_WIDTH, height: NODE_HEIGHT }}>
-      <Handle
-        type="target"
-        position={Position.Left}
-        isConnectable={node.connectable}
-        className={
-          node.connectable
-            ? "!size-2 !border !border-background !bg-foreground/60 !opacity-0 transition-opacity group-hover:!opacity-100"
-            : "!size-0 !border-none"
-        }
-      />
+      <HandleRow type="target" position={Position.Left} connectable={node.connectable} visible />
       <button
         type="button"
         onClick={openSlideOver}
@@ -467,16 +517,7 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
           <span className="ml-auto truncate text-muted-foreground">{node.artName}</span>
         </div>
       </button>
-      <Handle
-        type="source"
-        position={Position.Right}
-        isConnectable={node.connectable}
-        className={
-          node.connectable
-            ? "!size-2 !border !border-background !bg-foreground/60 !opacity-0 transition-opacity group-hover:!opacity-100"
-            : "!size-0 !border-none"
-        }
-      />
+      <HandleRow type="source" position={Position.Right} connectable={node.connectable} visible />
       {node.showPlus && <NodeAddPlusButton node={node} />}
       {node.showEdit && <QuickEditPopover node={node} />}
     </div>
@@ -525,7 +566,7 @@ const InsertableEdge = memo(function InsertableEdge(props: EdgeProps) {
   const sourceArtId = edgeData?.sourceArtId ?? "";
   const canChangeType = edgeData?.canChangeType ?? false;
   const canInsert = edgeData?.canInsert ?? false;
-  const [edgePath, labelX, labelY] = getSmoothStepPath({
+  const [eigenerPfad, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
     targetX,
@@ -537,6 +578,8 @@ const InsertableEdge = memo(function InsertableEdge(props: EdgeProps) {
     offset: 32,
     borderRadius: 16,
   });
+  // Die Fassung mit Brücken, falls es eine gibt — sonst die eigene.
+  const edgePath = useContext(EdgePathContext).get(id) ?? eigenerPfad;
   const [hovered, setHovered] = useState(false);
   const showDecoration = hovered || selected || false;
 
@@ -641,12 +684,7 @@ const GhostNode = memo(function GhostNode({ data }: NodeProps) {
   };
   return (
     <div className="relative" style={{ width: NODE_WIDTH, height: NODE_HEIGHT }}>
-      <Handle
-        type="target"
-        position={Position.Left}
-        isConnectable={false}
-        className="!size-0 !border-none"
-      />
+      <HandleRow type="target" position={Position.Left} connectable={false} visible={false} />
       <button
         type="button"
         onClick={openSlideOver}
@@ -665,12 +703,7 @@ const GhostNode = memo(function GhostNode({ data }: NodeProps) {
           {node.epicTitle && <span className="ml-auto truncate">{node.epicTitle}</span>}
         </div>
       </button>
-      <Handle
-        type="source"
-        position={Position.Right}
-        isConnectable={false}
-        className="!size-0 !border-none"
-      />
+      <HandleRow type="source" position={Position.Right} connectable={false} visible={false} />
     </div>
   );
 });
@@ -1102,6 +1135,50 @@ export function BreakdownNetworkView({
     });
   }, [edges, matchedIds]);
 
+  /**
+   * **Die Linien aller Kanten, einmal berechnet — samt Brücken.**
+   *
+   * Über die **Live**-Positionen (`nodes`), nicht über das Layout-Ergebnis:
+   * sonst stünden die Bögen nach jedem Ziehen falsch.
+   *
+   * Dass die Endpunkte hier exakt bestimmbar sind, verdankt sich der festen
+   * Knotenbox: 220 × `NODE_HEIGHT`, und die Anschlüsse sitzen auf bekannten
+   * Bruchteilen der Höhe. Vorher war die Höhe inhaltsabhängig, und jede
+   * Rechnung darüber wäre geraten gewesen.
+   */
+  const edgePaths = useMemo(() => {
+    const posOf = new Map(nodes.map((n) => [n.id, n.position]));
+    const slot = (handle: string | null | undefined): number => {
+      const n = Number(String(handle ?? "").slice(1));
+      return Number.isFinite(n) ? n : Math.floor(HANDLE_SLOTS / 2);
+    };
+
+    const roh: { id: string; d: string; points: Point[] }[] = [];
+    for (const e of edges) {
+      const s = posOf.get(e.source);
+      const ziel = posOf.get(e.target);
+      if (s == null || ziel == null) continue;
+      const [d] = getSmoothStepPath({
+        sourceX: s.x + NODE_WIDTH,
+        sourceY: s.y + (NODE_HEIGHT * handleOffsetPercent(slot(e.sourceHandle))) / 100,
+        targetX: ziel.x,
+        targetY: ziel.y + (NODE_HEIGHT * handleOffsetPercent(slot(e.targetHandle))) / 100,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        offset: 32,
+        borderRadius: 16,
+      });
+      roh.push({ id: e.id, d, points: polylineOf(d) });
+    }
+
+    const out = new Map<string, string>();
+    for (const kante of roh) {
+      if (kante.points.length < 2) continue;
+      out.set(kante.id, withHops(kante.d, hopsFor(kante.id, kante.points, roh)));
+    }
+    return out;
+  }, [nodes, edges]);
+
   // Connection-Typ steuert, mit welchem Edge-Type neue Drag-Connects
   // angelegt werden. Default `depends_on`.
   const [connectType, setConnectType] = useState<DependencyEdgeType>("depends_on");
@@ -1343,59 +1420,61 @@ export function BreakdownNetworkView({
           Werkzeugzeilen und die Leinwand den Schirm etwa haelftig. */}
       <div className="h-[26rem] rounded-lg bg-muted/30 shadow-card sm:h-[32rem] lg:h-[36rem]">
         <BreakdownInteractionContext.Provider value={interactionCtx}>
-          <ReactFlow
-            nodes={displayNodes}
-            edges={displayEdges}
-            onNodesChange={onNodesChange}
-            {...(layoutMode === "topology" ? { onNodeDragStop } : {})}
-            nodeTypes={NODE_TYPES}
-            edgeTypes={EDGE_TYPES}
-            nodesDraggable={layoutMode === "topology"}
-            edgesFocusable={canLinkDependency}
-            edgesReconnectable={false}
-            deleteKeyCode={canLinkDependency ? ["Backspace", "Delete"] : null}
-            onEdgesDelete={onEdgesDelete}
-            nodesConnectable={canLinkDependency}
-            elementsSelectable
-            onConnect={onConnect}
-            fitView
-            fitViewOptions={{ padding: 0.15 }}
-            /**
-             * **React Flow bringt seine eigenen Farben mit, und sie sind
-             * hell.** `dist/style.css` setzt die Bedienelemente — Zoom-Knöpfe,
-             * MiniMap, Kanten — auf weisse Flächen mit dunklen Symbolen; im
-             * dunklen Modus verschwand die Navigation damit vor dem
-             * Hintergrund. `colorMode` schaltet die eingebauten Variablen um,
-             * gespeist aus demselben `next-themes`, dem auch die Toasts
-             * folgen (`components/ui/sonner.tsx`).
-             */
-            colorMode={resolvedTheme === "dark" ? "dark" : "light"}
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background />
-            <Controls showInteractive={false} />
-            <Panel position="top-right">
-              <ExportButton epicTitle={epicTitle} />
-            </Panel>
-            <MiniMap
-              pannable
-              zoomable
-              ariaLabel={t("drumbeat.ui.netzplanUebersicht")}
-              nodeColor={(n) => {
-                // PI-Header und Ghost-Nodes bekommen ein neutrales grau,
-                // damit die minimap nicht durch headerflaechen "geblockt"
-                // aussieht.
-                // `var(--…)` statt fester Hex-Werte: die Uebersicht folgt damit
-                // dem Thema, statt in beiden hell zu bleiben.
-                if (n.type === "pi-header") return "var(--muted)";
-                if (n.type === "ghost") return "var(--border)";
-                const d = n.data as unknown as FeatureNodeData | undefined;
-                return TYPE_MINIMAP[normalizeType(d?.featureType ?? null)];
-              }}
-              nodeStrokeWidth={0}
-              maskColor="color-mix(in oklab, var(--background) 92%, transparent)"
-            />
-          </ReactFlow>
+          <EdgePathContext.Provider value={edgePaths}>
+            <ReactFlow
+              nodes={displayNodes}
+              edges={displayEdges}
+              onNodesChange={onNodesChange}
+              {...(layoutMode === "topology" ? { onNodeDragStop } : {})}
+              nodeTypes={NODE_TYPES}
+              edgeTypes={EDGE_TYPES}
+              nodesDraggable={layoutMode === "topology"}
+              edgesFocusable={canLinkDependency}
+              edgesReconnectable={false}
+              deleteKeyCode={canLinkDependency ? ["Backspace", "Delete"] : null}
+              onEdgesDelete={onEdgesDelete}
+              nodesConnectable={canLinkDependency}
+              elementsSelectable
+              onConnect={onConnect}
+              fitView
+              fitViewOptions={{ padding: 0.15 }}
+              /**
+               * **React Flow bringt seine eigenen Farben mit, und sie sind
+               * hell.** `dist/style.css` setzt die Bedienelemente — Zoom-Knöpfe,
+               * MiniMap, Kanten — auf weisse Flächen mit dunklen Symbolen; im
+               * dunklen Modus verschwand die Navigation damit vor dem
+               * Hintergrund. `colorMode` schaltet die eingebauten Variablen um,
+               * gespeist aus demselben `next-themes`, dem auch die Toasts
+               * folgen (`components/ui/sonner.tsx`).
+               */
+              colorMode={resolvedTheme === "dark" ? "dark" : "light"}
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background />
+              <Controls showInteractive={false} />
+              <Panel position="top-right">
+                <ExportButton epicTitle={epicTitle} />
+              </Panel>
+              <MiniMap
+                pannable
+                zoomable
+                ariaLabel={t("drumbeat.ui.netzplanUebersicht")}
+                nodeColor={(n) => {
+                  // PI-Header und Ghost-Nodes bekommen ein neutrales grau,
+                  // damit die minimap nicht durch headerflaechen "geblockt"
+                  // aussieht.
+                  // `var(--…)` statt fester Hex-Werte: die Uebersicht folgt damit
+                  // dem Thema, statt in beiden hell zu bleiben.
+                  if (n.type === "pi-header") return "var(--muted)";
+                  if (n.type === "ghost") return "var(--border)";
+                  const d = n.data as unknown as FeatureNodeData | undefined;
+                  return TYPE_MINIMAP[normalizeType(d?.featureType ?? null)];
+                }}
+                nodeStrokeWidth={0}
+                maskColor="color-mix(in oklab, var(--background) 92%, transparent)"
+              />
+            </ReactFlow>
+          </EdgePathContext.Provider>
         </BreakdownInteractionContext.Provider>
       </div>
     </div>
