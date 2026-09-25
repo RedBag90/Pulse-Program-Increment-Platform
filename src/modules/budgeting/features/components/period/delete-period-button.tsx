@@ -2,17 +2,19 @@
 
 import { useTranslations } from "next-intl";
 import { Trash2 } from "lucide-react";
-import { useRouter } from "@/i18n/navigation";
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { deletePeriodAction } from "@/modules/budgeting/features/actions/period";
 
 /**
- * „Kachel löschen" — Bestätigung + Löschen der Runde (Cascade räumt die Subtree)
- * + Redirect zurück zur Gallery. App-weite Epic-Budgets bleiben (s. Confirm-Text).
+ * „Kachel löschen" — Bestätigung + Löschen der Runde (Cascade räumt die
+ * Subtree). App-weite Epic-Budgets bleiben (s. Confirm-Text).
+ *
+ * **Die Umleitung steht in der Aktion**, nicht hier: ein `onSuccess` im Browser
+ * kam gegen das Flight-Paket der gelöschten Seite nicht an und endete auf einem
+ * 404. Siehe `deletePeriodAction`.
  */
 export function DeletePeriodButton({ id }: { id: string }) {
   const t = useTranslations();
-  const router = useRouter();
   return (
     <ConfirmMutateForm
       action={deletePeriodAction}
@@ -23,7 +25,6 @@ export function DeletePeriodButton({ id }: { id: string }) {
       variant="outline"
       destructive
       icon={<Trash2 className="mr-1 size-4" />}
-      onSuccess={() => router.replace("/budgeting/periods")}
     />
   );
 }

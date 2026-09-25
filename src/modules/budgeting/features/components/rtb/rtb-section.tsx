@@ -221,8 +221,20 @@ export function RtbSection({
       {run.items.length > 0 && (
         <RtbGroupTable title={t("budgeting.rtb.betrieb")} group={run} {...groupProps} />
       )}
+      {/*
+        Hier stand der **Schlüssel selbst** plus ein angehängtes „s". Vor der
+        i18n-Umstellung war die Tabelle eine Etiketten-Liste, und das „s"
+        machte aus „ART-Rahmen" ein „ART-Rahmens"; seit sie Schlüssel führt,
+        stand `budgeting.rtbKind.artChanges` auf dem Bildschirm — ein
+        Schlüssel, den es nie gab. Ein Plural ist ein eigener Eintrag, keine
+        Zeichenkette plus „s", in keiner der beiden Sprachen.
+      */}
       {change.items.length > 0 && (
-        <RtbGroupTable title={`${RTB_KIND_KEYS.art_change}s`} group={change} {...groupProps} />
+        <RtbGroupTable
+          title={t("budgeting.rtbKind.artChangePlural")}
+          group={change}
+          {...groupProps}
+        />
       )}
 
       {/*
@@ -309,7 +321,7 @@ function RtbGroupTable({
     Auf der Solution-Fläche ist ohnehin alles „Solution-individuell": dort
     entfällt die Gliederung, und die eine sinnvolle Spalte ist der ART.
   */
-  const secondCol = p.scoped ? "ART" : "Zurechnung";
+  const secondCol = p.scoped ? t("budgeting.ui.art") : t("budgeting.rtb.zurechnung");
 
   const spalten = p.canManage ? 6 : 5;
 
@@ -325,7 +337,8 @@ function RtbGroupTable({
         */}
         <h3 className="text-sm font-semibold uppercase tracking-[0.08em]">{title}</h3>
         <span className="text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">{EUR(group.annual)}</span> p. a.
+          <span className="font-medium text-foreground">{EUR(group.annual)}</span>{" "}
+          {t("budgeting.rtb.proJahr")}
           <span className="mx-1.5">·</span>
           <span className="font-medium text-foreground">{EUR(group.cycle)}</span>{" "}
           {t("budgeting.rtb.jeKachel")}
@@ -354,7 +367,7 @@ function RtbGroupTable({
               {secondCol && <th className="px-3 py-2">{secondCol}</th>}
               <th className="px-3 py-2">{t("budgeting.rtb.periode")}</th>
               <th className="px-3 py-2 text-right">{t("budgeting.rtb.betrag")}</th>
-              <th className="px-3 py-2 text-right">p. a.</th>
+              <th className="px-3 py-2 text-right">{t("budgeting.rtb.proJahr")}</th>
               {p.canManage && <th className="px-3 py-2" />}
             </tr>
           </thead>
@@ -417,7 +430,8 @@ function RtbAssignmentGroupRows({
           <td colSpan={spalten} className="px-3 pb-1.5 pt-3">
             <span className="text-sm font-medium">{label}</span>
             <span className="ml-2 text-meta text-muted-foreground">
-              {EUR(sumRtbAnnual(items))} p. a. · {EUR(sumRtbCycle(items))} je Kachel
+              {EUR(sumRtbAnnual(items))} {t("budgeting.rtb.proJahr")} · {EUR(sumRtbCycle(items))}{" "}
+              {t("budgeting.rtb.jeKachel")}
             </span>
           </td>
         </tr>
@@ -839,17 +853,20 @@ function AddForm({
         </label>
         <label className="text-xs">
           {t("budgeting.rtb.betrag2")}
+          {/* Platzhalter, kein Wert — eine **neue** Position hat noch keinen
+              Betrag. Die Zeile im Editor daneben zeigt weiterhin ihre
+              gespeicherte 0, denn die ist eine Angabe. */}
           <input
             name="plannedAmount"
             type="number"
             min={0}
             step={1000}
-            defaultValue={0}
+            placeholder="0"
             className={`block ${input} w-32 text-right tabular-nums`}
           />
         </label>
         <label className="text-xs">
-          Periode
+          {t("budgeting.rtb.periode")}
           {/* Default `yearly`: Betriebskosten werden im Jahr geplant. */}
           <select
             name="interval"

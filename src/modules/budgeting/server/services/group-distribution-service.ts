@@ -10,6 +10,7 @@ import type { Prisma } from "@/generated/prisma";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
+import { submissionDeadlinePassed } from "@/modules/budgeting/domain/period-validity";
 
 interface GroupGuard {
   roundId: string;
@@ -50,7 +51,7 @@ async function loadGroupGuard(
 function windowClosedReason(g: GroupGuard, now: Date): string | null {
   if (g.status !== "running") return "Die Verteilung ist nur möglich, solange die Runde läuft.";
   if (g.submittedAt != null) return "Die Gruppe hat ihre Verteilung bereits eingereicht.";
-  if (g.submissionDeadline != null && now.getTime() > g.submissionDeadline.getTime()) {
+  if (submissionDeadlinePassed(g.submissionDeadline, now)) {
     return "Die Abgabe-Deadline ist verstrichen.";
   }
   return null;

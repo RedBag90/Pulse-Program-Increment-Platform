@@ -9,6 +9,7 @@ import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { median } from "@/modules/budgeting/domain/finalize";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import { submissionDeadlinePassed } from "@/modules/budgeting/domain/period-validity";
 
 export interface OverviewGroup {
   id: string;
@@ -146,8 +147,7 @@ export async function loadDistributionOverview(
     groups: groups.map((g) => ({ id: g.id, name: g.name, submitted: g.submittedAt != null })),
     candidates: candidateViews,
     submittedCount: submittedGroupIds.size,
-    deadlinePassed:
-      round.submissionDeadline != null && now.getTime() > round.submissionDeadline.getTime(),
+    deadlinePassed: submissionDeadlinePassed(round.submissionDeadline, now),
     canFinalize: hasCapability(principal, "budget.manage", { tenantId: principal.tenantId }),
   };
 }

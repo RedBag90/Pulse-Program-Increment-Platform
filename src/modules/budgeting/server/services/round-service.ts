@@ -233,8 +233,13 @@ function twoWeeksBefore(d: Date): Date {
  * über drei Geld-Tabellen.
  *
  * `null` = frei.
+ *
+ * **Exportiert seit September 2026**: die Prüfung lief nur beim Anlegen von
+ * Hand. Der Folge-Pfad (`startNextPeriod`) legte seine Kachel ungeprüft an und
+ * verliess sich darauf, dass `nextCycle` von selbst einen freien Schlüssel
+ * trifft — was es nicht garantiert.
  */
-async function cycleKeyTaken(
+export async function cycleKeyTaken(
   db: RequestContext["db"],
   tenantId: string,
   cycleKey: string,

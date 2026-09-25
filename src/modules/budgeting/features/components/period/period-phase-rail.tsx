@@ -31,6 +31,7 @@ export function PeriodPhaseRail({ phases, basePath }: { phases: PeriodPhase[]; b
           <Link
             key={p.key}
             href={`${basePath}?tab=${p.tab}`}
+            scroll={false}
             title={p.blockedBy}
             aria-current={p.state === "current" ? "step" : undefined}
             className={`flex min-w-[128px] flex-1 items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-muted/50 ${

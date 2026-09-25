@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
@@ -23,6 +23,8 @@ import {
   type DetailTab,
 } from "@/components/detail/entity-detail-shell";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
+import { periodName } from "@/modules/budgeting/features/components/period/period-name";
+import type { Locale } from "@/i18n/routing";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -56,6 +58,7 @@ const TABS: readonly DetailTab[] = PERIOD_TABS.map((key) => ({ key, label: TAB_L
  */
 export default async function BudgetingPeriodDetailPage({ params, searchParams }: Props) {
   const t = await getTranslations();
+  const locale = (await getLocale()) as Locale;
   const { id } = await params;
   const { tab } = await searchParams;
   const principal = await requirePrincipal().catch(() => null);
@@ -100,11 +103,21 @@ export default async function BudgetingPeriodDetailPage({ params, searchParams }
     principal,
   ).allow;
 
+  // Der Titel ist der **Zeitraum**, nicht das Halbjahr des Starts — siehe
+  // `periodName`. Der `cycleLabel` weiter unten bleibt das Halbjahr: er
+  // benennt das Zuteilungsfenster, nicht die Kachel.
+  const titel = periodName(
+    model.round.startDate,
+    model.round.endDate,
+    halfYearLabel(model.round.cycleKey),
+    locale,
+  );
+
   return (
     <EntityDetailShell
       backHref="/budgeting/periods"
       backLabel="Budgeting-Zeiträume"
-      title={halfYearLabel(model.round.cycleKey)}
+      title={titel}
       badge={STATUS_LABEL[model.round.status] ?? model.round.status}
       tabs={TABS}
       activeTab={activeTab}

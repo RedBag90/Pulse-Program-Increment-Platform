@@ -13,6 +13,7 @@ import {
   type PbSourceKind,
   type PbInfoRow,
 } from "@/modules/work/domain/pb-submission";
+import { submissionDeadlinePassed } from "@/modules/budgeting/domain/period-validity";
 
 export interface DistributionCandidate {
   id: string;
@@ -142,7 +143,7 @@ export async function loadGroupDistribution(
 
   const now = new Date();
   const deadline = group.round.submissionDeadline;
-  const deadlinePassed = deadline != null && now.getTime() > deadline.getTime();
+  const deadlinePassed = submissionDeadlinePassed(deadline, now);
   const submitted = group.submittedAt != null;
   const isMember = group.members.some((m) => m.userId === principal.id);
   const isSubmitter =

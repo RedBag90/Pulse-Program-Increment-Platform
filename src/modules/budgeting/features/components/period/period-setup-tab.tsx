@@ -15,6 +15,7 @@ import {
   updatePeriodFrameAction,
   startPeriodAction,
 } from "@/modules/budgeting/features/actions/period-setup";
+import { updatePeriodTimeframeAction } from "@/modules/budgeting/features/actions/period";
 import {
   addGroupAction,
   removeGroupAction,
@@ -66,7 +67,7 @@ export function PeriodSetupTab({ model }: { model: PeriodDetailModel }) {
       <Step
         n={1}
         title={t("budgeting.period.rahmen")}
-        desc="Topf, Zeitraum und Abgabe-Deadline dieser Kachel."
+        desc={t("budgeting.period.rahmenBeschreibung")}
         done={r.poolTotal > 0 && r.startDate != null && r.endDate != null}
         state={draft ? "offen" : "festgeschrieben"}
       >
@@ -158,22 +159,41 @@ function Step({
   );
 }
 
+/**
+ * **Zwei Formulare, und das ist die Aussage — nicht ein Notbehelf.**
+ *
+ * Der Abschnitt versprach „Topf, **Zeitraum** und Abgabe-Deadline dieser
+ * Kachel", bot aber nur zwei Eingaben; der Zeitraum stand als Text daneben.
+ * Dabei war alles da: `updateRoundFrame` schreibt `startDate`/`endDate` seit
+ * jeher, und `updatePeriodTimeframeAction` existierte vollständig — ohne einen
+ * einzigen Aufrufer im ganzen Baum.
+ *
+ * Angeschlossen ist jetzt genau diese Aktion, denn für die beiden Hälften
+ * gelten **verschiedene Regeln**, und ein gemeinsamer Knopf würde sie unter
+ * einer Beschriftung verstecken:
+ *
+ *  - Der **Topf** ist nur im Entwurf änderbar (`draft`).
+ *  - Der **Zeitraum** folgt der Geltung (`timeframeEditDeniedReason`): in der
+ *    Ausarbeitung alles, bei einer geltenden Kachel nur das Verlängern des
+ *    Endes, bei einer abgelaufenen nichts. Er steht deshalb auch dann offen,
+ *    wenn der Entwurf längst vorbei ist — der Dienst entscheidet und begründet.
+ */
 function Frame({ model, draft }: { model: PeriodDetailModel; draft: boolean }) {
   const t = useTranslations();
-  const [state, action, pending] = useActionState(updatePeriodFrameAction, {});
+  const [potState, potAction, potPending] = useActionState(updatePeriodFrameAction, {});
+  const [zeitState, zeitAction, zeitPending] = useActionState(updatePeriodTimeframeAction, {});
   const r = model.round;
   return (
-    <div>
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs md:grid-cols-3">
+    <div className="space-y-3">
+      {/* Der Zeitraum stand hier als dritte Kachel. Er ist jetzt ein Feld —
+          beides nebeneinander wäre dieselbe Angabe zweimal. */}
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
         <Stat label={t("budgeting.period.topf")} value={EUR(r.poolTotal)} />
         <Stat label={t("budgeting.period.verteilbar")} value={EUR(model.distributable)} />
-        <Stat
-          label={t("budgeting.period.zeitraum")}
-          value={`${day(r.startDate) || "—"} – ${day(r.endDate) || "—"}`}
-        />
       </dl>
+
       {draft && model.canManage && (
-        <form action={action} className="mt-3 flex flex-wrap items-end gap-2">
+        <form action={potAction} className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="id" value={r.id} />
           <label className="text-xs">
             {t("budgeting.period.topf2")}
@@ -186,6 +206,36 @@ function Frame({ model, draft }: { model: PeriodDetailModel; draft: boolean }) {
               className={`block ${input}`}
             />
           </label>
+          <button type="submit" disabled={potPending} className={btn}>
+            {potPending ? "…" : t("budgeting.period.topfSpeichern")}
+          </button>
+          {potState.error && <span className="text-xs text-destructive">{potState.error}</span>}
+        </form>
+      )}
+
+      {model.canManage && (
+        <form action={zeitAction} className="flex flex-wrap items-end gap-2">
+          <input type="hidden" name="id" value={r.id} />
+          <label className="text-xs">
+            {t("budgeting.period.zeitraumVon")}
+            <input
+              name="periodStart"
+              type="date"
+              required
+              defaultValue={day(r.startDate)}
+              className={`block ${input}`}
+            />
+          </label>
+          <label className="text-xs">
+            {t("budgeting.period.zeitraumBis")}
+            <input
+              name="periodEnd"
+              type="date"
+              required
+              defaultValue={day(r.endDate)}
+              className={`block ${input}`}
+            />
+          </label>
           <label className="text-xs">
             {t("budgeting.period.abgabeDeadline")}
             <input
@@ -195,10 +245,10 @@ function Frame({ model, draft }: { model: PeriodDetailModel; draft: boolean }) {
               className={`block ${input}`}
             />
           </label>
-          <button type="submit" disabled={pending} className={btn}>
-            {pending ? "…" : "Rahmen speichern"}
+          <button type="submit" disabled={zeitPending} className={btn}>
+            {zeitPending ? "…" : t("budgeting.period.zeitraumSpeichern")}
           </button>
-          {state.error && <span className="text-xs text-destructive">{state.error}</span>}
+          {zeitState.error && <span className="text-xs text-destructive">{zeitState.error}</span>}
         </form>
       )}
     </div>

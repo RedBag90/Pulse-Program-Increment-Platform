@@ -240,8 +240,8 @@ export function ArtBudgetTab({
           )}
 
           <p className="text-sm text-muted-foreground">
-            „{ALLOCATION_STATE_KEYS.notStarted}" ist das Restbudget — es hängt an diesen Epics und
-            wird ohne neue Budget-Kachel nicht umgewidmet.
+            „{t(ALLOCATION_STATE_KEYS.notStarted)}" ist das Restbudget — es hängt an diesen Epics
+            und wird ohne neue Budget-Kachel nicht umgewidmet.
           </p>
         </SectionCard>
       ))}

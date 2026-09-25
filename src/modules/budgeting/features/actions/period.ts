@@ -1,6 +1,7 @@
 "use server";
 
 import type { Translate } from "@/i18n/translate";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
@@ -100,6 +101,22 @@ export const deletePeriodAction = createServerAction({
   service: (ctx, i) => deletePeriod(ctx, { id: i.id }),
   // Listen-Revalidation ohne die [id]-Detailseite (die es gleich nicht mehr gibt).
   revalidate: "budgetPeriodList",
+  /**
+   * **Die Umleitung gehört auf den Server.**
+   *
+   * Der Knopf hatte ein `onSuccess`, das im Browser auf die Galerie navigierte
+   * — und kam nie dazu: Next liefert zur Antwort einer Server-Action immer ein
+   * frisches Flight-Paket der **aktuellen** Route mit, und deren Loader ruft
+   * jetzt `notFound()`. Das 404 rendert, bevor der Client etwas tun kann. Die
+   * Registry-Zeile oben half nicht — das Paket der laufenden Seite hängt nicht
+   * an ihr.
+   *
+   * `redirect()` wirft einen Sonderfehler, den das Framework auffängt;
+   * `createServerAction` hat kein `try`/`catch`, er kommt also durch. Folge:
+   * `logActionTiming` wird für diese Aktion übersprungen — bewusst in Kauf
+   * genommen, und hier vermerkt, damit niemand die fehlende Messung sucht.
+   */
+  onSuccess: () => redirect("/budgeting/periods"),
   mapError: (e, t) =>
     formatDomainError(
       e,

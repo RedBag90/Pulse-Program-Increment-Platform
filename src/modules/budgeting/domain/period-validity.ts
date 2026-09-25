@@ -59,6 +59,24 @@ function covers(p: PeriodFacts, now: Date): boolean {
 
 const isFinalized = (p: PeriodFacts) => p.status === FINALIZED;
 
+/**
+ * **Ist die Abgabefrist vorbei?** — einschliessend, wie `covers` oben.
+ *
+ * Die Spalte trägt Mitternacht (UTC). Ein blosses `now > deadline` war deshalb
+ * am Stichtag selbst ab 00:01 wahr: wer am Tag der Frist verteilen wollte, sah
+ * „verstrichen" und wurde vom Dienst abgewiesen. Eine Frist auf den 25. heisst
+ * aber **bis einschliesslich** 25., nicht „bis zum 24. um Mitternacht".
+ *
+ * Die Regel stand dreimal abgeschrieben im Code — zweimal in einem View, einmal
+ * im Dienst — und war deshalb dreimal falsch. Sie steht jetzt einmal hier.
+ *
+ * `null` = keine Frist gesetzt ⇒ nie verstrichen.
+ */
+export function submissionDeadlinePassed(deadline: Date | null, now: Date): boolean {
+  if (deadline == null) return false;
+  return now.getTime() >= deadline.getTime() + DAY;
+}
+
 /** Die Geltung **einer** Kachel, für Beschriftung und Sortierung. */
 export function periodValidity(p: PeriodFacts, now: Date): PeriodValidity {
   // Solange die Vorbereitung läuft, gilt nichts — auch nicht, wenn der Zeitraum

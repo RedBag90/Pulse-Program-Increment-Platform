@@ -1766,6 +1766,7 @@
       "solution": "Per solution"
     },
     "rtbKind": {
+      "artChangePlural": "ART budgets",
       "run": "Operations",
       "artChange": "ART budget"
     },
@@ -1782,10 +1783,19 @@
       "consumed": "Consumed"
     },
     "period": {
+      "abgabeDeadlineOptional": "Submission deadline (optional, defaults to the end)",
+      "kachelAnlegen": "Create tile",
+      "kachelWirdAngelegt": "Creating …",
+      "reserveVorStartHinweis": "The reserve of the last completed tile <em>before</em> your start date is added to the pot. Outstanding: {offen}",
+      "rahmenBeschreibung": "Pot, period and submission deadline of this tile.",
       "loeschen": "Delete",
       "verlaengert": "extended",
       "topf": "Pot (€)",
       "zeitraum": "Period",
+      "topfSpeichern": "Save pot",
+      "zeitraumSpeichern": "Save period",
+      "zeitraumVon": "Applies from",
+      "zeitraumBis": "Applies until",
       "gruppen": "Groups",
       "abgegeben": "Submitted",
       "zeitraumPhasen": "Period — phases",
@@ -1953,11 +1963,12 @@
       "ausDieserKachel": "Σ from this tile"
     },
     "rtb": {
+      "proJahr": "p. a.",
+      "zurechnung": "Attribution",
       "positionenEinrichten": "Set up items →",
       "dieRundeSprichtDem": "The round grants the value stream a sum; how it splits across operations and the ARTs' budgets is decided here. Those budgets form the budget an ART may distribute across its ART epics.",
       "fuerDiesesHalbjahrIst": "Nothing is granted for this half-year yet — the tile is not closed. Until then there is nothing to split, and the ART budgets stand at €0.",
       "position": "+ Item",
-      "zurechnung": "Attribution",
       "periode": "Period",
       "beantragt": "Requested",
       "zugesprochen": "Granted",
@@ -1995,7 +2006,14 @@
       "art": "ART",
       "valueStreams": "Value streams",
       "valueStreamsSubtitle": "Maintain operating cost and ART budgets, and split the grant of a completed tile across them.",
-      "noValueStreams": "No value streams yet."
+      "noValueStreams": "No value streams yet.",
+      "wertstroeme": "Value streams",
+      "arts": "ARTs",
+      "zugeteiltImHalbjahr": "Allocated · {cycle}",
+      "artsAnzahl": "{n} ARTs",
+      "artEinzahl": "1 ART",
+      "zugeteiltInsgesamt": "allocated in total",
+      "ohneBudgetingModul": "Without the budgeting module no amounts are kept."
     },
     "round": {
       "verwerfen": "Discard"

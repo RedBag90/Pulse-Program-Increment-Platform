@@ -1,6 +1,8 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { formatEUR } from "@/lib/formatting";
+import type { Locale } from "@/i18n/routing";
+import { periodName } from "@/modules/budgeting/features/components/period/period-name";
 import type { PeriodTile } from "@/modules/budgeting/server/views/periods-gallery";
 
 /** Die **Geltung** trägt die Kachel — sie ist die Hauptaussage. */
@@ -18,9 +20,6 @@ const STATUS_LABEL: Record<string, string> = {
   closed: "finalisiert",
 };
 
-const day = (d: Date | null): string =>
-  d ? d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
-
 /**
  * Kachel eines Budgeting-Zeitraums. Zuoberst die **Geltung** („Angewandtes
  * Budget" · „In Ausarbeitung" · „Abgelaufener Budget-Zeitraum"), daneben der
@@ -33,6 +32,7 @@ const day = (d: Date | null): string =>
  */
 export function PeriodTileCard({ tile, muted }: { tile: PeriodTile; muted?: boolean }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const frac = tile.groupCount > 0 ? tile.submittedCount / tile.groupCount : 0;
 
   return (
@@ -43,7 +43,12 @@ export function PeriodTileCard({ tile, muted }: { tile: PeriodTile; muted?: bool
       }`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">{tile.label}</h3>
+        {/* Der Name **ist** der Zeitraum — siehe `periodName`. Die eigene
+            „Zeitraum"-Kachel darunter ist damit entfallen: sie hätte die
+            Überschrift wortgleich wiederholt. */}
+        <h3 className="text-sm font-semibold">
+          {periodName(tile.startDate, tile.endDate, tile.label, locale)}
+        </h3>
         <div className="flex flex-wrap items-center gap-1.5">
           <span
             className={`rounded-full px-2 py-0.5 text-xs font-medium ${VALIDITY_TONE[tile.validity] ?? "bg-muted"}`}
@@ -63,10 +68,6 @@ export function PeriodTileCard({ tile, muted }: { tile: PeriodTile; muted?: bool
 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
         <Stat label={t("budgeting.period.topf")} value={formatEUR(tile.poolTotal)} />
-        <Stat
-          label={t("budgeting.period.zeitraum")}
-          value={`${day(tile.startDate)} – ${day(tile.endDate)}`}
-        />
         <Stat
           label={t("budgeting.period.gruppen")}
           value={`${tile.groupCount} · ${tile.participantCount} Beteiligte`}

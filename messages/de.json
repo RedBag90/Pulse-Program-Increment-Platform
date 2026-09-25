@@ -1766,6 +1766,7 @@
       "solution": "Solution-individuell"
     },
     "rtbKind": {
+      "artChangePlural": "ART-Rahmen",
       "run": "Betrieb",
       "artChange": "ART-Rahmen"
     },
@@ -1782,10 +1783,19 @@
       "consumed": "Verbraucht"
     },
     "period": {
+      "abgabeDeadlineOptional": "Abgabe-Deadline (optional, Vorgabe = Ende)",
+      "kachelAnlegen": "Kachel anlegen",
+      "kachelWirdAngelegt": "Lege an …",
+      "reserveVorStartHinweis": "Die Reserve der letzten abgeschlossenen Kachel <em>vor</em> deinem Start-Termin wird auf den Topf addiert. Offen: {offen}",
+      "rahmenBeschreibung": "Topf, Zeitraum und Abgabe-Deadline dieser Kachel.",
       "loeschen": "Löschen",
       "verlaengert": "verlängert",
       "topf": "Topf (€)",
       "zeitraum": "Zeitraum",
+      "topfSpeichern": "Topf speichern",
+      "zeitraumSpeichern": "Zeitraum speichern",
+      "zeitraumVon": "Gilt ab",
+      "zeitraumBis": "Gilt bis",
       "gruppen": "Gruppen",
       "abgegeben": "Abgegeben",
       "zeitraumPhasen": "Zeitraum — Phasen",
@@ -1953,11 +1963,12 @@
       "ausDieserKachel": "Σ aus dieser Kachel"
     },
     "rtb": {
+      "proJahr": "p. a.",
+      "zurechnung": "Zurechnung",
       "positionenEinrichten": "Positionen einrichten →",
       "dieRundeSprichtDem": "Die Runde spricht dem Wertstrom eine Summe zu; wie sie sich auf Betrieb und die ART-Rahmen der ARTs verteilt, entscheidet er hier. Aus den Rahmen entsteht der Rahmen, den ein ART auf seine ART-Epics verteilen darf.",
       "fuerDiesesHalbjahrIst": "Für dieses Halbjahr ist noch nichts zugesprochen — die Kachel ist nicht abgeschlossen. Bis dahin gibt es nichts aufzuteilen, und die ART-Rahmen stehen auf 0 €.",
       "position": "+ Position",
-      "zurechnung": "Zurechnung",
       "periode": "Periode",
       "beantragt": "Beantragt",
       "zugesprochen": "Zugesprochen",
@@ -1995,7 +2006,14 @@
       "art": "ART",
       "valueStreams": "Wertströme",
       "valueStreamsSubtitle": "Betriebskosten und ART-Rahmen pflegen, und den Zuspruch einer abgeschlossenen Kachel darauf aufteilen.",
-      "noValueStreams": "Noch keine Wertströme."
+      "noValueStreams": "Noch keine Wertströme.",
+      "wertstroeme": "Wertströme",
+      "arts": "ARTs",
+      "zugeteiltImHalbjahr": "Zugeteilt · {cycle}",
+      "artsAnzahl": "{n} ARTs",
+      "artEinzahl": "1 ART",
+      "zugeteiltInsgesamt": "zugeteilt insgesamt",
+      "ohneBudgetingModul": "Ohne Budgeting-Modul werden keine Beträge geführt."
     },
     "round": {
       "verwerfen": "Verwerfen"

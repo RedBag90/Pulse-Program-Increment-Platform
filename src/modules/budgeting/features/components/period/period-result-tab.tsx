@@ -230,8 +230,8 @@ export function PeriodResultTab({
           */}
           <p className="text-xs text-muted-foreground">
             Stand der Finalisierung — was diese Kachel entschieden hat. Wertstrom-Budget ={" "}
-            {RTB_KIND_KEYS.run} + Zuteilungen an Epics, nach ART. Ein Klick auf ein ART zeigt, was
-            dort <strong className="font-medium">{t("budgeting.period.heute")}</strong>{" "}
+            {t(RTB_KIND_KEYS.run)} + Zuteilungen an Epics, nach ART. Ein Klick auf ein ART zeigt,
+            was dort <strong className="font-medium">{t("budgeting.period.heute")}</strong>{" "}
             {t("budgeting.period.gilt")}
           </p>
           <div className="overflow-x-auto rounded-lg border">
@@ -257,7 +257,7 @@ export function PeriodResultTab({
                     </tr>
                     {vs.runTotal > 0 && (
                       <tr className="border-b">
-                        <td className="px-3 py-1.5 pl-8 text-warning">{RTB_KIND_KEYS.run}</td>
+                        <td className="px-3 py-1.5 pl-8 text-warning">{t(RTB_KIND_KEYS.run)}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">
                           {formatEUR(vs.runTotal)}
                         </td>

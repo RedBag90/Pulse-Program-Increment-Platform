@@ -16,7 +16,11 @@ import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel
 import { ok, err, isErr, type Result } from "@/modules/core/kernel/domain/errors";
 import { mergeEpicAllocation } from "@/modules/budgeting/server/services/epic-allocation";
 import { computeReserve } from "@/modules/budgeting/domain/finalize";
-import { createRound, copyPeriodSetup } from "@/modules/budgeting/server/services/round-service";
+import {
+  createRound,
+  copyPeriodSetup,
+  cycleKeyTaken,
+} from "@/modules/budgeting/server/services/round-service";
 import { parseHalfYearKey, addHalfYears } from "@/modules/core/kernel/domain/calendar";
 import { nextCycle } from "@/modules/budgeting/domain/budget-cycle";
 import { captureBudgetPlanRevision } from "@/modules/budgeting/server/services/budget-plan-revision";
@@ -230,6 +234,15 @@ export async function startNextPeriod(
   // selben Halbjahr endet, in dem sie begann, **denselben Schlüssel** wie ihre
   // Vorgängerin. Sie hätte deren Budget-Zuteilungen still überschrieben.
   const cycleKey = nextCycle(from.cycleKey);
+  // **Auch hier prüfen.** `cycleKeyTaken` lief bis September 2026 nur beim
+  // Anlegen von Hand; der Folge-Pfad verliess sich darauf, dass `nextCycle`
+  // schon einen freien Schlüssel trifft. Tut er es nicht — weil jemand die
+  // Kachel des nächsten Halbjahres bereits von Hand angelegt hat —, entstünde
+  // eine zweite Kachel mit demselben Schlüssel, und die beiden überschrieben
+  // einander ihre Zuteilungen still. Lieber eine Meldung als stiller Verlust.
+  const taken = await cycleKeyTaken(ctx.db, mctx.tenantId, cycleKey);
+  if (taken) return err({ kind: "conflict" as const, reason: taken });
+
   const start = parseHalfYearKey(cycleKey) ?? from.endDate ?? new Date();
   // Ende = letzter Tag des Halbjahres, damit die Kacheln die Achse lückenlos
   // kacheln (beide Enden zählen mit, s. `domain/period-validity.ts`).

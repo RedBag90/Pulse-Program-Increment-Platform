@@ -157,12 +157,16 @@ export function CreateTenantForm() {
           {TESTNUTZER_ROLLEN.map((role) => (
             <label key={role} className="flex items-center justify-between gap-2 text-xs">
               <span>{ROLE_LABELS[role]}</span>
+              {/* Acht Felder, acht Nullen zum Wegklicken — und der Leser
+                  drüben sagt es selbst: „Leere Felder zählen als 0 statt als
+                  Fehler" (`tenant-actions.ts`). Der Platzhalter macht daraus,
+                  was es immer war: nichts angefordert. */}
               <input
                 type="number"
                 name={`testUsers.${role}`}
                 min={0}
                 max={20}
-                defaultValue={0}
+                placeholder="0"
                 className="w-16 rounded-md border bg-background px-2 py-1 text-right text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               />
             </label>

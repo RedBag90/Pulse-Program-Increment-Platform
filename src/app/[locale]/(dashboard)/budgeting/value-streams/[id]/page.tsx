@@ -203,6 +203,7 @@ export default async function BudgetingValueStreamPage({
               <Link
                 key={c.key}
                 href={`${basePath}?tab=${active}&cycle=${c.key}`}
+                scroll={false}
                 aria-current={c.key === cycleKey ? "page" : undefined}
                 className={`rounded-md border px-2.5 py-1 text-sm ${
                   c.key === cycleKey
@@ -603,6 +604,7 @@ async function CycleTab({
               {i > 0 && (i === arts.length - 1 ? " und " : ", ")}
               <Link
                 href={`${basePath}?tab=${ART_TAB(a.id)}&cycle=${cycleKey}`}
+                scroll={false}
                 className="text-primary hover:underline"
               >
                 {a.name}

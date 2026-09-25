@@ -80,18 +80,30 @@ export function CreatePeriodDialog({
 
             <div className="space-y-1.5">
               <Label htmlFor="period-pool">{t("budgeting.period.topf")}</Label>
+              {/*
+                **Eine Null ist hier ein Platzhalter, kein Wert.** Gibt es eine
+                Vorgänger-Kachel, steht ihr Topf als echte Vorbelegung da —
+                das ist eine Angabe. Gibt es keine, war das Feld mit `0`
+                gefüllt, und man musste sie erst löschen, um etwas
+                einzutragen. `Number("")` ist beim Abschicken ohnehin `0`
+                (`period.ts`), die leere Fassung ändert also nur, was man
+                **sieht**.
+              */}
               <Input
                 id="period-pool"
                 name="poolTotal"
                 type="number"
                 min={0}
                 step={1000}
-                defaultValue={defaultPool}
+                defaultValue={defaultPool || ""}
+                placeholder="0"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="period-deadline">Abgabe-Deadline (optional, Default = Ende)</Label>
+              <Label htmlFor="period-deadline">
+                {t("budgeting.period.abgabeDeadlineOptional")}
+              </Label>
               <Input id="period-deadline" name="submissionDeadline" type="date" />
             </div>
 
@@ -105,13 +117,17 @@ export function CreatePeriodDialog({
                 />
                 <span>
                   {t("budgeting.period.reserveUebernehmen")}
+                  {/* Hier umschloss `t()` genau **ein Wort** — „vor" — und der
+                      Rest des Satzes stand roh daneben. Jetzt trägt der Katalog
+                      den ganzen Satz samt Hervorhebung; `t.rich` setzt das
+                      `<em>` ein, statt es aus zwei Sprachen zusammenzukleben. */}
                   <span className="block text-xs text-muted-foreground">
-                    {t("budgeting.period.dieReserveDerLetzten")}{" "}
-                    <em>{t("budgeting.period.vor")}</em> deinem Start-Termin wird auf den Topf
-                    addiert. Offen:{" "}
-                    {carriableReserves
-                      .map((r) => `${r.label} · ${formatEUR(r.amount)}`)
-                      .join(" · ")}
+                    {t.rich("budgeting.period.reserveVorStartHinweis", {
+                      em: (chunks) => <em>{chunks}</em>,
+                      offen: carriableReserves
+                        .map((r) => `${r.label} · ${formatEUR(r.amount)}`)
+                        .join(" · "),
+                    })}
                   </span>
                 </span>
               </label>
@@ -145,7 +161,9 @@ export function CreatePeriodDialog({
                 {t("budgeting.period.abbrechen")}
               </Button>
               <Button type="submit" disabled={pending}>
-                {pending ? "Lege an…" : "Kachel anlegen"}
+                {pending
+                  ? t("budgeting.period.kachelWirdAngelegt")
+                  : t("budgeting.period.kachelAnlegen")}
               </Button>
             </DialogFooter>
           </form>

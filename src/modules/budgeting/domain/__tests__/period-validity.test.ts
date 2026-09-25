@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  submissionDeadlinePassed,
   periodValidity,
   appliedPeriod,
   timeframeEditability,
@@ -196,5 +197,39 @@ describe("Der Zeitraum einer geltenden Kachel", () => {
         next: { startDate: D("2026-07-05"), endDate: D("2027-12-30") },
       }),
     ).toContain("abgelaufen");
+  });
+});
+
+/**
+ * **Der Stichtag gehört noch dazu.**
+ *
+ * Die Spalte trägt Mitternacht (UTC), und die Prüfung war ein blosses
+ * `now > deadline` — an drei Stellen abgeschrieben, an allen dreien falsch.
+ * Wer am Tag der Frist verteilen wollte, las „verstrichen" und wurde vom
+ * Dienst abgewiesen.
+ *
+ * Alle Zeiten hier sind **UTC**, und das ist keine Nebensache: gegen lokale
+ * Zeit gerechnet verschöbe sich der Rand um Stunden, und der Test bestätigte
+ * je nach Rechner etwas anderes.
+ */
+describe("submissionDeadlinePassed", () => {
+  const frist = D("2026-09-25");
+
+  it("ist am Stichtag noch offen — bis zur letzten Minute", () => {
+    expect(submissionDeadlinePassed(frist, D("2026-09-25"))).toBe(false);
+    expect(submissionDeadlinePassed(frist, new Date("2026-09-25T09:00:00.000Z"))).toBe(false);
+    expect(submissionDeadlinePassed(frist, new Date("2026-09-25T23:59:59.999Z"))).toBe(false);
+  });
+
+  it("ist mit dem Folgetag verstrichen", () => {
+    expect(submissionDeadlinePassed(frist, D("2026-09-26"))).toBe(true);
+  });
+
+  it("gilt vorher ohnehin nicht", () => {
+    expect(submissionDeadlinePassed(frist, D("2026-09-24"))).toBe(false);
+  });
+
+  it("ohne Frist verstreicht nichts", () => {
+    expect(submissionDeadlinePassed(null, D("2099-01-01"))).toBe(false);
   });
 });
