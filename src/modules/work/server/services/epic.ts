@@ -6,6 +6,7 @@ import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
 import type { EpicType, Horizon } from "@/modules/work/domain/portfolio-guardrails";
+import type { EpicClass } from "@/modules/work/domain/pb-submission";
 import { epicHorizon, horizonEditDeniedReason } from "@/modules/work/domain/epic-horizon";
 import { authorizeResource } from "@/server/auth/authorize";
 import type { RequestContext } from "@/server/http/mutation-handler";
@@ -160,6 +161,24 @@ export interface UpdateEpicInput {
    */
   valueStreamId?: ValueStreamId | undefined;
   artId?: ArtId | undefined;
+  /**
+   * Die **erwartete** Einordnung. `undefined` = unverändert; ein `null` gibt es
+   * bewusst nicht — „wieder unbekannt" ist keine Aussage, die jemand treffen
+   * will, und beim Anlegen ist das Feld Pflicht.
+   *
+   * Die *abgeleitete* Klasse entsteht davon unberührt aus den Kosten des
+   * freigegebenen Business Case; anheben kann sie nur
+   * `setPortfolioOverrideAction`.
+   *
+   * **Es fehlte hier**, während Schema und Action es längst führten. Der
+   * bedingte Spread an der Aufrufstelle
+   * (`...(input.intendedClass !== undefined && { intendedClass })`) nimmt
+   * TypeScript die Prüfung auf überzählige Eigenschaften ab — sie greift nur
+   * bei frischen Objektliteralen. Das Feld wurde also angenommen,
+   * durchgereicht und fallengelassen, und das kontrollierte Auswahlfeld sprang
+   * beim nächsten Rendern zurück auf „Noch nicht eingeordnet".
+   */
+  intendedClass?: EpicClass | undefined;
 }
 
 export async function updateEpic(
@@ -180,6 +199,7 @@ export async function updateEpic(
     investmentHorizon,
     valueStreamId,
     artId,
+    intendedClass,
   } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
@@ -202,6 +222,7 @@ export async function updateEpic(
         artId: true,
         primarySolutionId: true,
         investmentHorizon: true,
+        intendedClass: true,
         primarySolution: { select: { horizon: true } },
       },
     });
@@ -308,6 +329,7 @@ export async function updateEpic(
         plannedEndAt,
         epicType,
         investmentHorizon,
+        intendedClass,
         valueStreamId,
         artId,
         ...(clearPrimarySolution ? { primarySolutionId: null } : {}),
@@ -323,6 +345,7 @@ export async function updateEpic(
         "plannedEndAt",
         "epicType",
         "investmentHorizon",
+        "intendedClass",
         "valueStreamId",
         "artId",
         "primarySolutionId",

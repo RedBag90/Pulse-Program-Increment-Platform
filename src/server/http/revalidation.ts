@@ -169,7 +169,10 @@ export const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   // the structure tab that hosts the management UI.
   timeline: ["/umsetzung", "/structure", "/pi-planning", "/pi/[piId]", "/feature/[featureId]"],
   story: ["/feature/[featureId]"],
-  dependency: ["/umsetzung", "/feature/[featureId]"],
+  // `/portfolio/epics/[id]` gehoert dazu, seit der Netzplan im Epic Kanten
+  // anlegt: die Fläche zeigt dieselben Zeilen wie das Cockpit. Sie fehlte,
+  // und nur der eigene `router.refresh()` des Netzplans hat es verdeckt.
+  dependency: ["/umsetzung", "/feature/[featureId]", "/portfolio/epics/[id]"],
   ziele: ["/ziele"],
   // Feld-Defs wirken auf die Admin-Seite UND auf jeden Ziel-Drawer.
   goalCustomFields: ["/admin/goal-fields", "/ziele"],

@@ -94,22 +94,32 @@ export const updateEpicAction = createServerAction({
   }),
   action: "epic.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
+  /**
+   * **Jedes Feld steht hier ausgeschrieben, keines hinter einem bedingten
+   * Spread** — und das ist kein Schönheitswunsch.
+   *
+   * Vorher stand hier
+   * `...(input.intendedClass !== undefined && { intendedClass: input.intendedClass })`,
+   * während `UpdateEpicInput` das Feld gar nicht führte. TypeScript meldet
+   * überzählige Eigenschaften nur an **frischen Objektliteralen**; was über
+   * einen Spread hereinkommt, ist davon ausgenommen. Das Feld wurde also
+   * angenommen, durchgereicht und vom Dienst fallengelassen — die Einordnung
+   * liess sich nicht ändern, und nichts sagte es.
+   *
+   * Ausgeschrieben ist `undefined` dieselbe Aussage („unverändert", der Dienst
+   * prüft auf `!== undefined`) — nur dass der Compiler jetzt jedes der sieben
+   * Felder gegen `UpdateEpicInput` hält.
+   */
   service: (ctx, input) =>
     updateEpic(ctx, {
       id: input.id as EpicId,
       title: input.title,
       description: input.description,
-      ...(input.epicType !== undefined && {
-        epicType: input.epicType === "" ? null : input.epicType,
-      }),
-      ...(input.investmentHorizon !== undefined && {
-        investmentHorizon: input.investmentHorizon === "" ? null : input.investmentHorizon,
-      }),
-      ...(input.valueStreamId !== undefined && {
-        valueStreamId: input.valueStreamId as ValueStreamId,
-      }),
-      ...(input.artId !== undefined && { artId: input.artId as ArtId }),
-      ...(input.intendedClass !== undefined && { intendedClass: input.intendedClass }),
+      epicType: input.epicType === "" ? null : input.epicType,
+      investmentHorizon: input.investmentHorizon === "" ? null : input.investmentHorizon,
+      valueStreamId: input.valueStreamId as ValueStreamId | undefined,
+      artId: input.artId as ArtId | undefined,
+      intendedClass: input.intendedClass,
     }),
   revalidate: "epic",
   mapError: (e, t) =>

@@ -4,7 +4,7 @@ import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadEpicDetail } from "@/modules/work/server/views/epic-detail";
 import { listProgramIncrementsForArts } from "@/modules/drumbeat/server/services/pi";
-import { listBreakdownDependencies } from "@/modules/drumbeat/server/services/dependency";
+import { listBreakdownDependencies } from "@/modules/work/server/services/dependency-edge";
 import { classifyEpics } from "@/modules/work/server/services/epic-class";
 import {
   getEpicBudgetAllocation,
@@ -598,7 +598,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             pisByArt={model.drumbeat.disabled ? {} : model.drumbeat.pisByArt}
             showWsjf={model.showWsjf}
             canSetDelivery={model.canSetDelivery}
-            dependencies={model.drumbeat.disabled ? [] : model.drumbeat.dependencies}
+            dependencies={model.dependencies}
             canLinkDependency={model.canLinkDependency}
             breakdownLayoutPositions={model.breakdownLayoutPositions}
             breakdownPis={model.drumbeat.disabled ? [] : model.drumbeat.breakdownPis}
@@ -618,7 +618,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             pisByArt={model.drumbeat.disabled ? {} : model.drumbeat.pisByArt}
             showWsjf={model.showWsjf}
             canSetDelivery={model.canSetDelivery}
-            dependencies={model.drumbeat.disabled ? [] : model.drumbeat.dependencies}
+            dependencies={model.dependencies}
             canLinkDependency={model.canLinkDependency}
             breakdownLayoutPositions={model.breakdownLayoutPositions}
             breakdownPis={model.drumbeat.disabled ? [] : model.drumbeat.breakdownPis}

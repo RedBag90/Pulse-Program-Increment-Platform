@@ -182,13 +182,27 @@ export interface EpicDetailPorts {
 // emits `{ disabled: true }` (never a "disabled=false, empty" slice).
 // ---------------------------------------------------------------------------
 
+/**
+ * **Was an dieser Seite wirklich Drumbeat ist: die Program Increments.**
+ *
+ * Die Abhängigkeiten standen bis September 2026 hier drin und sind daran
+ * gescheitert. `dependency.` ist mit dem Netzplan im Epic nach **Work**
+ * gewandert (`kernel/domain/modules.ts`) — der Schreibweg ging danach durch die
+ * Modul-Schranke, der Leseweg hing weiter an dieser Scheibe. Ein Mandant mit
+ * Work ohne Drumbeat legte eine Kante an, bekam die Bestätigung, und der
+ * nächste `router.refresh()` lieferte `[]` zurück: die Kante war geschrieben
+ * und wurde weggelesen.
+ *
+ * Deshalb steht `dependencies` jetzt im Modell selbst. Ein Program Increment
+ * *ist* Drumbeat; eine Abhängigkeit zwischen zwei Features eines Epics ist es
+ * seit dem Umzug nicht mehr.
+ */
 export type DrumbeatSlice =
   | { disabled: true }
   | {
       disabled: false;
       pisByArt: Record<string, { id: string; name: string }[]>;
       breakdownPis: { id: string; name: string; startDate: string }[];
-      dependencies: BreakdownEdge[];
     };
 
 export type BudgetingSlice =
@@ -223,7 +237,7 @@ export interface EpicDetailInputs {
   kpis: Awaited<ReturnType<typeof listKpis>>;
   /** Port result — empty when `enabled.drumbeat` is false. */
   pis: EpicPi[];
-  /** Port result — empty when `enabled.drumbeat` is false. */
+  /** Port result — **immer** geladen; siehe {@link DrumbeatSlice}. */
   dependencies: BreakdownEdge[];
   /** Port result — null when `enabled.budgeting` is false. */
   budget: EpicBudgetPortResult | null;
@@ -286,6 +300,11 @@ export interface EpicDetailModel {
   canSetDelivery: boolean;
 
   breakdownFeatures: BreakdownFeature[];
+  /**
+   * Die Kanten zwischen den Kind-Features — **ohne Modul-Vorbehalt**, seit
+   * `dependency.` zu Work gehört. Siehe {@link DrumbeatSlice}.
+   */
+  dependencies: BreakdownEdge[];
   artIds: string[];
   featureIds: string[];
   /** Work-owned persisted network positions (always present). */
@@ -524,7 +543,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
   // Risks slice — entitlement gate only; the tab content is composed in the route.
   const risksSlice: RisksSlice = { disabled: !enabled.risks };
 
-  // Drumbeat slice — PI groupings + the dependency edges (page lines 258-276).
+  // Drumbeat slice — die PI-Gruppierungen. Die Kanten stehen daneben im Modell.
   let drumbeatSlice: DrumbeatSlice;
   if (enabled.drumbeat) {
     const pisByArt: Record<string, { id: string; name: string }[]> = {};
@@ -547,7 +566,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
       }
       return [...m.values()].sort((a, b) => (a.startDate < b.startDate ? -1 : 1));
     })();
-    drumbeatSlice = { disabled: false, pisByArt, breakdownPis, dependencies };
+    drumbeatSlice = { disabled: false, pisByArt, breakdownPis };
   } else {
     drumbeatSlice = { disabled: true };
   }
@@ -691,6 +710,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     kpis,
     multiPartyApproval,
     breakdownFeatures,
+    dependencies,
     artIds,
     featureIds,
     breakdownLayoutPositions,
@@ -799,7 +819,9 @@ export async function loadEpicDetailInputs(
     getTenantPractices(db, principal.tenantId),
     loadBreakdownLayout(db, principal.tenantId, epic.id as EpicId),
     enabled.drumbeat ? ports.pis(artIds) : Promise.resolve([] as EpicPi[]),
-    enabled.drumbeat ? ports.dependencies(featureIds) : Promise.resolve([] as BreakdownEdge[]),
+    // Ohne Drumbeat-Vorbehalt — `dependency.` gehört zu Work. Stand er hier,
+    // war die eben angelegte Kante beim nächsten Lesen wieder weg.
+    ports.dependencies(featureIds),
     // `current` steht oben schon fest; die beiden Stempel liegen am Epic.
     enabled.budgeting
       ? ports.budget({

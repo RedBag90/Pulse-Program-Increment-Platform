@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/test/setup-db";
 import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
 import { revertStageGate } from "@/modules/work/server/services/stage-gate-transition";
+import { updateEpic } from "@/modules/work/server/services/epic";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
@@ -166,5 +167,50 @@ describe("revertStageGate — die Rückwärts-Korrektur, die advanceStageGate er
 
     const epic = await db.initiative.findFirst({ where: { id: epicId } });
     expect(epic!.stageGate).toBe("L2");
+  });
+});
+
+/**
+ * **Die erwartete Einordnung kam nie an.**
+ *
+ * Das Auswahlfeld im Overview stand offen, die Action nahm den Wert an und
+ * reichte ihn weiter — aber `UpdateEpicInput` führte das Feld nicht, und
+ * `updateEpic` liess es fallen. Nach dem Neuladen stand wieder „Noch nicht
+ * eingeordnet" da. Der bedingte Spread an der Aufrufstelle hatte TypeScript
+ * die Prüfung auf überzählige Eigenschaften abgenommen; sie ist dort inzwischen
+ * wiederhergestellt, und diese Zeilen prüfen die Wirkung.
+ *
+ * Das Gate-Kriterium „Einordnung des Epics" hing daran mit: für jedes Epic, das
+ * ohne den Wert entstanden ist, war der Haken unerreichbar.
+ */
+describe("updateEpic — die erwartete Einordnung", () => {
+  it("schreibt intendedClass und legt die Änderung in den Prüfpfad", async () => {
+    const epicId = await makeEpic("L1", { intendedClass: "art" });
+    const before = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
+
+    const result = await updateEpic(testRequestContext(db, seed), {
+      id: epicId,
+      intendedClass: "portfolio",
+    });
+
+    expect(isOk(result)).toBe(true);
+    const epic = await db.initiative.findFirst({ where: { id: epicId } });
+    expect(epic!.intendedClass).toBe("portfolio");
+
+    const after = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
+    expect(after).toBe(before + 1);
+  });
+
+  it("lässt sie unangetastet, wenn das Feld fehlt", async () => {
+    const epicId = await makeEpic("L1", { intendedClass: "art" });
+
+    const result = await updateEpic(testRequestContext(db, seed), {
+      id: epicId,
+      title: "Anderer Titel",
+    });
+
+    expect(isOk(result)).toBe(true);
+    const epic = await db.initiative.findFirst({ where: { id: epicId } });
+    expect(epic!.intendedClass).toBe("art");
   });
 });

@@ -1,9 +1,10 @@
-import type { Dependency, Prisma } from "@/generated/prisma";
+import type { Dependency, Prisma, PrismaClient } from "@/generated/prisma";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err } from "@/modules/core/kernel/domain/errors";
 import { detectCycle } from "@/modules/core/kernel/domain/dependency-graph";
 import { emitAuditEvent } from "@/server/audit/emit";
 import type { MutationContext } from "@/modules/core/kernel/server/mutation";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 
 // ---------------------------------------------------------------------------
 // Dependency-edge primitive — the single owner of Dependency-edge mutations.
@@ -196,4 +197,66 @@ export async function splitEdge(
   const depB = await insertEdge(tx, mctx, { fromId: newNodeId, toId: existing.toId, type });
 
   return ok([depA, depB]);
+}
+
+// ---------------------------------------------------------------------------
+// Lesen
+// ---------------------------------------------------------------------------
+
+/** One breakdown-network edge that has at least one endpoint among the Epic's
+ *  Features. Cross-Epic endpoints carry their `parent` (the other Epic) so the
+ *  network can render them as ghost-nodes with a click-through. */
+export interface BreakdownDependencyEdge {
+  id: string;
+  fromId: string;
+  toId: string;
+  type: string;
+  from: { id: string; title: string; parent: { id: string; title: string } | null } | null;
+  to: { id: string; title: string; parent: { id: string; title: string } | null } | null;
+}
+
+/**
+ * Kanten mit **mindestens einem** Endpunkt in `featureIds` — das Rohmaterial
+ * des Epic-Netzplans. Leere Menge ⇒ `[]`.
+ *
+ * **Warum die Abfrage hier steht und nicht mehr bei Drumbeat.** Sie lag in
+ * `drumbeat/server/services/dependency.ts`, mit der Begründung „Drumbeat
+ * besitzt die Tabelle". Das stimmte, bis `dependency.` im September 2026 zu
+ * Work wanderte. Danach ging der **Schreibweg** durch die Work-Schranke,
+ * während der Leseweg an der Drumbeat-Scheibe des Epic-Modells hing: wer Work
+ * ohne Drumbeat hatte, legte eine Kante an und sah sie eine Sekunde später
+ * wieder verschwinden.
+ *
+ * Jetzt wohnt der Leseweg dort, wo `createEdge` seit jeher wohnt — dieselbe
+ * Schicht, dieselbe Tabelle, derselbe Besitzer. Die eigene Fläche
+ * `/dependencies` bleibt davon unberührt: die hängt am **Segment** Drumbeat,
+ * nicht an der Aktion.
+ *
+ * Anders als die Nachbarn in dieser Datei ist sie rein lesend und nimmt
+ * deshalb einen `PrismaClient`, keine offene Transaktion.
+ */
+export async function listBreakdownDependencies(
+  db: PrismaClient,
+  tenantId: TenantId,
+  featureIds: readonly string[],
+): Promise<BreakdownDependencyEdge[]> {
+  if (featureIds.length === 0) return [];
+  return db.dependency.findMany({
+    where: {
+      tenantId,
+      OR: [{ fromId: { in: featureIds as string[] } }, { toId: { in: featureIds as string[] } }],
+    },
+    select: {
+      id: true,
+      fromId: true,
+      toId: true,
+      type: true,
+      from: {
+        select: { id: true, title: true, parent: { select: { id: true, title: true } } },
+      },
+      to: {
+        select: { id: true, title: true, parent: { select: { id: true, title: true } } },
+      },
+    },
+  });
 }

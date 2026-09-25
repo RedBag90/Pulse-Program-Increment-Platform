@@ -123,8 +123,8 @@ describe("buildEpicDetailModel — degradation matrix", () => {
       expect(m.drumbeat.pisByArt["art-2"]?.map((p) => p.id)).toEqual(["pi-3"]);
       // breakdownPis is sorted by startDate ascending, deduped by id.
       expect(m.drumbeat.breakdownPis.map((p) => p.id)).toEqual(["pi-1", "pi-3", "pi-2"]);
-      expect(m.drumbeat.dependencies).toHaveLength(1);
     }
+    expect(m.dependencies).toHaveLength(1);
 
     expect(m.budgeting.disabled).toBe(false);
     if (!m.budgeting.disabled) expect(m.budgeting.allocated).toBe(true);
@@ -140,6 +140,33 @@ describe("buildEpicDetailModel — degradation matrix", () => {
     );
     expect(m.drumbeat).toEqual({ disabled: true });
     expect(m.budgeting.disabled).toBe(false);
+  });
+
+  /**
+   * **Die Kante überlebt ein fehlendes Drumbeat.**
+   *
+   * `dependency.` ist im September 2026 nach Work gewandert, der Leseweg blieb
+   * an der Drumbeat-Scheibe hängen. Ein Mandant mit Work ohne Drumbeat legte
+   * eine Abhängigkeit an, bekam die Bestätigung — und der nächste
+   * `router.refresh()` lieferte `[]`: die optimistische Kante verschwand nach
+   * gut einer Sekunde wieder. Geschrieben war sie; weggelesen wurde sie.
+   *
+   * Diese Zusicherung fehlte, und mit ihr wäre die Umstellung nicht
+   * durchgegangen.
+   */
+  it("trägt die Abhängigkeiten auch ohne Drumbeat — die PIs bleiben leer", () => {
+    const m = buildEpicDetailModel(
+      makeInputs({
+        enabled: { drumbeat: false, budgeting: true, risks: false },
+        pis: [],
+        dependencies: [
+          { id: "d1", fromId: "f1", toId: "f2", type: "blocks", from: null, to: null },
+        ],
+      }),
+    );
+
+    expect(m.drumbeat).toEqual({ disabled: true });
+    expect(m.dependencies).toHaveLength(1);
   });
 
   it("budgeting OFF: slice is {disabled:true} and nextStep uses budgetAllocated=false", () => {

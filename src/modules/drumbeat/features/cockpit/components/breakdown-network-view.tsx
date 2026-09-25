@@ -61,6 +61,7 @@ import {
 import { updateFeatureAction } from "@/modules/work/features/feature/actions/feature";
 import { saveBreakdownLayoutAction } from "@/modules/work/features/portfolio/actions/breakdown-layout";
 import { useBreakdownRealtime } from "@/modules/work/features/portfolio/hooks/use-breakdown-realtime";
+import { mergeOptimisticEdges } from "@/modules/drumbeat/features/cockpit/lib/optimistic-edges";
 import { WsjfScoreDialog } from "@/modules/work/features/feature/components/wsjf-score-dialog";
 import {
   quickAddFeatureWithDependencyAction,
@@ -1068,9 +1069,14 @@ export function BreakdownNetworkView({
   const [nodes, setNodes, onNodesChange] = useNodesState(baseGraph.nodes);
   useEffect(() => setNodes(baseGraph.nodes), [baseGraph.nodes, setNodes]);
 
-  // Controlled-Edges fuer Optimistic Drag-Connect.
+  // Controlled-Edges fuer Optimistic Drag-Connect. **Zusammenführen, nicht
+  // ersetzen** — siehe `mergeOptimisticEdges`: hier stand ein
+  // `setEdges(baseGraph.edges)`, und ein Server-Stand von vor dem Schreiben
+  // löschte die eben angelegte Kante wieder weg.
   const [edges, setEdges] = useState<Edge[]>(baseGraph.edges);
-  useEffect(() => setEdges(baseGraph.edges), [baseGraph.edges]);
+  useEffect(() => {
+    setEdges((current) => mergeOptimisticEdges(baseGraph.edges, current));
+  }, [baseGraph.edges]);
 
   // Filter-Overlay (Roadmap-P4): nicht-gematchte Nodes + Edges, die nicht
   // beide endpunkte gematcht haben, werden auf opacity 0.25 dimmed.
