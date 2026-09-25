@@ -11,6 +11,7 @@ import {
 import { NODE_W_BREAKDOWN } from "@/modules/drumbeat/domain/graph-constants";
 import { EDGE_COLOR } from "@/modules/drumbeat/features/cockpit/components/graph-palette";
 import { swimlaneLayout } from "@/modules/drumbeat/domain/graph-layout";
+import { resolveCollisions, type PlacementInput } from "@/modules/drumbeat/domain/graph-collision";
 
 /**
  * Layout math for the Epic-Breakdown Netzplan — the two dagre-/swimlane-based
@@ -22,7 +23,29 @@ import { swimlaneLayout } from "@/modules/drumbeat/domain/graph-layout";
  */
 
 export const NODE_WIDTH = NODE_W_BREAKDOWN;
-export const NODE_HEIGHT = 96;
+
+/**
+ * **Die Höhe, die der Knoten wirklich hat** — und die er sich deshalb auch
+ * nimmt (`FeatureNode` setzt sie als feste Box).
+ *
+ * Hier stand 96, während der gerenderte Knoten keine Höhe setzte: `p-3`, ein
+ * ein- oder zweizeiliger Titel, eine Badge-Zeile — gemessen 60 bis 79 px, und
+ * **abhängig vom Inhalt**. Das Layout rechnete also mit Kästen, die es nicht
+ * gab, und zwei Knoten nebeneinander waren mal zu weit, mal zu eng.
+ *
+ * 24 (Innenabstand) + 30 (zwei Titelzeilen à 15, `line-clamp-2` deckelt sie)
+ * + 6 (Abstand) + 19 (Badge-Zeile, `text-label` 10px mit `py-0.5`) = 79,
+ * aufgerundet. Der Schwester-Graph im Cockpit hält dasselbe Paar seit jeher
+ * zusammen (`NODE_H = 64` neben `h-[64px]`); hier fehlte das Gegenstück.
+ *
+ * **Exakte Geometrie ist Voraussetzung für die Kanten-Brücken**: ein Bogen an
+ * einer Kreuzung sitzt nur dann richtig, wenn die Anschlusspunkte dort sind,
+ * wo das Layout sie vermutet.
+ */
+export const NODE_HEIGHT = 80;
+
+/** Luft zwischen zwei Boxen, bevor die Entzerrung sie als kollidierend zählt. */
+export const NODE_GAP = 24;
 export const EDGE_LABEL = SHARED_EDGE_LABEL;
 
 /**
@@ -100,12 +123,50 @@ export function layoutGraph(
   }
   dagre.layout(g);
 
+  /**
+   * **Erst alle Positionen sammeln, dann entzerren.**
+   *
+   * Hier stand `saved ? saved : dagre` und sonst nichts: eine gespeicherte
+   * Position schlug die berechnete bedingungslos, und ein neuer Knoten bekam
+   * die rohe dagre-Koordinate aus einem Graphen, in dem die gezogenen Knoten
+   * aus dagres Sicht noch in ihren Auto-Slots sitzen. Sobald einmal jemand
+   * gezogen hatte, setzte jede Neuanlage ins Blinde.
+   *
+   * `resolveCollisions` gleicht die beiden Koordinatensysteme ab: gepinnte
+   * Knoten behalten ihren Platz, die übrigen weichen nach unten aus.
+   */
+  const gewuenscht: PlacementInput[] = [
+    ...nodes.map((n) => {
+      const d = g.node(n.id);
+      const saved = ctx.savedPositions?.[n.id];
+      return {
+        id: n.id,
+        position: saved
+          ? { x: saved.x, y: saved.y }
+          : { x: d.x - NODE_WIDTH / 2, y: d.y - NODE_HEIGHT / 2 },
+        pinned: saved != null,
+      };
+    }),
+    // Geister sind nie gepinnt — sie lassen sich gar nicht ziehen —, brauchen
+    // aber denselben Abgleich: `dagrePos` kann fehlen, und dann landeten bisher
+    // alle auf demselben Fleck.
+    ...ghostNodes.map((gn) => {
+      const d = g.node(gn.id) as { x?: number; y?: number } | undefined;
+      return {
+        id: gn.id,
+        position: { x: (d?.x ?? 0) - NODE_WIDTH / 2, y: (d?.y ?? 0) - NODE_HEIGHT / 2 },
+        pinned: false,
+      };
+    }),
+  ];
+  const platziert = resolveCollisions(gewuenscht, {
+    width: NODE_WIDTH,
+    height: NODE_HEIGHT,
+    gap: NODE_GAP,
+  });
+
   const rfNodes: Node[] = nodes.map((n) => {
-    const dagrePos = g.node(n.id);
-    const saved = ctx.savedPositions?.[n.id];
-    const position = saved
-      ? { x: saved.x, y: saved.y }
-      : { x: dagrePos.x - NODE_WIDTH / 2, y: dagrePos.y - NODE_HEIGHT / 2 };
+    const position = platziert.get(n.id) ?? { x: 0, y: 0 };
     const artId = artById.get(n.id) ?? "";
     const data: FeatureNodeData = {
       ...n,
@@ -123,15 +184,11 @@ export function layoutGraph(
   });
 
   for (const gn of ghostNodes) {
-    const dagrePos = g.node(gn.id);
     rfNodes.push({
       id: gn.id,
       type: "ghost",
       data: gn as unknown as Record<string, unknown>,
-      position: {
-        x: (dagrePos?.x ?? 0) - NODE_WIDTH / 2,
-        y: (dagrePos?.y ?? 0) - NODE_HEIGHT / 2,
-      },
+      position: platziert.get(gn.id) ?? { x: 0, y: 0 },
       draggable: false,
       selectable: true,
     });

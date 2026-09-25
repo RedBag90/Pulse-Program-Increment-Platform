@@ -1,7 +1,10 @@
 "use server";
 
 import { z } from "zod";
-import { saveBreakdownLayout } from "@/modules/work/server/services/breakdown-layout";
+import {
+  clearBreakdownLayout,
+  saveBreakdownLayout,
+} from "@/modules/work/server/services/breakdown-layout";
 import { createServerAction } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import type { EpicId, InitiativeId } from "@/modules/core/kernel/domain/types";
@@ -53,6 +56,21 @@ export const saveBreakdownLayoutAction = createServerAction({
         y: p.y,
       })),
     }),
+  revalidate: "epic",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveLayout" }, t),
+});
+
+/**
+ * Verwirft die gespeicherten Netzplan-Positionen eines Epics, damit die
+ * automatische Anordnung wieder greift. Dieselbe Capability wie das Speichern:
+ * ein Layout ist ein Stammdaten-Edit.
+ */
+export const clearBreakdownLayoutAction = createServerAction({
+  schema: z.object({ epicId: z.string().uuid() }),
+  parseFormData: (fd) => ({ epicId: String(fd.get("epicId") ?? "") }),
+  action: "epic.update",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) => clearBreakdownLayout(ctx, { epicId: input.epicId as EpicId }),
   revalidate: "epic",
   mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveLayout" }, t),
 });

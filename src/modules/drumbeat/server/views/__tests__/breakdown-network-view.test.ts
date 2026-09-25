@@ -60,9 +60,48 @@ describe("buildBreakdownGraph", () => {
     expect(m.ghostNodes).toHaveLength(2);
     const successor = m.ghostNodes.find((g) => g.role === "successor");
     const predecessor = m.ghostNodes.find((g) => g.role === "predecessor");
-    expect(successor?.id).toBe("outside");
+    // Die Id traegt die **Rolle**, nicht nur die Initiative — dieselbe
+    // Initiative kann fuer dasselbe Epic Vorgaenger und Nachfolger sein.
+    expect(successor?.id).toBe("ghost:successor:outside");
+    expect(successor?.initiativeId).toBe("outside");
     expect(successor?.epicTitle).toBe("Other Epic");
     expect(predecessor?.epicTitle).toBe("External");
+  });
+
+  /**
+   * **Zwei Rollen, zwei Knoten.** Die Geister-Id war die rohe Initiative-Id:
+   * ein Feature, das fuer dieses Epic zugleich Vorgaenger und Nachfolger ist,
+   * ergab zwei Eintraege mit derselben Id — und zwei ReactFlow-Knoten mit
+   * einer Id sind ein Knoten. Der zweite ueberschrieb den ersten.
+   */
+  it("trennt ein externes Feature, das beide Rollen hat", () => {
+    const m = buildBreakdownGraph({
+      features: [feature({ id: "a" })],
+      dependencies: [
+        {
+          id: "e1",
+          fromId: "beides",
+          toId: "a",
+          type: "blocks",
+          from: { id: "beides", title: "Beides", parent: { id: "ep9", title: "Fremd" } },
+        },
+        {
+          id: "e2",
+          fromId: "a",
+          toId: "beides",
+          type: "depends_on",
+          to: { id: "beides", title: "Beides", parent: { id: "ep9", title: "Fremd" } },
+        },
+      ],
+    });
+
+    expect(m.ghostNodes.map((g) => g.id).sort()).toEqual([
+      "ghost:predecessor:beides",
+      "ghost:successor:beides",
+    ]);
+    // Und die Kanten zeigen auf den jeweils richtigen der beiden.
+    expect(m.edges.find((e) => e.id === "e1")?.source).toBe("ghost:predecessor:beides");
+    expect(m.edges.find((e) => e.id === "e2")?.target).toBe("ghost:successor:beides");
   });
 
   it("ignoriert unbekannte dependency-types und zaehlt sie als dropped", () => {

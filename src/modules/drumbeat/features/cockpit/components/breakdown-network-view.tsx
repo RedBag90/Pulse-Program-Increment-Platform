@@ -13,7 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Download, Network, Pencil, Plus } from "lucide-react";
+import { Download, LayoutGrid, Network, Pencil, Plus } from "lucide-react";
 import { toPng } from "html-to-image";
 import {
   ReactFlow,
@@ -61,6 +61,8 @@ import {
 import { updateFeatureAction } from "@/modules/work/features/feature/actions/feature";
 import { saveBreakdownLayoutAction } from "@/modules/work/features/portfolio/actions/breakdown-layout";
 import { useBreakdownRealtime } from "@/modules/work/features/portfolio/hooks/use-breakdown-realtime";
+import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
+import { clearBreakdownLayoutAction } from "@/modules/work/features/portfolio/actions/breakdown-layout";
 import { mergeOptimisticEdges } from "@/modules/drumbeat/features/cockpit/lib/optimistic-edges";
 import { WsjfScoreDialog } from "@/modules/work/features/feature/components/wsjf-score-dialog";
 import {
@@ -86,6 +88,7 @@ import {
 } from "@/modules/drumbeat/features/cockpit/components/graph-palette";
 import {
   NODE_WIDTH,
+  NODE_HEIGHT,
   EDGE_LABEL,
   edgeStyle,
   layoutGraph,
@@ -427,7 +430,9 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
     router.replace(`${pathname}?${next.toString()}` as never, { scroll: false });
   };
   return (
-    <div className="group relative" style={{ width: NODE_WIDTH }}>
+    // Feste Box: `NODE_HEIGHT` ist keine Schätzung mehr, sondern die Höhe, die
+    // dieser Knoten einnimmt. Siehe den Docblock der Konstante.
+    <div className="group relative" style={{ width: NODE_WIDTH, height: NODE_HEIGHT }}>
       <Handle
         type="target"
         position={Position.Left}
@@ -441,7 +446,7 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
       <button
         type="button"
         onClick={openSlideOver}
-        className="block w-full rounded-lg bg-card p-3 text-left text-xs no-underline shadow-card transition-colors hover:bg-muted/40"
+        className="flex h-full w-full flex-col rounded-lg bg-card p-3 text-left text-xs no-underline shadow-card transition-colors hover:bg-muted/40"
       >
         <div className="mb-1.5 flex items-center gap-1.5">
           <span
@@ -452,7 +457,7 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
             {node.title}
           </span>
         </div>
-        <div className="flex items-center gap-1.5 text-label">
+        <div className="mt-auto flex items-center gap-1.5 text-label">
           <span className={`rounded-full px-1.5 py-0.5 ${TYPE_BADGE[type]}`}>
             {type === "" ? "ohne Typ" : t(FEATURE_TYPE_KEYS[type] ?? type)}
           </span>
@@ -629,11 +634,13 @@ const GhostNode = memo(function GhostNode({ data }: NodeProps) {
   const searchParams = useSearchParams();
   const openSlideOver = () => {
     const next = new URLSearchParams(searchParams.toString());
-    next.set("featureId", node.id);
+    // Die Geister-Id traegt seit A4 die Rolle (`ghost:predecessor:…`); die
+    // Detailflaeche will die echte Initiative.
+    next.set("featureId", node.initiativeId);
     router.replace(`${pathname}?${next.toString()}` as never, { scroll: false });
   };
   return (
-    <div className="relative" style={{ width: NODE_WIDTH }}>
+    <div className="relative" style={{ width: NODE_WIDTH, height: NODE_HEIGHT }}>
       <Handle
         type="target"
         position={Position.Left}
@@ -643,7 +650,7 @@ const GhostNode = memo(function GhostNode({ data }: NodeProps) {
       <button
         type="button"
         onClick={openSlideOver}
-        className="block w-full rounded-lg border border-dashed border-muted-foreground/40 bg-card/60 p-3 text-left text-xs no-underline opacity-70 transition-colors hover:bg-muted/40 hover:opacity-100"
+        className="flex h-full w-full flex-col rounded-lg border border-dashed border-muted-foreground/40 bg-card/60 p-3 text-left text-xs no-underline opacity-70 transition-colors hover:bg-muted/40 hover:opacity-100"
       >
         <div className="mb-1.5 flex items-center gap-1.5">
           <span className="size-2 shrink-0 rounded-full bg-muted-foreground/40" aria-hidden />
@@ -651,7 +658,7 @@ const GhostNode = memo(function GhostNode({ data }: NodeProps) {
             {node.title}
           </span>
         </div>
-        <div className="flex items-center gap-1.5 text-label text-muted-foreground">
+        <div className="mt-auto flex items-center gap-1.5 text-label text-muted-foreground">
           <span className="rounded-full bg-muted px-1.5 py-0.5">
             {node.role === "predecessor" ? "Predecessor extern" : "Successor extern"}
           </span>
@@ -1272,6 +1279,24 @@ export function BreakdownNetworkView({
               { id: "pi", label: "PI-Bahnen" },
             ]}
           />
+          {/*
+            **Nur in der Topologie, und nur wenn es etwas zu verwerfen gibt.**
+            Die PI-Bahnen ignorieren gespeicherte Positionen ohnehin; dort
+            waere der Knopf ein Versprechen ohne Wirkung.
+          */}
+          {layoutMode === "topology" &&
+            canLinkDependency &&
+            Object.keys(savedPositions ?? {}).length > 0 && (
+              <ConfirmMutateForm
+                action={clearBreakdownLayoutAction}
+                fields={{ epicId }}
+                label={t("drumbeat.ui.neuAnordnen")}
+                pendingLabel="…"
+                confirmPrompt={t("drumbeat.ui.neuAnordnenFrage")}
+                icon={<LayoutGrid className="mr-1 size-3.5" />}
+                size="sm"
+              />
+            )}
         </div>
       </div>
       {(canLinkDependency || canCreateFeature) && (

@@ -2293,7 +2293,9 @@
       "newDependency": "Dependency anlegen",
       "noEntries": "Keine Einträge.",
       "entry": "Eintrag",
-      "today": "Heute"
+      "today": "Heute",
+      "neuAnordnen": "Neu anordnen",
+      "neuAnordnenFrage": "Die automatische Anordnung wiederherstellen? Die von Hand gesetzten Positionen dieses Netzplans gehen dabei verloren."
     },
     "errors": {
       "endBeforeStart": "Das Enddatum muss nach dem Startdatum liegen.",

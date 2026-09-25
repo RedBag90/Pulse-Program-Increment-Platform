@@ -49,16 +49,33 @@ export interface BreakdownGraphEdge {
  * rechts (successor) der internen Features gerendert. Klick navigiert
  * zum externen Feature-Detail.
  */
+/**
+ * **Die Id eines Geisters trägt seine Rolle.**
+ *
+ * Sie war bis September 2026 die **rohe** Initiative-Id. Ein Feature, das für
+ * dieses Epic zugleich Vorgänger *und* Nachfolger ist, ergab damit zwei
+ * Einträge mit **derselben** Id — und zwei ReactFlow-Knoten mit einer Id sind
+ * ein Knoten. Der Kommentar hier räumte es sogar ein („werden zweimal
+ * gerendert"); tatsächlich überschrieb der zweite den ersten.
+ *
+ * Das Cockpit macht es seit jeher so (`ghost:from:…`). Die Kanten-Endpunkte
+ * auf der externen Seite tragen dieselbe Id — sonst zeigte die Kante ins Leere.
+ */
+export const ghostId = (role: "predecessor" | "successor", initiativeId: string): string =>
+  `ghost:${role}:${initiativeId}`;
+
 export interface BreakdownGhostNode {
+  /** Rollen-behaftet, siehe {@link ghostId} — **nicht** die Initiative-Id. */
   id: string;
+  /** Die echte Initiative dahinter — für Verweise auf ihre Detailseite. */
+  initiativeId: string;
   title: string;
   /** Titel des Parent-Epics. null wenn der Initiative-Parent fehlt
    *  (sollte in der Praxis nicht vorkommen, defensiv). */
   epicTitle: string | null;
   epicId: string | null;
   /** "predecessor" wenn der externe Knoten Source einer Edge in dieses
-   *  Epic ist; "successor" wenn er Target einer Edge aus diesem Epic ist.
-   *  Knoten, die beide Rollen haben, werden zweimal gerendert (selten). */
+   *  Epic ist; "successor" wenn er Target einer Edge aus diesem Epic ist. */
   role: "predecessor" | "successor";
 }
 
@@ -129,12 +146,15 @@ export function buildBreakdownGraph(input: {
   const ghostMap = new Map<string, BreakdownGhostNode>();
   for (const s of scoped) {
     const d = s.edge;
+    let source = d.fromId;
+    let target = d.toId;
     if (s.offScopeEndpoint?.side === "from") {
       // Source ist extern → Ghost-Predecessor
-      const key = `${d.fromId}:predecessor`;
-      if (!ghostMap.has(key)) {
-        ghostMap.set(key, {
-          id: d.fromId,
+      source = ghostId("predecessor", d.fromId);
+      if (!ghostMap.has(source)) {
+        ghostMap.set(source, {
+          id: source,
+          initiativeId: d.fromId,
           title: d.from?.title ?? "Externes Feature",
           epicTitle: d.from?.parent?.title ?? null,
           epicId: d.from?.parent?.id ?? null,
@@ -142,10 +162,11 @@ export function buildBreakdownGraph(input: {
         });
       }
     } else if (s.offScopeEndpoint?.side === "to") {
-      const key = `${d.toId}:successor`;
-      if (!ghostMap.has(key)) {
-        ghostMap.set(key, {
-          id: d.toId,
+      target = ghostId("successor", d.toId);
+      if (!ghostMap.has(target)) {
+        ghostMap.set(target, {
+          id: target,
+          initiativeId: d.toId,
           title: d.to?.title ?? "Externes Feature",
           epicTitle: d.to?.parent?.title ?? null,
           epicId: d.to?.parent?.id ?? null,
@@ -155,8 +176,8 @@ export function buildBreakdownGraph(input: {
     }
     edges.push({
       id: d.id,
-      source: d.fromId,
-      target: d.toId,
+      source,
+      target,
       type: d.type as DependencyEdgeType,
     });
   }

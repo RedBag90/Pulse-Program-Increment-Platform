@@ -2293,7 +2293,9 @@
       "newDependency": "Create dependency",
       "noEntries": "No entries.",
       "entry": "Entry",
-      "today": "Today"
+      "today": "Today",
+      "neuAnordnen": "Re-arrange",
+      "neuAnordnenFrage": "Restore the automatic arrangement? The hand-placed positions of this network are lost."
     },
     "errors": {
       "endBeforeStart": "The end date must be after the start date.",

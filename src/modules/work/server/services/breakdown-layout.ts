@@ -90,3 +90,35 @@ export async function saveBreakdownLayout(
     });
   });
 }
+
+/**
+ * **Wirft die Handarbeit weg** — „Neu anordnen" im Netzplan.
+ *
+ * Ohne sie gab es nur Anlegen und Ueberschreiben: wer sein Bild einmal
+ * verzogen hatte, konnte nicht mehr zur automatischen Anordnung zurueck, weil
+ * jede gespeicherte Position die berechnete bedingungslos schlaegt.
+ *
+ * Raeumt dabei auch die Zeilen geloeschter Features mit weg: `loadBreakdownLayout`
+ * liest alle Zeilen des Epics, ungefiltert gegen seine heutigen Kinder.
+ */
+export async function clearBreakdownLayout(
+  ctx: RequestContext,
+  input: { epicId: EpicId },
+): Promise<Result<{ count: number }>> {
+  const mctx = toMutationContext(ctx);
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const { count } = await tx.initiativeGraphPosition.deleteMany({
+      where: { tenantId: mctx.tenantId, epicId: input.epicId },
+    });
+    return ok({
+      result: { count },
+      audit: {
+        action: "initiative.updated",
+        resourceType: "initiative",
+        resourceId: input.epicId,
+        changes: { breakdownLayout: { before: `${count} position(s)`, after: null } },
+      },
+    });
+  });
+}
