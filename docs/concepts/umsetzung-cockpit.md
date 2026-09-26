@@ -12,25 +12,25 @@ passiert am selben Ort, ohne Layout-Bruch und ohne Doppel-Oberflächen.
 Eine Page, ein konsolidiertes Read-Model (`umsetzung-cockpit-view.ts`, Loader/Builder-Split), vier
 Sichten:
 
-| Sicht (`?view=`) | Zweck |
-|---|---|
+| Sicht (`?view=`)  | Zweck                                                      |
+| ----------------- | ---------------------------------------------------------- |
 | `board` (Default) | Feature-Matrix PI × Status, Drag = PI/Status, optimistisch |
-| `table` | Inline-Edit + Bulk-Aktionen |
-| `roadmap` | Gantt über die PIs, gruppiert nach Epic, Dependency-Kanten |
-| `network` | Dependency-Netzplan (dagre/ReactFlow) |
+| `table`           | Inline-Edit + Bulk-Aktionen                                |
+| `roadmap`         | Gantt über die PIs, gruppiert nach Epic, Dependency-Kanten |
+| `network`         | Dependency-Netzplan (dagre/ReactFlow)                      |
 
 ## URL-Contract (`/umsetzung`)
 
-| Param | Bedeutung |
-|---|---|
-| `?art=<id>` | ART-Scope (Picker nur bei >1 ART) |
-| `?pi=<id>` | Governance-Scope: wählt das PI für die **Kontext-Leiste**; Default = aktives PI |
-| `?view=` | board \| table \| roadmap \| network |
-| `?piw=<n>` | Verschiebung des PI-Strip-Fensters gegenüber dem Anker (aktives PI) |
-| `?status=,?blocker=,?owner=,?epic=` | Filter (server-seitig honoriert; UI für Status + Blocker in der Top-Bar) |
-| `?featureId=<id>` | öffnet den Feature-Slide-Over |
+| Param                               | Bedeutung                                                                       |
+| ----------------------------------- | ------------------------------------------------------------------------------- |
+| `?art=<id>`                         | ART-Scope (Picker nur bei >1 ART)                                               |
+| `?pi=<id>`                          | Governance-Scope: wählt das PI für die **Kontext-Leiste**; Default = aktives PI |
+| `?view=`                            | board \| table \| roadmap \| network                                            |
+| `?piw=<n>`                          | Verschiebung des PI-Strip-Fensters gegenüber dem Anker (aktives PI)             |
+| `?status=,?blocker=,?owner=,?epic=` | Filter (server-seitig honoriert; UI für Status + Blocker in der Top-Bar)        |
+| `?featureId=<id>`                   | öffnet den Feature-Slide-Over                                                   |
 
-`?pi=` filtert **nicht** die Feature-Menge (das Board *ist* nach PIs gespalten) — es steuert die
+`?pi=` filtert **nicht** die Feature-Menge (das Board _ist_ nach PIs gespalten) — es steuert die
 PI-Kontext-Leiste (Fakten + Aktionen) und die Strip-Hervorhebung.
 
 ## PI-Lebenszyklus & Abschluss
@@ -40,7 +40,7 @@ PI-Kontext-Leiste (Fakten + Aktionen) und die Strip-Hervorhebung.
 - **Abschließen läuft ausschließlich über „PI abschließen & nächstes öffnen"** (`advanceCadence`):
   schließt das aktive PI ab und öffnet das nächste (erzeugt es aus der Kadenz, falls keins existiert).
   Offene ROAM-Issues erscheinen als **nicht-blockierende Warnung**, nicht als Gate.
-- Der strenge `completePi` (mit Closure-Gate `evaluateClosure`: System-Demo/Inspect&Adapt/Retro) ist
+- Der strenge `completePi` (mit Closure-Gate `evaluateClosure`: System-Demo/Retro) ist
   **aus dem UI entfernt**. Er bleibt als **programmatischer Weg** über die v1-REST-API
   (`POST /api/v1/pis/[id]/complete`, Capability `pi.complete`). Solange es keine UI zum Setzen der
   Ceremony-Termine gibt, ist das der einzige Ort, an dem das Gate greift.

@@ -354,7 +354,6 @@ export async function completePi(ctx: RequestContext, input: { id: PiId }): Prom
     const closure = evaluateClosure({
       openUnroamedIssues: openIssues,
       systemDemoAt: existing.systemDemoAt,
-      inspectAdaptAt: existing.inspectAdaptAt,
       retrospectiveNotes: existing.retrospectiveNotes,
     });
     if (!closure.ready) {
@@ -416,7 +415,7 @@ export async function advanceCadence(
 
     // Nicht-blockierende Warnung — bewusst NUR der handlungsrelevante Punkt:
     // offene ROAM-Issues (dafür gibt es eine Oberfläche). Die Closure-Ceremonies
-    // (System-Demo/Inspect&Adapt/Retro) werden hier NICHT geprüft, weil es keine
+    // (System-Demo/Retro) werden hier NICHT geprüft, weil es keine
     // UI zum Setzen der Termine gibt; das volle Gate bleibt allein in `completePi`.
     const openIssues = await countOpenRoamIssues(tx, mctx.tenantId, active.timelineId);
     const warnings: string[] = [];

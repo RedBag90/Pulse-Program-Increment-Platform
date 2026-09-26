@@ -279,7 +279,6 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
       ...(p.status === "completed"
         ? {
             systemDemoAt: addDays(p.start, 68),
-            inspectAdaptAt: addDays(p.start, 69),
             retrospectiveAt: addDays(p.start, 69),
             retrospectiveNotes:
               "Gut gelaufen: die Abstimmung zwischen den ARTs am Zahlungskern. " +
@@ -318,7 +317,6 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
       ...(p.status === "completed"
         ? {
             systemDemoAt: addDays(p.start, 68),
-            inspectAdaptAt: addDays(p.start, 69),
             retrospectiveAt: addDays(p.start, 69),
             retrospectiveNotes:
               "Der Takt sitzt. Offen geblieben: die Testdaten für die " +

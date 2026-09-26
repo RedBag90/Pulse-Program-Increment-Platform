@@ -362,7 +362,6 @@ export async function seedLarge(ctx: SeedContext): Promise<void> {
       ...(p.status === "completed"
         ? {
             systemDemoAt: addDays(p.start, 68),
-            inspectAdaptAt: addDays(p.start, 69),
             retrospectiveAt: addDays(p.start, 69),
             retrospectiveNotes:
               "Gut: die Einsparungen aus dem Rollout wurden zum ersten Mal " +
@@ -408,7 +407,6 @@ export async function seedLarge(ctx: SeedContext): Promise<void> {
       ...(p.status === "completed"
         ? {
             systemDemoAt: addDays(p.start, 68),
-            inspectAdaptAt: addDays(p.start, 69),
             retrospectiveAt: addDays(p.start, 69),
             retrospectiveNotes:
               "Der Takt am Werk passt jetzt zu den Stillstandsfenstern. " +

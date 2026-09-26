@@ -792,7 +792,6 @@ model ProgramIncrement {
   // pre-check in `completePi` zwingend erwartet, bevor das PI auf
   // "completed" gehen darf.
   systemDemoAt       DateTime? @map("system_demo_at") @db.Date
-  inspectAdaptAt     DateTime? @map("inspect_adapt_at") @db.Date
   retrospectiveNotes String?   @map("retrospective_notes") @db.Text
   retrospectiveAt    DateTime? @map("retrospective_at")
 

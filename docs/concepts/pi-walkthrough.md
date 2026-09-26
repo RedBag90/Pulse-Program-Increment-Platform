@@ -49,23 +49,22 @@ keine eigene Kadenz.
 ### Das Abschluss-Tor — und warum es zwei Wege gibt
 
 Ein PI abzuschließen heißt zu behaupten, dass ein Zeitraum wirklich zu Ende ist.
-Pulse kennt dafür ein Tor mit vier Bedingungen:
+Pulse kennt dafür ein Tor mit drei Bedingungen:
 
 | Bedingung                          | Warum                                                                           |
 | ---------------------------------- | ------------------------------------------------------------------------------- |
 | keine offenen Issues **ohne ROAM** | Ein Risiko, das niemand eingeordnet hat, wandert sonst unbemerkt ins nächste PI |
 | System-Demo-Termin gesetzt         | Es gab eine Gelegenheit, das Ergebnis zu zeigen                                 |
-| Inspect-&-Adapt-Termin gesetzt     | Es gab eine Gelegenheit, daraus zu lernen                                       |
 | Retrospektive-Notizen vorhanden    | Das Gelernte steht irgendwo                                                     |
 
 **Dieses Tor ist heute nur über die API erreichbar.** `POST /api/v1/pis/[id]/complete`
 erzwingt es vollständig. In der Oberfläche gibt es genau einen Weg, ein PI zu
 beenden: **„PI abschließen & nächstes öffnen"** — und der prüft nur die offenen
-ROAM-Issues, und auch die nur als **Warnung**, die nicht blockiert. Die drei
+ROAM-Issues, und auch die nur als **Warnung**, die nicht blockiert. Die beiden
 Zeremonien werden dort gar nicht geprüft.
 
 Das ist kein Versehen, sondern eine bewusste Lücke mit einem Grund, der im Code
-steht: **es gibt keine Oberfläche, um die drei Termine zu setzen.** Ein Tor, das
+steht: **es gibt keine Oberfläche, um System-Demo und Retrospektive einzutragen.** Ein Tor, das
 niemand öffnen kann, würde den Betrieb anhalten. Wer das Tor scharf haben will,
 braucht zuerst die Fläche dafür — bis dahin ist die Warnung die ehrlichere
 Variante.
@@ -123,7 +122,7 @@ Issues ohne ROAM, sagt Pulse mir das als Warnung; ich kann trotzdem
 fortschreiben, aber ich weiß es dann.
 
 Was ich dabei **nicht** bekomme, ist der Anspruch, den das Abschluss-Tor
-formuliert: nach System-Demo, Inspect & Adapt und Retrospektive fragt mich hier
+formuliert: nach System-Demo und Retrospektive fragt mich hier
 niemand. Wer diese Disziplin will, muss sie heute außerhalb von Pulse führen.
 
 ---

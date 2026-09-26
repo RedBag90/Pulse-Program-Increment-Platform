@@ -41,7 +41,6 @@ describe("nextPiFromCadence", () => {
 const READY: PiClosureSnapshot = {
   openUnroamedIssues: 0,
   systemDemoAt: new Date("2026-06-01T00:00:00Z"),
-  inspectAdaptAt: new Date("2026-06-02T00:00:00Z"),
   retrospectiveNotes: "Ging gut.",
 };
 
@@ -67,12 +66,6 @@ describe("evaluateClosure", () => {
     ]);
   });
 
-  it("flags a missing Inspect & Adapt date", () => {
-    expect(evaluateClosure({ ...READY, inspectAdaptAt: null }).reasons).toEqual([
-      { key: "drumbeat.closure.inspectAdaptMissing" },
-    ]);
-  });
-
   it("flags missing retrospective notes (null and whitespace-only)", () => {
     expect(evaluateClosure({ ...READY, retrospectiveNotes: null }).reasons).toEqual([
       { key: "drumbeat.closure.retrospectiveMissing" },
@@ -86,14 +79,12 @@ describe("evaluateClosure", () => {
     const r = evaluateClosure({
       openUnroamedIssues: 2,
       systemDemoAt: null,
-      inspectAdaptAt: null,
       retrospectiveNotes: "",
     });
     expect(r.ready).toBe(false);
     expect(r.reasons.map((x) => x.key)).toEqual([
       "drumbeat.closure.openUnroamedIssues",
       "drumbeat.closure.systemDemoMissing",
-      "drumbeat.closure.inspectAdaptMissing",
       "drumbeat.closure.retrospectiveMissing",
     ]);
   });

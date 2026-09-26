@@ -207,7 +207,6 @@ describe("completePi — closure gate", () => {
     status: "active",
     timelineId: "tl",
     systemDemoAt: new Date("2026-06-01"),
-    inspectAdaptAt: new Date("2026-06-02"),
     retrospectiveNotes: "ok",
   };
 

@@ -114,7 +114,6 @@ The system optimizes for these flows, in order of frequency:
 2. **Sprint planning** (bi-weekly) — PO + SM prepare team backlog
 3. **PI Planning** (every 8-12 weeks) — entire ART aligns on next PI's Features
 4. **Portfolio review** (monthly) — LPM reviews Epic progress and reprioritizes
-5. **Inspect & Adapt** (end of PI) — RTE facilitates retrospective with metrics from Pulse
 
 ---
 

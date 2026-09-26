@@ -50,13 +50,12 @@ export function canTransition(from: PiStatus, to: PiStatus): boolean {
 
 /**
  * The projection a closure check reads: the number of open, un-ROAMed Issues
- * across the PI's ARTs, plus the three closure-ceremony stamps. Built by the
+ * across the PI's ARTs, plus the two closure-ceremony stamps. Built by the
  * service from either the read client (`db`) or the write client (`tx`).
  */
 export interface PiClosureSnapshot {
   openUnroamedIssues: number;
   systemDemoAt: Date | null;
-  inspectAdaptAt: Date | null;
   retrospectiveNotes: string | null;
 }
 
@@ -95,7 +94,6 @@ export function evaluateClosure(snapshot: PiClosureSnapshot): PiClosureResult {
     });
   }
   if (!snapshot.systemDemoAt) reasons.push({ key: "drumbeat.closure.systemDemoMissing" });
-  if (!snapshot.inspectAdaptAt) reasons.push({ key: "drumbeat.closure.inspectAdaptMissing" });
   if (!snapshot.retrospectiveNotes || snapshot.retrospectiveNotes.trim() === "") {
     reasons.push({ key: "drumbeat.closure.retrospectiveMissing" });
   }
