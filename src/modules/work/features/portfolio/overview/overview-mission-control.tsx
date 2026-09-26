@@ -11,9 +11,10 @@ import { RisksBlock } from "@/modules/work/features/portfolio/overview/blocks/ri
 import { SteeringTableBlock } from "@/modules/work/features/portfolio/overview/blocks/steering-table-block";
 import { RequestedDecisionsBlock } from "@/modules/work/features/portfolio/overview/blocks/requested-decisions-block";
 import { RecentActivityBlock } from "@/modules/work/features/portfolio/overview/blocks/recent-activity-block";
+import { NextStepsBlock } from "@/modules/work/features/portfolio/overview/blocks/next-steps-block";
 
 /**
- * Mission Control — six-section cockpit. Time-context banner, two strategy/
+ * Gesamt (früher „Mission Control") — six-section cockpit. Time-context banner, two strategy/
  * funding cards, the compact kanban, then a flow + health pair, and recent
  * activity at the bottom. Designed for the operator who wants the full
  * picture in one scroll.
@@ -83,14 +84,14 @@ export function OverviewMissionControl({
           label={t("work.overview.lAbschlussFaelligWochen")}
           items={data.l4DueSoon}
           hrefBase="/portfolio/epics"
-          emptyText="Kein Epic mit geplantem L4-Abschluss in den nächsten 4 Wochen."
+          emptyText={t("work.overview.keinEpicL4Faellig")}
           classFilter={data.classFilter}
         />
         <DueSoonBlock
           label={t("work.overview.featuresFaelligWochen")}
           items={data.featuresDueSoon}
           hrefBase="/feature"
-          emptyText="Kein Feature mit geplantem Abschluss in den nächsten 2 Wochen."
+          emptyText={t("work.overview.keinFeatureFaellig")}
           classFilter={data.classFilter}
         />
       </div>
@@ -109,6 +110,10 @@ export function OverviewMissionControl({
       <RequestedDecisionsBlock data={data} />
 
       <RecentActivityBlock data={data} />
+
+      {/* Die Coaching-Hinweise (Struktur-Lücken, wenig genutzte Practices) —
+          bis September 2026 nur in der Executive-Variante. */}
+      <NextStepsBlock data={data} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { resolveEpicHorizon } from "@/modules/work/domain/epic-horizon";
+import { computeBusinessCaseTotals, parseBusinessCase } from "@/modules/work/domain/business-case";
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, StageGate } from "@/modules/core/kernel/domain/types";
 import { listEpicsForOverview } from "@/modules/work/server/services/epic";
@@ -138,6 +139,8 @@ export interface OverviewEpicCard {
   updatedAt: Date;
   daysSinceUpdate: number;
   needsSteeringAttention: boolean;
+  /** „Fürs nächste Budget-Meeting vormerken" — Kandidat der Budgeting-Ansicht. */
+  stagedForBudgeting: boolean;
   /** Abgeleiteter Horizont (Primär-Solution) — Swimlane-Achse im Kanban. */
   horizon: string | null;
   /** `null` = Facette aus **oder** noch nicht eingeordnet (kein Business Case). */
@@ -211,6 +214,21 @@ export interface SteeringEpicRow {
   daysSinceUpdate: number;
   epicClass: EpicClass | null;
   solution: SolutionRef | null;
+}
+
+/**
+ * Ein Kandidat fürs Participatory Budgeting — ein Epic mit „Fürs nächste
+ * Budget-Meeting vormerken". `cost` ist die Umsetzungssumme aus dem Business
+ * Case (`computeBusinessCaseTotals`); `null`, solange keiner vorliegt.
+ */
+export interface BudgetCandidateRow {
+  id: string;
+  title: string;
+  stageGate: StageGate;
+  horizon: string | null;
+  epicClass: EpicClass | null;
+  valueStreamName: string | null;
+  cost: number | null;
 }
 
 /** Ein offener Antrag, wie der Loader ihn liefert — roh, je Epic höchstens einer. */
@@ -369,6 +387,11 @@ export interface PortfolioOverview {
 
   staleEpics: OverviewEpicCard[];
   blockedEpics: OverviewEpicCard[];
+  /**
+   * Epics mit „Fürs nächste Budget-Meeting vormerken" — nach Horizont, dann
+   * nach Kosten (teuerste zuerst). Die Kandidatenliste der Budgeting-Ansicht.
+   */
+  budgetCandidates: BudgetCandidateRow[];
   /** Epics mit `needsSteeringAttention` — die Steering-Agenda-Tabelle. */
   steeringEpics: SteeringEpicRow[];
   /** Epics mit offenem Antrag auf Analyse oder Business Case. */
@@ -515,6 +538,8 @@ export interface PortfolioOverviewInputs {
   ownerLabels: Record<string, string>;
   /** Offene Anträge auf Analyse oder Business-Case-Freigabe; fehlt = keine. */
   pendingDecisions?: PendingDecisionInput[];
+  /** Umsetzungskosten laut Business Case je vorgemerktem Epic; fehlt = keine. */
+  candidateCosts?: Record<string, number>;
   themes: PortfolioOverviewTheme[];
   /**
    * Die Soll-Verteilung des Budgets ueber die Horizonte (Guardrail), in Prozent
@@ -672,6 +697,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     updatedAt: e.updatedAt,
     daysSinceUpdate: Math.floor((nowMs - new Date(e.updatedAt).getTime()) / (24 * 60 * 60 * 1000)),
     needsSteeringAttention: e.needsSteeringAttention,
+    stagedForBudgeting: e.stagedForBudgeting,
     horizon: resolveEpicHorizon({
       investmentHorizon: e.investmentHorizon,
       solutionHorizon: e.primarySolution?.horizon ?? null,
@@ -790,6 +816,29 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
       solution: c.solution,
     }))
     .sort((a, b) => b.daysSinceUpdate - a.daysSinceUpdate);
+
+  // Budget-Kandidaten: vorgemerkte Epics, gruppiert nach Horizont (h1 … h3,
+  // ohne Horizont zuletzt), innerhalb nach Kosten — teuerste zuerst, ohne
+  // Business Case zuletzt. Dieselben Filter wie die übrige Übersicht.
+  const HORIZONT_RANG: Record<string, number> = { h0: 0, h1: 1, h2: 2, h3: 3 };
+  const budgetCandidates: BudgetCandidateRow[] = cards
+    .filter((c) => c.stagedForBudgeting)
+    .map((c) => ({
+      id: c.id,
+      title: c.title,
+      stageGate: (STAGE_GATES as readonly string[]).includes(c.stageGate)
+        ? (c.stageGate as StageGate)
+        : "L0",
+      horizon: c.horizon,
+      epicClass: c.epicClass,
+      valueStreamName: c.valueStream?.name ?? null,
+      cost: inputs.candidateCosts?.[c.id] ?? null,
+    }))
+    .sort(
+      (a, b) =>
+        (HORIZONT_RANG[a.horizon ?? ""] ?? 9) - (HORIZONT_RANG[b.horizon ?? ""] ?? 9) ||
+        (b.cost ?? -1) - (a.cost ?? -1),
+    );
 
   // Offene Anträge — nur für Epics, die die Übersicht gerade zeigt, damit ihre
   // Filter auch hier gelten. Am längsten wartend zuerst.
@@ -1020,6 +1069,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     staleEpics,
     blockedEpics,
     steeringEpics,
+    budgetCandidates,
     requestedDecisionEpics,
     funnelItems,
     budgetingEnabled,
@@ -1240,9 +1290,31 @@ export async function loadPortfolioOverviewInputs(
   // richtigen Topf zu wählen (`chooseAllocation`). Der Preis ist der
   // Business-Case-JSON — eine große Spalte, die `listEpicsForOverview` bewusst
   // nicht mitwählt. Eine Abfrage, zwei Leser.
-  const [epicClasses, artAllocations] = await Promise.all([
+  //
+  // Dazu die Kosten der vorgemerkten Budget-Kandidaten: derselbe große
+  // Business-Case-JSON, aber nur für die paar Epics mit der Marke.
+  const vorgemerkt = epics.filter((e) => e.stagedForBudgeting).map((e) => e.id);
+  const [epicClasses, artAllocations, candidateCosts] = await Promise.all([
     classifyEpics(db, tenantId),
     getArtAllocations(budgetCycleKey),
+    vorgemerkt.length === 0
+      ? Promise.resolve<Record<string, number>>({})
+      : db.initiative
+          .findMany({
+            where: { tenantId, id: { in: vorgemerkt } },
+            select: { id: true, businessCase: true },
+          })
+          .then((rows) => {
+            const out: Record<string, number> = {};
+            for (const r of rows) {
+              if (r.businessCase == null) continue;
+              const kosten = computeBusinessCaseTotals(
+                parseBusinessCase(r.businessCase).current,
+              ).implementationCost;
+              if (kosten > 0) out[r.id] = kosten;
+            }
+            return out;
+          }),
   ]);
 
   // Der Trichter erst hier: sein Invest **ist** die Zuteilung des angewandten
@@ -1269,6 +1341,7 @@ export async function loadPortfolioOverviewInputs(
     goalContributions,
     ownerLabels,
     pendingDecisions,
+    candidateCosts,
     themes,
     board,
     vsBudgets,

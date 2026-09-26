@@ -23,7 +23,10 @@ import { listSavedPortfolioFilters } from "@/modules/work/server/services/saved-
 import { getTenantPractices } from "@/server/services/target-model";
 import { redirect } from "next/navigation";
 import { ViewSwitcher } from "@/modules/work/features/portfolio/overview/view-switcher";
-import { resolveOverviewView } from "@/modules/work/features/portfolio/overview/view-switcher-config";
+import {
+  availableOverviewViews,
+  resolveOverviewView,
+} from "@/modules/work/features/portfolio/overview/view-switcher-config";
 import { PortfolioFilterBar } from "@/modules/work/features/portfolio/overview/portfolio-filter-bar";
 import { OverviewMissionControl } from "@/modules/work/features/portfolio/overview/overview-mission-control";
 import { loadViewPreferences } from "@/modules/core/kernel/server/view-preference";
@@ -31,8 +34,9 @@ import {
   CONTRIBUTION_VIEW_KEY,
   parseContributionView,
 } from "@/modules/work/domain/contribution-view-preference";
-import { OverviewHero } from "@/modules/work/features/portfolio/overview/overview-hero";
-import { OverviewExecutive } from "@/modules/work/features/portfolio/overview/overview-executive";
+import { OverviewReview } from "@/modules/work/features/portfolio/overview/overview-review";
+import { OverviewSync } from "@/modules/work/features/portfolio/overview/overview-sync";
+import { OverviewBudgeting } from "@/modules/work/features/portfolio/overview/overview-budgeting";
 import { Page, PageHeader } from "@/components/layout";
 
 interface Props {
@@ -57,18 +61,21 @@ const splitCsv = (v: string | undefined): string[] =>
 // von dort — inklusive dieser Stelle.
 
 /**
- * Portfolio Übersicht — three parallel variants behind a `?view=` switcher so
- * the user can compare and decide. A Filterleiste (Wertstrom · Stage Gate ·
+ * Portfolio Übersicht — „Gesamt" und je eine Ansicht für die drei
+ * Portfolio-Termine (Strategic Review, Portfolio Sync, Budgeting) hinter einem
+ * `?view=`-Umschalter. A Filterleiste (Wertstrom · Stage Gate ·
  * Status · Owner) verengt die gesamte Übersicht; gespeicherte Filter (pro
  * Nutzer) sind anwendbar, einer als Standard automatisch beim Öffnen.
  */
 export default async function PortfolioPage({ searchParams }: Props) {
   const t = await getTranslations();
   const sp = await searchParams;
-  const view = resolveOverviewView(sp.view);
-
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
+  // Die Budgeting-Ansicht gibt es nur mit dem Modul; ohne fällt `?view=budgeting`
+  // auf „Gesamt" zurück.
+  const views = availableOverviewViews(principal.enabledModules.includes("budgeting"));
+  const view = resolveOverviewView(sp.view, views);
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
@@ -262,7 +269,7 @@ export default async function PortfolioPage({ searchParams }: Props) {
       <PageHeader
         title={t("work.overview.portfolioUebersicht")}
         subtitle={t("work.overview.strategischerBezugFundingUnd")}
-        actions={<ViewSwitcher current={view} />}
+        actions={<ViewSwitcher current={view} available={views} />}
       />
 
       <div className="mb-4">
@@ -277,8 +284,9 @@ export default async function PortfolioPage({ searchParams }: Props) {
       {view === "mission" && (
         <OverviewMissionControl data={data} contributionView={contributionView} />
       )}
-      {view === "hero" && <OverviewHero data={data} />}
-      {view === "executive" && <OverviewExecutive data={data} />}
+      {view === "review" && <OverviewReview data={data} contributionView={contributionView} />}
+      {view === "sync" && <OverviewSync data={data} />}
+      {view === "budgeting" && <OverviewBudgeting data={data} />}
     </Page>
   );
 }

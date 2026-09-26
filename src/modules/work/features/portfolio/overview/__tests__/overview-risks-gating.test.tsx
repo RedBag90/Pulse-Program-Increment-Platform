@@ -6,7 +6,7 @@ import {
   type PortfolioOverviewInputs,
 } from "@/modules/work/server/views/portfolio-overview";
 import { OverviewMissionControl } from "@/modules/work/features/portfolio/overview/overview-mission-control";
-import { OverviewExecutive } from "@/modules/work/features/portfolio/overview/overview-executive";
+import { OverviewSync } from "@/modules/work/features/portfolio/overview/overview-sync";
 import { DEFAULT_CONTRIBUTION_VIEW } from "@/modules/work/domain/contribution-view-preference";
 
 /**
@@ -76,7 +76,8 @@ describe("Risiken auf der Portfolio-Übersicht", () => {
     // Der Name legt es nahe, die Herkunft nicht: `TopRisksBlock` liest
     // blockierte und liegengebliebene Epics, nicht das Risiko-Register. Wer
     // später „alles mit Risk im Namen" abschaltet, bricht hier.
-    render(<OverviewExecutive data={modell(false)} />);
+    // Seit September 2026 im Portfolio Sync (vorher in der Executive-Variante).
+    render(<OverviewSync data={modell(false)} />);
     expect(screen.getByText("Top-Risiken")).toBeInTheDocument();
   });
 });

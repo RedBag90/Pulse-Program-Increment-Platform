@@ -23,8 +23,12 @@ export function PageHeader({ title, subtitle, breadcrumb, eyebrow, actions, clas
   return (
     <header className={cn("space-y-3", className)}>
       {breadcrumb}
-      <div className="flex items-start gap-3">
-        <div className="flex-1 space-y-1">
+      {/* **Schmal bricht die Zeile um.** Die Aktionen standen `shrink-0`
+          daneben und drückten den Titel auf drei Wörter je Zeile; ein breiter
+          Umschalter lief über den Rand. Der Titel braucht jetzt 16rem, sonst
+          rutschen die Aktionen darunter. */}
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="min-w-[min(100%,16rem)] flex-1 space-y-1">
           {eyebrow && <div className="text-xs text-muted-foreground">{eyebrow}</div>}
           {/* `font-heading` wie in `EntityDetailShell` — die beiden H1 des Systems
               waren bisher identisch bis auf dieses Wort. Solange das Token
@@ -32,7 +36,7 @@ export function PageHeader({ title, subtitle, breadcrumb, eyebrow, actions, clas
           <h1 className="font-heading text-2xl font-semibold tracking-tight">{title}</h1>
           {subtitle && <div className="text-sm text-muted-foreground">{subtitle}</div>}
         </div>
-        {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+        {actions && <div className="flex max-w-full shrink-0 items-center gap-2">{actions}</div>}
       </div>
     </header>
   );

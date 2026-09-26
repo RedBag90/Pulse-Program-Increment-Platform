@@ -8,12 +8,20 @@ import { OVERVIEW_VIEWS, type OverviewView } from "./view-switcher-config";
 export type { OverviewView } from "./view-switcher-config";
 
 /**
- * Three-tab segmented control for the Portfolio overview. Switching the
+ * Segmented control for the Portfolio overview — „Gesamt" plus one view per
+ * portfolio meeting. Switching the
  * variant preserves any other URL params (Stichtag, selectedEpicIds, …) by
  * using `router.replace` over the current search params, not a hard-coded
  * `?view=` link.
  */
-export function ViewSwitcher({ current }: { current: OverviewView }) {
+export function ViewSwitcher({
+  current,
+  available,
+}: {
+  current: OverviewView;
+  /** Die Ansichten, die es für diesen Mandanten gibt (`availableOverviewViews`). */
+  available: readonly OverviewView[];
+}) {
   const router = useRouter();
   const t = useTranslations();
   const pathname = usePathname();
@@ -30,9 +38,9 @@ export function ViewSwitcher({ current }: { current: OverviewView }) {
   return (
     <nav
       aria-label={t("work.common.viewVariant")}
-      className="flex items-center gap-1 rounded-md border bg-muted/30 p-0.5 text-xs"
+      className="flex max-w-full items-center gap-1 overflow-x-auto rounded-md border bg-muted/30 p-0.5 text-xs"
     >
-      {OVERVIEW_VIEWS.map((v) => {
+      {OVERVIEW_VIEWS.filter((v) => available.includes(v.key)).map((v) => {
         const active = v.key === current;
         return (
           <button
@@ -41,13 +49,13 @@ export function ViewSwitcher({ current }: { current: OverviewView }) {
             onClick={() => setView(v.key)}
             aria-pressed={active}
             className={cn(
-              "rounded-md px-2.5 py-1 transition-colors",
+              "shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 transition-colors",
               active
                 ? "bg-background font-medium text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {v.label}
+            {t(v.labelKey)}
           </button>
         );
       })}

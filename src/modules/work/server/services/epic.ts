@@ -816,6 +816,9 @@ export async function listEpicsForOverview(
       implementationCompletedAt: true,
       updatedAt: true,
       needsSteeringAttention: true,
+      // „Fürs nächste Budget-Meeting vormerken" — die Kandidatenliste der
+      // Budgeting-Ansicht der Übersicht.
+      stagedForBudgeting: true,
       timeline: true,
       valueStream: { select: { id: true, name: true } },
       // Der Horizont für die Kanban-Bahnen: der am Epic gesetzte Wert schlägt
