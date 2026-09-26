@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import { Label } from "@/components/ui/label";
 import { useEntityOptions, optionsEndpoint, type ParentKind } from "./use-entity-options";
 
@@ -44,6 +45,8 @@ export function EntitySelect({
   required,
   disabled,
 }: EntitySelectProps) {
+  const t = useTranslations();
+  const locale = useLocale();
   const endpoint = optionsEndpoint(kind, params);
   const { data, loading, error } = useEntityOptions<EntityOption>(
     endpoint,
@@ -64,7 +67,14 @@ export function EntitySelect({
         onChange={(e) => onChange(e.target.value)}
         className={SELECT_CLASS}
       >
-        <option value="">{loading ? "Loading…" : `Select ${label.toLowerCase()}…`}</option>
+        <option value="">
+          {loading
+            ? t("common.loading")
+            : t("create.ui.entitySelectPlaceholder", {
+                // Englisch schreibt den Feldnamen klein („Select art…“), Deutsch nicht.
+                label: locale === "en" ? label.toLowerCase() : label,
+              })}
+        </option>
         {data.map((option) => (
           <option key={option.id} value={option.id}>
             {option[labelField] ?? option.id}

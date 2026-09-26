@@ -303,7 +303,7 @@ function QuickAddForm({
           {t("drumbeat.ui.abbrechen")}
         </Button>
         <Button type="submit" size="sm" disabled={busy || title.trim().length === 0}>
-          {busy ? "Anlegen…" : "Anlegen"}
+          {busy ? t("drumbeat.ui.anlegenLaeuft") : t("drumbeat.ui.anlegen")}
         </Button>
       </div>
     </form>
@@ -483,10 +483,10 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
         </div>
         <div className="mt-auto flex items-center gap-1.5 text-label">
           <span className={`rounded-full px-1.5 py-0.5 ${TYPE_BADGE[type]}`}>
-            {type === "" ? "ohne Typ" : t(FEATURE_TYPE_KEYS[type] ?? type)}
+            {type === "" ? t("drumbeat.ui.ohneTyp") : t(FEATURE_TYPE_KEYS[type] ?? type)}
           </span>
           <span className={`rounded-full px-1.5 py-0.5 ${TIER_BADGE[node.wsjfTier]}`}>
-            WSJF {formatWsjf(node.wsjfComputed)}
+            {t("drumbeat.ui.wsjfWert", { score: formatWsjf(node.wsjfComputed) })}
           </span>
           <span className="ml-auto truncate text-muted-foreground">{node.artName}</span>
         </div>
@@ -646,6 +646,7 @@ const InsertableEdge = memo(function InsertableEdge(props: EdgeProps) {
 type GhostNodeData = BreakdownGhostNode;
 
 const GhostNode = memo(function GhostNode({ data }: NodeProps) {
+  const t = useTranslations();
   const node = data as unknown as GhostNodeData;
   const router = useRouter();
   const pathname = usePathname();
@@ -673,7 +674,9 @@ const GhostNode = memo(function GhostNode({ data }: NodeProps) {
         </div>
         <div className="mt-auto flex items-center gap-1.5 text-label text-muted-foreground">
           <span className="rounded-full bg-muted px-1.5 py-0.5">
-            {node.role === "predecessor" ? "Predecessor extern" : "Successor extern"}
+            {node.role === "predecessor"
+              ? t("drumbeat.ui.predecessorExtern")
+              : t("drumbeat.ui.successorExtern")}
           </span>
           {node.epicTitle && <span className="ml-auto truncate">{node.epicTitle}</span>}
         </div>
@@ -1336,15 +1339,18 @@ export function BreakdownNetworkView({
     <div className="space-y-2">
       {model.droppedEdgeCount > 0 && (
         <p className="text-xs text-muted-foreground">
-          {model.droppedEdgeCount} Abhängigkeit{model.droppedEdgeCount === 1 ? "" : "en"} mit
-          ungültigem Typ ignoriert.
+          {model.droppedEdgeCount === 1
+            ? t("drumbeat.ui.abhaengigkeitUngueltigerTypEins", { count: model.droppedEdgeCount })
+            : t("drumbeat.ui.abhaengigkeitenUngueltigerTypMehrere", {
+                count: model.droppedEdgeCount,
+              })}
         </p>
       )}
       {model.ghostNodes.length > 0 && (
         <p className="text-xs text-muted-foreground">
-          {model.ghostNodes.length} Cross-Epic-Endpunkt
-          {model.ghostNodes.length === 1 ? "" : "e"} (gestrichelt) — Klick navigiert zum externen
-          Feature.
+          {model.ghostNodes.length === 1
+            ? t("drumbeat.ui.crossEpicEndpunktEins", { count: model.ghostNodes.length })
+            : t("drumbeat.ui.crossEpicEndpunkteMehrere", { count: model.ghostNodes.length })}
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -1368,7 +1374,10 @@ export function BreakdownNetworkView({
         {hasFilter && (
           <>
             <span className="text-muted-foreground">
-              {matchedIds?.size ?? 0} von {features.length} sichtbar
+              {t("drumbeat.ui.netzplanSichtbar", {
+                visible: matchedIds?.size ?? 0,
+                total: features.length,
+              })}
             </span>
             <button type="button" onClick={clearFilter} className="text-primary hover:underline">
               {t("drumbeat.ui.filterZuruecksetzen")}
@@ -1412,13 +1421,8 @@ export function BreakdownNetworkView({
       {(canLinkDependency || canCreateFeature) && (
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <p className="text-muted-foreground">
-            {canCreateFeature && <>„+" am Node = Folge-Feature · „+" an Edge = dazwischen. </>}
-            {canLinkDependency && (
-              <>
-                Drag von rechts auf links = neue Abhängigkeit · Edge-Label anklicken = Typ ändern
-                oder löschen.
-              </>
-            )}
+            {canCreateFeature && <>{t("drumbeat.ui.netzplanHinweisPlus")} </>}
+            {canLinkDependency && t("drumbeat.ui.netzplanHinweisDrag")}
           </p>
           {canLinkDependency && (
             <div className="inline-flex items-center gap-1.5">

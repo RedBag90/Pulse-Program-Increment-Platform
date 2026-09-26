@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardAction, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
 import { GateRing } from "@/components/ui/gate-ring";
@@ -93,6 +94,7 @@ export function SectionCard({
   contentClassName?: string;
   children: ReactNode;
 }) {
+  const t = useTranslations();
   const isWork = work || step != null;
   return (
     <Card
@@ -109,7 +111,9 @@ export function SectionCard({
         */}
         <SectionLabel>
           {atGate && <GateRing className="mr-1.5 inline-block" />}
-          {step != null && <span className="text-primary">Schritt {step} · </span>}
+          {step != null && (
+            <span className="text-primary">{t("common.ui.sectionCardSchritt", { step })} · </span>
+          )}
           {title}
         </SectionLabel>
         {description != null && (

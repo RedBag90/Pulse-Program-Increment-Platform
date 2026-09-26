@@ -107,7 +107,7 @@ export function EpicOwnerAssign({ epicId, ownerId, canAssignOwner, approvers, us
             <Plus className="size-3" aria-hidden />
           </span>
           <span className="truncate text-sm text-muted-foreground">
-            {canAssignOwner ? "Benennen" : "Nicht zugewiesen"}
+            {canAssignOwner ? t("org.ui.benennen") : t("work.epic.nichtZugewiesen")}
           </span>
         </>
       )}
@@ -124,7 +124,11 @@ export function EpicOwnerAssign({ epicId, ownerId, canAssignOwner, approvers, us
           disabled={pending}
           // Ein `aria-label` **ersetzt** den Inhalt des Buttons, statt ihn zu
           // ergaenzen — der Name gehoert also hinein.
-          aria-label={ownerName ? `Epic Owner: ${ownerName}. Ändern` : "Epic Owner benennen"}
+          aria-label={
+            ownerName
+              ? t("work.epic.epicOwnerAendernAria", { name: ownerName })
+              : t("work.epic.epicOwnerBenennenAria")
+          }
           className="-mx-1.5 w-full rounded-md px-1.5 py-1 text-left transition-colors hover:bg-muted disabled:opacity-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           {person}
@@ -133,7 +137,7 @@ export function EpicOwnerAssign({ epicId, ownerId, canAssignOwner, approvers, us
         person
       )}
       <span role="status" className="sr-only">
-        {saved ? "Epic Owner gespeichert" : ""}
+        {saved ? t("work.epic.epicOwnerGespeichert") : ""}
       </span>
       {state.error && (
         <p role="alert" className="pt-1 text-meta text-destructive">

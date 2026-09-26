@@ -29,7 +29,9 @@ export default async function PlatformJoinRequestsPage() {
       />
 
       <PageSection>
-        <p className="text-xs text-muted-foreground">{requests.length} Anfragen</p>
+        <p className="text-xs text-muted-foreground">
+          {t("platform.page.anfragenAnzahl", { count: requests.length })}
+        </p>
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
@@ -47,7 +49,9 @@ export default async function PlatformJoinRequestsPage() {
                   <td className="px-3 py-2 font-medium">{r.tenantName}</td>
                   <td className="px-3 py-2">{r.email}</td>
                   <td className="px-3 py-2 text-muted-foreground">
-                    {r.via === "link" ? "Link" : "Code"}
+                    {r.via === "link"
+                      ? t("platform.page.beitrittViaLink")
+                      : t("platform.page.beitrittViaCode")}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
                     {STATUS_LABEL[r.status] ?? r.status}

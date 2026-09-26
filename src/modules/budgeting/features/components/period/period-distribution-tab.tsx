@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Link } from "@/i18n/navigation";
@@ -30,6 +31,7 @@ export function PeriodDistributionTab({
   basePath: string;
 }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -55,18 +57,20 @@ export function PeriodDistributionTab({
       <section className="space-y-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
           <span>
-            <span className="font-medium">
-              {model.submittedCount} von {model.groups.length}
-            </span>{" "}
-            <span className="text-muted-foreground">
-              {t("budgeting.period.gruppenHabenAbgegeben")}
-            </span>
+            {t.rich("budgeting.period.vonGruppenHabenAbgegeben", {
+              submitted: model.submittedCount,
+              total: model.groups.length,
+              b: (c) => <span className="font-medium">{c}</span>,
+              muted: (c) => <span className="text-muted-foreground">{c}</span>,
+            })}
             {model.deadlinePassed && (
               <span className="ml-1 text-warning">{t("budgeting.period.deadlineVerstrichen")}</span>
             )}
           </span>
           <span className="text-xs text-muted-foreground">
-            Verteilbar {formatEUR(model.distributable)}
+            {t("budgeting.period.verteilbarBetrag", {
+              amount: formatEUR(model.distributable, locale),
+            })}
           </span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-muted">
@@ -80,7 +84,7 @@ export function PeriodDistributionTab({
       </section>
 
       <p className="text-xs text-muted-foreground">
-        Auf Papier verteilen?{" "}
+        {t("budgeting.period.aufPapierVerteilen")}{" "}
         <Link href={`${basePath}/sheet`} className="text-primary hover:underline">
           {t("budgeting.period.verteilboegenDrucken")}
         </Link>
@@ -88,7 +92,7 @@ export function PeriodDistributionTab({
 
       {model.groups.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Noch keine Gruppen — sie werden im Reiter „Setup" angelegt.
+          {t("budgeting.period.nochKeineGruppenImReiterSetup")}
         </p>
       ) : (
         <ul className="divide-y rounded-lg border">
@@ -163,12 +167,14 @@ export function PeriodDistributionTab({
       {model.canFinalize && running && (
         <div className="flex flex-wrap items-center gap-3 border-t pt-4">
           <button type="button" onClick={runClose} disabled={pending} className={btn}>
-            {pending ? "…" : "Verteilung schließen"}
+            {pending ? "…" : t("budgeting.period.verteilungSchliessen")}
           </button>
           <span className="text-xs text-muted-foreground">
             {allIn
-              ? "Alle Gruppen sind eingereicht. Danach setzt Finance die endgültigen Beträge."
-              : `Noch ${model.groups.length - model.submittedCount} offen — Schließen ist trotzdem möglich, wenn die Deadline verstrichen ist.`}
+              ? t("budgeting.period.alleGruppenEingereicht")
+              : t("budgeting.period.nochOffenSchliessenMoeglich", {
+                  count: model.groups.length - model.submittedCount,
+                })}
           </span>
         </div>
       )}

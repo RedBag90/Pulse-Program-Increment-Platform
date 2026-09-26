@@ -234,7 +234,7 @@ export function ChartLegend({
             className="inline-block h-3 w-3 rounded-sm"
             style={{ background: "var(--muted-foreground)", opacity: FORECAST_OPACITY }}
           />
-          Forecast (Zukunft, ab „heute")
+          {t("common.charts.forecastZukunftAbHeute")}
         </span>
       )}
     </div>

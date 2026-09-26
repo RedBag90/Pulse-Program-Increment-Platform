@@ -57,10 +57,12 @@ export function CockpitBulkBar({
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 px-6 py-3 shadow-lg backdrop-blur">
       <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center gap-3 text-sm">
-        <span className="font-medium">{selectedCount} ausgewaehlt</span>
+        <span className="font-medium">
+          {t("drumbeat.ui.bulkAusgewaehlt", { count: selectedCount })}
+        </span>
 
         <label className="flex items-center gap-1 text-xs">
-          <span className="text-muted-foreground">PI</span>
+          <span className="text-muted-foreground">{t("drumbeat.ui.pi")}</span>
           <select
             disabled={!canUpdate}
             value={piChoice}

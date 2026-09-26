@@ -60,7 +60,7 @@ export function CreateTimelineButton() {
                 {t("drumbeat.ui.abbrechen")}
               </Button>
               <Button type="submit" disabled={pending}>
-                {pending ? "Anlegen…" : "Anlegen"}
+                {pending ? t("drumbeat.ui.anlegenLaeuft") : t("drumbeat.ui.anlegen")}
               </Button>
             </DialogFooter>
           </form>

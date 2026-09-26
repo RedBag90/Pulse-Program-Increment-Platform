@@ -377,10 +377,7 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
       </div>
       {canEdit && (
         <p className="text-meta text-muted-foreground">
-          Klick öffnet den Editor · Zeile ziehen:{" "}
-          {reorderable
-            ? "oben/unten = umsortieren, Mitte = unterordnen."
-            : "auf ein Ziel = unterordnen (Umsortieren nur im Modus Manuell)."}
+          {reorderable ? t("goals.table.dragHintReorderable") : t("goals.table.dragHintNestOnly")}
         </p>
       )}
       {canEdit && (
@@ -401,7 +398,7 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
             overTop && "border-primary bg-primary/10 text-foreground",
           )}
         >
-          ⇧ Hierher ziehen = auf oberste Ebene verschieben
+          {t("goals.table.dropToTopLevel")}
         </div>
       )}
       <div

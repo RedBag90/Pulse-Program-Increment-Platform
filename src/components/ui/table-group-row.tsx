@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 /**
@@ -73,6 +74,7 @@ export function TableMoreRow({
   colSpan: number;
   indent?: string;
 }) {
+  const t = useTranslations();
   return (
     <tr className="border-b last:border-0">
       <td colSpan={colSpan} className={`py-1.5 ${indent}`}>
@@ -81,7 +83,7 @@ export function TableMoreRow({
           onClick={onMore}
           className="rounded-sm text-meta text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          + {remaining} weitere zeigen
+          {t("common.ui.weitereZeigen", { count: remaining })}
         </button>
       </td>
     </tr>

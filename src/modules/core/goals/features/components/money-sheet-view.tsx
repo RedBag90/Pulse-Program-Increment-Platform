@@ -42,11 +42,13 @@ export function MoneySheetView({ themes, hasPortfolio = true }: Props) {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-meta text-muted-foreground">
-          Top-down pro Ziel aggregiert. Bottom-up je Epic siehst du im{" "}
-          <Link href={"/portfolio/dashboard" as never} className="text-primary hover:underline">
-            {t("goals.money.dashboard")}
-          </Link>
-          .
+          {t.rich("goals.money.aggregationHint", {
+            link: (c) => (
+              <Link href={"/portfolio/dashboard" as never} className="text-primary hover:underline">
+                {c}
+              </Link>
+            ),
+          })}
         </p>
         <MoneyExportButton
           rows={sorted.map((t) => {

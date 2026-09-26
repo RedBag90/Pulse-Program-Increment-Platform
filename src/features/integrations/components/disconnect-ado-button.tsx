@@ -1,10 +1,12 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { disconnectAdoAction } from "@/features/integrations/actions/azure-devops";
 import { Button } from "@/components/ui/button";
 
 export function DisconnectAdoButton() {
+  const t = useTranslations();
   const [pending, startTransition] = useTransition();
 
   return (
@@ -21,7 +23,9 @@ export function DisconnectAdoButton() {
       }}
       className="text-destructive border-destructive/30 hover:bg-destructive/10"
     >
-      {pending ? "Disconnecting…" : "Disconnect"}
+      {pending
+        ? t("integrations.ui.verbindungWirdGetrennt")
+        : t("integrations.ui.verbindungTrennen")}
     </Button>
   );
 }

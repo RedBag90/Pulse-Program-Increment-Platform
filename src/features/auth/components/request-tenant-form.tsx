@@ -57,7 +57,8 @@ export function RequestTenantForm() {
       </div>
       <div>
         <label htmlFor="rt-note" className="mb-1 block text-sm font-medium">
-          {t("auth.ui.notiz")} <span className="text-muted-foreground">(optional)</span>
+          {t("auth.ui.notiz")}{" "}
+          <span className="text-muted-foreground">{t("auth.ui.notizOptional")}</span>
         </label>
         <textarea
           id="rt-note"
@@ -79,7 +80,7 @@ export function RequestTenantForm() {
         disabled={isPending}
         className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
       >
-        {isPending ? "Wird gesendet…" : "Anfrage senden"}
+        {isPending ? t("auth.ui.anfrageWirdGesendet") : t("auth.ui.anfrageSenden")}
       </button>
     </form>
   );

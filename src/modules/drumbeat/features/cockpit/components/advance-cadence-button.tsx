@@ -43,9 +43,11 @@ export function AdvanceCadenceButton({ piId, artId }: { piId: string; artId: str
   if (confirming) {
     return (
       <span className="flex shrink-0 items-center gap-1.5">
-        <span className="text-meta text-muted-foreground">Abschließen &amp; nächstes öffnen?</span>
+        <span className="text-meta text-muted-foreground">
+          {t("drumbeat.ui.abschliessenNaechstesOeffnenFrage")}
+        </span>
         <Button type="button" size="sm" disabled={pending} onClick={advance}>
-          {pending ? "…" : "Fortschreiben"}
+          {pending ? "…" : t("drumbeat.ui.fortschreiben")}
         </Button>
         <Button
           type="button"
@@ -68,7 +70,7 @@ export function AdvanceCadenceButton({ piId, artId }: { piId: string; artId: str
       className="shrink-0"
       onClick={() => setConfirming(true)}
     >
-      PI abschließen &amp; nächstes öffnen
+      {t("drumbeat.ui.piAbschliessenNaechstesOeffnen")}
     </Button>
   );
 }

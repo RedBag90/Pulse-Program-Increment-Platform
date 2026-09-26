@@ -128,7 +128,7 @@ export default async function ValueStreamNodePage({ params, searchParams }: Prop
 
       {activeTab === "overview" && canReadBudget && (
         <p className="mb-4 rounded-lg bg-card shadow-card px-4 py-3 text-sm">
-          Budget, Betriebskosten und die ART-Rahmen dieses Wertstroms liegen im Budgeting-Bereich.{" "}
+          {t("org.page.budgetDiesesWertstromsLiegtImBudgeting")}{" "}
           <Link
             href={`/budgeting/value-streams/${vs.id}`}
             className="font-medium text-primary hover:underline"

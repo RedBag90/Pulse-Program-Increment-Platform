@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import { getPrincipal } from "@/server/auth/principal";
@@ -22,6 +23,7 @@ export default async function SuspendedPage({ params }: { params: Promise<{ loca
   const db = createPrismaClient({ userId: principal.id, tenantId: "" as TenantId });
   const tenants = await listUserTenants(db, principal.id);
 
+  const t = await getTranslations("platform.page");
   const archived = principal.tenantStatus === "archived";
 
   return (
@@ -32,12 +34,10 @@ export default async function SuspendedPage({ params }: { params: Promise<{ loca
         </div>
         <div className="space-y-2">
           <h1 className="text-xl font-semibold">
-            {archived ? "Bereich archiviert" : "Bereich gesperrt"}
+            {archived ? t("suspendedBereichArchiviert") : t("suspendedBereichGesperrt")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {archived
-              ? "Dieser Bereich wurde vom Plattform-Admin archiviert und ist nicht mehr zugänglich."
-              : "Dieser Bereich wurde vom Plattform-Admin gesperrt. Bitte wende dich an den Support."}
+            {archived ? t("suspendedArchiviertHinweis") : t("suspendedGesperrtHinweis")}
           </p>
         </div>
         <div className="border-t pt-4 text-left">

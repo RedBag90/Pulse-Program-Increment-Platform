@@ -157,7 +157,9 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
                 disabled={fetched.loading}
                 className={SELECT_CLASS}
               >
-                <option value="">{fetched.loading ? "Lade…" : "Wertstrom wählen…"}</option>
+                <option value="">
+                  {fetched.loading ? t("work.epic.lade") : t("work.epic.wertstromWaehlenOption")}
+                </option>
                 {options.map((vs) => (
                   <option key={vs.id} value={vs.id}>
                     {vs.name}
@@ -181,12 +183,12 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
               >
                 <option value="">
                   {!vsId
-                    ? "Zuerst Wertstrom wählen…"
+                    ? t("work.epic.zuerstWertstromWaehlen")
                     : arts.loading
-                      ? "Lade…"
+                      ? t("work.epic.lade")
                       : artOptions.length === 0
-                        ? "Keine ARTs in diesem Wertstrom"
-                        : "ART wählen…"}
+                        ? t("work.epic.keineArtsImWertstrom")
+                        : t("work.epic.artWaehlen")}
                 </option>
                 {artOptions.map((art) => (
                   <option key={art.id} value={art.id}>
@@ -208,7 +210,9 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
                 className={SELECT_CLASS}
               >
                 <option value="">
-                  {!vsId ? "Zuerst Wertstrom wählen…" : "— später zuordnen —"}
+                  {!vsId
+                    ? t("work.epic.zuerstWertstromWaehlen")
+                    : t("work.epic.spaeterZuordnenOption")}
                 </option>
                 {solutionOptions.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -259,7 +263,11 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
                 {t("work.epic.abbrechen")}
               </Button>
               <Button type="submit" disabled={isPending || linkPending}>
-                {isPending ? "Lege an…" : linkPending ? "Verknüpfe…" : "Anlegen"}
+                {isPending
+                  ? t("work.epic.legeAn")
+                  : linkPending
+                    ? t("work.epic.verknuepfeLaeuft")
+                    : t("work.epic.anlegenButton")}
               </Button>
             </DialogFooter>
           </form>

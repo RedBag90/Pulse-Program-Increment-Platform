@@ -218,7 +218,7 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
               </th>
               <th className="px-2 py-2 text-left">{t("drumbeat.ui.titel")}</th>
               <th className="px-2 py-2 text-left">{t("drumbeat.ui.art")}</th>
-              <th className="px-2 py-2 text-left">PI</th>
+              <th className="px-2 py-2 text-left">{t("drumbeat.ui.pi")}</th>
               <th className="px-2 py-2 text-left">{t("drumbeat.ui.status")}</th>
               <th className="px-2 py-2 text-right">{t("drumbeat.ui.wsjf")}</th>
               <th className="px-2 py-2 text-left">{t("drumbeat.ui.blocker")}</th>
@@ -263,7 +263,7 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
                     ) : (
                       <span className="text-xs">
                         {piOptions.find((o) => o.value === normalizePiKey(f.piId))?.label ??
-                          "— Backlog —"}
+                          t("drumbeat.ui.backlogPlatzhalter")}
                       </span>
                     )}
                   </td>

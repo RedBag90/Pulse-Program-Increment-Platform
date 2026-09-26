@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import { useActionState, useState } from "react";
 import { ChevronDown, Gauge, Target } from "lucide-react";
 import {
@@ -99,14 +100,20 @@ interface Props {
 const selectCls =
   "h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
-function fmt(n: number | null): string {
-  return n === null ? "—" : n.toLocaleString("de-DE");
+const tagOf = (locale?: Locale): string => (locale === "en" ? "en-GB" : "de-DE");
+
+function fmt(n: number | null, locale?: Locale): string {
+  return n === null ? "—" : n.toLocaleString(tagOf(locale));
 }
 
-function fmtEur(n: number | null): string {
+function fmtEur(n: number | null, locale?: Locale): string {
   return n === null
     ? "—"
-    : n.toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+    : n.toLocaleString(tagOf(locale), {
+        style: "currency",
+        currency: "EUR",
+        maximumFractionDigits: 0,
+      });
 }
 
 /** Schlanker Fortschrittsbalken im „Realisierter Mehrwert"-Stil. */
@@ -128,6 +135,7 @@ function TileBar({ ratio }: { ratio: number | null }) {
  * nachgebauten Hover-Klassen.
  */
 function EditToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  const t = useTranslations();
   return (
     <Button
       type="button"
@@ -137,7 +145,7 @@ function EditToggle({ open, onToggle }: { open: boolean; onToggle: () => void })
       aria-expanded={open}
       className="shrink-0 gap-1 text-xs text-muted-foreground"
     >
-      {open ? "Fertig" : "Bearbeiten"}
+      {open ? t("work.epic.fertigButton") : t("common.edit")}
       <ChevronDown className={`size-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
     </Button>
   );
@@ -155,6 +163,7 @@ function KpiItem({
   quantityFrozen: boolean;
 }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const [basicsState, basicsAction, basicsPending] = useActionState(updateKpiBasicsAction, {});
   const [delState, delAction, delPending] = useActionState(deleteKpiAction, {});
   const [measState, measAction, measPending] = useActionState(recordKpiMeasurementAction, {});
@@ -204,8 +213,15 @@ function KpiItem({
         </p>
         {total != null && (
           <p className="ml-auto text-sm text-muted-foreground">
-            ≈ <span className="font-medium text-foreground">{formatCompactEUR(total)}</span>
-            {kind === "recurring" ? " Nutzen p. a." : " Nutzen, einmalig"}
+            {t.rich(
+              kind === "recurring"
+                ? "work.epic.ungefaehrNutzenProJahr"
+                : "work.epic.ungefaehrNutzenEinmalig",
+              {
+                amount: formatCompactEUR(total, locale),
+                b: (c) => <span className="font-medium text-foreground">{c}</span>,
+              },
+            )}
           </p>
         )}
       </div>
@@ -214,9 +230,21 @@ function KpiItem({
         <div className="min-w-0 flex-1">
           <TileBar ratio={ratio} />
           <p className="mt-1 text-label text-muted-foreground">
-            Baseline {fmt(kpi.baseline)} → Ziel {fmt(kpi.target)}
-            {ratio != null && ` · ${Math.round(ratio * 100)} % erreicht`}
-            {kpi.valuePerUnit != null && ` · ${fmtEur(kpi.valuePerUnit)}/Einheit`}
+            {t(
+              ratio != null
+                ? kpi.valuePerUnit != null
+                  ? "work.epic.kpiBaselineZielErreichtWertJeEinheit"
+                  : "work.epic.kpiBaselineZielErreicht"
+                : kpi.valuePerUnit != null
+                  ? "work.epic.kpiBaselineZielWertJeEinheit"
+                  : "work.epic.kpiBaselineZiel",
+              {
+                baseline: fmt(kpi.baseline, locale),
+                target: fmt(kpi.target, locale),
+                percent: ratio != null ? Math.round(ratio * 100) : 0,
+                perUnit: fmtEur(kpi.valuePerUnit, locale),
+              },
+            )}
           </p>
         </div>
         <Sparkline points={series} />
@@ -455,7 +483,7 @@ function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
                 {t("work.epic.abbrechen")}
               </Button>
               <Button type="submit" disabled={pending}>
-                {pending ? "Speichern…" : "KPI hinzufügen"}
+                {pending ? t("common.ui.speichernLaeuft") : t("work.epic.kpiHinzufuegen")}
               </Button>
             </DialogFooter>
           </form>
@@ -488,11 +516,13 @@ function LinkOutcome({
   };
 }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const o = link.outcome;
 
   if (o.planned === 0 && o.realized === 0) return null;
   const unit = link.goalUnit ? ` ${link.goalUnit}` : "";
-  const perYear = benefitKindOrDefault(link.impactKind) === "recurring" ? "/Jahr" : "";
+  const perYear =
+    benefitKindOrDefault(link.impactKind) === "recurring" ? t("work.epic.proJahrSuffix") : "";
   const measured = link.kpiMeasurements.length > 0;
   const hasPlan = link.planSnapshot != null;
 
@@ -501,28 +531,30 @@ function LinkOutcome({
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-label text-muted-foreground">
         <dt>{t("work.epic.planBeiFreigabe")}</dt>
         <dd className="text-right tabular-nums">
-          {formatMetricValue(o.planned, goalSpec)}
+          {formatMetricValue(o.planned, goalSpec, locale)}
           {unit}
           {perYear}
         </dd>
         <dt className="inline-flex items-center gap-1">
-          Ist
+          {t("work.epic.ist")}
           {o.frozen && (
-            <span title={t("work.epic.dieUmsetzungIstAbgenommen")}>(festgeschrieben)</span>
+            <span title={t("work.epic.dieUmsetzungIstAbgenommen")}>
+              {t("work.epic.festgeschriebenInKlammern")}
+            </span>
           )}
         </dt>
         <dd className="text-right tabular-nums">
           {measured ? (
             <>
               <span className="font-medium text-foreground">
-                {formatMetricValue(o.realized, goalSpec)}
+                {formatMetricValue(o.realized, goalSpec, locale)}
                 {unit}
                 {perYear}
               </span>{" "}
               · {Math.round(o.attainment * 100)} %
             </>
           ) : (
-            "noch nicht gemessen"
+            t("work.epic.nochNichtGemessen")
           )}
         </dd>
         {hasPlan && measured && (
@@ -588,6 +620,7 @@ function LinkedGoalRow({
   canEdit: boolean;
 }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const [state, action, pending] = useActionState(linkEpicToGoalAction, {});
   const chosen = kpis.find((k) => k.id === link.kpiId) ?? null;
   const [kind, setKind] = useState<string>(link.impactKind || "recurring");
@@ -604,7 +637,7 @@ function LinkedGoalRow({
   const hasGoalMetric =
     link.goalBaseline != null || link.goalTarget != null || link.goalCurrent != null;
   const isSet = chosen != null && link.conversionFactor != null;
-  const kpiUnit = link.kpiUnit || chosen?.unit || "KPI-Einheit";
+  const kpiUnit = link.kpiUnit || chosen?.unit || t("work.epic.kpiEinheit");
 
   return (
     <div className="rounded-lg bg-card p-4 shadow-card">
@@ -614,7 +647,7 @@ function LinkedGoalRow({
           <p className="font-medium">{link.goalTitle}</p>
           {link.goalUnit && (
             <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-              Ziel-Einheit: {link.goalUnit}
+              {t("work.epic.zielEinheitMitWert", { unit: link.goalUnit })}
             </p>
           )}
         </div>
@@ -628,9 +661,12 @@ function LinkedGoalRow({
         {isSet ? (
           <>
             <p className="text-xl font-semibold tabular-nums">
-              {link.conversionFactor!.toLocaleString("de-DE")}
+              {link.conversionFactor!.toLocaleString(tagOf(locale))}
               <span className="ml-1 text-sm font-normal text-muted-foreground">
-                {link.goalUnit || ""} je 1 {kpiUnit}
+                {t("work.epic.zielEinheitJeKpiEinheit", {
+                  goalUnit: link.goalUnit || "",
+                  kpiUnit,
+                })}
               </span>
             </p>
             <Badge variant="outline">
@@ -645,19 +681,21 @@ function LinkedGoalRow({
       </div>
 
       <p className="mt-1 text-label text-muted-foreground">
-        Ziel-KPI: {link.goalMetricName ? `${link.goalMetricName} · ` : ""}
-        {hasGoalMetric ? (
-          <>
-            {formatMetricValue(link.goalBaseline, goalSpec)} →{" "}
-            {formatMetricValue(link.goalTarget, goalSpec)} · aktuell{" "}
-            <span className="font-medium text-foreground">
-              {formatMetricValue(link.goalCurrent, goalSpec)}
-            </span>
-            {link.goalUnit ? ` ${link.goalUnit}` : ""}
-          </>
-        ) : (
-          "— noch nicht gepflegt (im Ziele-Modul)"
-        )}
+        {hasGoalMetric
+          ? t.rich(
+              link.goalMetricName ? "work.epic.zielKpiMitNameWerte" : "work.epic.zielKpiWerte",
+              {
+                name: link.goalMetricName ?? "",
+                baseline: formatMetricValue(link.goalBaseline, goalSpec, locale),
+                target: formatMetricValue(link.goalTarget, goalSpec, locale),
+                current: formatMetricValue(link.goalCurrent, goalSpec, locale),
+                unit: link.goalUnit ? ` ${link.goalUnit}` : "",
+                b: (c) => <span className="font-medium text-foreground">{c}</span>,
+              },
+            )
+          : link.goalMetricName
+            ? t("work.epic.zielKpiMitNameNichtGepflegt", { name: link.goalMetricName })
+            : t("work.epic.zielKpiNichtGepflegt")}
       </p>
 
       {isSet && <LinkOutcome link={link} goalSpec={goalSpec} />}

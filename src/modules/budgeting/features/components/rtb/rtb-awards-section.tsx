@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import { Fragment, useActionState, useState } from "react";
 import { saveRtbAwardsAction } from "@/modules/budgeting/features/actions/rtb";
 import { Link } from "@/i18n/navigation";
@@ -36,6 +37,7 @@ export function RtbAwardsSection({
   setupHref: string;
 }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const [state, action, pending] = useActionState(saveRtbAwardsAction, {});
   const [draft, setDraft] = useState<Record<string, string>>(() =>
     Object.fromEntries(view.rows.map((r) => [r.rtbItemId, String(r.amount)])),
@@ -77,8 +79,7 @@ export function RtbAwardsSection({
     return (
       <SectionCard title={`Zuspruch aufteilen · ${view.cycleKey}`} step={4}>
         <p className="text-sm text-muted-foreground">
-          Dieser Wertstrom hat keine aktive Position — es gibt nichts, worauf sich ein Zuspruch
-          aufteilen liesse.{" "}
+          {t("budgeting.rtb.keineAktivePositionNichtsAufzuteilen")}{" "}
           <Link href={setupHref} className="text-primary hover:underline">
             {t("budgeting.rtb.positionenEinrichten")}
           </Link>
@@ -201,7 +202,7 @@ export function RtbAwardsSection({
                                     r.solutionId != null &&
                                     r.artId !== r.solutionArtId && (
                                       <span className="ml-1.5 text-warning">
-                                        · zählt bei {r.artName ?? "—"}
+                                        {t("budgeting.rtb.zaehltBei", { art: r.artName ?? "—" })}
                                       </span>
                                     )}
                                 </td>
@@ -246,10 +247,15 @@ export function RtbAwardsSection({
           </div>
 
           <p className={`text-sm ${rest < 0 ? "text-destructive" : "text-muted-foreground"}`}>
-            Zugesprochen {formatEUR(awarded)} ·{" "}
             {rest < 0
-              ? `${formatEUR(-rest)} zu viel verteilt`
-              : `${formatEUR(rest)} noch nicht verteilt`}
+              ? t("budgeting.rtb.zugesprochenZuVielVerteilt", {
+                  awarded: formatEUR(awarded, locale),
+                  amount: formatEUR(-rest, locale),
+                })
+              : t("budgeting.rtb.zugesprochenNochNichtVerteilt", {
+                  awarded: formatEUR(awarded, locale),
+                  amount: formatEUR(rest, locale),
+                })}
           </p>
 
           {!view.saved && view.closedReason == null && (
@@ -274,7 +280,7 @@ export function RtbAwardsSection({
               disabled={pending || rest < 0}
               className="rounded-md border px-3 py-1.5 text-sm disabled:opacity-50"
             >
-              {pending ? "Speichere…" : "Aufteilung speichern"}
+              {pending ? t("budgeting.rtb.speichere") : t("budgeting.rtb.aufteilungSpeichern")}
             </button>
           )}
         </form>

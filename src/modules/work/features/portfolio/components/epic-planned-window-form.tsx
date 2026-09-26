@@ -48,29 +48,36 @@ export function EpicPlannedWindowForm({ epicId, plannedStartAt, plannedEndAt, de
         </p>
       ) : (
         <p className="text-muted-foreground">
-          Noch kein Umsetzungstermin geplant — setze L4.1/L4.2 im{" "}
-          <Link
-            href={`/portfolio/epics/${epicId}?tab=timeline`}
-            className="text-primary hover:underline"
-          >
-            {t("work.epic.reifegradPlan")}
-          </Link>
-          .
+          {t.rich("work.epic.nochKeinUmsetzungsterminGeplant", {
+            link: (c) => (
+              <Link
+                href={`/portfolio/epics/${epicId}?tab=timeline`}
+                className="text-primary hover:underline"
+              >
+                {c}
+              </Link>
+            ),
+          })}
         </p>
       )}
       <p className="text-xs text-muted-foreground">
-        Aus dem{" "}
-        <Link
-          href={`/portfolio/epics/${epicId}?tab=timeline`}
-          className="text-primary hover:underline"
-        >
-          {t("work.epic.reifegradPlan")}
-        </Link>{" "}
-        abgeleitet — geplanter Umsetzungsstart (L4.1) bis Umsetzungsende (L4.2).
+        {t.rich("work.epic.ausDemReifegradPlanAbgeleitet", {
+          link: (c) => (
+            <Link
+              href={`/portfolio/epics/${epicId}?tab=timeline`}
+              className="text-primary hover:underline"
+            >
+              {c}
+            </Link>
+          ),
+        })}
       </p>
       {derived && (
         <p className="text-xs text-muted-foreground">
-          Ableitung aus Features: {toIsoDate(derived.start)} → {toIsoDate(derived.end)}
+          {t("work.epic.ableitungAusFeatures", {
+            start: toIsoDate(derived.start),
+            end: toIsoDate(derived.end),
+          })}
         </p>
       )}
       {diverged && <p className="text-xs text-warning">{t("work.epic.istFensterFeaturePis")}</p>}

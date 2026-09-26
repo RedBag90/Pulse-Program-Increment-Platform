@@ -159,7 +159,8 @@ export function EpicListRowComponent({
             </Link>
             {compact && (
               <p className="mt-0.5 truncate text-meta text-muted-foreground">
-                {row.ownerLabel ?? "ohne Owner"} · {row.valueStream?.name ?? "ohne Wertstrom"}
+                {row.ownerLabel ?? t("drumbeat.ui.ohneOwner")} ·{" "}
+                {row.valueStream?.name ?? t("work.epic.ohneWertstromKurz")}
                 {row.economics.implementationCost != null
                   ? ` · ${money(row.economics.implementationCost)}`
                   : ""}
@@ -222,7 +223,7 @@ export function EpicListRowComponent({
             </div>
           ) : (
             <span className="text-meta text-muted-foreground">
-              {row.kpiCount === 0 ? "keine KPIs" : "—"}
+              {row.kpiCount === 0 ? t("work.epic.keineKpisKurz") : "—"}
             </span>
           )}
         </td>
@@ -270,8 +271,8 @@ export function EpicListRowComponent({
                         >
                           <AlertTriangle className="size-3.5 text-warning" />
                           {row.needsSteeringAttention
-                            ? "Steering-Markierung aufheben"
-                            : "Für Steering markieren"}
+                            ? t("work.epic.steeringMarkierungAufheben")
+                            : t("work.epic.fuerSteeringMarkieren")}
                         </button>
                       </li>
                       <li>
@@ -282,8 +283,8 @@ export function EpicListRowComponent({
                         >
                           <Coins className="size-3.5 text-info" />
                           {row.stagedForBudgeting
-                            ? "Aus Budget-Vorbereitung entfernen"
-                            : "Für Budget vorbereiten"}
+                            ? t("work.epic.ausBudgetVorbereitungEntfernen")
+                            : t("work.epic.fuerBudgetVorbereiten")}
                         </button>
                       </li>
                       <li className="my-1 border-t" />

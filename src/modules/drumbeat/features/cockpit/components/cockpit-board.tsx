@@ -366,7 +366,9 @@ function LaneRow({
             {rest.length > 0 && (
               <details className="group/rest">
                 <summary className="cursor-pointer list-none rounded-md px-1.5 py-1 text-label text-muted-foreground hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
-                  <span className="group-open/rest:hidden">+ {rest.length} weitere</span>
+                  <span className="group-open/rest:hidden">
+                    {t("drumbeat.ui.plusWeitere", { count: rest.length })}
+                  </span>
                   <span className="hidden group-open/rest:inline">
                     {t("drumbeat.ui.wenigerZeigen")}
                   </span>

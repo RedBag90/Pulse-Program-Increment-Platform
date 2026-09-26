@@ -1,4 +1,5 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import {
   Card,
   CardHeader,
@@ -62,6 +63,7 @@ export function GuardrailMixCard<B extends string>({
   coverageThin: boolean;
 }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const share = (r: MixRow) => (view === "count" ? r.countShare : r.amountShare);
   const delta = (r: MixRow) => (view === "count" ? r.deltaCount : r.deltaAmount);
 
@@ -78,7 +80,7 @@ export function GuardrailMixCard<B extends string>({
         {status === "unknown" ? (
           <EmptyState
             title={t("work.guardrails.nochKeineKlassifiziertenEpics")}
-            body={`Der Mix erscheint, sobald Epics einen ${unclassifiedNoun} tragen.`}
+            body={t("work.guardrails.mixErscheintSobald", { noun: unclassifiedNoun })}
             className="p-6"
           />
         ) : (
@@ -109,8 +111,8 @@ export function GuardrailMixCard<B extends string>({
                       className="h-4"
                     />
                     <span className="text-right font-mono text-xs tabular-nums">
-                      {formatPercent(share(row))}{" "}
-                      <span className={deltaClass(d)}>{formatPp(d)}</span>
+                      {formatPercent(share(row), locale)}{" "}
+                      <span className={deltaClass(d)}>{formatPp(d, locale)}</span>
                     </span>
                   </li>
                 );
@@ -120,11 +122,25 @@ export function GuardrailMixCard<B extends string>({
             {/* Immer sichtbar, auch bei 0 — sonst liest man den Mix als vollstaendig. */}
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-dashed pt-2.5 text-xs text-muted-foreground">
               <span>
-                {unclassifiedCount} von {totalCount} Epics ohne {unclassifiedNoun}
-                {totalCount > 0 && ` (${formatPercent(unclassifiedCount / totalCount)})`}
+                {totalCount > 0
+                  ? t("work.guardrails.epicsOhneMitAnteil", {
+                      count: unclassifiedCount,
+                      total: totalCount,
+                      noun: unclassifiedNoun,
+                      percent: formatPercent(unclassifiedCount / totalCount, locale),
+                    })
+                  : t("work.guardrails.epicsOhne", {
+                      count: unclassifiedCount,
+                      total: totalCount,
+                      noun: unclassifiedNoun,
+                    })}
               </span>
               {view === "amount" && unclassifiedAmount > 0 && (
-                <span>Σ {formatCompactEUR(unclassifiedAmount)} außerhalb des Mix</span>
+                <span>
+                  {t("work.guardrails.ausserhalbDesMix", {
+                    amount: formatCompactEUR(unclassifiedAmount, locale),
+                  })}
+                </span>
               )}
             </div>
 

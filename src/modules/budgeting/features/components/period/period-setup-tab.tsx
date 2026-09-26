@@ -1,6 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
+import { formatEUR } from "@/lib/formatting";
 import { useActionState } from "react";
 import { Link } from "@/i18n/navigation";
 import type {
@@ -277,7 +279,7 @@ function StartRound({
   if (!draft) {
     return (
       <p className="text-xs text-muted-foreground">
-        Die Runde läuft — die PB-Liste ist eingefroren. Der Fortgang steht im Reiter „Verteilung".
+        {t("budgeting.period.rundeLaeuftPbListeEingefroren")}
       </p>
     );
   }
@@ -298,7 +300,7 @@ function StartRound({
     <form action={action} className="flex flex-wrap items-center gap-3">
       <input type="hidden" name="id" value={model.round.id} />
       <button type="submit" disabled={pending || blocked !== null} className={btn}>
-        {pending ? "…" : "Runde starten"}
+        {pending ? "…" : t("budgeting.period.rundeStarten")}
       </button>
       {blocked && <span className="text-xs text-warning dark:text-amber-300">{blocked}</span>}
       {state.error && <span className="text-xs text-destructive">{state.error}</span>}
@@ -308,6 +310,7 @@ function StartRound({
 
 function PbList({ model, draft }: { model: PeriodDetailModel; draft: boolean }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const [addState, addAction] = useActionState(addEpicCandidateAction, {});
   const [, removeAction] = useActionState(removeCandidateAction, {});
   const all = [...model.epicCandidates, ...model.rtbCandidates];
@@ -340,14 +343,14 @@ function PbList({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
 
       <p className="mt-2 flex flex-wrap items-baseline gap-x-3 text-meta text-muted-foreground">
         <span>
-          Σ Anfragen{" "}
-          <span className="font-medium tabular-nums text-foreground">
-            {EUR(all.reduce((s, c) => s + c.ask, 0))}
-          </span>{" "}
-          gegen einen Topf von{" "}
-          <span className="font-medium tabular-nums text-foreground">
-            {EUR(model.round.poolTotal)}
-          </span>
+          {t.rich("budgeting.period.summeAnfragenGegenTopf", {
+            asks: formatEUR(
+              all.reduce((s, c) => s + c.ask, 0),
+              locale,
+            ),
+            pool: formatEUR(model.round.poolTotal, locale),
+            b: (c) => <span className="font-medium tabular-nums text-foreground">{c}</span>,
+          })}
         </span>
         {model.rtbIsPreview && model.rtbCandidates.length > 0 && (
           <Link href="/budgeting/run-the-business" className="text-primary hover:underline">
@@ -378,8 +381,9 @@ function PbList({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
           {addState.error && <span className="text-xs text-destructive">{addState.error}</span>}
           {model.artEpicsFilteredOut > 0 && (
             <p className="w-full text-xs text-muted-foreground">
-              {model.artEpicsFilteredOut} vorgemerkte Epics stehen nicht zur Wahl: sie liegen unter
-              dem Portfolio-Limit und werden vom jeweiligen ART aus dessen Rahmen finanziert.
+              {t("budgeting.period.vorgemerkteEpicsNichtZurWahl", {
+                count: model.artEpicsFilteredOut,
+              })}
             </p>
           )}
         </form>

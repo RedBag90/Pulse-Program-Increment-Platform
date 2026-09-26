@@ -59,7 +59,9 @@ export function LayoutToggle({ current, otherHref }: Props) {
         {t("nav.ui.new")}
       </button>
       {/* Hint fuer Voice-over — sagt was beim Click passiert. */}
-      <span className="sr-only">Wechsel zu {switchTo === "old" ? "Old" : "New"}-Layout</span>
+      <span className="sr-only">
+        {switchTo === "old" ? t("nav.ui.wechselZuOldLayout") : t("nav.ui.wechselZuNewLayout")}
+      </span>
     </div>
   );
 }

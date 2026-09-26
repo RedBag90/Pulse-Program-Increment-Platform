@@ -62,7 +62,7 @@ export function JoinArtToTimelineControl({
         ))}
       </select>
       <Button type="button" size="sm" variant="outline" disabled={pending} onClick={apply}>
-        {pending ? "…" : "+ ART beitreten"}
+        {pending ? "…" : t("drumbeat.ui.artBeitreten")}
       </Button>
       {state?.error && <span className="text-xs text-destructive">{state.error}</span>}
     </div>
@@ -105,7 +105,7 @@ export function AssignTimelineDropdown({
         ))}
       </select>
       <Button type="button" size="sm" variant="outline" disabled={pending} onClick={apply}>
-        {pending ? "…" : "Timeline zuordnen"}
+        {pending ? "…" : t("drumbeat.ui.timelineZuordnen")}
       </Button>
       {state?.error && <span className="text-xs text-destructive">{state.error}</span>}
     </div>

@@ -73,7 +73,11 @@ export function MyApprovalsList({ rows }: { rows: MyApprovalRow[] }) {
             <PageSection
               key={kind}
               title={KIND_LABELS[kind]}
-              actions={<span className="text-xs text-muted-foreground">{group.length} offen</span>}
+              actions={
+                <span className="text-xs text-muted-foreground">
+                  {t("work.myApprovals.anzahlOffen", { count: group.length })}
+                </span>
+              }
             >
               <div className="divide-y rounded-lg border" data-tour="approvals-list">
                 {group.map((row) => (

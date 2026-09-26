@@ -88,7 +88,9 @@ export function FeatureDeliveryControls({ featureId, status, piAssigned, parentE
     const ok = reason.trim().length > 0;
     return (
       <div className="space-y-2 rounded-md border border-warning/40 bg-warning-surface/60 p-3 text-sm">
-        <p className="font-medium">{reasonOpen.label} — bitte begründen</p>
+        <p className="font-medium">
+          {t("drumbeat.ui.aktionBitteBegruenden", { action: reasonOpen.label })}
+        </p>
         <textarea
           value={reason}
           onChange={(e) => setReason(e.target.value)}
@@ -142,7 +144,7 @@ export function FeatureDeliveryControls({ featureId, status, piAssigned, parentE
             className={PRIMARY}
             onClick={() => dispatch(startAction, { id: featureId })}
           >
-            {startPending ? "…" : "Umsetzung starten"}
+            {startPending ? "…" : t("drumbeat.ui.umsetzungStarten")}
           </button>
         ),
       });
@@ -182,7 +184,7 @@ export function FeatureDeliveryControls({ featureId, status, piAssigned, parentE
             type="button"
             disabled={statusPending}
             className={OUTLINE}
-            onClick={() => setReasonOpen({ to: "blocked", label: "Pausieren" })}
+            onClick={() => setReasonOpen({ to: "blocked", label: t("drumbeat.ui.pausieren") })}
           >
             {t("drumbeat.ui.pausieren")}
           </button>
@@ -196,7 +198,7 @@ export function FeatureDeliveryControls({ featureId, status, piAssigned, parentE
             type="button"
             disabled={statusPending}
             className={DANGER}
-            onClick={() => setReasonOpen({ to: "cancelled", label: "Abbrechen" })}
+            onClick={() => setReasonOpen({ to: "cancelled", label: t("drumbeat.ui.abbrechen") })}
           >
             {t("drumbeat.ui.abbrechen")}
           </button>

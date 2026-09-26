@@ -158,8 +158,13 @@ export function CockpitToolbar({
           </button>
         )}
         <p className="whitespace-nowrap text-xs text-muted-foreground">
-          {featureCount} {featureCount === 1 ? "Feature" : "Features"}
-          {activeFilters > 0 ? " gefiltert" : " im Scope"}
+          {activeFilters > 0
+            ? featureCount === 1
+              ? t("drumbeat.ui.featureGefiltertEins", { count: featureCount })
+              : t("drumbeat.ui.featuresGefiltertMehrere", { count: featureCount })
+            : featureCount === 1
+              ? t("drumbeat.ui.featureImScopeEins", { count: featureCount })
+              : t("drumbeat.ui.featuresImScopeMehrere", { count: featureCount })}
         </p>
         {hiddenBelowL3 > 0 && (
           <p

@@ -441,8 +441,9 @@ function GoalPane({
             disabled={!canEdit}
           />
           <p className="mt-1 text-label leading-snug text-muted-foreground">
-            Einheiten-Kaskade: Wie viel der Eltern-Einheit trägt 1 {node?.metricUnit || "Einheit"}{" "}
-            dieses Ziels bei, wenn du seine KPI bewegst?
+            {node?.metricUnit
+              ? t("goals.drawer.unitCascadeHint", { unit: node.metricUnit })
+              : t("goals.drawer.unitCascadeHintNoUnit")}
           </p>
         </Field>
       )}
@@ -473,8 +474,9 @@ function GoalPane({
             <DialogHeader>
               <DialogTitle>{t("goals.drawer.zielLoeschen")}</DialogTitle>
               <DialogDescription>
-                „{node?.title ?? "Dieses Ziel"}" und alle Unterziele werden entfernt. Das lässt sich
-                nicht rückgängig machen.
+                {node?.title != null
+                  ? t("goals.drawer.deleteConfirmNamed", { title: node.title })
+                  : t("goals.drawer.deleteConfirmUnnamed")}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -482,7 +484,7 @@ function GoalPane({
                 {t("goals.drawer.abbrechen")}
               </DialogClose>
               <Button variant="destructive" onClick={performDelete} disabled={pending}>
-                {pending ? "Löscht…" : "Löschen"}
+                {pending ? t("goals.drawer.deleting") : t("goals.drawer.delete")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -610,10 +612,10 @@ function GoalPane({
       <header className="space-y-0.5 border-b pb-3">
         <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           {isTopLevel
-            ? "Ziel"
+            ? t("goals.money.goal")
             : ancestors.length > 0
               ? ancestors.map((a) => a.title).join(" › ")
-              : `Ziel · ${found?.parent?.title ?? "—"}`}
+              : t("goals.drawer.goalUnderParent", { parent: found?.parent?.title ?? "—" })}
         </p>
         <h2 className="font-heading text-xl font-semibold tracking-tight">{node.title}</h2>
       </header>
@@ -1242,7 +1244,7 @@ export function GoalScopeLinks({
   return (
     <section className="space-y-2">
       <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        Verantwortung · Value Streams &amp; ARTs
+        {t("goals.drawer.responsibilityHeading")}
       </h3>
       <div className="space-y-1.5">
         <p className="text-label uppercase tracking-[0.1em] text-muted-foreground">
@@ -1506,7 +1508,7 @@ function FormShell({
           disabled={pending || !canEdit}
           className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {pending ? "Speichert…" : "Speichern"}
+          {pending ? t("goals.shared.saving") : t("goals.shared.save")}
         </button>
       </footer>
       {confirmDelete}

@@ -147,7 +147,9 @@ export function PeriodPicker({
             onClick={() => pick("year", null)}
             className={`${cell} w-full text-left ${isActive("year", null) ? cellActive : ""}`}
           >
-            <span className="font-medium">Ganzjahr FY{String(viewYear).slice(2)}</span>
+            <span className="font-medium">
+              {t("goals.periodPicker.fullYear", { year: String(viewYear).slice(2) })}
+            </span>
             <span className="ml-2 text-meta text-muted-foreground">
               {t("goals.periodPicker.janDec")}
             </span>

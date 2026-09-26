@@ -39,13 +39,13 @@ export function EpicsBulkActionBar({ selectedRows, onClear }: Props) {
           `Popover` und `DropdownMenu`, statt eines Rahmens. */}
       <div className="pointer-events-auto flex w-full max-w-3xl items-center gap-3 rounded-full bg-card px-4 py-2 shadow-lg ring-1 ring-foreground/10">
         <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground tabular-nums">
-          {selectedRows.length} ausgewählt
+          {t("work.epic.anzahlAusgewaehlt", { count: selectedRows.length })}
         </span>
 
         <span className="text-xs text-muted-foreground">
           {sharedGate
-            ? `in ${t(STAGE_GATE_KEYS[sharedGate] ?? sharedGate)}`
-            : `über ${gates.size} Reifegrade verteilt`}
+            ? t("work.epic.inReifegrad", { gate: t(STAGE_GATE_KEYS[sharedGate] ?? sharedGate) })
+            : t("work.epic.ueberReifegradeVerteilt", { count: gates.size })}
         </span>
 
         <Button

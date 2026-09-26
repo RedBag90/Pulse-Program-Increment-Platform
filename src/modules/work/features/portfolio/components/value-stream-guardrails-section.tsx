@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import { useActionState, useState } from "react";
 
 import { formatEUR } from "@/lib/formatting";
@@ -71,6 +72,7 @@ export function ValueStreamGuardrailsSection({
   preview?: ClassificationPreview | null | undefined;
 }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const [state, formAction, pending] = useActionState(saveValueStreamGuardrailTargetsAction, {});
   const own = (axis: string) => overriddenAxes.includes(axis);
   const ziel = (b: CapacityBucket) => (own("capacity") ? String(plan.targets[b]) : "");
@@ -96,35 +98,37 @@ export function ValueStreamGuardrailsSection({
         </span>
       </div>
       <p className="text-sm text-muted-foreground">
-        {t("work.epic.gemessenIn")}{" "}
-        <strong className="font-medium text-foreground">{t("work.epic.jobSizePunkten")}</strong>:
-        das zugeteilte Veränderungsgeld jedes ARTs, geteilt durch seinen eigenen €-Satz je Punkt —
-        dagegen die Job Size der für {plan.cycleLabel} eingeplanten Features.
+        {t.rich("work.epic.gemessenInJobSizePunktenSatz", {
+          cycle: plan.cycleLabel,
+          b: (c) => <strong className="font-medium text-foreground">{c}</strong>,
+        })}
       </p>
 
       <p className="text-sm">
         {ohneKapazitaet === "no_rate" ? (
           <span className="text-muted-foreground">
-            Für {plan.cycleLabel} lässt sich an keinem ART dieses Wertstroms ein €-Satz ableiten —
-            die geplanten Punkte stehen unten, die Ziele lassen sich noch nicht dagegen rechnen.
+            {t("work.epic.wertstromOhneSatz", { cycle: plan.cycleLabel })}
           </span>
         ) : ohneKapazitaet === "no_budget" ? (
           <span className="text-muted-foreground">
-            Für {plan.cycleLabel} ist diesem Wertstrom noch kein Veränderungsgeld zugeteilt. Die
-            eingeplanten Punkte stehen unten; eine Kapazität gibt es erst mit der Zuteilung.
+            {t("work.epic.wertstromOhneGeld", { cycle: plan.cycleLabel })}
           </span>
         ) : (
-          <>
-            <span className="text-muted-foreground">Kapazität {plan.cycleLabel} · </span>
-            {plan.artCount - plan.artsWithoutRate.length} von {plan.artCount}{" "}
-            {plan.artCount === 1 ? "ART" : "ARTs"} ·{" "}
-            <strong className="font-medium">{formatEUR(plan.budget)}</strong>
-            {" → "}
-            <strong className="font-medium tabular-nums">
-              {Math.round(plan.capacity ?? 0)}
-            </strong>{" "}
-            Punkte
-          </>
+          t.rich(
+            plan.artCount === 1
+              ? "work.epic.kapazitaetZeileEinArt"
+              : "work.epic.kapazitaetZeileMehrereArts",
+            {
+              cycle: plan.cycleLabel,
+              withRate: plan.artCount - plan.artsWithoutRate.length,
+              total: plan.artCount,
+              budget: formatEUR(plan.budget, locale),
+              capacity: Math.round(plan.capacity ?? 0),
+              muted: (c) => <span className="text-muted-foreground">{c}</span>,
+              b: (c) => <strong className="font-medium">{c}</strong>,
+              num: (c) => <strong className="font-medium tabular-nums">{c}</strong>,
+            },
+          )
         )}
       </p>
 
@@ -144,11 +148,13 @@ export function ValueStreamGuardrailsSection({
               <tr key={row.bucket} className="border-b last:border-b-0">
                 <td className="p-2">{t(CAPACITY_BUCKET_KEYS[row.bucket] ?? row.bucket)}</td>
                 <td className="p-2 text-right tabular-nums">{row.planned.count}</td>
-                <td className="p-2 text-right tabular-nums">{row.planned.jobSize} Pkt</td>
+                <td className="p-2 text-right tabular-nums">
+                  {t("work.guardrails.punkteKurz", { points: row.planned.jobSize })}
+                </td>
                 <td className="p-2 text-right tabular-nums text-muted-foreground">
                   {ohneKapazitaet != null || row.available == null
                     ? "—"
-                    : `${Math.round(row.available)} Pkt`}
+                    : t("work.guardrails.punkteKurz", { points: Math.round(row.available) })}
                   {ohneKapazitaet == null && row.available != null && (
                     <span className="ml-1 text-label">({Math.round(row.targetShare * 100)} %)</span>
                   )}
@@ -168,20 +174,32 @@ export function ValueStreamGuardrailsSection({
 
       {plan.artsWithoutRate.length > 0 && (
         <p className="rounded-r-md border-l-2 bg-surface-frame px-3 py-2 text-sm text-muted-foreground">
-          <strong className="font-medium text-foreground">{plan.artsWithoutRate.length}</strong>{" "}
-          {plan.artsWithoutRate.length === 1 ? "ART hat" : "ARTs haben"} keinen belastbaren €-Satz —{" "}
-          {plan.artsWithoutRate.map((a) => a.name).join(", ")}. Die{" "}
-          {plan.artsWithoutRate.reduce((s2, a) => s2 + a.jobSize, 0)} dort eingeplanten Punkte
-          stehen oben unter „Geplant"; eine Kapazität dagegen gibt es für sie nicht.
+          {t.rich(
+            plan.artsWithoutRate.length === 1
+              ? "work.epic.wertstromArtOhneSatzEiner"
+              : "work.epic.wertstromArtOhneSatzMehrere",
+            {
+              count: plan.artsWithoutRate.length,
+              names: plan.artsWithoutRate.map((a) => a.name).join(", "),
+              points: plan.artsWithoutRate.reduce((s2, a) => s2 + a.jobSize, 0),
+              b: (c) => <strong className="font-medium text-foreground">{c}</strong>,
+            },
+          )}
         </p>
       )}
 
       {plan.unclassified.count > 0 && (
         <p className="rounded-r-md border-l-2 bg-surface-frame px-3 py-2 text-sm text-muted-foreground">
-          <strong className="font-medium text-foreground">{plan.unclassified.count}</strong>{" "}
-          eingeplante Features tragen keinen Arbeitstyp ({plan.unclassified.jobSize} Pkt) und gehen
-          in keine Zeile ein.
-          {thin && " Ab 20 % unklassifiziert ist die Aufteilung nur noch ein Indiz."}
+          {t.rich(
+            thin
+              ? "work.epic.featuresOhneArbeitstypKeineZeileIndiz"
+              : "work.epic.featuresOhneArbeitstypKeineZeile",
+            {
+              count: plan.unclassified.count,
+              points: plan.unclassified.jobSize,
+              b: (c) => <strong className="font-medium text-foreground">{c}</strong>,
+            },
+          )}
         </p>
       )}
 
@@ -204,7 +222,10 @@ export function ValueStreamGuardrailsSection({
                   <td className="p-2">{c.label}</td>
                   {c.rows.map((r) => (
                     <td key={r.bucket} className="p-2 text-right tabular-nums">
-                      {r.planned} / {r.available == null ? "—" : Math.round(r.available)} Pkt
+                      {t("work.epic.geplantVonVerfuegbarPunkte", {
+                        planned: r.planned,
+                        available: r.available == null ? "—" : Math.round(r.available),
+                      })}
                     </td>
                   ))}
                 </tr>
@@ -217,33 +238,36 @@ export function ValueStreamGuardrailsSection({
       {preview && (
         <div className="space-y-2 rounded-lg bg-card p-4 shadow-card">
           <p className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            Guardrail 3 · Aufteilung bei einem Limit von {formatEUR(preview.threshold)}
+            {t("work.epic.guardrail3AufteilungBeiLimit", {
+              limit: formatEUR(preview.threshold, locale),
+            })}
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <div className="text-2xl font-semibold tabular-nums">{preview.portfolio.count}</div>
               <div className="text-xs text-muted-foreground">
-                Portfolio-Epics · {formatEUR(preview.portfolio.amount)} · über die PB-Liste
+                {t("work.epic.portfolioEpicsUeberPbListe", {
+                  amount: formatEUR(preview.portfolio.amount, locale),
+                })}
               </div>
             </div>
             <div>
               <div className="text-2xl font-semibold tabular-nums">{preview.art.count}</div>
               <div className="text-xs text-muted-foreground">
-                ART-Epics · {formatEUR(preview.art.amount)} · aus den ART-Rahmen
+                {t("work.epic.artEpicsAusArtRahmen", {
+                  amount: formatEUR(preview.art.amount, locale),
+                })}
               </div>
             </div>
           </div>
           {preview.unclassified > 0 && (
             <p className="text-xs text-muted-foreground">
-              {preview.unclassified} Epics sind noch nicht eingeordnet — ohne freigegebenen Business
-              Case liegt keine belastbare Kostenschätzung vor. Sie bleiben Portfolio-Sache, bis er
-              steht.
+              {t("work.epic.epicsNochNichtEingeordnet", { count: preview.unclassified })}
             </p>
           )}
           {preview.artWithoutArt > 0 && (
             <p className="rounded-r-md border-l-2 border-l-amber-600 bg-amber-500/[0.07] px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-              {preview.artWithoutArt} davon tragen keinen ART und hätten nach der Trennung keinen
-              Finanzierungsweg.
+              {t("work.epic.davonOhneArtKeinFinanzierungsweg", { count: preview.artWithoutArt })}
             </p>
           )}
         </div>
@@ -309,16 +333,18 @@ export function ValueStreamGuardrailsSection({
               disabled={pending}
               className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
             >
-              {pending ? "…" : "Speichern"}
+              {pending ? "…" : t("common.save")}
             </button>
           </div>
           <p className="text-xs text-muted-foreground">
-            {t("work.epic.leerLassenHeisst")}{" "}
-            <strong className="font-medium">{t("work.epic.geerbt")}</strong>. Aktuell gilt: Business{" "}
-            {plan.targets.business} % / Enabler {plan.targets.enabler} % / Maintenance{" "}
-            {plan.targets.maintenance} %, Portfolio-Limit {formatEUR(threshold)} —{" "}
-            {t(GUARDRAIL_SOURCE_KEYS[source] ?? source)}. Die drei Anteile werden zusammen gesetzt:
-            eine halbe Mix-Achse kann nicht auf 100 summieren.
+            {t.rich("work.epic.leerLassenHeisstGeerbtAktuellGilt", {
+              business: plan.targets.business,
+              enabler: plan.targets.enabler,
+              maintenance: plan.targets.maintenance,
+              limit: formatEUR(threshold, locale),
+              source: t(GUARDRAIL_SOURCE_KEYS[source] ?? source),
+              b: (c) => <strong className="font-medium">{c}</strong>,
+            })}
           </p>
           {state.error && (
             <p role="alert" className="text-sm text-destructive">

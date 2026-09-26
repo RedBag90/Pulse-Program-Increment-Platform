@@ -41,9 +41,7 @@ export function FeatureAcceptanceTab({ featureId, artId, initialCriteria, canEdi
   return (
     <section className="rounded-lg bg-card p-6 shadow-card">
       <h2 className="text-lg font-medium">{t("drumbeat.ui.acceptanceCriteria")}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Eine Zeile = ein Kriterium. Leere Zeilen werden verworfen.
-      </p>
+      <p className="mt-1 text-sm text-muted-foreground">{t("drumbeat.ui.eineZeileEinKriterium")}</p>
 
       <form action={dispatch} className="mt-4 space-y-3">
         <input type="hidden" name="id" value={featureId} />
@@ -79,7 +77,7 @@ export function FeatureAcceptanceTab({ featureId, artId, initialCriteria, canEdi
               disabled={pending}
               className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
             >
-              {pending ? "Speichere…" : "Speichern"}
+              {pending ? t("drumbeat.ui.speichereLaeuft") : t("drumbeat.ui.speichern")}
             </button>
           </div>
         )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState, useActionState, startTransition } from "react";
 import { AlertTriangle } from "lucide-react";
 import {
@@ -16,7 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatEUR } from "@/lib/formatting";
 import { setPortfolioOverrideAction } from "@/modules/work/features/portfolio/actions/epic";
-import { EPIC_CLASS_KEYS, type ClassificationDrift } from "@/modules/work/domain/pb-submission";
+import type { ClassificationDrift } from "@/modules/work/domain/pb-submission";
+import type { Locale } from "@/i18n/routing";
 
 export interface DriftInfo {
   drift: ClassificationDrift;
@@ -41,7 +42,13 @@ export interface DriftInfo {
  * liegen, ist das eine Ausnahme, die jemand mit dem Recht begründen kann. In
  * die andere Richtung bindet die Kostenregel — was über dem Limit liegt,
  * braucht eine Portfolio-Entscheidung, und ein ART-Rahmen könnte es ohnehin
- * nicht tragen.
+ * nicht tragen. Deshalb stellt der Antrag in dieser Richtung die Einordnung
+ * selbst um (`reclassifyAboveLimit` im Gate-Dienst) — der Dialog kündigt das
+ * nur an.
+ *
+ * **Ein Satz je Richtung**, nicht ein Satz mit `"über" : "unter"` darin: bis
+ * September 2026 stand der Absatz als JSX-Text zwischen Ausdrücken und
+ * erschien auf der englischen Oberfläche deutsch.
  */
 export function ClassificationDriftDialog({
   epicId,
@@ -58,6 +65,7 @@ export function ClassificationDriftDialog({
   onProceed: () => void;
 }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const [reason, setReason] = useState("");
   const [state, submitOverride, busy] = useActionState(setPortfolioOverrideAction, {});
   const mayInsist = info.drift === "down" && info.canOverride;
@@ -75,33 +83,24 @@ export function ClassificationDriftDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="size-4 text-warning" aria-hidden />
             {t("work.gate.dieEinordnungAendertSich")}
           </DialogTitle>
           <DialogDescription>
-            Angelegt wurde dieses Epic als{" "}
-            <strong className="font-medium">
-              {t(EPIC_CLASS_KEYS[info.intended] ?? info.intended)}
-            </strong>
-            . Der Business Case beziffert die Umsetzung auf{" "}
-            <strong className="font-medium tabular-nums">
-              {info.cost != null ? formatEUR(info.cost) : "—"}
-            </strong>{" "}
-            {info.drift === "up" ? "über" : "unter"} dem Portfolio-Limit von{" "}
-            <span className="tabular-nums">{formatEUR(info.threshold)}</span> — damit wird es zum{" "}
-            <strong className="font-medium">
-              {t(EPIC_CLASS_KEYS[info.derived] ?? info.derived)}
-            </strong>
-            .
+            {t.rich(info.drift === "up" ? "work.gate.driftHoch" : "work.gate.driftRunter", {
+              cost: info.cost != null ? formatEUR(info.cost, locale) : "—",
+              limit: formatEUR(info.threshold, locale),
+              b: (c) => <strong className="font-medium tabular-nums">{c}</strong>,
+            })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 text-sm">
           {info.drift === "up" ? (
-            <p className="text-muted-foreground">{t("work.gate.daranLaesstSichNichts")}</p>
+            <p className="text-muted-foreground">{t("work.gate.einordnungWirdUmgestellt")}</p>
           ) : mayInsist ? (
             <>
               <p className="text-muted-foreground">{t("work.gate.esHaengtKuenftigAm")}</p>

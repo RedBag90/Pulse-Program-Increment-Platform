@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { createElement, Fragment, type ReactNode } from "react";
 
 /**
  * **`next-intl` im Test: der echte Katalog, ohne Provider.**
@@ -18,6 +19,43 @@ import { vi } from "vitest";
  * Die Verdrahtung selbst — Middleware, `[locale]`-Segment, Provider — prüft
  * das nicht; das ist Aufgabe des E2E-Laufs, der den Umschalter bedient.
  */
+/**
+ * `t.rich` wie im Original: `<b>…</b>` ruft die gleichnamige Funktion aus den
+ * Werten auf, und was sie rendert, steht als eigenes Element im DOM.
+ *
+ * Bis September 2026 warf die Attrappe die Marken einfach weg. Solange es kaum
+ * `t.rich` gab, reichte das. Mit der Umstellung aller Sätze, die an einen
+ * Ausdruck grenzten, wurde daraus ein Loch: ein Link mitten im Satz
+ * („… im <link>Portfolio-Dashboard</link>") war im Test kein Link mehr, und
+ * eine Liste, die über eine leere Marke in den Satz kommt (`<arts></arts>`),
+ * verschwand ganz.
+ *
+ * Verschachtelte Marken löst sie nicht auf — der Inhalt einer Marke kommt als
+ * Text an. Im Katalog gibt es heute keine.
+ */
+function richText(
+  fn: (key: string, values?: Record<string, string | number>) => string,
+  key: string,
+  values: Record<string, unknown> = {},
+): unknown {
+  const plain = Object.fromEntries(
+    Object.entries(values).filter(([, v]) => typeof v !== "function"),
+  ) as Record<string, string | number>;
+  const text = fn(key, plain);
+  const parts: unknown[] = [];
+  const TAG = /<([a-zA-Z][\w-]*)>([\s\S]*?)<\/\1>/g;
+  let last = 0;
+  for (const m of text.matchAll(TAG)) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    const render = values[m[1]!];
+    parts.push(typeof render === "function" ? render(m[2]!) : m[2]!);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  if (parts.every((p) => typeof p === "string")) return parts.join("");
+  return createElement(Fragment, null, ...(parts as ReactNode[]));
+}
+
 vi.mock("next-intl", async (importOriginal) => {
   const original = (await importOriginal()) as Record<string, unknown>;
   const { catalogTranslate } = await import("@/test/helpers/catalog");
@@ -28,11 +66,7 @@ vi.mock("next-intl", async (importOriginal) => {
     useTranslations: (namespace?: string) => {
       const fn = (key: string, values?: Record<string, string | number>) =>
         t(namespace ? `${namespace}.${key}` : key, values);
-      // `t.rich` trägt Auszeichnungen im Text (`<b>…</b>`). Im Test zählt der
-      // Satz, nicht die Fettung — die Marken fallen weg, sonst stünden sie
-      // wörtlich im DOM und jede Textsuche ginge daran vorbei.
-      const rich = (key: string, values?: Record<string, string | number>) =>
-        fn(key, values).replace(/<\/?[a-z][^>]*>/gi, "");
+      const rich = (key: string, values?: Record<string, unknown>) => richText(fn, key, values);
       return Object.assign(fn, { rich, raw: (key: string) => fn(key) });
     },
   };
@@ -66,8 +100,7 @@ vi.mock("next-intl/server", async (importOriginal) => {
       const namespace = typeof arg === "string" ? arg : arg?.namespace;
       const fn = (key: string, values?: Record<string, string | number>) =>
         t(namespace ? `${namespace}.${key}` : key, values);
-      const rich = (key: string, values?: Record<string, string | number>) =>
-        fn(key, values).replace(/<\/?[a-z][^>]*>/gi, "");
+      const rich = (key: string, values?: Record<string, unknown>) => richText(fn, key, values);
       return Object.assign(fn, { rich, raw: (key: string) => fn(key) });
     },
   };

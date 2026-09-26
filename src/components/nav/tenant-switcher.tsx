@@ -42,7 +42,7 @@ export function TenantSwitcher({ tenants, activeTenantId }: Props) {
   const active = tenants.find((t) => t.id === activeTenantId) ?? tenants[0];
   if (!active) return null;
 
-  const label = active.kind === "personal" ? "Privat" : active.name;
+  const label = active.kind === "personal" ? t("nav.ui.privaterBereich") : active.name;
   const ActiveIcon = active.kind === "personal" ? Lock : Building2;
 
   const switchTo = (tenantId: string) => {
@@ -83,18 +83,20 @@ export function TenantSwitcher({ tenants, activeTenantId }: Props) {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          {tenants.map((t) => {
-            const Icon = t.kind === "personal" ? Lock : Building2;
-            const isActive = t.id === activeTenantId;
+          {tenants.map((tenant) => {
+            const Icon = tenant.kind === "personal" ? Lock : Building2;
+            const isActive = tenant.id === activeTenantId;
             return (
               <DropdownMenuItem
-                key={t.id}
-                onClick={() => switchTo(t.id)}
+                key={tenant.id}
+                onClick={() => switchTo(tenant.id)}
                 className={cn("gap-2", isActive && "font-medium")}
               >
                 <Icon className="size-3.5 shrink-0 opacity-70" aria-hidden />
                 <span className="min-w-0 flex-1 truncate">
-                  {t.kind === "personal" ? `Privat (${t.name})` : t.name}
+                  {tenant.kind === "personal"
+                    ? t("nav.ui.privaterBereichName", { name: tenant.name })
+                    : tenant.name}
                 </span>
                 {isActive && <Check className="size-3.5 shrink-0 text-primary" aria-hidden />}
               </DropdownMenuItem>

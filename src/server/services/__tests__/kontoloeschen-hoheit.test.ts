@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import de from "../../../../messages/de.json";
+import en from "../../../../messages/en.json";
 
 /**
  * **Wer ein Auth-Konto löschen darf — und wer nicht mehr.**
@@ -46,9 +48,12 @@ describe("die Mandanten-Verwaltung fasst keine Auth-Konten an", () => {
   });
 
   it("die Beschriftung verspricht nichts, was die Action nicht tut", () => {
+    // Der Wortlaut steht seit der Katalog-Umstellung nicht mehr im Knopf,
+    // sondern hinter seinem Schlüssel — geprüft wird, was er anzeigt.
     const knopf = nurCode("src/features/admin/components/erase-user-button.tsx");
-    expect(knopf).toContain("Zugang entziehen");
-    expect(knopf).not.toContain("Erase user");
+    expect(knopf).toContain('t("admin.ui.zugangEntziehenDsgvo")');
+    expect(de.admin.ui.zugangEntziehenDsgvo).toContain("Zugang entziehen");
+    expect(en.admin.ui.zugangEntziehenDsgvo).not.toMatch(/erase|delete/i);
   });
 });
 

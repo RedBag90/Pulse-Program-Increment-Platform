@@ -196,10 +196,9 @@ export function RtbSection({
       description={
         <>
           {scoped
-            ? "Betriebskosten, die dieser Solution zugerechnet sind."
-            : "Was dieser Wertstrom laufend braucht: der Betrieb (Keep the lights on) und die ART-Rahmen seiner ARTs. Beide gehen denselben Weg über die PB-Liste — das eine ist Run, das andere Grow, deshalb stehen sie getrennt."}{" "}
-          Aktive Positionen kommen als Kandidaten auf die PB-Liste jeder gestarteten
-          Budgeting-Kachel.
+            ? t("budgeting.rtb.betriebskostenDieserSolution")
+            : t("budgeting.rtb.wasDieserWertstromLaufendBraucht")}{" "}
+          {t("budgeting.rtb.aktivePositionenJederKachel")}
         </>
       }
       action={
@@ -248,7 +247,7 @@ export function RtbSection({
       */}
       {scoped && (
         <p className="text-xs text-muted-foreground">
-          Gepflegt werden diese Positionen im Budget-Bereich des Wertstroms.{" "}
+          {t("budgeting.rtb.gepflegtImBudgetBereich")}{" "}
           <Link
             href={`/budgeting/value-streams/${valueStreamId}?tab=einrichten`}
             className="text-primary hover:underline"
@@ -260,8 +259,7 @@ export function RtbSection({
 
       {!scoped && items.length > 0 && (
         <p className="text-xs text-muted-foreground">
-          Aktive Positionen kommen als Kandidaten auf die PB-Liste der nächsten Kachel — dort
-          entscheidet sich, wie viel dieser Wertstrom bekommt.{" "}
+          {t("budgeting.rtb.aktivePositionenNaechsteKachel")}{" "}
           <Link href="/budgeting/periods" className="text-primary hover:underline">
             {t("budgeting.rtb.zuDenKacheln")}
           </Link>
@@ -463,7 +461,9 @@ function RtbAssignmentGroupRows({
               {(() => {
                 const anderer = zaehltBeiAnderemArt(it, p.artOfSolution);
                 return anderer == null ? null : (
-                  <span className="ml-1.5 text-warning">· zählt bei {p.artName(anderer)}</span>
+                  <span className="ml-1.5 text-warning">
+                    {t("budgeting.rtb.zaehltBei", { art: p.artName(anderer) })}
+                  </span>
                 );
               })()}
             </td>
@@ -567,7 +567,11 @@ export function RowEditor({
                 defaultValue={item.artId ?? ""}
                 className={`block ${input} w-40`}
               >
-                <option value="">{isChangeKind(kind) ? "— bitte wählen" : "— kein ART"}</option>
+                <option value="">
+                  {isChangeKind(kind)
+                    ? t("budgeting.rtb.bitteWaehlenOption")
+                    : t("budgeting.rtb.keinArtOption")}
+                </option>
                 {arts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -632,7 +636,7 @@ export function RowEditor({
           </select>
         </label>
         <button type="submit" disabled={pending} className={btn}>
-          {pending ? "…" : "Speichern"}
+          {pending ? "…" : t("common.save")}
         </button>
         <button type="button" onClick={onClose} className={btnGhost}>
           {t("budgeting.rtb.abbrechen")}
@@ -794,7 +798,11 @@ function AddForm({
                   defaultValue=""
                   className={`block ${input} w-40`}
                 >
-                  <option value="">{isChangeKind(kind) ? "— bitte wählen" : "— kein ART"}</option>
+                  <option value="">
+                    {isChangeKind(kind)
+                      ? t("budgeting.rtb.bitteWaehlenOption")
+                      : t("budgeting.rtb.keinArtOption")}
+                  </option>
                   {arts.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.name}
@@ -886,7 +894,7 @@ function AddForm({
       {/* Abgesetzt statt inmitten der Eingaben — sie schliessen die Eingabe ab. */}
       <div className="flex flex-wrap items-center gap-2">
         <button type="submit" disabled={pending} className={btn}>
-          {pending ? "…" : "Hinzufügen"}
+          {pending ? "…" : t("budgeting.rtb.hinzufuegen")}
         </button>
         <button type="button" onClick={onClose} className={btnGhost}>
           {t("budgeting.rtb.abbrechen")}

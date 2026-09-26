@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ROLE_LABELS } from "@/modules/core/kernel/domain/roles";
 import type { UserListItem } from "@/server/views/admin-users";
 
@@ -16,6 +17,7 @@ interface Props {
  * selected-state ring.
  */
 export function UserListRow({ user, selected, onSelect }: Props) {
+  const t = useTranslations();
   const primaryRole = user.roles[0] ?? null;
   const moreRoles = user.roles.length > 1 ? user.roles.length - 1 : 0;
   return (
@@ -38,7 +40,7 @@ export function UserListRow({ user, selected, onSelect }: Props) {
           <p className="truncate text-sm font-medium">{user.email ?? user.label}</p>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
-            {moreRoles > 0 ? ` · +${moreRoles} weitere` : ""}
+            {moreRoles > 0 ? ` · ${t("admin.ui.plusWeitereRollen", { count: moreRoles })}` : ""}
           </p>
         </div>
         <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">

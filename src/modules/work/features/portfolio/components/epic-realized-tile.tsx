@@ -163,7 +163,7 @@ function BucketRow({
           )}
         </span>
         <span className="text-label text-muted-foreground">
-          {evaluated} von {valued} KPIs gemessen
+          {t("work.epic.kpisGemessenVonGesamt", { evaluated, valued })}
         </span>
       </div>
       <div className="mt-1 flex items-baseline gap-3">
@@ -187,7 +187,7 @@ function BucketRow({
             />
           </div>
           <p className="mt-1 text-label text-muted-foreground">
-            {Math.round(ratio * 100)} % des möglichen Mehrwerts auf Basis der KPI-Messung
+            {t("work.epic.prozentDesMoeglichenMehrwerts", { percent: Math.round(ratio * 100) })}
           </p>
         </div>
       )}

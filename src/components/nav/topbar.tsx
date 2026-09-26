@@ -99,7 +99,7 @@ export function Topbar({
                   onClick={() => router.replace(pathname, { locale: l })}
                   className={locale === l ? "font-medium" : ""}
                 >
-                  {l === "en" ? "English" : "Deutsch"}
+                  {l === "en" ? t("languageNameEnglish") : t("languageNameGerman")}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>

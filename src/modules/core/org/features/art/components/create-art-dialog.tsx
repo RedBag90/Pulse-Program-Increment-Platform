@@ -93,7 +93,9 @@ export function CreateArtDialog({ open, onOpenChange, valueStreams }: CreateArtD
                 className={SELECT_CLASS}
               >
                 <option value="">
-                  {fetched.loading ? "Wird geladen …" : "Wertstrom wählen …"}
+                  {fetched.loading
+                    ? t("org.ui.artVsWirdGeladen")
+                    : t("org.ui.artVsWertstromWaehlen")}
                 </option>
                 {options.map((vs) => (
                   <option key={vs.id} value={vs.id}>
@@ -130,7 +132,7 @@ export function CreateArtDialog({ open, onOpenChange, valueStreams }: CreateArtD
                 {t("org.ui.abbrechen")}
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Wird angelegt …" : "ART anlegen"}
+                {isPending ? t("org.ui.artWirdAngelegt") : t("org.ui.artAnlegenButton")}
               </Button>
             </DialogFooter>
           </form>

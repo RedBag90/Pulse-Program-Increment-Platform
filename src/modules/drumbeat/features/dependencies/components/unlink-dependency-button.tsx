@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { unlinkDependencyAction } from "@/modules/drumbeat/features/dependencies/actions/dependency";
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 
 /** Removes a dependency link from the feature detail page. */
 export function UnlinkDependencyButton({ fromId, toId, type, artId }: Props) {
+  const t = useTranslations();
   const [state, formAction, isPending] = useActionState(unlinkDependencyAction, {});
 
   return (
@@ -26,7 +28,7 @@ export function UnlinkDependencyButton({ fromId, toId, type, artId }: Props) {
         disabled={isPending}
         className="text-xs text-muted-foreground hover:text-destructive disabled:opacity-50"
       >
-        {isPending ? "…" : "Unlink"}
+        {isPending ? "…" : t("drumbeat.ui.abhaengigkeitLoesenKurz")}
       </button>
     </form>
   );

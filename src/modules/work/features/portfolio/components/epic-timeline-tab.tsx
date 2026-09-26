@@ -307,7 +307,7 @@ export function EpicTimelineTab({
 
       {/* Spaltenköpfe (Desktop) — der Versatz links entspricht der Bahn. */}
       <div className="hidden gap-x-3 pl-[4.5rem] sm:grid sm:grid-cols-[minmax(0,1fr)_9rem_9rem]">
-        <SectionLabel>Prozess &amp; Tore</SectionLabel>
+        <SectionLabel>{t("work.epic.prozessUndTore")}</SectionLabel>
         <SectionLabel>{t("work.epic.soll")}</SectionLabel>
         <SectionLabel>{t("work.epic.ist")}</SectionLabel>
       </div>
@@ -390,7 +390,7 @@ export function EpicTimelineTab({
                           </p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             <span className="mr-1.5 rounded-sm bg-muted px-1.5 py-0.5 text-label font-semibold uppercase tracking-[0.1em]">
-                              {soft ? "Meilenstein" : "Gate"}
+                              {soft ? t("work.epic.meilensteinLabel") : t("work.epic.gate")}
                             </span>
                             {t(gate.approverKey)}
                           </p>
@@ -415,7 +415,7 @@ export function EpicTimelineTab({
             disabled={saving}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            {saving ? "Speichern…" : "Termine speichern"}
+            {saving ? t("common.ui.speichernLaeuft") : t("work.epic.termineSpeichern")}
           </button>
           {saveState.error && <span className="text-sm text-destructive">{saveState.error}</span>}
           {saveState.success && (

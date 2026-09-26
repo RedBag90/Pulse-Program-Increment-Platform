@@ -3,6 +3,7 @@
 import { useTransition, useState } from "react";
 import { PlayCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { transitionPiAction } from "@/modules/drumbeat/features/cockpit/actions/pi";
 import { Button } from "@/components/ui/button";
 
@@ -19,6 +20,7 @@ interface Props {
  * für geplante PIs; für aktive/abgeschlossene ist er unsichtbar.
  */
 export function PiTransitionButton({ piId, artId, currentStatus }: Props) {
+  const t = useTranslations();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -40,7 +42,7 @@ export function PiTransitionButton({ piId, artId, currentStatus }: Props) {
     <div className="flex flex-col items-end gap-1">
       <Button onClick={handleClick} disabled={isPending} size="sm">
         <PlayCircle className="size-4 mr-1.5" />
-        {isPending ? "Saving…" : "Start PI"}
+        {isPending ? t("drumbeat.ui.speichereLaeuft") : t("pi.start")}
       </Button>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>

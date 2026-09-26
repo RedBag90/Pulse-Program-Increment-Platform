@@ -113,6 +113,7 @@ function Person({
   saved: boolean;
   size: "sm" | "xs";
 }) {
+  const t = useTranslations();
   const text = size === "sm" ? "text-sm" : "text-xs";
   return (
     <span className="flex min-w-0 items-center gap-2">
@@ -129,7 +130,7 @@ function Person({
             <Plus className="size-3" aria-hidden />
           </span>
           <span className={cn("truncate text-muted-foreground", text)}>
-            {mayEdit ? "Benennen" : "Nicht benannt"}
+            {mayEdit ? t("org.ui.benennen") : t("org.ui.nichtBenannt")}
           </span>
         </>
       )}
@@ -229,6 +230,7 @@ function Shell({
   grid: string;
   children: ReactNode;
 }) {
+  const t = useTranslations();
   return (
     <div className="py-0.5">
       {slot.mayEdit ? (
@@ -249,7 +251,7 @@ function Shell({
         <div className={cn(grid, "px-1.5 py-1.5")}>{children}</div>
       )}
       <span role="status" className="sr-only">
-        {slot.saved ? `${entry.role} gespeichert` : ""}
+        {slot.saved ? t("org.ui.strukturRolleGespeichert", { role: entry.role }) : ""}
       </span>
       {slot.error && (
         <p role="alert" className="px-1.5 pb-1 text-meta text-destructive">

@@ -22,7 +22,7 @@ export function FundingSnapshotTable({ data }: { data: PortfolioOverview }) {
       <Card className="space-y-2 p-4">
         <SectionLabel>{t("work.overview.fundingSnapshot")}</SectionLabel>
         <p className="text-sm text-muted-foreground">
-          Noch keine Budgets verteilt.{" "}
+          {t("work.overview.noBudgetsDistributed")}{" "}
           <Link href="/budgeting/periods" className="text-primary hover:underline">
             {t("work.overview.budgetingOeffnen")}
           </Link>

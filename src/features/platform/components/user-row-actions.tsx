@@ -80,7 +80,7 @@ export function UserRowActions({
           )}
           className="rounded-md border px-2.5 py-1 text-xs transition-colors hover:bg-muted disabled:opacity-50"
         >
-          {isPlatformAdmin ? "Admin entziehen" : "Zum Admin"}
+          {isPlatformAdmin ? t("platform.ui.adminEntziehen") : t("platform.ui.zumAdminMachen")}
         </button>
       </form>
 

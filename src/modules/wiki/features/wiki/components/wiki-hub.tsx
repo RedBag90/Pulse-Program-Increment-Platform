@@ -44,9 +44,16 @@ export function WikiHub({ guides, roles }: { guides: readonly Guide[]; roles: re
 
       {mine.length > 0 && (
         <p className="max-w-[var(--reading-max-w)] text-prose text-muted-foreground">
-          {mine.length === guides.length ? "Alle" : `${mine.length} von ${guides.length}`}{" "}
-          {mine.length === 1 ? "Anleitung hat" : "Anleitungen haben"} eine Perspektive für deine
-          Rolle — sie {mine.length === 1 ? "ist" : "sind"} unten markiert.
+          {t(
+            mine.length === guides.length
+              ? mine.length === 1
+                ? "wiki.ui.hubPerspektiveAlleEine"
+                : "wiki.ui.hubPerspektiveAlleViele"
+              : mine.length === 1
+                ? "wiki.ui.hubPerspektiveTeilEine"
+                : "wiki.ui.hubPerspektiveTeilViele",
+            { mine: mine.length, total: guides.length },
+          )}
         </p>
       )}
 

@@ -34,8 +34,8 @@ export default async function MeineRollePage() {
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {entries.length > 1
-            ? "Du hast mehrere Rollen. Jede bringt ihre eigene Verantwortung mit."
-            : "Was deine Rolle verantwortet und wo du die zugehörigen Aufgaben findest."}
+            ? t("pages.ui.meineRolleMehrereRollen")
+            : t("pages.ui.meineRolleEineRolle")}
         </p>
       </header>
 
@@ -58,7 +58,7 @@ export default async function MeineRollePage() {
           Haelfte der Uebergaben, die hier stehen, zeigt aber auf jemand anderen
           — und wer der ist, stand bisher nirgends zusammen. */}
       <p className="text-sm text-muted-foreground">
-        Und was machen die anderen?{" "}
+        {t("pages.ui.undWasMachenDieAnderen")}{" "}
         <Link href="/wiki/rollen" className="font-medium text-foreground hover:underline">
           {t("pages.ui.alleRollenImWiki")}
         </Link>

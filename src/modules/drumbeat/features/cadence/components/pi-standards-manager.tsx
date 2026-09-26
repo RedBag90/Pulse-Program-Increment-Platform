@@ -65,6 +65,7 @@ export function PiStandardsManager({ standards }: { standards: PiStandard[] }) {
 }
 
 function StandardRow({ standard }: { standard: PiStandard }) {
+  const t = useTranslations();
   const [state, run, pending] = useActionState(deletePiStandardAction, {});
 
   function remove() {
@@ -78,8 +79,12 @@ function StandardRow({ standard }: { standard: PiStandard }) {
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{standard.name}</p>
         <p className="text-xs text-muted-foreground">
-          Anker {standard.anchorDay}.{standard.anchorMonth}. · {standard.cadenceWeeks} Wo ·{" "}
-          {standard.piCount} PIs
+          {t("drumbeat.ui.standardZusammenfassung", {
+            day: standard.anchorDay,
+            month: standard.anchorMonth,
+            weeks: standard.cadenceWeeks,
+            count: standard.piCount,
+          })}
         </p>
         {state?.error && <p className="text-xs text-destructive">{state.error}</p>}
       </div>
@@ -173,7 +178,7 @@ function CreateStandardForm() {
       </div>
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
       <Button type="submit" size="sm" disabled={pending}>
-        {pending ? "Speichern…" : "Standard anlegen"}
+        {pending ? t("common.ui.speichernLaeuft") : t("drumbeat.ui.standardAnlegen")}
       </Button>
     </form>
   );

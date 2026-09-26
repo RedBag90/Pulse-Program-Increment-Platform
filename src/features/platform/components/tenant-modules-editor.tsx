@@ -38,7 +38,7 @@ export function TenantModulesEditor({
           disabled={isPending}
           className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
-          {isPending ? "Speichern…" : "Module speichern"}
+          {isPending ? t("common.ui.speichernLaeuft") : t("platform.ui.moduleSpeichern")}
         </button>
         {state.error && <span className="text-sm text-destructive">{state.error}</span>}
         {state.success && (

@@ -303,8 +303,7 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
           darunter; ohne diesen Satz stünde die Zahl der Punkte unerklärt neben
           der Zahl im Seitenkopf. */}
       <p className="font-mono text-meta text-muted-foreground">
-        Ein Zeichen je Head-Issue an seiner aktuellen Position · Kinder zählen in ihrem Head · Hover
-        zeigt die Ausgangsposition · Zellfarbe = Exposure-Band
+        {t("risks.ui.matrixLegendeHeadIssues")}
       </p>
 
       {/* ROAM-Legende: Form **und** Farbe, in derselben Paarung wie im Raster. */}
@@ -373,7 +372,7 @@ function MatrixTooltip({
       )}
       {p.trail.length > 1 && (
         <p className="mt-0.5 text-muted-foreground">
-          {p.trail.length - 1} Neubewertung(en) · Linie → Ausgangsposition
+          {t("risks.ui.matrixTooltipNeubewertungen", { count: p.trail.length - 1 })}
         </p>
       )}
     </div>

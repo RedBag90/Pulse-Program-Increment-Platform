@@ -1,4 +1,5 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import { PiTransitionButton } from "@/modules/drumbeat/features/cockpit/components/pi-transition-button";
 import { AdvanceCadenceButton } from "@/modules/drumbeat/features/cockpit/components/advance-cadence-button";
 import { DeletePiButton } from "@/modules/drumbeat/features/cockpit/components/delete-pi-button";
@@ -47,12 +48,18 @@ function piStatusLabel(status: string): string {
     : status;
 }
 
-/** Deutsche Oberfläche, deutsches Datum — hier stand `en-GB`. */
-function formatDate(d: Date) {
-  return d.toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" });
+/** Datum in der Sprache der Oberfläche — hier stand einmal fest `en-GB`, dann `de-DE`. */
+function formatDate(d: Date, locale: Locale) {
+  return d.toLocaleDateString(locale === "de" ? "de-DE" : "en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export function CockpitPiContext({ pi, artId, canStart, canAdvance, canDelete, canEditPi }: Props) {
+  const t = useTranslations();
+  const locale = useLocale() as Locale;
   const badgeClass = STATUS_BADGE[pi.status] ?? "bg-muted text-muted-foreground";
   const totalDays = Math.round(
     (pi.endDate.getTime() - pi.startDate.getTime()) / (1000 * 60 * 60 * 24),
@@ -73,7 +80,11 @@ export function CockpitPiContext({ pi, artId, canStart, canAdvance, canDelete, c
       </div>
 
       <span className="text-xs text-muted-foreground">
-        {formatDate(pi.startDate)} – {formatDate(pi.endDate)} ({totalDays} Tage)
+        {t("drumbeat.ui.piZeitraumTage", {
+          start: formatDate(pi.startDate, locale),
+          end: formatDate(pi.endDate, locale),
+          days: totalDays,
+        })}
       </span>
 
       {/*
@@ -82,7 +93,9 @@ export function CockpitPiContext({ pi, artId, canStart, canAdvance, canDelete, c
         zu sagen. Die Feature-Zahl bleibt: sie gehört zu diesem PI.
       */}
       <span className="text-xs text-muted-foreground">
-        {pi.featureCount} Feature{pi.featureCount === 1 ? "" : "s"} in diesem PI
+        {pi.featureCount === 1
+          ? t("drumbeat.ui.featureInDiesemPiEins", { count: pi.featureCount })
+          : t("drumbeat.ui.featuresInDiesemPiMehrere", { count: pi.featureCount })}
       </span>
 
       {/* Die Last steht gegen die Kapazität — und die Kapazität lässt sich

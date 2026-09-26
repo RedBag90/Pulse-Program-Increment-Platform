@@ -20,7 +20,9 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
       <h1 className="text-2xl font-bold">{t("serverError")}</h1>
       {error.digest && (
-        <p className="font-mono text-xs text-muted-foreground">Ref: {error.digest}</p>
+        <p className="font-mono text-xs text-muted-foreground">
+          {t("reference", { digest: error.digest })}
+        </p>
       )}
       <button
         onClick={reset}

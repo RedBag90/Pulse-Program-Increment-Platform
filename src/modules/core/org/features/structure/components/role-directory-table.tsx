@@ -58,6 +58,7 @@ function StreamCard({
   users: DirectoryUserOption[];
   editable: EditableTargets;
 }) {
+  const t = useTranslations();
   const offen = unfilledCount(vs);
   return (
     <section className="rounded-lg bg-card p-4 shadow-card">
@@ -65,7 +66,7 @@ function StreamCard({
         <h2 className="font-heading text-lg font-semibold tracking-tight">{vs.name}</h2>
         {offen > 0 && (
           <span className="rounded-full bg-warning-surface px-2 py-0.5 text-meta text-warning">
-            {offen} offen
+            {t("org.ui.strukturAnzahlOffen", { count: offen })}
           </span>
         )}
       </header>

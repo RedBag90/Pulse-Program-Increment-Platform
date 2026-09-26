@@ -70,7 +70,7 @@ export function InviteUserForm() {
         disabled={isPending}
         className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
       >
-        {isPending ? "Wird versendet…" : "Einladung versenden"}
+        {isPending ? t("admin.ui.einladungWirdVersendet") : t("admin.ui.einladungVersenden")}
       </button>
     </form>
   );

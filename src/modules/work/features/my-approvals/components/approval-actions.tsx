@@ -63,10 +63,12 @@ export function ApprovalActions({ row }: { row: MyApprovalRow }) {
   }
 
   if (open) {
-    const label = "Ablehnen";
+    const label = t("work.myApprovals.ablehnen");
     return (
       <div className="space-y-2 rounded-md border border-warning/40 bg-warning-surface/60 p-3">
-        <p className="text-xs font-medium text-foreground">{label} — bitte begründen</p>
+        <p className="text-xs font-medium text-foreground">
+          {t("work.myApprovals.ablehnenBitteBegruenden")}
+        </p>
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}

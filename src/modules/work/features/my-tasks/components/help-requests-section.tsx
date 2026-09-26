@@ -35,14 +35,16 @@ export function HelpRequestsSection({
             className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-card shadow-card px-4 py-3"
           >
             <div className="text-sm">
-              <span className="font-medium">🆘 {task.title}</span> braucht Unterstützung
-              {task.ownerId && (
-                <>
-                  {" "}
-                  — Owner:{" "}
-                  <span className="font-medium">{userLabel(task.ownerId, userLabels)}</span>
-                </>
-              )}
+              {task.ownerId
+                ? t.rich("work.myTasks.brauchtUnterstuetzungMitOwner", {
+                    title: task.title,
+                    owner: userLabel(task.ownerId, userLabels),
+                    b: (c) => <span className="font-medium">{c}</span>,
+                  })
+                : t.rich("work.myTasks.brauchtUnterstuetzung", {
+                    title: task.title,
+                    b: (c) => <span className="font-medium">{c}</span>,
+                  })}
               {task.valueStreamName && (
                 <span className="ml-1 text-xs text-muted-foreground">{task.valueStreamName}</span>
               )}

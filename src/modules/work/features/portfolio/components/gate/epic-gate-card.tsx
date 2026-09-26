@@ -461,7 +461,7 @@ function OpenRequest({
       {gate.canWithdraw && !gate.viewerMustDecide && (
         <button type="button" onClick={onWithdraw} disabled={withdrawing} className={GHOST}>
           <Undo2 className="size-3.5" />
-          {withdrawing ? "…" : "Antrag zurückziehen"}
+          {withdrawing ? "…" : t("work.gate.antragZurueckziehen")}
         </button>
       )}
 
@@ -490,10 +490,14 @@ function DecideButtons({ transitionId }: { transitionId: string }) {
   }
 
   if (open) {
-    const label = open === "reject" ? "Ablehnen" : "In Klärung schicken";
+    const label = open === "reject" ? t("work.gate.ablehnen") : t("work.gate.inKlaerungSchicken");
     return (
       <div className="space-y-2 rounded-md border border-warning/30 bg-warning-surface/60 p-2.5">
-        <p className="text-xs font-medium">{label} — bitte begründen</p>
+        <p className="text-xs font-medium">
+          {open === "reject"
+            ? t("work.gate.ablehnenBitteBegruenden")
+            : t("work.gate.inKlaerungSchickenBitteBegruenden")}
+        </p>
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
@@ -538,7 +542,7 @@ function DecideButtons({ transitionId }: { transitionId: string }) {
           className={APPROVE}
           onClick={() => send("approve")}
         >
-          {pending ? "…" : "Freigeben"}
+          {pending ? "…" : t("work.myApprovals.freigeben")}
         </button>
         <button
           type="button"

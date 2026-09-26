@@ -219,11 +219,7 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
         <section className="space-y-3">
           <h2 className="text-lg font-medium">{t("org.page.zugeordneteEpicsPrimaer")}</h2>
           <p className="text-sm text-muted-foreground">
-            Diese Epics erben den Horizont der Solution — bis ihr Business Case freigegeben ist. Ab
-            dann tragen sie ihn selbst, vom Tag der Freigabe, und folgen einem späteren Wechsel der
-            Solution nicht mehr. Sie können deshalb in einem anderen Horizont stehen als das
-            Produkt; das ist kein Fehler, sondern die Zusicherung, dass ein Horizont-Wechsel die
-            Vergangenheit nicht umschreibt.
+            {t("org.page.epicsErbenHorizontDerSolution")}
           </p>
           {(workSide?.epics.length ?? 0) === 0 ? (
             <p className="text-sm text-muted-foreground">{t("org.page.nochKeineEpicsDieser")}</p>
@@ -258,11 +254,9 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
 
           <h2 className="pt-4 text-lg font-medium">{t("org.page.direktZugeordneteFeatures")}</h2>
           <p className="text-sm text-muted-foreground">
-            {t("org.page.featuresDieIhreSolution")}{" "}
-            <strong className="font-medium">{t("org.page.selbst")}</strong>{" "}
-            {t("org.page.tragenEinFeatureWird")}{" "}
-            <strong className="font-medium">{t("org.page.keinGeld")}</strong>; Grow ist die Summe
-            der Umsetzungskosten der Primär-Epics, ein Feature hat keinen Business Case.
+            {t.rich("org.page.direktZugeordneteFeaturesErklaerung", {
+              b: (c) => <strong className="font-medium">{c}</strong>,
+            })}
           </p>
           {solutionFeatures.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("org.page.keinFeatureIstDieser")}</p>
@@ -279,7 +273,7 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
                   <span className="flex items-center gap-3 text-xs text-muted-foreground">
                     {f.artName && <span>{f.artName}</span>}
                     {/* Kein Epic ist hier kein fehlender Wert, sondern eine Aussage. */}
-                    <span>{f.epic ? f.epic.title : "eigenständig"}</span>
+                    <span>{f.epic ? f.epic.title : t("org.page.featureEigenstaendig")}</span>
                   </span>
                 </li>
               ))}

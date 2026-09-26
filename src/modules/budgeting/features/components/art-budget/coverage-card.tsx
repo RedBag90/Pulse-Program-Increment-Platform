@@ -1,4 +1,5 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
 import { formatEUR } from "@/lib/formatting";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
@@ -55,6 +56,7 @@ function Dot({ verdict }: { verdict: CoverageVerdict }) {
 
 export function CoverageVerdictLine({ coverage }: { coverage: ArtCoverage }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const { gap } = coverage;
   const verdict = coverageVerdict(coverage);
   // `gap > 0` steht doppelt, damit der Über-Betrag unten ohne `!` auskommt.
@@ -76,14 +78,18 @@ export function CoverageVerdictLine({ coverage }: { coverage: ArtCoverage }) {
           </>
         ) : over ? (
           <>
-            <strong className="font-semibold">Überbucht um {formatEUR(gap)}</strong> — die
-            eingeplanten Features übersteigen das Budget um{" "}
-            {coverage.allocated > 0 ? Math.round((gap / coverage.allocated) * 100) : 100} %.
+            {t.rich("budgeting.art.ueberbuchtUmProzent", {
+              amount: formatEUR(gap, locale),
+              percent: coverage.allocated > 0 ? Math.round((gap / coverage.allocated) * 100) : 100,
+              b: (c) => <strong className="font-semibold">{c}</strong>,
+            })}
           </>
         ) : (
           <>
-            <strong className="font-semibold">{t("budgeting.art.gedeckt")}</strong> — die
-            eingeplanten Features bleiben {formatEUR(underOf(gap) ?? 0)} unter dem Budget.
+            {t.rich("budgeting.art.gedecktBleibenUnterBudget", {
+              amount: formatEUR(underOf(gap) ?? 0, locale),
+              b: (c) => <strong className="font-semibold">{c}</strong>,
+            })}
           </>
         )}
       </p>
@@ -124,9 +130,12 @@ function CoverageFigures({
       <dl className="divide-y text-sm">
         <div className="flex justify-between gap-4 px-3 py-2">
           <dt>
-            Eingeplante Feature-Last{" "}
+            {t("budgeting.art.eingeplanteFeatureLast")}{" "}
             <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-              {featureCount} F · {plannedJobSize} JS
+              {t("budgeting.art.featureAnzahlUndJobSize", {
+                count: featureCount,
+                jobSize: plannedJobSize,
+              })}
             </span>
             {rate != null && <> × {formatEUR(rate)}</>}
           </dt>
@@ -158,6 +167,7 @@ function CoverageFigures({
  */
 function RateDetails({ rate }: { rate: JobSizeRate }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   return (
     <details className="group/rate rounded-lg border">
       <summary className="cursor-pointer list-none px-3 py-2 text-sm text-muted-foreground marker:content-[''] hover:text-foreground">
@@ -165,21 +175,28 @@ function RateDetails({ rate }: { rate: JobSizeRate }) {
         <span className="hidden group-open/rate:inline">▾ </span>
         <strong className="font-medium text-foreground">
           {rate.rate == null
-            ? "Kein Satz je Job Size"
-            : `Satz je Job Size · ${formatEUR(rate.rate)}`}
+            ? t("budgeting.art.keinSatzJeJobSize")
+            : t("budgeting.art.satzJeJobSize", { rate: formatEUR(rate.rate, locale) })}
         </strong>
         {rate.caveats.length > 0 && (
           <span className="ml-1.5 text-warning">
-            · {rate.caveats.length} {rate.caveats.length === 1 ? "Vorbehalt" : "Vorbehalte"}
+            {rate.caveats.length === 1
+              ? t("budgeting.art.anzahlVorbehaltEins", { count: rate.caveats.length })
+              : t("budgeting.art.anzahlVorbehalte", { count: rate.caveats.length })}
           </span>
         )}
       </summary>
       <p className="border-t px-3 py-2 text-sm text-muted-foreground">
         {rate.source === "empirical" ? (
           <>
-            — Ø Budget aus {rate.cycles.map((c) => c.cycleKey).join(" und ")} (
-            {formatEUR(rate.budgetSum)}) ÷ {rate.jobSizeSum} Job-Size-Punkte aus {rate.featureCount}{" "}
-            fertiggestellten Features. Empirisch aus der Historie dieses ARTs.
+            {t("budgeting.art.durchschnittBudgetAusHistorie", {
+              cycles: new Intl.ListFormat(locale, { type: "conjunction" }).format(
+                rate.cycles.map((c) => c.cycleKey),
+              ),
+              budget: formatEUR(rate.budgetSum, locale),
+              jobSize: rate.jobSizeSum,
+              count: rate.featureCount,
+            })}
             {/*
               Herkunft, nicht Rechnung: der Satz bleibt unverändert — das
               ART-Budget finanziert alles, was das ART tut. Die Zeile
@@ -189,8 +206,10 @@ function RateDetails({ rate }: { rate: JobSizeRate }) {
             {rate.standaloneFeatureCount > 0 && (
               <>
                 {" "}
-                Davon {rate.standaloneJobSizeSum} Punkte aus {rate.standaloneFeatureCount}{" "}
-                eigenständigen Features — ART-eigene Arbeit ohne Epic.
+                {t("budgeting.art.davonPunkteAusEigenstaendigen", {
+                  points: rate.standaloneJobSizeSum,
+                  count: rate.standaloneFeatureCount,
+                })}
               </>
             )}
           </>
@@ -239,6 +258,7 @@ export function ArtCoverageCard({ name, coverage }: { name: string; coverage: Ar
  */
 export function StreamCoverageCard({ name, stream }: { name: string; stream: StreamKpi }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const verdict: CoverageVerdict =
     stream.plannedJobSize === 0 && stream.allocated === 0
       ? "empty"
@@ -268,17 +288,21 @@ export function StreamCoverageCard({ name, stream }: { name: string; stream: Str
             </>
           ) : verdict === "over" ? (
             <>
-              <strong className="font-semibold">Überbucht um {formatEUR(stream.gap ?? 0)}</strong> —
-              die eingeplanten Features übersteigen das Budget um{" "}
-              {stream.allocated > 0
-                ? Math.round(((stream.gap ?? 0) / stream.allocated) * 100)
-                : 100}{" "}
-              %.
+              {t.rich("budgeting.art.ueberbuchtUmProzent", {
+                amount: formatEUR(stream.gap ?? 0, locale),
+                percent:
+                  stream.allocated > 0
+                    ? Math.round(((stream.gap ?? 0) / stream.allocated) * 100)
+                    : 100,
+                b: (c) => <strong className="font-semibold">{c}</strong>,
+              })}
             </>
           ) : (
             <>
-              <strong className="font-semibold">{t("budgeting.art.gedeckt")}</strong> — die
-              eingeplanten Features bleiben {formatEUR(under ?? 0)} unter dem Budget.
+              {t.rich("budgeting.art.gedecktBleibenUnterBudget", {
+                amount: formatEUR(under ?? 0, locale),
+                b: (c) => <strong className="font-semibold">{c}</strong>,
+              })}
             </>
           )}
         </p>
@@ -294,16 +318,15 @@ export function StreamCoverageCard({ name, stream }: { name: string; stream: Str
       />
 
       <p className="text-sm text-muted-foreground">
-        {t("budgeting.art.dieLastIstDie")}{" "}
-        <strong className="font-medium text-foreground">{t("budgeting.art.summe")}</strong> der
-        ART-Rechnungen — nicht {stream.plannedJobSize} JS × einem Satz. Der €-Satz wird aus der
-        Historie je ART abgeleitet und ist für jedes verschieden; einen Wertstrom-Satz gibt es
-        nicht. Die Karten darunter zeigen die einzelnen Rechnungen.
+        {t.rich("budgeting.art.lastIstSummeDerArtRechnungen", {
+          jobSize: stream.plannedJobSize,
+          b: (c) => <strong className="font-medium text-foreground">{c}</strong>,
+        })}
         {stream.withoutRate.length > 0 && (
           <>
             {" "}
             <span className="text-warning">
-              Ohne Satz und damit nicht in der Summe: {stream.withoutRate.join(", ")}.
+              {t("budgeting.art.ohneSatzNichtInSumme", { names: stream.withoutRate.join(", ") })}
             </span>
           </>
         )}
@@ -329,6 +352,7 @@ export function CoverageOneLiner({
   cycleKey: string;
 }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const verdict = coverageVerdict(coverage);
   const { gap } = coverage;
   const prozent =
@@ -339,7 +363,7 @@ export function CoverageOneLiner({
       <Dot verdict={verdict} />
       {verdict === "empty" ? (
         <span className="text-muted-foreground">
-          Für {halfYearLabel(cycleKey)} sind weder Features eingeplant noch Budget zugeteilt.
+          {t("budgeting.art.fuerHalbjahrWederFeaturesNochBudget", { hj: halfYearLabel(cycleKey) })}
         </span>
       ) : verdict === "unknown" ? (
         <span className="text-muted-foreground">
@@ -347,7 +371,9 @@ export function CoverageOneLiner({
         </span>
       ) : verdict === "over" ? (
         <span>
-          <strong className="font-medium">Überbucht um {formatEUR(gap ?? 0)}</strong>
+          <strong className="font-medium">
+            {t("budgeting.art.ueberbuchtUm", { amount: formatEUR(gap ?? 0, locale) })}
+          </strong>
           {prozent != null && <span className="text-muted-foreground"> · {prozent} %</span>}
         </span>
       ) : (
@@ -355,7 +381,9 @@ export function CoverageOneLiner({
           <strong className="font-medium">{t("budgeting.art.gedeckt")}</strong>
           <span className="text-muted-foreground">
             {" "}
-            · {formatEUR(underOf(gap) ?? 0)} unter dem Budget
+            {t("budgeting.art.unterDemBudgetKurz", {
+              amount: formatEUR(underOf(gap) ?? 0, locale),
+            })}
           </span>
         </span>
       )}

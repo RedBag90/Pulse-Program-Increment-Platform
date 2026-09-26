@@ -68,6 +68,7 @@ function GoalCard({
   collapsed: ReadonlySet<string>;
   onToggle: (id: string) => void;
 }) {
+  const t = useTranslations();
   const kids = node.children;
   const hasKids = kids.length > 0;
   const isOpen = !collapsed.has(node.id);
@@ -109,7 +110,10 @@ function GoalCard({
             {tf && <span>{goalTimeframeLabel(tf)}</span>}
             {hasKids && (
               <span>
-                · {kids.length} Unterziel{kids.length === 1 ? "" : "e"}
+                ·{" "}
+                {kids.length === 1
+                  ? t("goals.shared.subGoalCountOne", { count: kids.length })
+                  : t("goals.shared.subGoalCountOther", { count: kids.length })}
               </span>
             )}
           </div>

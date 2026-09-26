@@ -61,8 +61,8 @@ export function StatusReasonDialog({
           <DialogTitle>{t("drumbeat.ui.grundErforderlich")}</DialogTitle>
           <DialogDescription>
             {count > 1
-              ? `${count} Features werden auf „${label}“ gesetzt. Das hält Arbeit an — dafür braucht es einen Satz, den die anderen später lesen können.`
-              : `Ein Wechsel nach „${label}“ hält die Arbeit an. Er braucht einen Grund — wie im Feature-Detail.`}
+              ? t("drumbeat.ui.statusGrundMehrere", { count, label })
+              : t("drumbeat.ui.statusGrundEins", { label })}
           </DialogDescription>
         </DialogHeader>
         <Textarea
@@ -82,7 +82,9 @@ export function StatusReasonDialog({
             disabled={reason.trim() === ""}
             onClick={() => onConfirm(reason.trim())}
           >
-            {targetStatus === "cancelled" ? "Verwerfen" : "Blockieren"}
+            {targetStatus === "cancelled"
+              ? t("budgeting.round.verwerfen")
+              : t("drumbeat.ui.blockieren")}
           </Button>
         </DialogFooter>
       </DialogContent>

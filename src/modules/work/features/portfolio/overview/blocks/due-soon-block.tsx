@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Clock, AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -15,12 +16,12 @@ function shortDate(iso: string): string {
   return `${d}.${m}.`;
 }
 
-/** Signed days-until → German relative label. */
-function relative(daysUntil: number): string {
-  if (daysUntil < 0) return `überfällig · ${Math.abs(daysUntil)} T`;
-  if (daysUntil === 0) return "heute";
-  if (daysUntil === 1) return "morgen";
-  return `in ${daysUntil} Tagen`;
+/** Signed days-until → relatives Label aus dem Katalog. */
+function relative(daysUntil: number, t: ReturnType<typeof useTranslations>): string {
+  if (daysUntil < 0) return t("work.overview.dueOverdueDays", { days: Math.abs(daysUntil) });
+  if (daysUntil === 0) return t("work.overview.dueToday");
+  if (daysUntil === 1) return t("work.overview.dueTomorrow");
+  return t("work.overview.dueInDays", { days: daysUntil });
 }
 
 /**
@@ -95,6 +96,7 @@ export function DueSoonBlock({
   emptyText: string;
   classFilter: ClassFilterState;
 }) {
+  const t = useTranslations();
   const visible = items.filter((i) => isClassShown(i.epicClass, classFilter.selected));
   const rollups = rollUpBySolution(
     items
@@ -138,7 +140,7 @@ export function DueSoonBlock({
           {rest.length > 0 && (
             <details className="text-label text-muted-foreground">
               <summary className="cursor-pointer select-none hover:text-foreground">
-                {rest.length} weitere
+                {t("work.overview.moreCount", { count: rest.length })}
               </summary>
               <ul className="mt-2 space-y-2">
                 {rest.map((it) => (
@@ -161,14 +163,15 @@ export function DueSoonBlock({
             >
               <span className="min-w-0 flex-1 truncate text-xs font-medium">{r.name}</span>
               <span className="shrink-0 font-mono text-label tabular-nums">
-                {r.overdue > 0 ? (
-                  <span className="font-semibold text-rose-600 dark:text-rose-400">
-                    {r.overdue} überfällig
-                  </span>
-                ) : (
-                  "0 überfällig"
-                )}{" "}
-                · {r.count - r.overdue} demnächst
+                {r.overdue > 0
+                  ? t.rich("work.overview.rollupOverdueAndSoon", {
+                      overdue: r.overdue,
+                      soon: r.count - r.overdue,
+                      b: (c) => (
+                        <span className="font-semibold text-rose-600 dark:text-rose-400">{c}</span>
+                      ),
+                    })
+                  : t("work.overview.rollupNoneOverdueSoon", { soon: r.count - r.overdue })}
               </span>
             </li>
           ))}
@@ -185,6 +188,8 @@ export function DueSoonBlock({
  * Hauptliste und im Aufklapper. Muster wie `RiskRow` in `risks-block.tsx`.
  */
 function DueSoonRow({ item: it, hrefBase }: { item: DueSoonItem; hrefBase: string }) {
+  const t = useTranslations();
+  const epic = it.epic;
   return (
     <li className="flex items-start gap-2">
       {it.overdue ? (
@@ -206,24 +211,25 @@ function DueSoonRow({ item: it, hrefBase }: { item: DueSoonItem; hrefBase: strin
               it.overdue ? "font-medium text-destructive" : "text-muted-foreground"
             }`}
           >
-            {shortDate(it.dateIso)} · {relative(it.daysUntil)}
+            {shortDate(it.dateIso)} · {relative(it.daysUntil, t)}
           </span>
         </div>
         {(it.subtitle || it.epic) && (
           <p className="truncate text-xs text-muted-foreground">
             {it.subtitle}
             {it.subtitle && it.epic ? " · " : ""}
-            {it.epic && (
-              <>
-                Epic:{" "}
-                <Link
-                  href={`/portfolio/epics/${it.epic.id}`}
-                  className="hover:text-primary hover:underline"
-                >
-                  {it.epic.title}
-                </Link>
-              </>
-            )}
+            {epic &&
+              t.rich("work.overview.epicLink", {
+                title: epic.title,
+                link: (c) => (
+                  <Link
+                    href={`/portfolio/epics/${epic.id}`}
+                    className="hover:text-primary hover:underline"
+                  >
+                    {c}
+                  </Link>
+                ),
+              })}
           </p>
         )}
       </div>

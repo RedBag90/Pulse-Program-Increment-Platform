@@ -152,7 +152,7 @@ function AddMemberForm({ tenantId }: { tenantId: string }) {
         disabled={isPending}
         className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
       >
-        {isPending ? "…" : "Hinzufügen"}
+        {isPending ? "…" : t("platform.ui.mitgliedHinzufuegen")}
       </button>
       {state.error && <span className="w-full text-sm text-destructive">{state.error}</span>}
       {state.success && state.invited && (

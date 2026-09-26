@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import type { Translate } from "@/i18n/translate";
 import { useMemo, useState } from "react";
 import {
@@ -66,11 +67,11 @@ export interface WaterfallEpicInfo {
   color: string;
 }
 
-const GROUP_LABEL: Record<WaterfallGroupMode, string> = {
-  status: "Status",
-  valueStream: "Wertstrom",
-  art: "ART",
-  epic: "Epic",
+const SUBTITLE_KEY: Record<WaterfallGroupMode, string> = {
+  status: "work.dashboard.wertJeStatusLueckeBezugHeute",
+  valueStream: "work.dashboard.wertJeWertstromLueckeBezugHeute",
+  art: "work.dashboard.wertJeArtLueckeBezugHeute",
+  epic: "work.dashboard.wertJeEpicLueckeBezugHeute",
 };
 
 const NULL_BUCKET_KEY = "__none__";
@@ -165,13 +166,13 @@ function buildDimension(
 type MetricSpec = Pick<GoalWaterfallGoal, "metricType" | "precision" | "currencyCode">;
 
 /** Kompaktes Achsen-Label (k/Mio für große Beträge), Einheit über den Metrik-Typ. */
-function fmtCompact(v: number, goal: MetricSpec): string {
+function fmtCompact(v: number, goal: MetricSpec, locale?: Locale): string {
   const abs = Math.abs(v);
   if (goal.metricType === "currency") {
     if (abs >= 1_000_000) return `${(v / 1_000_000).toFixed(1)} Mio`;
     if (abs >= 1_000) return `${Math.round(v / 1_000)}k`;
   }
-  return formatMetricValue(v, goal);
+  return formatMetricValue(v, goal, locale);
 }
 
 interface WfRow {
@@ -341,6 +342,8 @@ function MiniWaterfall({
   active: boolean;
   onSelect: () => void;
 }) {
+  const t = useTranslations();
+  const locale = useLocale() as Locale;
   // Die Dimension ist für die Summen egal — der Mini-Balken nutzt den Default.
   const wf = useMemo(
     () => buildGoalWaterfall(goal, data.epicsByGoal[goal.id] ?? [], selectedEpicIds),
@@ -390,7 +393,9 @@ function MiniWaterfall({
       </div>
       <div className="flex items-center justify-between text-meta text-muted-foreground">
         <span className="tabular-nums">{formatMetricValue(wf.total, goal)}</span>
-        <span className="tabular-nums">Ziel {fmtCompact(goal.target, goal)}</span>
+        <span className="tabular-nums">
+          {t("work.dashboard.zielMitWert", { value: fmtCompact(goal.target, goal, locale) })}
+        </span>
       </div>
     </button>
   );
@@ -413,6 +418,7 @@ export function GoalBenefitWaterfallSection({
   epicInfoById: Record<string, WaterfallEpicInfo>;
 }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   // Wurzel-Ziele zuerst; Unterziele hängen im Selektor eingerückt darunter.
   const rootGoals = useMemo(() => data.goals.filter((g) => g.parentId === null), [data.goals]);
   const goalOptions = useMemo(() => {
@@ -455,14 +461,18 @@ export function GoalBenefitWaterfallSection({
           <h2 className="font-heading text-sm font-medium">
             {t("work.dashboard.benefitWasserfall")}
           </h2>
-          <p className="text-xs text-muted-foreground">Wert je Status &amp; Lücke zum Ziel</p>
+          <p className="text-xs text-muted-foreground">
+            {t("work.dashboard.wertJeStatusLueckeZumZiel")}
+          </p>
         </div>
         <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Noch keine messbaren Ziele mit Zielwert. Lege in den{" "}
-          <Link href={"/ziele" as never} className="text-primary hover:underline">
-            {t("work.dashboard.zielen")}
-          </Link>{" "}
-          ein Ziel mit Zielwert an und verknüpfe Epics.
+          {t.rich("work.dashboard.nochKeineMessbarenZieleMitZielwert", {
+            link: (c) => (
+              <Link href={"/ziele" as never} className="text-primary hover:underline">
+                {c}
+              </Link>
+            ),
+          })}
         </p>
       </Card>
     );
@@ -475,9 +485,7 @@ export function GoalBenefitWaterfallSection({
           <h2 className="font-heading text-sm font-medium">
             {t("work.dashboard.benefitWasserfall")}
           </h2>
-          <p className="text-xs text-muted-foreground">
-            Wert je {GROUP_LABEL[groupMode]} &amp; Lücke zum Ziel — Bezug: heute
-          </p>
+          <p className="text-xs text-muted-foreground">{t(SUBTITLE_KEY[groupMode])}</p>
         </div>
         <div className="flex items-center gap-2">
           <label htmlFor="wf-goal" className="text-xs text-muted-foreground">
@@ -492,7 +500,10 @@ export function GoalBenefitWaterfallSection({
             {goalOptions.map(({ goal: g, depth }) => (
               <option key={g.id} value={g.id}>
                 {depth > 0 ? "  ↳ " : ""}
-                {g.title} · Ziel {fmtCompact(g.target, g)}
+                {t("work.dashboard.zielOptionMitWert", {
+                  title: g.title,
+                  value: fmtCompact(g.target, g, locale),
+                })}
               </option>
             ))}
           </select>

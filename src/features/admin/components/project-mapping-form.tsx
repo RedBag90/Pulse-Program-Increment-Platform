@@ -92,7 +92,7 @@ export function ProjectMappingForm({
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button type="button" size="sm" disabled={pending} onClick={handleSave}>
-          {pending ? "Speichert…" : "Mappings speichern"}
+          {pending ? t("admin.ui.mappingsSpeichertLaeuft") : t("admin.ui.mappingsSpeichern")}
         </Button>
         {saved && <span className="text-xs text-success">{t("admin.ui.gespeichert")}</span>}
         {error && (

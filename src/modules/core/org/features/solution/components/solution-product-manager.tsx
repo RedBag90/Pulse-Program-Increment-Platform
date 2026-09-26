@@ -136,7 +136,7 @@ export function SolutionProductManager({
       </p>
 
       <span role="status" className="sr-only">
-        {saved ? "Produkt-Manager gespeichert" : ""}
+        {saved ? t("org.ui.produktManagerGespeichert") : ""}
       </span>
       {state?.error && (
         <p role="alert" className="mt-2 text-sm text-destructive">

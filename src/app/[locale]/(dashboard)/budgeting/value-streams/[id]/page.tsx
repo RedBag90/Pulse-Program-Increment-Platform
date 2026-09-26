@@ -1,4 +1,5 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
+import type { Locale } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
@@ -401,6 +402,7 @@ async function ArtTab({
   cycleKey: string;
   basePath: string;
 }) {
+  const t = await getTranslations();
   const [practices, guardrailRows, tenantRow] = await Promise.all([
     getTenantPractices(db, principal.tenantId),
     listValueStreamGuardrailTargets(db, principal.tenantId),
@@ -467,7 +469,7 @@ async function ArtTab({
     return (
       <SectionCard title={`${artName} · ${halfYearLabel(cycleKey)}`}>
         <p className="text-sm text-muted-foreground">
-          {`Für ${halfYearLabel(cycleKey)} ist diesem ART weder etwas zugeteilt noch ein Rahmen zugesprochen, und es sind keine Features eingeplant. Zuteilungen entstehen beim Festschreiben einer Budgeting-Kachel; ein Rahmen aus einer Betriebsposition der Art „ART-Rahmen“.`}
+          {t("budgeting.page.artTabNichtsZugeteilt", { halfYear: halfYearLabel(cycleKey) })}
         </p>
       </SectionCard>
     );
@@ -571,6 +573,8 @@ async function CycleTab({
   basePath: string;
   canManage: boolean;
 }) {
+  const t = await getTranslations();
+  const locale = (await getLocale()) as Locale;
   const [ergebnis, awards] = await Promise.all([
     loadValueStreamRoundResult(db, principal.tenantId as never, vs.id, cycleKey),
     loadRtbAwards(db, principal.tenantId as never, vs.id, cycleKey),
@@ -597,21 +601,26 @@ async function CycleTab({
       */}
       {arts.length > 0 && (
         <p className="px-1 text-xs text-muted-foreground">
-          Aus den ART-Rahmen-Zeilen entsteht, was jedes ART auf seine Epics verteilen darf. Weiter
-          in{" "}
-          {arts.map((a, i) => (
-            <span key={a.id}>
-              {i > 0 && (i === arts.length - 1 ? " und " : ", ")}
-              <Link
-                href={`${basePath}?tab=${ART_TAB(a.id)}&cycle=${cycleKey}`}
-                scroll={false}
-                className="text-primary hover:underline"
-              >
-                {a.name}
-              </Link>
-            </span>
-          ))}
-          .
+          {t.rich("budgeting.page.artRahmenWeiterIn", {
+            arts: () =>
+              // Die Aufzählung („A, B und C“) setzt Intl.ListFormat je Sprache.
+              new Intl.ListFormat(locale, { type: "conjunction" })
+                .formatToParts(arts.map((a) => a.id))
+                .map((part, i) => {
+                  if (part.type === "literal") return <span key={i}>{part.value}</span>;
+                  const a = arts.find((x) => x.id === part.value)!;
+                  return (
+                    <Link
+                      key={a.id}
+                      href={`${basePath}?tab=${ART_TAB(a.id)}&cycle=${cycleKey}`}
+                      scroll={false}
+                      className="text-primary hover:underline"
+                    >
+                      {a.name}
+                    </Link>
+                  );
+                }),
+          })}
         </p>
       )}
     </div>

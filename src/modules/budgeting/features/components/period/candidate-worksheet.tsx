@@ -131,7 +131,9 @@ export function CandidateWorksheet<T extends GroupableCandidate>({
                       {section.label.kind === "key" ? t(section.label.value) : section.label.value}
                     </span>
                     <span className="text-meta font-normal normal-case text-muted-foreground">
-                      {rows.length} {section.kind === "run" ? "Positionen" : "Epics"}
+                      {section.kind === "run"
+                        ? t("budgeting.period.anzahlPositionen", { count: rows.length })
+                        : t("budgeting.period.anzahlEpics", { count: rows.length })}
                     </span>
                     {progress && (
                       <span className="h-1.5 w-16 overflow-hidden rounded-full bg-background print:hidden">

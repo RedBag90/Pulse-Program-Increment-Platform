@@ -22,7 +22,12 @@ export function AllocationRule() {
       <table className="w-full min-w-[440px] border-collapse text-sm">
         <thead>
           <tr>
-            {["Schritt", "Reifegrad", "Darf Budget tragen", "Muss Budget haben"].map((h) => (
+            {[
+              t("wiki.ui.allocationRuleSchritt"),
+              t("common.detail.reifegrad"),
+              t("wiki.ui.allocationRuleDarfBudgetTragen"),
+              t("wiki.ui.allocationRuleMussBudgetHaben"),
+            ].map((h) => (
               <th
                 key={h}
                 className="whitespace-nowrap border-b px-4 py-2.5 text-left font-mono text-meta uppercase tracking-[0.1em] text-muted-foreground"
@@ -49,14 +54,14 @@ export function AllocationRule() {
                 </td>
                 <td className="border-b border-border/60 px-4 py-2">
                   {may ? (
-                    <span className="font-medium text-foreground">ja</span>
+                    <span className="font-medium text-foreground">{t("common.ja")}</span>
                   ) : (
                     <span className="text-muted-foreground/60">—</span>
                   )}
                 </td>
                 <td className="border-b border-border/60 px-4 py-2">
                   {must ? (
-                    <span className="font-medium text-foreground">ja</span>
+                    <span className="font-medium text-foreground">{t("common.ja")}</span>
                   ) : (
                     <span className="text-muted-foreground/60">—</span>
                   )}

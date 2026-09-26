@@ -300,6 +300,7 @@ function connectorPrefix(cols: boolean[]): string {
 }
 
 function RollupBadges({ row }: { row: IssueListRow }) {
+  const t = useTranslations();
   const r = row.rollup;
   if (!r) return null;
   return (
@@ -313,7 +314,9 @@ function RollupBadges({ row }: { row: IssueListRow }) {
         ))}
       </span>
       <span className="uppercase tracking-wider">
-        {r.spannedEpics} Epic{r.spannedEpics === 1 ? "" : "s"}
+        {t(r.spannedEpics === 1 ? "risks.ui.rollupEinEpic" : "risks.ui.rollupEpics", {
+          count: r.spannedEpics,
+        })}
       </span>
       <span>· {r.descendantCount}</span>
     </span>

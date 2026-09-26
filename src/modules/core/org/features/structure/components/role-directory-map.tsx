@@ -97,13 +97,18 @@ function StreamLane({
             {vs.name}
           </Link>
           <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
-            Wertstrom · {vs.arts.length} ART{vs.arts.length === 1 ? "" : "s"}
+            {t(
+              vs.arts.length === 1
+                ? "org.ui.strukturWertstromEinArt"
+                : "org.ui.strukturWertstromArts",
+              { count: vs.arts.length },
+            )}
           </span>
           {offen > 0 && (
             // Dieselbe Form wie `GapBadge` auf der Organisations-Fläche: gleiche
             // Stelle, gleiche Aufgabe, gleiche Marke.
             <span className="ml-auto shrink-0 rounded-full bg-warning-surface px-1.5 text-label font-semibold text-warning">
-              {offen} offen
+              {t("org.ui.strukturAnzahlOffen", { count: offen })}
             </span>
           )}
         </>
@@ -158,7 +163,7 @@ function ArtColumn({
         </span>
         {offen > 0 && (
           <span className="ml-auto shrink-0 text-meta tabular-nums text-warning">
-            {offen} offen
+            {t("org.ui.strukturAnzahlOffen", { count: offen })}
           </span>
         )}
       </div>
@@ -193,6 +198,7 @@ function SolutionTile({
   users: DirectoryUserOption[];
   editable: EditableTargets;
 }) {
+  const t = useTranslations();
   const horizon = isHorizon(solution.horizon) ? solution.horizon : null;
   return (
     <div
@@ -209,7 +215,9 @@ function SolutionTile({
           {solution.name}
         </Link>
         <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
-          Solution{horizon ? ` · ${horizonShort(horizon)}` : ""}
+          {horizon
+            ? t("org.ui.strukturSolutionMitHorizont", { horizon: horizonShort(horizon) })
+            : t("org.ui.solution")}
         </span>
       </div>
       {solution.entries.map((e) => (

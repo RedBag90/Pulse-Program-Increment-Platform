@@ -257,7 +257,10 @@ function StrategyNode({ data }: NodeProps) {
         <ProgressBar value={d.progress} />
         <footer className="mt-auto flex items-center justify-between gap-2 text-label text-muted-foreground">
           <span className="truncate">
-            {d.subgoalCount > 0 && `${d.subgoalCount} subgoal${d.subgoalCount === 1 ? "" : "s"}`}
+            {d.subgoalCount > 0 &&
+              (d.subgoalCount === 1
+                ? t("goals.shared.subGoalCountOne", { count: d.subgoalCount })
+                : t("goals.shared.subGoalCountOther", { count: d.subgoalCount }))}
             {d.subgoalCount > 0 && d.periodLabel && " · "}
             {d.periodLabel}
           </span>

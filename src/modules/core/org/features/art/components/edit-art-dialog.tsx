@@ -77,7 +77,7 @@ export function EditArtDialog({ id, name, description }: EditArtDialogProps) {
                 {t("org.ui.abbrechen")}
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Speichere…" : "Speichern"}
+                {isPending ? t("org.ui.artSpeichere") : t("common.save")}
               </Button>
             </DialogFooter>
           </form>

@@ -186,7 +186,7 @@ function HeaderCard({
               connected ? "bg-success-surface text-success" : "bg-muted text-muted-foreground"
             }`}
           >
-            {connected ? "verbunden" : "getrennt"}
+            {connected ? t("admin.ui.integrationVerbunden") : t("admin.ui.integrationGetrennt")}
           </span>
           {canManage && (connected ? disconnect : connect)}
         </div>
@@ -220,7 +220,7 @@ function WebhookCard({ url, helpText }: { url: string; helpText: string }) {
         </code>
         <Button type="button" size="sm" variant="outline" onClick={copy}>
           {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-          {copied ? "Kopiert" : "Kopieren"}
+          {copied ? t("admin.ui.webhookKopiert") : t("admin.ui.webhookKopieren")}
         </Button>
       </div>
     </section>

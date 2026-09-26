@@ -85,9 +85,12 @@ export function DependencyBadge({
 }
 
 export function WsjfBadge({ value, className }: { value: number | null; className?: string }) {
+  const t = useTranslations();
   return (
     <Badge variant="outline" className={cn("font-mono tabular-nums", className)}>
-      {value == null ? "WSJF —" : `WSJF ${value.toFixed(1)}`}
+      {value == null
+        ? t("drumbeat.ui.wsjfLeer")
+        : t("drumbeat.ui.wsjfWert", { score: value.toFixed(1) })}
     </Badge>
   );
 }

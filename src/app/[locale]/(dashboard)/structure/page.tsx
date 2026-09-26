@@ -203,13 +203,13 @@ export default async function StructurePage({ searchParams }: Props) {
           <p className="text-sm font-medium">{t("org.page.nochKeineStruktur")}</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
             {canCreateVs
-              ? "Mit „Wertstrom anlegen“ den ersten anlegen — darunter kommen ARTs, darunter die Solutions, die sie bauen und betreiben."
-              : "Ein Admin oder Portfolio-Manager legt den ersten Wertstrom an."}
+              ? t("org.page.strukturLeerErstenWertstromAnlegen")
+              : t("org.page.strukturLeerAdminLegtAn")}
           </p>
         </div>
       ) : ohneTreffer ? (
         <p className="rounded-lg border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
-          Kein Treffer für „{q}“.
+          {t("org.page.strukturKeinTrefferFuer", { query: q ?? "" })}
         </p>
       ) : (
         // `structure-tree` ist der Anker, auf den vier Rollen-Playbook-Stationen

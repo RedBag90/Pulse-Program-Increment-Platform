@@ -219,13 +219,17 @@ export function RoleTourOverlay({ role, steps, onFinish }: Props) {
         role="dialog"
         aria-modal="false"
         aria-live="polite"
-        aria-label={`Tour-Schritt ${index + 1} von ${steps.length}: ${t(step.titleKey)}`}
+        aria-label={t("onboarding.ui.tourSchrittAriaLabel", {
+          step: index + 1,
+          total: steps.length,
+          title: t(step.titleKey),
+        })}
         tabIndex={-1}
         className="absolute rounded-lg bg-card p-4 shadow-lg outline-none ring-1 ring-foreground/10"
         style={{ top: placement.top, left: placement.left, width: placement.width }}
       >
         <p className="text-xs font-medium tabular-nums text-muted-foreground">
-          Schritt {index + 1} von {steps.length}
+          {t("onboarding.ui.tourSchrittVon", { step: index + 1, total: steps.length })}
         </p>
         <h2 className="mt-1 font-heading text-base font-semibold">{t(step.titleKey)}</h2>
         <p className="mt-1.5 text-sm text-muted-foreground">{t(step.bodyKey)}</p>
@@ -241,7 +245,7 @@ export function RoleTourOverlay({ role, steps, onFinish }: Props) {
               </Button>
             )}
             <Button size="sm" onClick={goNext}>
-              {isLast ? "Fertig" : "Weiter"}
+              {isLast ? t("onboarding.ui.tourFertig") : t("onboarding.ui.tourWeiter")}
             </Button>
           </div>
         </div>

@@ -63,7 +63,9 @@ export default async function ValueStreamRoadmapPage({ searchParams }: Props) {
                     : "text-muted-foreground hover:bg-muted"
                 }`}
               >
-                {g === "epic" ? "Hierarchisch" : "Nach ART"}
+                {g === "epic"
+                  ? t("pages.ui.roadmapGruppeHierarchisch")
+                  : t("pages.ui.roadmapGruppeNachArt")}
               </Link>
             ))}
           </div>

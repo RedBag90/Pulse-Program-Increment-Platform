@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { IntegrationListItem, IntegrationKind } from "@/server/views/admin-integrations";
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
  * goals + users list rows so the admin surfaces feel like one product.
  */
 export function IntegrationListRow({ item, selected, onSelect }: Props) {
+  const t = useTranslations();
   const bg = item.kind === "jira" ? "bg-blue-600" : "bg-blue-800";
   const initial = item.kind === "jira" ? "J" : "A";
   return (
@@ -41,14 +43,16 @@ export function IntegrationListRow({ item, selected, onSelect }: Props) {
             item.connected ? "bg-success-surface text-success" : "bg-muted text-muted-foreground"
           }`}
         >
-          {item.connected ? "verbunden" : "getrennt"}
+          {item.connected ? t("admin.ui.integrationVerbunden") : t("admin.ui.integrationGetrennt")}
         </span>
       </div>
       {item.connected && (
         <p className="mt-2 text-meta text-muted-foreground">
           {item.mappingCount === 0
-            ? "Keine Mappings"
-            : `${item.mappingCount} Mapping${item.mappingCount === 1 ? "" : "s"}`}
+            ? t("admin.ui.keineMappings")
+            : item.mappingCount === 1
+              ? t("admin.ui.einMapping", { count: item.mappingCount })
+              : t("admin.ui.mehrereMappings", { count: item.mappingCount })}
         </p>
       )}
     </button>

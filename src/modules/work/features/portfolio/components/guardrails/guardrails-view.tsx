@@ -109,7 +109,7 @@ export function GuardrailsView({
               status={horizon.status}
               unclassifiedCount={horizon.unclassifiedCount}
               unclassifiedAmount={horizon.unclassifiedAmount}
-              unclassifiedNoun="Horizont"
+              unclassifiedNoun={t("work.guardrails.horizontImSatz")}
               totalCount={horizon.totalCount}
               coverageThin={model.horizonCoverageThin}
             />

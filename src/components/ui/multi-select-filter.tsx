@@ -113,7 +113,7 @@ export function MultiSelectFilter({
                         onClick={() => onToggleSection(values, !allOn)}
                         className="text-meta font-medium text-primary hover:underline"
                       >
-                        {allOn ? "keine" : "alle"}
+                        {allOn ? t("common.ui.sectionToggleKeine") : t("goals.report.all")}
                       </button>
                     )}
                   </div>

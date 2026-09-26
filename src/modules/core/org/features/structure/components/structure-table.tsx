@@ -53,10 +53,12 @@ export function StructureTable({
           <thead className="bg-surface-frame text-label uppercase tracking-[0.1em] text-muted-foreground">
             <tr className="border-b">
               <th className="px-3 py-2 text-left font-semibold">
-                {grouping === "struktur" ? "Name" : "Solution"}
+                {grouping === "struktur" ? t("org.page.name") : t("org.ui.solution")}
               </th>
               <th className="px-3 py-2 text-left font-semibold">
-                {grouping === "struktur" ? "Stand" : "Wertstrom · ART"}
+                {grouping === "struktur"
+                  ? t("org.ui.strukturTabelleStand")
+                  : t("org.ui.strukturTabelleWertstromArt")}
               </th>
               {showEpics && (
                 <th className="px-3 py-2 text-right font-semibold">{t("org.ui.epics")}</th>
@@ -90,11 +92,9 @@ export function StructureTable({
       </div>
       {showRun && (
         <p className="border-t px-3 py-2 text-meta leading-relaxed text-muted-foreground">
-          {t("org.ui.beideBetraegeStehenAuf")} <strong>{t("org.ui.demselbenHalbjahr")}</strong> —
-          Grow ist das in diesem Zyklus zugeteilte Geld, Run der Betriebsanteil eines Halbjahres.
-          „Run" enthält dabei nur Positionen, die <strong>{t("org.ui.einerSolution")}</strong>{" "}
-          zugerechnet sind; wertstrom- und ART-übergreifender Betrieb zählt in keine Zeile und steht
-          vollständig im Budgeting-Bereich.
+          {t.rich("org.ui.strukturTabelleGrowRunHinweis", {
+            strong: (c) => <strong>{c}</strong>,
+          })}
         </p>
       )}
     </div>
@@ -124,7 +124,12 @@ function StructureRows({
               <GapBadge gaps={vs.gaps} />
             </td>
             <td className="px-3 py-1.5 text-meta font-normal text-muted-foreground">
-              Wertstrom · {vs.arts.length} ART{vs.arts.length === 1 ? "" : "s"}
+              {t(
+                vs.arts.length === 1
+                  ? "org.ui.strukturWertstromEinArt"
+                  : "org.ui.strukturWertstromArts",
+                { count: vs.arts.length },
+              )}
             </td>
             {showEpics && <EpicsCell money={vs.money} />}
             {showInvest && <GrowCell money={vs.money} />}
@@ -139,7 +144,7 @@ function StructureRows({
                   <GapBadge gaps={art.gaps} />
                 </td>
                 <td className="px-3 py-1.5 text-meta text-muted-foreground">
-                  ART · {art.cadenceLabel}
+                  {t("org.ui.strukturArtKadenz", { cadence: art.cadenceLabel })}
                 </td>
                 {art.solutions.length === 0 ? (
                   <td colSpan={span} className="px-3 py-1.5 text-meta text-warning">

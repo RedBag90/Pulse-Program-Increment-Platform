@@ -73,12 +73,12 @@ export function FeaturesListTable({
             )}
             <th className="py-2 pr-3 text-left">{t("work.feature.feature")}</th>
             {!compact && <th className="py-2 pr-3 text-left">{t("work.feature.epic")}</th>}
-            {!compact && <th className="py-2 pr-3 text-left">PI</th>}
+            {!compact && <th className="py-2 pr-3 text-left">{t("work.feature.pi")}</th>}
             <th className="py-2 pr-3 text-left">{t("work.feature.status")}</th>
             {!compact && showWsjf && (
               <th className="py-2 pr-3 text-right">{t("work.feature.wsjf")}</th>
             )}
-            {!compact && <th className="py-2 pr-3 text-right">AC</th>}
+            {!compact && <th className="py-2 pr-3 text-right">{t("work.feature.acKurz")}</th>}
             {canEdit && <th className="py-2 pl-2 pr-3 text-right">{t("work.feature.aktionen")}</th>}
           </tr>
         </thead>

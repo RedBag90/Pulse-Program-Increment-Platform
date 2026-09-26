@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { eraseUserAction } from "@/features/admin/actions/gdpr";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button";
  * endgueltig loeschen will, tut das in der Plattform-Verwaltung.
  */
 export function EraseUserButton({ userId }: { userId: string }) {
+  const t = useTranslations();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +47,7 @@ export function EraseUserButton({ userId }: { userId: string }) {
         disabled={isPending}
         className="text-destructive border-destructive/30 hover:bg-destructive/10"
       >
-        {isPending ? "Wird entzogen …" : "Zugang entziehen (DSGVO)"}
+        {isPending ? t("admin.ui.zugangWirdEntzogen") : t("admin.ui.zugangEntziehenDsgvo")}
       </Button>
     </div>
   );

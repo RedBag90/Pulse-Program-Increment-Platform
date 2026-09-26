@@ -86,7 +86,7 @@ export function CreateGoalDialog({ open, onOpenChange }: CreateGoalDialogProps) 
                 {t("goals.shared.cancel")}
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Legt an…" : "Anlegen"}
+                {isPending ? t("goals.create.creating") : t("goals.create.submit")}
               </Button>
             </DialogFooter>
           </form>

@@ -43,7 +43,7 @@ export function AcceptInviteForm({ token, email }: Props) {
         disabled={isPending}
         className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
       >
-        {isPending ? "Creating account…" : "Create account"}
+        {isPending ? t("admin.ui.kontoWirdErstellt") : t("auth.page.kontoErstellen")}
       </button>
     </form>
   );

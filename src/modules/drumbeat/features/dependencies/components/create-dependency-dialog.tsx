@@ -76,7 +76,7 @@ export function CreateDependencyDialog({ open, onOpenChange }: CreateDependencyD
               {t("drumbeat.ui.cancel")}
             </Button>
             <Button type="submit" disabled={pending || !fromId || !toId}>
-              {pending ? "Linking…" : "Link"}
+              {pending ? t("drumbeat.ui.verknuepfeLaeuft") : t("work.epic.verknuepfen")}
             </Button>
           </DialogFooter>
         </form>

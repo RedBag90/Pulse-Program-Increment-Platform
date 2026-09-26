@@ -261,8 +261,12 @@ export function EpicClassificationForm({
               {/* Leerer Wert = wieder ableiten. Ohne Solution heisst das „ohne". */}
               <option value="">
                 {solutionHorizon
-                  ? `— aus Primär-Solution (${t(HORIZON_KEYS[solutionHorizon as keyof typeof HORIZON_KEYS]) ?? solutionHorizon})`
-                  : "— ohne Horizont"}
+                  ? t("work.epic.horizontAusPrimaerSolutionOption", {
+                      horizon:
+                        t(HORIZON_KEYS[solutionHorizon as keyof typeof HORIZON_KEYS]) ??
+                        solutionHorizon,
+                    })
+                  : t("work.epic.ohneHorizontOption")}
               </option>
               {HORIZONS.map((h) => (
                 <option key={h} value={h}>

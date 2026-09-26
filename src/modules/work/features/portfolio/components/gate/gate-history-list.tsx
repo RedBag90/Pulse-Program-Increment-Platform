@@ -68,7 +68,7 @@ export function GateHistoryList({
             </span>
             <span className="text-muted-foreground">
               {" · "}
-              {userLabels[h.requestedBy] ?? "Unbekannt"}
+              {userLabels[h.requestedBy] ?? t("work.gate.unbekannterNutzer")}
               {" · "}
               {day(h.requestedAt)}
             </span>

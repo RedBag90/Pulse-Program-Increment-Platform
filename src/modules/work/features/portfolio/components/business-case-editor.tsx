@@ -369,13 +369,17 @@ export function BusinessCaseEditor({
               ueber die Reifegrad-Karte und „Meine Tasks". Der alte Verweis
               zeigte ins Leere. */}
           <div className="rounded-md border border-dashed bg-muted/30 p-3 text-sm text-muted-foreground">
-            Freigaben laufen über die{" "}
-            <span className="font-medium text-foreground">{t("work.epic.reifegradKarte")}</span>{" "}
-            oben auf dieser Seite und erscheinen bei den Abnehmern unter{" "}
-            <Link href={"/my-tasks" as never} className="font-medium text-primary hover:underline">
-              {t("work.epic.meineTasks")}
-            </Link>{" "}
-            (Mehrparteien-Workflow mit Status, Genehmiger und Datum).
+            {t.rich("work.epic.freigabenLaufenUeberReifegradKarte", {
+              card: (c) => <span className="font-medium text-foreground">{c}</span>,
+              link: (c) => (
+                <Link
+                  href={"/my-tasks" as never}
+                  className="font-medium text-primary hover:underline"
+                >
+                  {c}
+                </Link>
+              ),
+            })}
           </div>
         </fieldset>
 
@@ -393,7 +397,7 @@ export function BusinessCaseEditor({
         {!readOnly && (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Speichern…" : "Business Case speichern"}
+              {isPending ? t("common.ui.speichernLaeuft") : t("work.epic.businessCaseSpeichern")}
             </Button>
           </div>
         )}
@@ -402,7 +406,7 @@ export function BusinessCaseEditor({
       {history.length > 0 && (
         <details className="rounded-lg bg-muted/50 p-3 shadow-card">
           <summary className="cursor-pointer text-sm font-medium text-foreground/80">
-            Versionshistorie ({history.length})
+            {t("work.epic.versionshistorieAnzahl", { count: history.length })}
           </summary>
           <div className="mt-3 space-y-2">
             {history.map((v, i) => (
@@ -544,7 +548,9 @@ function CascadeRows({
                 +{fmtUnit(node.planned)} {node.unit ?? ""}
               </span>
               {node.kpiNames.length > 0 && (
-                <span className="text-muted-foreground">· KPI: {node.kpiNames.join(", ")}</span>
+                <span className="text-muted-foreground">
+                  {t("work.epic.kpiNamenMitPunkt", { names: node.kpiNames.join(", ") })}
+                </span>
               )}
               {node.brokenHere && (
                 <AlertTriangle

@@ -36,13 +36,17 @@ export function GeneratedCredentials({
   return (
     <section className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
       <div className="flex items-baseline justify-between gap-3">
-        <h4 className="text-sm font-semibold">{users.length} Testnutzer angelegt</h4>
+        <h4 className="text-sm font-semibold">
+          {t("platform.ui.testnutzerAngelegt", { count: users.length })}
+        </h4>
         <button
           type="button"
           onClick={kopieren}
           className="rounded-md border px-2.5 py-1 text-xs transition-colors hover:bg-muted"
         >
-          {kopiert ? "Kopiert" : "Alle kopieren"}
+          {kopiert
+            ? t("platform.ui.zugangsdatenKopiert")
+            : t("platform.ui.zugangsdatenAlleKopieren")}
         </button>
       </div>
 

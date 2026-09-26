@@ -106,9 +106,13 @@ export function ArtBudgetBreakdown({ model, artHref, cycleKey, visibleArtIds, sh
                 sonst addiert jemand Σ und diese Spalte.
               */}
               <th className="border-l p-2 text-right font-medium">
-                Betrieb · {periods.find((p) => p.key === cycleKey)?.label ?? cycleKey}
+                {t("budgeting.art.betriebHalbjahr", {
+                  period: periods.find((p) => p.key === cycleKey)?.label ?? cycleKey,
+                })}
                 <span className="ml-1 normal-case tracking-normal">
-                  · {model.operatingBasis === "awarded" ? "zugesprochen" : "beantragt"} · nicht in Σ
+                  {model.operatingBasis === "awarded"
+                    ? t("budgeting.art.betriebZugesprochenNichtInSumme")
+                    : t("budgeting.art.betriebBeantragtNichtInSumme")}
                 </span>
               </th>
             </tr>
@@ -278,7 +282,7 @@ export function ArtBudgetBreakdown({ model, artHref, cycleKey, visibleArtIds, sh
         </table>
       </div>
       <p className="px-3 text-meta text-muted-foreground">
-        Abgeleitet aus der Finalisierung der Budgeting-Zeiträume.{" "}
+        {t("budgeting.art.abgeleitetAusDerFinalisierungDerZeitraeume")}{" "}
         <Link href="/budgeting/periods" className="text-primary hover:underline">
           {t("budgeting.art.zuDenZeitraeumen")}
         </Link>
@@ -303,13 +307,16 @@ function MoneyAndLoad({
   amount: number;
   cell?: { count: number; jobSize: number } | undefined;
 }) {
+  const t = useTranslations();
   return (
     <>
       <span className="block">
         {amount > 0 ? formatEUR(amount) : <span className="text-muted-foreground">—</span>}
       </span>
       <span className="block text-meta text-muted-foreground">
-        {cell && cell.count > 0 ? `${cell.count} F · ${cell.jobSize} JS` : " "}
+        {cell && cell.count > 0
+          ? t("budgeting.art.featureAnzahlUndJobSize", { count: cell.count, jobSize: cell.jobSize })
+          : " "}
       </span>
     </>
   );
@@ -317,10 +324,11 @@ function MoneyAndLoad({
 
 /** Der Backlog trägt kein Geld — dort steht nur Last. */
 function LoadOnly({ cell }: { cell?: ArtFeatureLoad["backlog"] | undefined }) {
+  const t = useTranslations();
   if (!cell || cell.count === 0) return <span className="text-muted-foreground">—</span>;
   return (
     <span>
-      {cell.count} F · {cell.jobSize} JS
+      {t("budgeting.art.featureAnzahlUndJobSize", { count: cell.count, jobSize: cell.jobSize })}
     </span>
   );
 }

@@ -400,13 +400,17 @@ export function FeaturesListView({
             <tr className={`${STICKY_THEAD} text-left`}>
               <th className="py-2 pl-4 pr-2">{t("work.feature.feature")}</th>
               {show.has("art") && (
-                <th className="py-2 pr-3">{show.has("valueStream") ? "Wertstrom · ART" : "ART"}</th>
+                <th className="py-2 pr-3">
+                  {show.has("valueStream") ? t("drumbeat.ui.wertstromArt") : t("work.common.art")}
+                </th>
               )}
               {show.has("epic") && <th className="py-2 pr-3">{t("work.feature.epic")}</th>}
-              {show.has("pi") && <th className="py-2 pr-3">PI</th>}
+              {show.has("pi") && <th className="py-2 pr-3">{t("work.feature.pi")}</th>}
               {show.has("status") && <th className="py-2 pr-3">{t("work.feature.status")}</th>}
               {showWsjf && <th className="py-2 pr-4 text-right">{t("work.feature.wsjf")}</th>}
-              {show.has("ak") && <th className="py-2 pr-4 text-right">AK</th>}
+              {show.has("ak") && (
+                <th className="py-2 pr-4 text-right">{t("work.feature.akKurz")}</th>
+              )}
               {renderActions && <th className="py-2 pr-4" />}
             </tr>
           </thead>
@@ -440,7 +444,10 @@ export function FeaturesListView({
 
       {showTotals && (
         <p className="mt-3 text-xs text-muted-foreground">
-          {filtered.length} von {model.rows.length} Features im Zugriff.
+          {t("work.feature.featuresImZugriff", {
+            shown: filtered.length,
+            total: model.rows.length,
+          })}
         </p>
       )}
     </>

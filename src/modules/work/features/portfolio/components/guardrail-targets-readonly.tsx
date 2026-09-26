@@ -49,10 +49,12 @@ export function GuardrailTargetsReadOnly({ targets }: Props) {
               Ansichten Verschiedenes — und wer nur lesen darf, saehe nicht,
               warum die Uebersicht die Achse weglaesst. */}
           <p className="mt-2 border-t pt-2 text-meta text-muted-foreground">
-            Auf der Portfolio-Übersicht:{" "}
-            <span className="font-medium text-foreground">
-              {targets.display.horizonOnOverview ? "wird gezeigt" : "ausgeblendet"}
-            </span>
+            {t.rich(
+              targets.display.horizonOnOverview
+                ? "work.epic.aufPortfolioUebersichtGezeigt"
+                : "work.epic.aufPortfolioUebersichtAusgeblendet",
+              { b: (c) => <span className="font-medium text-foreground">{c}</span> },
+            )}
           </p>
         </div>
         <div className="rounded-md border p-3">

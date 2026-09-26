@@ -198,11 +198,9 @@ export default async function RollenPage() {
       </StatStrip>
 
       <p className="max-w-[var(--reading-max-w)] text-sm text-muted-foreground">
-        {t("org.page.dasSind")}{" "}
-        <strong className="font-medium text-foreground">{t("org.page.benennungen")}</strong>, keine
-        App-Rollen: eine Rolle sagt, was jemand darf, eine Benennung sagt, wen man fragt. Niemand
-        muss eine Rolle tragen, um benannt zu werden. Auf Portfolio-Ebene steht niemand — über dem
-        Wertstrom gibt es in Pulse keine namentliche Benennung.
+        {t.rich("org.page.rollenSindBenennungenErklaerung", {
+          b: (c) => <strong className="font-medium text-foreground">{c}</strong>,
+        })}
       </p>
 
       <RoleDirectoryView streams={streams} users={users} editable={editable} />

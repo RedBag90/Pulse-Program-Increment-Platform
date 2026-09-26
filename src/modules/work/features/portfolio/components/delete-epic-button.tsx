@@ -48,7 +48,7 @@ export function DeleteEpicButton({ id, title, featureCount }: DeleteEpicButtonPr
         fields={{ id }}
         label={<span className="sr-only">{t("work.epic.loeschen")}</span>}
         icon={<Trash2 className="size-3.5" />}
-        confirmPrompt={`Epic „${title}“ löschen?`}
+        confirmPrompt={t("work.epic.epicLoeschenFrage", { title })}
         variant="ghost"
         destructive
         className="h-7 px-2 text-muted-foreground"
@@ -70,15 +70,19 @@ export function DeleteEpicButton({ id, title, featureCount }: DeleteEpicButtonPr
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Epic „{title}“ löschen</DialogTitle>
+            <DialogTitle>{t("work.epic.epicLoeschenTitel", { title })}</DialogTitle>
           </DialogHeader>
 
           <p className="text-sm text-muted-foreground">
-            Daran hängen{" "}
-            <strong className="font-medium text-foreground">
-              {featureCount} {featureCount === 1 ? "Feature" : "Features"}
-            </strong>
-            {t("work.epic.wasSollDamitGeschehen")}
+            {t.rich(
+              featureCount === 1
+                ? "work.epic.daranHaengtEinFeatureWasTun"
+                : "work.epic.daranHaengenFeaturesWasTun",
+              {
+                count: featureCount,
+                b: (c) => <strong className="font-medium text-foreground">{c}</strong>,
+              },
+            )}
           </p>
           <ul className="space-y-1 text-sm text-muted-foreground">
             <li>

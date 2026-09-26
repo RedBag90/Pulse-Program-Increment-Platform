@@ -64,7 +64,7 @@ export function SetupChecklist({ initialDone, canEdit }: Props) {
           </p>
         </div>
         <div className="rounded-full border bg-card px-3 py-1 text-sm font-medium tabular-nums">
-          {optimisticDone.size} / {TOTAL_CHECKS} erledigt
+          {t("setup.ui.checksErledigt", { done: optimisticDone.size, total: TOTAL_CHECKS })}
         </div>
       </header>
 
@@ -132,7 +132,7 @@ function MilestoneCard({
       <dl className="grid grid-cols-[64px_1fr] gap-y-1 text-xs">
         <dt className="text-muted-foreground">{t("setup.ui.wer")}</dt>
         <dd>{milestone.who}</dd>
-        <dt className="text-muted-foreground">Wo</dt>
+        <dt className="text-muted-foreground">{t("setup.ui.wo")}</dt>
         <dd className="space-y-0.5">
           {milestone.where.map((link) => (
             <Link

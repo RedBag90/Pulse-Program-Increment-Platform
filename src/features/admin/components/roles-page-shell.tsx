@@ -132,13 +132,18 @@ function RoleDetailPane({ role, canManage }: { role: RoleView; canManage: boolea
         <div>
           <h2 className="text-lg font-semibold">{role.label}</h2>
           <p className="text-xs text-muted-foreground">
-            {role.grantedCount} Capabilities aktiv · Default-Bundle: {role.defaultCount}
+            {t("admin.ui.capabilitiesAktivDefaultBundle", {
+              granted: role.grantedCount,
+              defaultCount: role.defaultCount,
+            })}
           </p>
           {hasDiff && (
             <p className="mt-1 text-xs text-warning">
-              Δ vs. Default: +{role.diffFromDefault.added} hinzugefügt · −
-              {role.diffFromDefault.removed} entzogen · {role.diffFromDefault.scopeChanged} Scope
-              geändert
+              {t("admin.ui.deltaVsDefault", {
+                added: role.diffFromDefault.added,
+                removed: role.diffFromDefault.removed,
+                scopeChanged: role.diffFromDefault.scopeChanged,
+              })}
             </p>
           )}
         </div>
@@ -251,7 +256,9 @@ function CapabilityRow({ role, row, canManage }: CapabilityRowProps) {
 
       {row.isDefault && (
         <span className="text-meta text-muted-foreground">
-          Default: {SCOPE_LABELS[row.defaultScope ?? "global"]}
+          {t("admin.ui.defaultScopeLabel", {
+            scope: SCOPE_LABELS[row.defaultScope ?? "global"] ?? "",
+          })}
         </span>
       )}
 

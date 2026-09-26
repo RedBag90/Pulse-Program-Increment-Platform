@@ -21,7 +21,9 @@ export default async function PlatformUsersPage() {
       />
 
       <PageSection>
-        <p className="text-xs text-muted-foreground">{users.length} Nutzer</p>
+        <p className="text-xs text-muted-foreground">
+          {t("platform.page.nutzerAnzahl", { count: users.length })}
+        </p>
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">

@@ -194,7 +194,9 @@ const FeatureNode = memo(function FeatureNode({ data }: { data: FeatureNodeData 
         <div className="mt-auto flex items-center justify-between gap-2 text-label text-muted-foreground">
           <span className="truncate">{t(STATUS_LABEL[f.status])}</span>
           {f.wsjfComputed != null && (
-            <span className="shrink-0 font-medium">WSJF {formatWsjf(f.wsjfComputed)}</span>
+            <span className="shrink-0 font-medium">
+              {t("drumbeat.ui.wsjfWert", { score: formatWsjf(f.wsjfComputed) })}
+            </span>
           )}
         </div>
       </button>

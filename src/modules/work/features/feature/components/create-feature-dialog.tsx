@@ -263,10 +263,10 @@ export function CreateFeatureDialog({
                 >
                   <option value="">
                     {arts.loading
-                      ? "Wird geladen …"
+                      ? t("work.feature.wirdGeladenAuswahl")
                       : artOptions.length === 0
-                        ? "Kein ART in diesem Wertstrom"
-                        : "ART wählen …"}
+                        ? t("work.feature.keinArtInDiesemWertstrom")
+                        : t("work.feature.artWaehlenAuswahl")}
                   </option>
                   {artOptions.map((art) => (
                     <option key={art.id} value={art.id}>
@@ -325,7 +325,9 @@ export function CreateFeatureDialog({
                   className={SELECT_CLASS}
                 >
                   <option value="">
-                    {fetchedEpics.loading ? "Wird geladen …" : "— ohne Epic —"}
+                    {fetchedEpics.loading
+                      ? t("work.feature.wirdGeladenAuswahl")
+                      : t("work.feature.ohneEpicOption")}
                   </option>
                   {epicOptions.map((epic) => (
                     <option key={epic.id} value={epic.id}>
@@ -351,10 +353,10 @@ export function CreateFeatureDialog({
                 >
                   <option value="">
                     {!vsId
-                      ? "Zuerst ein ART wählen …"
+                      ? t("work.feature.zuerstEinArtWaehlen")
                       : solutions.loading
-                        ? "Wird geladen …"
-                        : "— später zuordnen —"}
+                        ? t("work.feature.wirdGeladenAuswahl")
+                        : t("work.feature.spaeterZuordnenOption")}
                   </option>
                   {solutionOptions.map((sol) => (
                     <option key={sol.id} value={sol.id}>
@@ -379,10 +381,10 @@ export function CreateFeatureDialog({
                 >
                   <option value="">
                     {!effectiveArtId
-                      ? "Zuerst ein ART wählen …"
+                      ? t("work.feature.zuerstEinArtWaehlen")
                       : pis.loading
-                        ? "Wird geladen …"
-                        : "— Backlog —"}
+                        ? t("work.feature.wirdGeladenAuswahl")
+                        : t("work.feature.backlogOption")}
                   </option>
                   {pis.data.map((pi) => (
                     <option key={pi.id} value={pi.id}>
@@ -477,7 +479,9 @@ export function CreateFeatureDialog({
                 {t("work.feature.abbrechen")}
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Wird angelegt …" : "Feature anlegen"}
+                {isPending
+                  ? t("work.feature.wirdAngelegt")
+                  : t("work.feature.featureAnlegenSubmit")}
               </Button>
             </DialogFooter>
           </form>

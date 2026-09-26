@@ -954,7 +954,7 @@ function SettingsEditor({
           />
         </div>
         <Button type="submit" variant="outline" disabled={pending}>
-          {pending ? "Speichert…" : "Speichern"}
+          {pending ? t("work.dashboard.speichertLaeuft") : t("common.save")}
         </Button>
         {state.error && <p className="text-sm text-destructive">{state.error}</p>}
         {state.success && <p className="text-sm text-success">{t("work.dashboard.gespeichert")}</p>}

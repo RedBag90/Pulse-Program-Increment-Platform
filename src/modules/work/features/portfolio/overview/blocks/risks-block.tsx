@@ -151,7 +151,7 @@ function RoamCard({
           {rest.length > 0 && (
             <details className="text-label text-muted-foreground">
               <summary className="cursor-pointer select-none hover:text-foreground">
-                {rest.length} weitere
+                {t("work.overview.moreCount", { count: rest.length })}
               </summary>
               <ul className="mt-2 space-y-2">
                 {rest.map((r) => (
@@ -175,6 +175,7 @@ function RoamCard({
  */
 function RiskRow({ risk: r }: { risk: OverviewRisk }) {
   const t = useTranslations();
+  const epic = r.epic;
   return (
     <li className="flex items-start gap-2">
       <span
@@ -193,15 +194,19 @@ function RiskRow({ risk: r }: { risk: OverviewRisk }) {
         >
           {r.title}
         </Link>
-        {r.epic && (
+        {epic && (
           <p className="truncate text-label text-muted-foreground">
-            Epic:{" "}
-            <Link
-              href={`/portfolio/epics/${r.epic.id}`}
-              className="hover:text-primary hover:underline"
-            >
-              {r.epic.title}
-            </Link>
+            {t.rich("work.overview.epicLink", {
+              title: epic.title,
+              link: (c) => (
+                <Link
+                  href={`/portfolio/epics/${epic.id}`}
+                  className="hover:text-primary hover:underline"
+                >
+                  {c}
+                </Link>
+              ),
+            })}
           </p>
         )}
       </div>

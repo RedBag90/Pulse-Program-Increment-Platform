@@ -61,7 +61,9 @@ export function RoleAssignmentRow({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">{ROLE_LABELS[assignment.role]}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">seit {assignment.createdAt}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {t("admin.ui.rolleSeit", { date: assignment.createdAt })}
+          </p>
         </div>
         {canManage && (
           <Button
@@ -80,13 +82,15 @@ export function RoleAssignmentRow({
 
       <div className="flex flex-wrap gap-1.5">
         <ScopeChip label={t("admin.ui.wertstroeme")}>
-          {vsLabels.length === 0 ? "Alle" : vsLabels.join(", ")}
+          {vsLabels.length === 0 ? t("admin.ui.alle") : vsLabels.join(", ")}
         </ScopeChip>
         <ScopeChip label={t("admin.ui.arts")}>
-          {artLabels.length === 0 ? "Alle" : artLabels.join(", ")}
+          {artLabels.length === 0 ? t("admin.ui.alle") : artLabels.join(", ")}
         </ScopeChip>
         {assignment.teamIds.length > 0 && (
-          <ScopeChip label={t("admin.ui.teams")}>{assignment.teamIds.length} ausgewählt</ScopeChip>
+          <ScopeChip label={t("admin.ui.teams")}>
+            {t("admin.ui.teamsAusgewaehlt", { count: assignment.teamIds.length })}
+          </ScopeChip>
         )}
       </div>
 

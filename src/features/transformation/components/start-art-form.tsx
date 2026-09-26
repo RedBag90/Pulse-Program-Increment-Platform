@@ -70,7 +70,7 @@ export function StartArtForm({ valueStreams, rteUsers, canManage }: Props) {
     return (
       <div className="space-y-2">
         <p role="status" className="flex items-center gap-2 text-sm text-success">
-          ART gestartet.
+          {t("transformation.ui.artGestartet")}
           {state.created.href && (
             <Link
               href={state.created.href}
@@ -133,7 +133,7 @@ export function StartArtForm({ valueStreams, rteUsers, canManage }: Props) {
       )}
 
       <Button type="button" disabled={!canSubmit} onClick={submit}>
-        {isPending ? "Startet…" : "ART starten"}
+        {isPending ? t("transformation.ui.artStartetLaeuft") : t("pages.ui.artStarten")}
       </Button>
     </div>
   );

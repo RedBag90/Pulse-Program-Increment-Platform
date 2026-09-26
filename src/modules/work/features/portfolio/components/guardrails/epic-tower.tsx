@@ -81,7 +81,10 @@ export function EpicTower({
       : HORIZON_COLUMNS.map((c) => ({
           key: c as string,
           top: HORIZON_COLUMN_LABEL[c],
-          bottom: c === "none" ? "Horizont" : (t(HORIZON_KEYS[c]).split("·")[1]?.trim() ?? ""),
+          bottom:
+            c === "none"
+              ? t("work.epic.horizont")
+              : (t(HORIZON_KEYS[c]).split("·")[1]?.trim() ?? ""),
           epics: epicsByHorizon[c] ?? [],
         }));
 
@@ -90,7 +93,7 @@ export function EpicTower({
       <CardHeader>
         <CardTitle>{t("work.guardrails.epicTuerme")}</CardTitle>
         <CardDescription className="text-xs">
-          Ein Quadrat = ein Epic. Farbe = Horizont. Klick öffnet das Epic.
+          {t("work.guardrails.einQuadratEinEpic")}
         </CardDescription>
         <CardAction>
           <ToggleGroup

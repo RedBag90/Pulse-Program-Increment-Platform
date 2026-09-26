@@ -110,7 +110,7 @@ export function ArtOverviewForm({
       )}
 
       <Button type="submit" disabled={isPending}>
-        {isPending ? "Speichert…" : "Änderungen speichern"}
+        {isPending ? t("org.ui.overviewSpeichert") : t("common.ui.aenderungenSpeichern")}
       </Button>
     </form>
   );

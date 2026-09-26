@@ -128,10 +128,7 @@ export function ValueStreamOverviewForm({
           placeholder={t("org.ui.niemand")}
           emptyLabel={t("org.ui.niemand")}
         />
-        <p className="text-xs text-muted-foreground">
-          Architektur und technische Machbarkeit. Zeichnet nur, wo du ihn unter „Freigaben je
-          Reifegrad" einträgst.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("org.ui.architectLeadHinweis")}</p>
       </div>
 
       {state.error && (
@@ -146,7 +143,7 @@ export function ValueStreamOverviewForm({
       )}
 
       <Button type="submit" disabled={isPending}>
-        {isPending ? "Speichert…" : "Änderungen speichern"}
+        {isPending ? t("org.ui.overviewSpeichert") : t("common.ui.aenderungenSpeichern")}
       </Button>
     </form>
   );

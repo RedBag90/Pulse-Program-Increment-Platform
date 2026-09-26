@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { ArrowRight, Flag } from "lucide-react";
@@ -30,10 +30,11 @@ import {
 import { COLUMN_ACTIVITY } from "@/modules/work/features/portfolio/overview/column-meta";
 import { HorizonBadge } from "@/modules/core/org/features/solution/components/horizon-badge";
 import { formatCompactEUR } from "@/lib/formatting";
+import type { Locale } from "@/i18n/routing";
 
-/** „2026-H1" → „H1 2026" für die kompakte Zyklus-Caption. */
-function cycleLabel(key: string | null): string {
-  if (key == null) return "kein gültiger Rahmen";
+/** „2026-H1" → „H1 2026" für die kompakte Zyklus-Caption; `null` = kein gültiger Rahmen. */
+function cycleLabel(key: string | null): string | null {
+  if (key == null) return null;
   const m = /^(\d{4})-(H[12])$/.exec(key);
   return m ? `${m[2]} ${m[1]}` : key;
 }
@@ -59,11 +60,14 @@ const CELL_LIMIT = 4;
  */
 export function CompactKanban({ data }: { data: PortfolioOverview }) {
   const t = useTranslations();
+  const budgetCycle = cycleLabel(data.budgetCycleKey);
   return (
     <section className="space-y-2" data-tour="portfolio-kanban">
       <div className="flex items-center justify-between">
         <SectionLabel>
-          Epic Portfolio-Kanban{data.horizonOnOverview ? " · Horizonte" : ""}
+          {data.horizonOnOverview
+            ? t("work.overview.kanbanTitleWithHorizons")
+            : t("work.overview.kanbanTitle")}
         </SectionLabel>
         <Link
           href="/portfolio/epics"
@@ -92,7 +96,9 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
           {data.horizonOnOverview && (
             <div className="flex items-end">
               <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
-                Budget · {cycleLabel(data.budgetCycleKey)}
+                {budgetCycle == null
+                  ? t("work.overview.kanbanBudgetNoCycle")
+                  : t("work.overview.kanbanBudgetCycle", { cycle: budgetCycle })}
               </span>
             </div>
           )}
@@ -188,25 +194,30 @@ function FlatRow({ data }: { data: PortfolioOverview }) {
 /** Drei Budget-Werte des laufenden Zyklus unter dem Horizont-Badge. */
 function HorizonBudget({ budget }: { budget: HorizonBudgetFigures }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   return (
     <div className="leading-tight">
       <p
         className="text-xs font-semibold tabular-nums"
         title={t("work.overview.budgetiertLaufenderZyklus")}
       >
-        {formatCompactEUR(budget.budgetiert)}
+        {formatCompactEUR(budget.budgetiert, locale)}
       </p>
       <p
         className="text-label tabular-nums text-muted-foreground"
         title={t("work.overview.davonInUmsetzungImplementing")}
       >
-        ▸ Umsetzung {formatCompactEUR(budget.umsetzung)}
+        {t("work.overview.horizonBudgetImplementing", {
+          amount: formatCompactEUR(budget.umsetzung, locale),
+        })}
       </p>
       <p
         className="text-label tabular-nums text-muted-foreground"
         title={t("work.overview.davonUmgesetztDoneL")}
       >
-        ✓ umgesetzt {formatCompactEUR(budget.umgesetzt)}
+        {t("work.overview.horizonBudgetDone", {
+          amount: formatCompactEUR(budget.umgesetzt, locale),
+        })}
       </p>
     </div>
   );
@@ -254,6 +265,7 @@ function KanbanCell({
   /** Arbeitsspalte statt Warteschlange — siehe `COLUMN_ACTIVITY`. */
   work: boolean;
 }) {
+  const t = useTranslations();
   const [expanded, setExpanded] = useState(false);
   const visible = epics.filter((e) => isClassShown(e.epicClass, classFilter.selected));
   const rollups = rollUpBySolution(
@@ -283,7 +295,9 @@ function KanbanCell({
           onClick={() => setExpanded((v) => !v)}
           className="mt-1 w-full text-center text-label text-muted-foreground hover:text-foreground"
         >
-          {expanded ? "weniger" : `+ ${visible.length - CELL_LIMIT} weitere`}
+          {expanded
+            ? t("work.overview.showLess")
+            : t("work.overview.showMoreCount", { count: visible.length - CELL_LIMIT })}
         </button>
       )}
     </div>

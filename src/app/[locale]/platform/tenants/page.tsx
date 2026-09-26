@@ -29,12 +29,14 @@ export default async function PlatformTenantsPage() {
             2026. Er blendete die privaten Bereiche aller Nutzer ein — und von
             dort führte „Mitglied hinzufügen" in jeden davon hinein. */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span>{tenants.length} Organisationen</span>
+          <span>{t("platform.page.organisationenAnzahl", { count: tenants.length })}</span>
           {/* Nur die Zahl. Namen und Mitglieder privater Bereiche gehören nicht
               auf diese Fläche — genau das war das Loch von September 2026. */}
           <span>
-            {privat.total} private Bereiche
-            {privat.empty > 0 && <span> · {privat.empty} davon leer</span>}
+            {t("platform.page.privateBereicheAnzahl", { count: privat.total })}
+            {privat.empty > 0 && (
+              <span> · {t("platform.page.privateBereicheDavonLeer", { count: privat.empty })}</span>
+            )}
           </span>
         </div>
 

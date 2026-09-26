@@ -236,7 +236,7 @@ export function GoalDetailPanel({
             {isManualValue && (
               <label className="block">
                 <span className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
-                  {isConfidence ? "Zuversicht" : "Aktueller Wert"}
+                  {isConfidence ? t("goals.detail.confidence") : t("goals.detail.currentValue")}
                 </span>
                 {isConfidence ? (
                   <FistOfFive value={composerValue} onChange={setComposerValue} />
@@ -253,8 +253,8 @@ export function GoalDetailPanel({
             )}
             <p className="pb-2 text-meta text-muted-foreground">
               {isManualValue
-                ? "Der eingetragene Ist-Wert wird am gewählten Datum als farbiger Punkt eingefroren."
-                : "Der aktuelle Ist-Wert wird am gewählten Datum als farbiger Punkt eingefroren."}
+                ? t("goals.detail.enteredValueFrozenHint")
+                : t("goals.detail.currentValueFrozenHint")}
             </p>
           </div>
           <div className="space-y-2">
@@ -313,7 +313,7 @@ export function GoalDetailPanel({
               disabled={checkInPending}
               className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-              {checkInPending ? "Speichert…" : "Status posten"}
+              {checkInPending ? t("goals.shared.saving") : t("goals.detail.postStatus")}
             </button>
           </div>
         </div>
@@ -335,7 +335,7 @@ export function GoalDetailPanel({
             <GoalStatusPill status={status} />
           </div>
           <p className="mt-1 text-meta text-muted-foreground">
-            {latestStatusAt ? relTime(latestStatusAt) : "kein Check-in"}
+            {latestStatusAt ? relTime(latestStatusAt) : t("goals.detail.noCheckIn")}
           </p>
         </div>
       </div>
@@ -364,8 +364,10 @@ export function GoalDetailPanel({
               <label className="block">
                 <span className="text-meta font-medium uppercase tracking-[0.1em] text-muted-foreground">
                   {isConfidence
-                    ? "Zuversicht"
-                    : `Aktueller Wert${unitSuffix ? ` (${unitSuffix.trim()})` : ""}`}
+                    ? t("goals.detail.confidence")
+                    : unitSuffix
+                      ? t("goals.detail.currentValueWithUnit", { unit: unitSuffix.trim() })
+                      : t("goals.detail.currentValue")}
                 </span>
                 {isConfidence ? (
                   <FistOfFive value={progressValue} onChange={setProgressValue} />
@@ -398,7 +400,7 @@ export function GoalDetailPanel({
                   disabled={progressPending || progressValue.trim() === ""}
                   className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
-                  {progressPending ? "Speichert…" : "Speichern"}
+                  {progressPending ? t("goals.shared.saving") : t("goals.shared.save")}
                 </button>
                 <button
                   type="button"

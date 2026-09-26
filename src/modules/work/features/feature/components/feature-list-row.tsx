@@ -111,7 +111,8 @@ export function FeatureListRowComponent({
             </Link>
             {compact && (
               <p className="mt-0.5 truncate text-meta text-muted-foreground">
-                {row.epic?.title ?? "ohne Epic"} · {row.pi?.name ?? "Backlog"}
+                {row.epic?.title ?? t("work.feature.ohneEpicKurz")} ·{" "}
+                {row.pi?.name ?? t("work.feature.backlog")}
               </p>
             )}
           </div>
@@ -138,7 +139,7 @@ export function FeatureListRowComponent({
       {!compact && (
         <td className="py-2 pr-3 text-sm">
           <span className="block max-w-[120px] truncate text-xs text-muted-foreground">
-            {row.pi?.name ?? "Backlog"}
+            {row.pi?.name ?? t("work.feature.backlog")}
           </span>
         </td>
       )}

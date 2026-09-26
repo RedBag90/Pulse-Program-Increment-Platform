@@ -1,5 +1,5 @@
 import { useLocale } from "next-intl";
-import { formatDate } from "@/lib/formatting";
+import { formatDate, formatEUR } from "@/lib/formatting";
 import { isLocale, routing } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -7,8 +7,6 @@ import type {
   MyBudgetingTask,
   MyArtFundingTask,
 } from "@/modules/budgeting/server/services/my-budgeting-tasks";
-
-const EUR = (n: number) => `${Math.round(n).toLocaleString("de-DE")} €`;
 
 /**
  * My-Tasks-Sektion für Gruppenmitglieder mit offener Budget-Verteilung.
@@ -43,10 +41,13 @@ export function BudgetingTasksSection({
             className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-card shadow-card px-4 py-3"
           >
             <div className="text-sm">
-              <span className="font-medium">💶 {f.artName}</span> — der ART-Rahmen für{" "}
-              <span className="font-medium">{f.cycleLabel}</span> steht:{" "}
-              <span className="font-medium tabular-nums">{EUR(f.remaining)}</span>{" "}
-              {t("budgeting.ui.sindNochNichtVerteilt")}
+              {t.rich("budgeting.ui.artRahmenStehtNochNichtVerteilt", {
+                art: f.artName,
+                cycle: f.cycleLabel,
+                amount: formatEUR(f.remaining, locale),
+                b: (c) => <span className="font-medium">{c}</span>,
+                num: (c) => <span className="font-medium tabular-nums">{c}</span>,
+              })}
             </div>
             <Link
               href={f.href}

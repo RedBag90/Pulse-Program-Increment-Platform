@@ -123,7 +123,9 @@ export function RoleWelcomeDialog({ notice, onStartTour, onDismiss }: Props) {
         <DialogHeader>
           <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
             {isNewRole ? <Sparkles className="size-4" /> : <Compass className="size-4" />}
-            {isNewRole ? "Neue Rolle" : "Neue Aufgaben"}
+            {isNewRole
+              ? t("onboarding.ui.welcomeNeueRolle")
+              : t("onboarding.ui.welcomeNeueAufgaben")}
           </div>
           <DialogTitle className="font-heading text-xl">
             {isNewRole ? label : scopeTitle}
@@ -206,7 +208,9 @@ export function RoleWelcomeDialog({ notice, onStartTour, onDismiss }: Props) {
                 disabled={pending}
                 onClick={() => acknowledgeThen(hasSteps ? onStartTour : onDismiss)}
               >
-                {hasSteps ? "Rolle annehmen & Tour starten" : "Verstanden"}
+                {hasSteps
+                  ? t("onboarding.ui.welcomeRolleAnnehmenTourStarten")
+                  : t("onboarding.ui.welcomeVerstanden")}
               </Button>
             </>
           ) : (

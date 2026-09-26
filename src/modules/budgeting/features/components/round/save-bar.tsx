@@ -32,10 +32,16 @@ export function SaveBar({ count, detail, pending, error, onSave, onDiscard }: Pr
         />
         <div className="min-w-0">
           <p className="text-sm font-semibold">
-            {count} {count === 1 ? "Änderung" : "Änderungen"}
+            {count === 1
+              ? t("budgeting.round.anzahlAenderungEins", { count })
+              : t("budgeting.round.anzahlAenderungen", { count })}
           </p>
           <p className="truncate text-xs text-muted-foreground">
-            {error ? <span className="text-destructive">{error}</span> : `${detail} geändert`}
+            {error ? (
+              <span className="text-destructive">{error}</span>
+            ) : (
+              t("budgeting.round.detailGeaendert", { detail })
+            )}
           </p>
         </div>
         <div className="ml-auto flex shrink-0 gap-2">
@@ -43,7 +49,7 @@ export function SaveBar({ count, detail, pending, error, onSave, onDiscard }: Pr
             {t("budgeting.round.verwerfen")}
           </Button>
           <Button type="button" size="sm" disabled={pending} onClick={onSave}>
-            {pending ? "Speichert…" : "Änderungen speichern"}
+            {pending ? t("budgeting.round.speichert") : t("common.ui.aenderungenSpeichern")}
           </Button>
         </div>
       </div>

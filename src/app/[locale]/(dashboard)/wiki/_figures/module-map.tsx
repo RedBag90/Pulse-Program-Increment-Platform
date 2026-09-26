@@ -40,7 +40,7 @@ export function ModuleMap() {
                 {needs.length === 0 ? (
                   <span className="text-muted-foreground/60">{t("wiki.ui.ohneVoraussetzung")}</span>
                 ) : (
-                  <>braucht {needs.join(", ")}</>
+                  <>{t("wiki.ui.modulBraucht", { modules: needs.join(", ") })}</>
                 )}
               </p>
             </div>
@@ -48,14 +48,14 @@ export function ModuleMap() {
         })}
       </div>
       <p className="max-w-[var(--reading-max-w)] text-xs leading-relaxed text-muted-foreground">
-        Ausserhalb jeder Schranke stehen nur{" "}
-        {CORE_SEGMENTS.map((s) => (
-          <code key={s} className="mr-1 rounded-sm bg-muted px-1 py-0.5 font-mono text-xs">
-            /{s}
-          </code>
-        ))}
-        — Einstieg, eigene Inbox und die Flächen, die die Anwendung erklären. Sie dürfen nie
-        fail-closed weggeleitet werden.
+        {t.rich("wiki.ui.ausserhalbJederSchrankeCoreSegmente", {
+          segments: () =>
+            CORE_SEGMENTS.map((s) => (
+              <code key={s} className="mr-1 rounded-sm bg-muted px-1 py-0.5 font-mono text-xs">
+                /{s}
+              </code>
+            )),
+        })}
       </p>
     </div>
   );

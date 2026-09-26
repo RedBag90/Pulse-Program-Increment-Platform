@@ -42,14 +42,11 @@ export function KanbanColumns() {
         </div>
       </div>
       <p className="max-w-[var(--reading-max-w)] text-xs leading-relaxed text-muted-foreground">
-        <strong className="font-medium text-foreground">{t("wiki.ui.dreiGrenzenSindKeine")}</strong>{" "}
-        <em>{t("wiki.ui.funnel")}</em> {t("wiki.ui.und")} <em>{t("wiki.ui.hypothese")}</em>{" "}
-        {t("wiki.ui.tragenBeide")} <code>L0</code> {t("wiki.ui.dazwischenLiegtDieErste")}{" "}
-        <em>{t("wiki.ui.hypothese")}</em> {t("wiki.ui.und")} <em>{t("wiki.ui.businessCase")}</em>{" "}
-        {t("wiki.ui.tragenBeide")} <code>L1</code> {t("wiki.ui.dazwischenLiegtDieEntscheidung")}{" "}
-        <em>{t("wiki.ui.umsetzung")}</em> {t("wiki.ui.und")} <em>{t("wiki.ui.impact")}</em>{" "}
-        {t("wiki.ui.tragenBeide")} <code>L4</code> {t("wiki.ui.dazwischenLiegtDieFertigmeldung")}
-        <code>L5</code>) verlässt das Board.
+        {t.rich("wiki.ui.kanbanDreiGrenzenErklaerung", {
+          strong: (c) => <strong className="font-medium text-foreground">{c}</strong>,
+          em: (c) => <em>{c}</em>,
+          code: (c) => <code>{c}</code>,
+        })}
       </p>
     </div>
   );

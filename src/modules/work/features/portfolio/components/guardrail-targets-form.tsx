@@ -64,9 +64,9 @@ export function GuardrailTargetsForm({ targets }: Props) {
           {t("work.epic.portfolioGuardrailTargets")}
         </h3>
         <p className="text-xs text-muted-foreground">
-          Soll-Werte je Achse. Treiben Soll-Marker und Ampel auf der{" "}
-          <span className="font-medium">{t("work.epic.portfolioGuardrails")}</span>
-          {t("work.epic.flaeche")}
+          {t.rich("work.epic.sollWerteJeAchse", {
+            b: (c) => <span className="font-medium">{c}</span>,
+          })}
         </p>
       </header>
       <form action={formAction} className="space-y-3">
@@ -216,7 +216,7 @@ export function GuardrailTargetsForm({ targets }: Props) {
           </p>
         )}
         <Button type="submit" disabled={pending || !validation.ok} size="sm">
-          {pending ? "Speichern…" : "Targets speichern"}
+          {pending ? t("common.ui.speichernLaeuft") : t("work.epic.targetsSpeichern")}
         </Button>
       </form>
     </Card>
@@ -225,6 +225,7 @@ export function GuardrailTargetsForm({ targets }: Props) {
 
 /** Summenanzeige der Mix-Achsen — macht die 100er-Regel im Formular sichtbar. */
 function SumHint({ sum }: { sum: number }) {
+  const t = useTranslations();
   const ok = Math.abs(sum - 100) <= 0.5;
   return (
     <p
@@ -232,7 +233,7 @@ function SumHint({ sum }: { sum: number }) {
         ok ? "text-muted-foreground" : "text-amber-700 dark:text-amber-400"
       }`}
     >
-      Σ {sum} {ok ? "✓" : "— erwartet 100"}
+      {ok ? <>Σ {sum} ✓</> : t("work.epic.summeErwartet100", { sum })}
     </p>
   );
 }

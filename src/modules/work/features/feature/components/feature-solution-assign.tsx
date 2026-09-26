@@ -73,7 +73,11 @@ export function FeatureSolutionAssign({
         aria-label={t("work.feature.solution")}
         className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
       >
-        <option value="">{inheritedName ? `— vom Epic: ${inheritedName} —` : "— keine —"}</option>
+        <option value="">
+          {inheritedName
+            ? t("work.feature.vomEpicOption", { name: inheritedName })
+            : t("work.feature.keineSolutionOption")}
+        </option>
         {options.map((s) => (
           <option key={s.id} value={s.id}>
             {s.name}

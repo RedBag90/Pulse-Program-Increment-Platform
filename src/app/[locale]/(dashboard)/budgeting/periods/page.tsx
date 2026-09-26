@@ -97,8 +97,9 @@ export default async function BudgetingPeriodsPage() {
       {model.focus.length === 0 && model.past.length === 0 ? (
         <div className="rounded-lg border-2 border-dashed bg-muted/30 px-6 py-12 text-center">
           <p className="text-sm text-muted-foreground">
-            Noch keine Budgeting-Zeiträume.{" "}
-            {model.canManage ? "Lege die erste Kachel an." : "Ein Admin/Finance legt sie an."}
+            {model.canManage
+              ? t("budgeting.page.nochKeineZeitraeumeAnlegen")
+              : t("budgeting.page.nochKeineZeitraeumeAdminLegtAn")}
           </p>
         </div>
       ) : (

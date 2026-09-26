@@ -37,7 +37,9 @@ export function GateCriteria() {
                           : "ml-1 rounded-sm border bg-muted px-1.5 py-0.5 font-mono text-label uppercase tracking-[0.1em] text-muted-foreground"
                       }
                     >
-                      {c.blocking ? "blockierend" : "beratend"}
+                      {c.blocking
+                        ? t("wiki.ui.kriteriumBlockierend")
+                        : t("wiki.ui.kriteriumBeratend")}
                     </span>
                   </p>
                   <p className="max-w-[var(--reading-max-w)] text-xs leading-relaxed text-muted-foreground">

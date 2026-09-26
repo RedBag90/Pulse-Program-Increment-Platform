@@ -85,7 +85,11 @@ export function GuardrailAxes() {
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            {a.mix ? <span className="text-foreground">{t("wiki.ui.mischung")}</span> : "Schwelle"}{" "}
+            {a.mix ? (
+              <span className="text-foreground">{t("wiki.ui.mischung")}</span>
+            ) : (
+              t("work.epic.schwelle")
+            )}{" "}
             · {a.rule}
           </p>
         </div>

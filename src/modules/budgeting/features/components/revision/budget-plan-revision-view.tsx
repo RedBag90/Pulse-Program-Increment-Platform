@@ -1,8 +1,9 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
 import { Stat, StatStrip } from "@/components/ui/stat";
 import { SectionLabel } from "@/components/ui/section-label";
-import { formatEUR } from "@/lib/formatting";
+import { formatDate, formatEUR } from "@/lib/formatting";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { cn } from "@/lib/utils";
 import type {
@@ -27,16 +28,6 @@ interface Props {
   userLabels: Record<string, string>;
 }
 
-function fmtDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("de-DE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 /**
  * The read-only revision detail — header, headline stats, and four sections
  * (Epic ranking, Wertstrom roll-up, ART roll-up, Features im Zyklus). Server
@@ -44,6 +35,7 @@ function fmtDateTime(iso: string): string {
  */
 export function BudgetPlanRevisionView({ model, capturedBy, userLabels }: Props) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   // Jede Zahl und jede Spalte kommt aus dem Page-Model — die Komponente rendert
   // nur noch. Zyklus-/Folgebudget stammen dort aus `summarizeSnapshot`, damit
   // Übersichtsliste und Detailsicht identische Zahlen zeigen.
@@ -61,11 +53,14 @@ export function BudgetPlanRevisionView({ model, capturedBy, userLabels }: Props)
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold">Budget-Plan-Revision · {snapshot.cycleLabel}</h1>
+        <h1 className="text-2xl font-semibold">
+          {t("budgeting.revision.budgetPlanRevisionTitel", { cycle: snapshot.cycleLabel })}
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Erfasst am {fmtDateTime(snapshot.capturedAt)} von {userLabel(capturedBy, userLabels)}.
-          Eingefrorene Sicht — Änderungen auf der Live-Board-Seite haben keinen Einfluss auf diese
-          Revision.
+          {t("budgeting.revision.erfasstAmVonEingefroreneSicht", {
+            date: formatDate(snapshot.capturedAt, "datetime", locale),
+            user: userLabel(capturedBy, userLabels),
+          })}
         </p>
       </div>
 
@@ -392,13 +387,15 @@ function FeaturesSection({ snapshot }: { snapshot: BudgetPlanSnapshot }) {
   const epicsWithFeatures = snapshot.epics.filter((e) => e.cycleFeatures.length > 0);
   return (
     <section className="space-y-3">
-      <SectionLabel>Features im Zyklus · {snapshot.cycleLabel}</SectionLabel>
+      <SectionLabel>
+        {t("budgeting.revision.featuresImZyklusMitLabel", { cycle: snapshot.cycleLabel })}
+      </SectionLabel>
       <p className="text-xs text-muted-foreground">
         {t("budgeting.revision.featuresDieZumSnapshot")}
       </p>
       {epicsWithFeatures.length === 0 ? (
         <p className="rounded-lg border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
-          Keine Features in {snapshot.cycleLabel}.
+          {t("budgeting.revision.keineFeaturesIn", { cycle: snapshot.cycleLabel })}
         </p>
       ) : (
         <div className="space-y-3">
@@ -407,8 +404,9 @@ function FeaturesSection({ snapshot }: { snapshot: BudgetPlanSnapshot }) {
               <div className="flex items-baseline justify-between border-b bg-muted/30 px-4 py-2">
                 <p className="text-sm font-medium">{e.title}</p>
                 <span className="text-xs text-muted-foreground">
-                  {e.cycleFeatures.length} Feature
-                  {e.cycleFeatures.length !== 1 ? "s" : ""}
+                  {e.cycleFeatures.length === 1
+                    ? t("budgeting.revision.anzahlFeatureEins", { count: e.cycleFeatures.length })
+                    : t("budgeting.revision.anzahlFeatures", { count: e.cycleFeatures.length })}
                 </span>
               </div>
               <ul className="divide-y">
@@ -426,7 +424,9 @@ function FeaturesSection({ snapshot }: { snapshot: BudgetPlanSnapshot }) {
                       </p>
                     </div>
                     <span className="shrink-0 self-center text-xs text-muted-foreground tabular-nums">
-                      {f.wsjfJobSize != null ? `JS ${f.wsjfJobSize}` : "—"}
+                      {f.wsjfJobSize != null
+                        ? t("budgeting.revision.jobSizeKurz", { jobSize: f.wsjfJobSize })
+                        : "—"}
                     </span>
                   </li>
                 ))}

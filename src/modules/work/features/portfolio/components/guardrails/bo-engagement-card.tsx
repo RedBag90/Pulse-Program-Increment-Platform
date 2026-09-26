@@ -1,4 +1,5 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
 import {
   Card,
@@ -46,7 +47,7 @@ export function BoEngagementCard({ model }: { model: EngagementGuardrailModel })
       <CardHeader>
         <CardTitle>{t("work.guardrails.businessOwnerEngagement")}</CardTitle>
         <CardDescription className="text-xs">
-          Guardrail 4 · {scopeCount} Epics im Freigabelauf
+          {t("work.guardrails.guardrail4EpicsImFreigabelauf", { count: scopeCount })}
         </CardDescription>
         <CardAction>
           <GuardrailStatusBadge status={status} />
@@ -65,18 +66,24 @@ export function BoEngagementCard({ model }: { model: EngagementGuardrailModel })
               label={t("work.guardrails.abdeckung")}
               ratio={coverageRatio}
               target={coverageTarget / 100}
-              targetLabel={`Ziel ${coverageTarget} %`}
-              note={`${coveredCount} von ${scopeCount} Epics mit benanntem Business Owner`}
+              targetLabel={t("work.guardrails.zielProzent", { target: coverageTarget })}
+              note={t("work.guardrails.epicsMitBenanntemBusinessOwner", {
+                covered: coveredCount,
+                scope: scopeCount,
+              })}
             />
             <Quote
-              label={`Reaktion ≤ ${responseDays} Tage`}
+              label={t("work.guardrails.reaktionInTagen", { days: responseDays })}
               ratio={responseRatio}
               target={coverageTarget / 100}
-              targetLabel={`Ziel ${coverageTarget} %`}
+              targetLabel={t("work.guardrails.zielProzent", { target: coverageTarget })}
               note={
                 approvalCount === 0
-                  ? "Noch keine Freigabe angefordert"
-                  : `${timelyCount} von ${approvalCount} Freigaben rechtzeitig bedient`
+                  ? t("work.guardrails.nochKeineFreigabeAngefordert")
+                  : t("work.guardrails.freigabenRechtzeitigBedient", {
+                      timely: timelyCount,
+                      total: approvalCount,
+                    })
               }
             />
 
@@ -89,7 +96,7 @@ export function BoEngagementCard({ model }: { model: EngagementGuardrailModel })
               </div>
               {overdue.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  Keine offene Freigabe älter als {responseDays} Tage.
+                  {t("work.guardrails.keineOffeneFreigabeAelterAls", { days: responseDays })}
                 </p>
               ) : (
                 <table className="w-full text-sm">
@@ -112,10 +119,10 @@ export function BoEngagementCard({ model }: { model: EngagementGuardrailModel })
                             o.approverLabel == null ? "text-destructive" : "text-muted-foreground"
                           }`}
                         >
-                          {o.approverLabel ?? "nicht zugewiesen"}
+                          {o.approverLabel ?? t("work.guardrails.freigabeNichtZugewiesen")}
                         </td>
                         <td className="whitespace-nowrap py-1.5 text-right font-mono text-xs tabular-nums text-muted-foreground">
-                          {o.daysOpen} T
+                          {t("work.guardrails.tageKurz", { days: o.daysOpen })}
                         </td>
                       </tr>
                     ))}
@@ -144,11 +151,12 @@ function Quote({
   targetLabel: string;
   note: string;
 }) {
+  const locale = useLocale() as Locale;
   return (
     <div>
       <Stat
         label={label}
-        value={ratio == null ? "—" : formatPercent(ratio)}
+        value={ratio == null ? "—" : formatPercent(ratio, locale)}
         delta={{ tone: "flat", text: note }}
         className="px-0 py-0"
       />

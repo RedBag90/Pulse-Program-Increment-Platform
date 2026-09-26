@@ -39,13 +39,17 @@ export function CreateTimelineFromStandard({ standards }: { standards: PiStandar
       >
         {standards.map((s) => (
           <option key={s.id} value={s.id}>
-            {s.name} ({s.cadenceWeeks} Wo · {s.piCount} PIs)
+            {t("drumbeat.ui.standardOptionLabel", {
+              name: s.name,
+              weeks: s.cadenceWeeks,
+              count: s.piCount,
+            })}
           </option>
         ))}
       </select>
       <Button type="button" size="sm" variant="outline" disabled={pending} onClick={apply}>
         <Sparkles className="size-4 mr-1.5" />
-        {pending ? "…" : "Timeline aus Standard"}
+        {pending ? "…" : t("drumbeat.ui.timelineAusStandard")}
       </Button>
       {state?.error && <p className="text-xs text-destructive">{state.error}</p>}
     </div>

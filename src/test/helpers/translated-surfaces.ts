@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import ts from "typescript";
 
 /**
  * **Der Wächter über die Übersetzung.**
@@ -90,7 +91,7 @@ export interface TextViolation {
   file: string;
   line: number;
   text: string;
-  kind: "jsx-text" | "prop";
+  kind: "jsx-text" | "jsx-string" | "prop";
 }
 
 const zeileVon = (src: string, at: number): number => src.slice(0, at).split("\n").length;
@@ -114,12 +115,95 @@ export function untranslatedLiterals(path: string): TextViolation[] {
       out.push({ file: rel, line: zeileVon(src, m.index), text, kind: "prop" });
     }
   }
+  if (path.endsWith(".tsx")) {
+    out.push(...jsxLiterals(src, rel));
+    return out;
+  }
   for (const m of src.matchAll(JSX_TEXT_RE)) {
     const text = m[1]!.trim();
     if (!ERLAUBT.test(text) && !CODE.test(text)) {
       out.push({ file: rel, line: zeileVon(src, m.index), text, kind: "jsx-text" });
     }
   }
+  return out;
+}
+
+const BUCHSTABEN = /[A-Za-zÄÖÜäöüß]{2,}/;
+
+/**
+ * **JSX-Text über den Parser, nicht über eine Regex.**
+ *
+ * Bis September 2026 las `JSX_TEXT_RE` nur Text **zwischen zwei Marken**
+ * (`>…<`). Ein Satz, der an einen Ausdruck grenzt, fiel durch:
+ *
+ *     Angelegt wurde dieses Epic als{" "}
+ *     <strong>{t(…)}</strong>. Der Business Case beziffert die Umsetzung auf{" "}
+ *
+ * stand so im Klassifikations-Dialog und erschien auf der englischen
+ * Oberfläche deutsch — neben rund zwanzig Stellen derselben Form. Die Regex
+ * auf `}…{` zu erweitern hätte jedes `} else {` gemeldet; der Parser weiss,
+ * was JSX ist.
+ *
+ * Gemeldet werden zwei Formen:
+ *  - jeder `JsxText`-Knoten mit einer Buchstabenfolge — gleich, woran er grenzt;
+ *  - Zeichenketten, die als **Kind** gerendert werden: `{"über"}`,
+ *    `{x ? "über" : "unter"}`, `{ok && "Gespeichert"}`. Ein Satz, der aus
+ *    solchen Bruchstücken zusammengesetzt wird, ist genauso unübersetzt.
+ *
+ * Attribute prüft weiterhin `PROP_RE` — dort steht auch Code (`className`,
+ * `href`), den nur die Liste `USER_PROPS` vom Text trennt.
+ */
+function jsxLiterals(src: string, rel: string): TextViolation[] {
+  const sf = ts.createSourceFile(rel, src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const out: TextViolation[] = [];
+  const melde = (node: ts.Node, raw: string, kind: TextViolation["kind"]) => {
+    const text = raw.replace(/\s+/g, " ").trim();
+    if (text === "" || !BUCHSTABEN.test(text) || ERLAUBT.test(text)) return;
+    const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+    out.push({ file: rel, line, text, kind });
+  };
+
+  /** Die Zeichenketten, die ein Kind-Ausdruck am Ende rendern kann. */
+  const gerendert = (e: ts.Expression): void => {
+    if (ts.isStringLiteral(e) || ts.isNoSubstitutionTemplateLiteral(e)) {
+      melde(e, e.text, "jsx-string");
+    } else if (ts.isTemplateExpression(e)) {
+      melde(
+        e,
+        [e.head.text, ...e.templateSpans.map((s) => s.literal.text)].join(" "),
+        "jsx-string",
+      );
+    } else if (ts.isParenthesizedExpression(e)) {
+      gerendert(e.expression);
+    } else if (ts.isConditionalExpression(e)) {
+      gerendert(e.whenTrue);
+      gerendert(e.whenFalse);
+    } else if (
+      ts.isBinaryExpression(e) &&
+      [
+        ts.SyntaxKind.AmpersandAmpersandToken,
+        ts.SyntaxKind.BarBarToken,
+        ts.SyntaxKind.QuestionQuestionToken,
+      ].includes(e.operatorToken.kind)
+    ) {
+      gerendert(e.right);
+      if (e.operatorToken.kind !== ts.SyntaxKind.AmpersandAmpersandToken) gerendert(e.left);
+    }
+  };
+
+  const besuche = (node: ts.Node): void => {
+    if (ts.isJsxText(node)) {
+      melde(node, node.text, "jsx-text");
+    } else if (
+      ts.isJsxExpression(node) &&
+      node.expression != null &&
+      (ts.isJsxElement(node.parent) || ts.isJsxFragment(node.parent))
+    ) {
+      gerendert(node.expression);
+    }
+    ts.forEachChild(node, besuche);
+  };
+  besuche(sf);
   return out;
 }
 

@@ -118,7 +118,7 @@ export function LinkDependencyDialog({ fromId, artId, candidates }: Props) {
                   {t("drumbeat.ui.cancel")}
                 </Button>
                 <Button type="submit" disabled={isPending || !toId}>
-                  {isPending ? "Linking…" : "Link"}
+                  {isPending ? t("drumbeat.ui.verknuepfeLaeuft") : t("work.epic.verknuepfen")}
                 </Button>
               </DialogFooter>
             </form>

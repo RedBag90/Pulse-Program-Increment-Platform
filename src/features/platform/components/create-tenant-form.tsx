@@ -92,8 +92,8 @@ export function CreateTenantForm() {
             defaultValue="eu"
             className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            <option value="eu">EU</option>
-            <option value="us">US</option>
+            <option value="eu">{t("platform.ui.regionEu")}</option>
+            <option value="us">{t("platform.ui.regionUs")}</option>
             <option value="apac">{t("platform.ui.apac")}</option>
           </select>
         </div>
@@ -149,9 +149,9 @@ export function CreateTenantForm() {
         <legend className="sr-only">{t("platform.ui.testnutzer")}</legend>
         <span className="block text-xs font-medium">{t("platform.ui.testnutzerJeRolle")}</span>
         <p className="text-xs text-muted-foreground">
-          Echte Konten mit einem gemeinsamen Passwort, das danach{" "}
-          <strong className="text-foreground">{t("platform.ui.einmal")}</strong>{" "}
-          {t("platform.ui.angezeigtWirdSieSehen")}
+          {t.rich("platform.ui.testnutzerEchteKontenHinweis", {
+            strong: (c) => <strong className="text-foreground">{c}</strong>,
+          })}
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
           {TESTNUTZER_ROLLEN.map((role) => (
@@ -202,7 +202,7 @@ export function CreateTenantForm() {
         disabled={isPending}
         className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
       >
-        {isPending ? "Wird angelegt…" : "Anlegen"}
+        {isPending ? t("platform.ui.mandantWirdAngelegt") : t("platform.ui.mandantAnlegen")}
       </button>
     </form>
   );

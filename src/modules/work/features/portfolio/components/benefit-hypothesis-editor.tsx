@@ -110,7 +110,7 @@ export function BenefitHypothesisEditor({
 
           <div>
             <label htmlFor="bh-risks" className="block text-sm font-medium mb-1">
-              Risks &amp; Abhängigkeiten
+              {t("work.epic.risksUndAbhaengigkeitenLabel")}
               <span className="ml-2 font-normal text-muted-foreground">
                 {t("work.epic.einPunktProZeile")}
               </span>
@@ -139,7 +139,9 @@ export function BenefitHypothesisEditor({
         {!readOnly && (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Speichern…" : "Benefit Hypothese speichern"}
+              {isPending
+                ? t("common.ui.speichernLaeuft")
+                : t("work.epic.benefitHypotheseSpeichern")}
             </Button>
           </div>
         )}
@@ -148,7 +150,7 @@ export function BenefitHypothesisEditor({
       {history.length > 0 && (
         <details className="rounded-lg border bg-muted/50 p-3">
           <summary className="cursor-pointer text-sm font-medium text-foreground/80">
-            Versionshistorie ({history.length})
+            {t("work.epic.versionshistorieAnzahl", { count: history.length })}
           </summary>
           <div className="mt-3 space-y-3">
             {history.map((v, i) => (

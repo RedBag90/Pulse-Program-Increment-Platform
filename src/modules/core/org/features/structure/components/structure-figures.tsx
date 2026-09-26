@@ -88,6 +88,7 @@ export function StructureFigures({
 
 /** „1" in Bernstein — offene Angaben an diesem Knoten, Namen im Titel. */
 export function GapBadge({ gaps, className }: { gaps: readonly string[]; className?: string }) {
+  const t = useTranslations();
   if (gaps.length === 0) return null;
   return (
     <span
@@ -98,7 +99,10 @@ export function GapBadge({ gaps, className }: { gaps: readonly string[]; classNa
       title={gaps.join(", ")}
     >
       {gaps.length}
-      <span className="sr-only"> offene Angaben: {gaps.join(", ")}</span>
+      <span className="sr-only">
+        {" "}
+        {t("org.ui.strukturOffeneAngaben", { list: gaps.join(", ") })}
+      </span>
     </span>
   );
 }

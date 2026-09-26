@@ -69,7 +69,7 @@ export function FeatureEditForm({
         disabled={isPending}
         className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
       >
-        {isPending ? "Saving…" : "Save changes"}
+        {isPending ? t("common.ui.speichernLaeuft") : t("common.ui.aenderungenSpeichern")}
       </button>
     </form>
   );

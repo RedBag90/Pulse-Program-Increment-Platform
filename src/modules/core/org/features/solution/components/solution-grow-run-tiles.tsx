@@ -43,8 +43,8 @@ export function SolutionGrowRunTiles({
         </div>
         <div className="text-xs text-muted-foreground">
           {grow == null
-            ? "Work- oder Budgeting-Modul nicht aktiv"
-            : (cycleLabel ?? "laufendes Halbjahr")}
+            ? t("org.ui.growRunWorkOderBudgetingInaktiv")
+            : (cycleLabel ?? t("org.ui.growRunLaufendesHalbjahr"))}
         </div>
       </div>
 
@@ -57,8 +57,16 @@ export function SolutionGrowRunTiles({
         </div>
         <div className="text-xs text-muted-foreground">
           {run == null
-            ? "Budgeting-Modul nicht aktiv"
-            : `${cycleLabel ?? "laufendes Halbjahr"} · ${runItemCount} aktive ${runItemCount === 1 ? "Position" : "Positionen"}`}
+            ? t("org.ui.growRunBudgetingInaktiv")
+            : t(
+                runItemCount === 1
+                  ? "org.ui.growRunAktivePositionEine"
+                  : "org.ui.growRunAktivePositionenViele",
+                {
+                  cycle: cycleLabel ?? t("org.ui.growRunLaufendesHalbjahr"),
+                  count: runItemCount,
+                },
+              )}
         </div>
       </div>
 
@@ -73,7 +81,9 @@ export function SolutionGrowRunTiles({
         </div>
         {run == null || grow == null ? (
           <div className="mt-3 text-xs text-muted-foreground">
-            {grow == null ? "Ohne Grow kein Verhältnis." : "Ohne Betriebskosten kein Verhältnis."}
+            {grow == null
+              ? t("org.ui.growRunOhneGrowKeinVerhaeltnis")
+              : t("org.ui.growRunOhneBetriebKeinVerhaeltnis")}
           </div>
         ) : (
           <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-muted">

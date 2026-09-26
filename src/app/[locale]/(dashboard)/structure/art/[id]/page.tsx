@@ -117,8 +117,7 @@ export default async function ArtNodePage({ params, searchParams }: Props) {
         <>
           {showBudgetLink && (
             <p className="mb-4 rounded-lg bg-card shadow-card px-4 py-3 text-sm">
-              Das Budget dieses ARTs — Zuteilung, Deckung und die Verteilung auf seine ART-Epics —
-              liegt im Budgeting-Bereich.{" "}
+              {t("org.page.budgetDiesesArtsLiegtImBudgeting")}{" "}
               <Link
                 href={`/budgeting/value-streams/${art.valueStream.id}?tab=art:${art.id}`}
                 className="font-medium text-primary hover:underline"

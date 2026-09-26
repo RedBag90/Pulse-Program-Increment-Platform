@@ -1,4 +1,5 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
 import { formatCompactEUR, formatEUR } from "@/lib/formatting";
 import {
@@ -130,6 +131,7 @@ export function ArtBudgetTab({
   canDistribute?: boolean;
 }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const cycleLabel = detail.cycles.find((c) => c.key === detail.cycleKey)?.label ?? detail.cycleKey;
   return (
     // `space-y-6` wie zwischen allen Abschnittskarten dieser Seite.
@@ -159,7 +161,9 @@ export function ArtBudgetTab({
                 {s.breakdown.total > 0 ? formatCompactEUR(s.breakdown.total) : "—"}
               </div>
               <div className="text-xs text-muted-foreground">
-                {s.breakdown.rows.length} {s.breakdown.rows.length === 1 ? "Epic" : "Epics"}
+                {s.breakdown.rows.length === 1
+                  ? t("budgeting.art.anzahlEpicEins", { count: s.breakdown.rows.length })
+                  : t("budgeting.art.anzahlEpics", { count: s.breakdown.rows.length })}
               </div>
             </div>
 
@@ -177,8 +181,15 @@ export function ArtBudgetTab({
                     : "—"}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {allocationShare(s.breakdown, state)} % · {s.breakdown.countByState[state]}{" "}
-                  {s.breakdown.countByState[state] === 1 ? "Epic" : "Epics"}
+                  {s.breakdown.countByState[state] === 1
+                    ? t("budgeting.art.anteilUndAnzahlEpicEins", {
+                        share: allocationShare(s.breakdown, state),
+                        count: s.breakdown.countByState[state],
+                      })
+                    : t("budgeting.art.anteilUndAnzahlEpics", {
+                        share: allocationShare(s.breakdown, state),
+                        count: s.breakdown.countByState[state],
+                      })}
                 </div>
               </div>
             ))}
@@ -240,8 +251,7 @@ export function ArtBudgetTab({
           )}
 
           <p className="text-sm text-muted-foreground">
-            „{t(ALLOCATION_STATE_KEYS.notStarted)}" ist das Restbudget — es hängt an diesen Epics
-            und wird ohne neue Budget-Kachel nicht umgewidmet.
+            {t("budgeting.art.istDasRestbudget", { state: t(ALLOCATION_STATE_KEYS.notStarted) })}
           </p>
         </SectionCard>
       ))}
@@ -299,24 +309,36 @@ export function ArtBudgetTab({
           <summary className="cursor-pointer list-none text-sm font-medium text-muted-foreground marker:content-[''] hover:text-foreground">
             <span className="group-open/notes:hidden">▸ </span>
             <span className="hidden group-open/notes:inline">▾ </span>
-            Anmerkungen zur Datenlage (
-            {detail.switchedArt.length + (detail.epicsWithoutArt.count > 0 ? 1 : 0)})
+            {t("budgeting.art.anmerkungenZurDatenlage", {
+              count: detail.switchedArt.length + (detail.epicsWithoutArt.count > 0 ? 1 : 0),
+            })}
           </summary>
           {detail.switchedArt.map((e) => (
             <p key={e.epicId} className="text-sm text-muted-foreground">
-              <strong className="font-medium text-foreground">{e.title}</strong> gehört inzwischen
-              {e.currentArtName ? ` zum ART ${e.currentArtName}` : " keinem ART mehr"}. Das Budget
-              zählt weiterhin hier — die Kachel hat es hier entschieden.
+              {e.currentArtName
+                ? t.rich("budgeting.art.gehoertInzwischenZumArt", {
+                    title: e.title,
+                    art: e.currentArtName,
+                    b: (c) => <strong className="font-medium text-foreground">{c}</strong>,
+                  })
+                : t.rich("budgeting.art.gehoertInzwischenKeinemArt", {
+                    title: e.title,
+                    b: (c) => <strong className="font-medium text-foreground">{c}</strong>,
+                  })}
             </p>
           ))}
           {detail.epicsWithoutArt.count > 0 && (
             <p className="text-sm text-muted-foreground">
-              <strong className="font-medium text-foreground">
-                {formatEUR(detail.epicsWithoutArt.amount)}
-              </strong>{" "}
-              sind im Wertstrom an {detail.epicsWithoutArt.count}{" "}
-              {detail.epicsWithoutArt.count === 1 ? "Epic" : "Epics"} ohne ART-Zuordnung vergeben
-              und erscheinen in keiner ART-Sicht.
+              {t.rich(
+                detail.epicsWithoutArt.count === 1
+                  ? "budgeting.art.imWertstromAnEpicOhneArt"
+                  : "budgeting.art.imWertstromAnEpicsOhneArt",
+                {
+                  amount: formatEUR(detail.epicsWithoutArt.amount, locale),
+                  count: detail.epicsWithoutArt.count,
+                  b: (c) => <strong className="font-medium text-foreground">{c}</strong>,
+                },
+              )}
             </p>
           )}
         </details>
@@ -342,6 +364,7 @@ export function ArtBudgetTab({
  */
 function ReallocationView({ detail }: { detail: ArtBudgetDetail }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const portfolio = detail.sources.find((s) => s.source === "portfolio");
   const free = portfolio?.breakdown.rows.filter((r) => r.state === "notStarted") ?? [];
   const freeSum = free.reduce((acc, r) => acc + r.amount, 0);
@@ -432,18 +455,15 @@ function ReallocationView({ detail }: { detail: ArtBudgetDetail }) {
 
       {detail.unfunded.length > 0 && (
         <p className="rounded-lg border bg-surface-frame px-3 py-2 text-sm">
-          {gap > 0 ? (
-            <>
-              Selbst wenn alles Nichtbegonnene umgewidmet würde, fehlten{" "}
-              <strong className="font-semibold tabular-nums">{formatEUR(gap)}</strong>.
-            </>
-          ) : (
-            <>
-              Das Nichtbegonnene würde für alles Beantragte reichen —{" "}
-              <strong className="font-semibold tabular-nums">{formatEUR(-gap)}</strong>{" "}
-              {t("budgeting.art.bliebenUebrig")}
-            </>
-          )}
+          {gap > 0
+            ? t.rich("budgeting.art.selbstWennAllesUmgewidmetFehlten", {
+                amount: formatEUR(gap, locale),
+                b: (c) => <strong className="font-semibold tabular-nums">{c}</strong>,
+              })
+            : t.rich("budgeting.art.nichtbegonnenesWuerdeReichen", {
+                amount: formatEUR(-gap, locale),
+                b: (c) => <strong className="font-semibold tabular-nums">{c}</strong>,
+              })}
         </p>
       )}
 

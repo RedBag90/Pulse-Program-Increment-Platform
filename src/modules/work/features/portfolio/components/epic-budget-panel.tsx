@@ -1,4 +1,5 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import { formatCompactEUR } from "@/lib/formatting";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import type {
@@ -25,11 +26,15 @@ import type {
  * Budget-Port. Work importiert nichts aus Budgeting (ADR-0013) — auch die
  * Beschriftung des Zustands reist als Wert mit.
  */
-const fmtDay = (d: Date): string =>
-  d.toLocaleDateString("de-DE", { day: "numeric", month: "short", year: "numeric" });
+const fmtDay = (d: Date, locale: Locale): string =>
+  d.toLocaleDateString(locale === "en" ? "en-GB" : "de-DE", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 
-const fmtSpan = (start: Date | null, end: Date | null): string | null =>
-  start && end ? `${fmtDay(start)} – ${fmtDay(end)}` : null;
+const fmtSpan = (start: Date | null, end: Date | null, locale: Locale): string | null =>
+  start && end ? `${fmtDay(start, locale)} – ${fmtDay(end, locale)}` : null;
 
 export function EpicBudgetPanel({
   standing,
@@ -42,6 +47,7 @@ export function EpicBudgetPanel({
   fundable: { may: boolean; firstStep: string };
 }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   // Kein Geld: erklären statt nur melden. Vor L2 *kann* keines da sein — das
   // ist eine andere Aussage als „es wurde keines zugeteilt".
   if (standing == null || standing.state === "none") {
@@ -50,8 +56,8 @@ export function EpicBudgetPanel({
         <p className="text-2xl font-semibold tabular-nums text-muted-foreground">—</p>
         <p className="text-sm text-muted-foreground">
           {!fundable.may && fundable.firstStep !== ""
-            ? `Budget gibt es erst ab ${fundable.firstStep} — dieses Epic ist noch nicht so weit.`
-            : "Kein Budget zugeteilt."}
+            ? t("work.epic.budgetErstAbStufe", { step: fundable.firstStep })
+            : t("work.epic.keinBudgetZugeteilt")}
         </p>
       </div>
     );
@@ -62,24 +68,25 @@ export function EpicBudgetPanel({
   const currentSpan = fmtSpan(
     standing.currentPeriod?.start ?? null,
     standing.currentPeriod?.end ?? null,
+    locale,
   );
-  const totalSpan = fmtSpan(standing.span?.start ?? null, standing.span?.end ?? null);
+  const totalSpan = fmtSpan(standing.span?.start ?? null, standing.span?.end ?? null, locale);
 
   // Der Geltungssatz — er stand vor dem Umbau schon hier und ist der Kern der
   // Frage. Bei `upcoming` trägt er das Datum, nicht nur das Wort „später".
   const validity =
     standing.state === "applies"
-      ? "gilt jetzt"
+      ? t("work.epic.budgetGiltJetzt")
       : standing.state === "upcoming"
         ? standing.startsAt != null
-          ? `zugeteilt, gilt ab ${fmtDay(standing.startsAt)}`
-          : "zugeteilt, Rahmen noch in Ausarbeitung"
-        : "Rahmen abgelaufen";
+          ? t("work.epic.budgetZugeteiltGiltAb", { date: fmtDay(standing.startsAt, locale) })
+          : t("work.epic.budgetZugeteiltRahmenInArbeit")
+        : t("work.epic.budgetRahmenAbgelaufen");
 
   return (
     <div className="space-y-3">
       <div className="space-y-0.5">
-        <p className="text-2xl font-semibold tabular-nums">{formatCompactEUR(headline)}</p>
+        <p className="text-2xl font-semibold tabular-nums">{formatCompactEUR(headline, locale)}</p>
         <p className="text-sm text-muted-foreground">
           {validity}
           {applies && currentSpan != null ? (
@@ -105,7 +112,10 @@ export function EpicBudgetPanel({
         )}
         {applies && standing.cycleCount > 1 && (
           <span className="text-meta text-muted-foreground">
-            gesamt {formatCompactEUR(standing.totalAmount)} über {standing.cycleCount} Zeiträume
+            {t("work.epic.budgetGesamtUeberZeitraeume", {
+              amount: formatCompactEUR(standing.totalAmount, locale),
+              count: standing.cycleCount,
+            })}
           </span>
         )}
       </div>
@@ -125,9 +135,11 @@ export function EpicBudgetPanel({
               <tr key={p.cycleKey} className={p.applies ? "font-medium" : undefined}>
                 <td className="py-1">{halfYearLabel(p.cycleKey)}</td>
                 <td className="py-1 text-meta tabular-nums text-muted-foreground">
-                  {fmtSpan(p.start, p.end) ?? "—"}
+                  {fmtSpan(p.start, p.end, locale) ?? "—"}
                 </td>
-                <td className="py-1 text-right tabular-nums">{formatCompactEUR(p.amount)}</td>
+                <td className="py-1 text-right tabular-nums">
+                  {formatCompactEUR(p.amount, locale)}
+                </td>
               </tr>
             ))}
           </tbody>

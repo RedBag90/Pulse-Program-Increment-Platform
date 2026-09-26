@@ -213,11 +213,13 @@ function DutiesSection({ duties }: { duties: readonly DutyRow[] }) {
       </div>
 
       <p className="text-prose text-muted-foreground">
-        Wer das bei euch ist, steht in der{" "}
-        <Link href="/structure/rollen" className="font-medium text-foreground hover:underline">
-          {t("wiki.ui.rollenverteilung")}
-        </Link>{" "}
-        — dort mit Namen, und dort wird auch eingetragen.
+        {t.rich("wiki.ui.rollenSheetsWerDasBeiEuchIst", {
+          link: (c) => (
+            <Link href="/structure/rollen" className="font-medium text-foreground hover:underline">
+              {c}
+            </Link>
+          ),
+        })}
       </p>
     </section>
   );

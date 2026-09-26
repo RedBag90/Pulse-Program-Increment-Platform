@@ -421,7 +421,7 @@ export function EpicOverviewTab({
                   )}
                 </span>
               ) : (
-                <None>keine — ein R&amp;D-Vorhaben hat keine</None>
+                <None>{t("work.epic.keineSolutionRundDVorhaben")}</None>
               )}
             </Row>
           </dl>

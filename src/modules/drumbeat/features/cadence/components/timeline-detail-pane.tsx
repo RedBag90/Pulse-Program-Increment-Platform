@@ -123,10 +123,7 @@ export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) 
           )}
         </div>
         {timeline.pis.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Noch keine PIs. Lege ein einzelnes PI per "+ Neues PI" an oder wende einen PI-Standard
-            auf diese Timeline an.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("drumbeat.ui.nochKeinePisHinweis")}</p>
         ) : (
           <ul className="space-y-1.5">
             {timeline.pis.map((pi) => {

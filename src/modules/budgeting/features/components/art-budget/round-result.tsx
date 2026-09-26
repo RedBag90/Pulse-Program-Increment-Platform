@@ -1,4 +1,5 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
 import { formatEUR } from "@/lib/formatting";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
@@ -16,6 +17,7 @@ import { SectionCard } from "@/components/ui/section-card";
  */
 export function RoundResult({ result }: { result: ValueStreamRoundResult }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const hj = halfYearLabel(result.cycleKey);
   const title = `Ergebnis der Kachel · ${hj}`;
   const zurKachel =
@@ -38,8 +40,7 @@ export function RoundResult({ result }: { result: ValueStreamRoundResult }) {
           was er weiss.
         */}
         <p className="text-sm text-muted-foreground">
-          Für {hj} steht dieser Wertstrom auf keiner Budgeting-Kachel. Ohne sie ist ihm nichts
-          zugesprochen — es gibt nichts aufzuteilen.{" "}
+          {t("budgeting.art.aufKeinerBudgetingKachel", { hj })}{" "}
           <Link href="/budgeting/periods" className="font-medium text-primary hover:underline">
             {t("budgeting.art.zuDenKacheln")}
           </Link>
@@ -52,8 +53,11 @@ export function RoundResult({ result }: { result: ValueStreamRoundResult }) {
     return (
       <SectionCard title={title} action={zurKachel}>
         <p className="text-sm text-muted-foreground">
-          Die Kachel für {hj} läuft noch — festgeschrieben ist nichts. Beantragt sind{" "}
-          <strong className="font-medium text-foreground">{formatEUR(result.askTotal)}</strong>.
+          {t.rich("budgeting.art.kachelLaeuftNochBeantragtSind", {
+            hj,
+            amount: formatEUR(result.askTotal, locale),
+            b: (c) => <strong className="font-medium text-foreground">{c}</strong>,
+          })}
         </p>
       </SectionCard>
     );

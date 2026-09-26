@@ -349,10 +349,7 @@ export function EpicBusinessCaseCalcTab({
       </div>
 
       <p className="text-meta text-muted-foreground">
-        ⓘ Das App-Modell rechnet intern monatlich — die Tageswerte sind der tagesgenaue Analog
-        (Monats-Summe = Monatswert der App). „Ist" bis heute, danach Forecast (kursiv); die
-        Benefit-Velocity füllt in der Zukunft auf die Zielrate auf. Ein Monat lädt seine Tage beim
-        Aufklappen nach.
+        {t("work.epic.appModellRechnetMonatlichHinweis")}
       </p>
     </section>
   );
@@ -385,6 +382,7 @@ function YearGroup({
   netClass: (n: number) => string;
   children: React.ReactNode;
 }) {
+  const t = useTranslations();
   return (
     <>
       <tr className="border-t bg-muted/40 font-medium">
@@ -392,7 +390,11 @@ function YearGroup({
           <button type="button" onClick={onToggle} className="flex items-center gap-1.5">
             {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
             {year}
-            {forecast && <span className="text-label text-muted-foreground">(Forecast)</span>}
+            {forecast && (
+              <span className="text-label text-muted-foreground">
+                {t("work.epic.forecastInKlammern")}
+              </span>
+            )}
           </button>
         </td>
         <td className="px-3 py-1.5">

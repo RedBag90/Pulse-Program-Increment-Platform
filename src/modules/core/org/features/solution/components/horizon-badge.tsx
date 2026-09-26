@@ -72,8 +72,12 @@ export function HorizonBadge({
         <TooltipContent className="max-w-xs flex-col items-start gap-1 text-left">
           <span className="font-medium">{label}</span>
           <span>{t(help.blurb)}</span>
-          <span className="opacity-80">Epics: {t(help.epicArt)}</span>
-          <span className="opacity-80">Budget: {t(help.budgetFokus)}</span>
+          <span className="opacity-80">
+            {t("org.ui.horizonHilfeEpics", { text: t(help.epicArt) })}
+          </span>
+          <span className="opacity-80">
+            {t("org.ui.horizonHilfeBudget", { text: t(help.budgetFokus) })}
+          </span>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

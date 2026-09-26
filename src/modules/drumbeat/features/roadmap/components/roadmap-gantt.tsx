@@ -215,8 +215,13 @@ export function RoadmapGantt({
                 title={t("drumbeat.ui.depsInScope")}
               >
                 {renderableDeps.length === 0 && offScopeCount === 0
-                  ? "keine Deps"
-                  : `${renderableDeps.length} Deps${offScopeCount > 0 ? ` · ${offScopeCount} off` : ""}`}
+                  ? t("drumbeat.ui.keineDeps")
+                  : offScopeCount > 0
+                    ? t("drumbeat.ui.anzahlDepsMitOff", {
+                        count: renderableDeps.length,
+                        off: offScopeCount,
+                      })
+                    : t("drumbeat.ui.anzahlDeps", { count: renderableDeps.length })}
               </span>
             )}
           </div>

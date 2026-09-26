@@ -41,7 +41,9 @@ export function JoinRequestList({ requests }: { requests: JoinRequestRow[] }) {
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{r.email}</p>
               <p className="text-xs text-muted-foreground">
-                via {r.via === "link" ? "Link" : "Code"} · {r.createdAt}
+                {r.via === "link"
+                  ? t("admin.ui.anfrageViaLink", { createdAt: r.createdAt })
+                  : t("admin.ui.anfrageViaCode", { createdAt: r.createdAt })}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">

@@ -50,11 +50,10 @@ export function GateRevertDialog({ epicId, current }: { epicId: string; current:
   return (
     <div className="w-full space-y-2 rounded-md border border-warning/40 bg-warning-surface/60 p-2.5">
       <p className="text-xs font-medium">
-        Zurückstufen auf {gateStepLabel(target, t)} — bitte begründen
+        {t("work.gate.zurueckstufenAufBitteBegruenden", { gate: gateStepLabel(target, t) })}
       </p>
       <p className="text-xs text-muted-foreground">
-        Die Freigabe-Stempel des verlassenen Reifegrads werden dabei zurückgesetzt; ein offener
-        Antrag wird zurückgezogen.
+        {t("work.gate.freigabeStempelWerdenZurueckgesetzt")}
       </p>
       <textarea
         value={reason}
@@ -71,7 +70,7 @@ export function GateRevertDialog({ epicId, current }: { epicId: string; current:
           onClick={submit}
           className="rounded-md border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive-surface disabled:opacity-50"
         >
-          {pending ? "…" : "Zurückstufen"}
+          {pending ? "…" : t("work.gate.zurueckstufen")}
         </button>
         <button
           type="button"

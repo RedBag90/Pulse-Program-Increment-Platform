@@ -1,4 +1,5 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import {
   CAPACITY_BUCKET_KEYS,
   type CapacityBucket,
@@ -26,6 +27,7 @@ import { formatEUR } from "@/lib/formatting";
  */
 export function CapacityPlanCard({ plan }: { plan: ValueStreamCapacityPlan }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const drift = maxCapacityDrift(plan);
   const status = statusFor(drift ?? 0, drift != null);
   const ohneSatz = plan.artsWithoutRate;
@@ -36,7 +38,7 @@ export function CapacityPlanCard({ plan }: { plan: ValueStreamCapacityPlan }) {
       <div className="flex flex-wrap items-baseline gap-2">
         <h3 className="font-medium">{t("work.guardrails.capacityAllocation")}</h3>
         <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
-          Guardrail 2 · {plan.cycleLabel}
+          {t("work.guardrails.guardrail2Zyklus", { cycle: plan.cycleLabel })}
         </span>
         <span className="ml-auto">
           <GuardrailStatusBadge status={status} />
@@ -44,21 +46,18 @@ export function CapacityPlanCard({ plan }: { plan: ValueStreamCapacityPlan }) {
       </div>
 
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Eingeplante Arbeit in Job-Size-Punkten gegen die Kapazität, die das Veränderungsgeld je ART
-        hergibt.{" "}
-        {ohneKapazitaet === "no_rate" ? (
-          "Für dieses Halbjahr lässt sich an keinem ART ein €-Satz ableiten."
-        ) : ohneKapazitaet === "no_budget" ? (
-          "Für dieses Halbjahr ist noch kein Veränderungsgeld zugeteilt — die geplanten Punkte stehen unten."
-        ) : (
-          <>
-            {formatEUR(plan.budget)} →{" "}
-            <strong className="font-medium text-foreground tabular-nums">
-              {Math.round(plan.capacity ?? 0)}
-            </strong>{" "}
-            Punkte über {plan.artCount - ohneSatz.length} von {plan.artCount} ARTs.
-          </>
-        )}
+        {t("work.guardrails.kapazitaetEinleitung")}{" "}
+        {ohneKapazitaet === "no_rate"
+          ? t("work.guardrails.halbjahrOhneSatz")
+          : ohneKapazitaet === "no_budget"
+            ? t("work.guardrails.halbjahrOhneGeld")
+            : t.rich("work.guardrails.kapazitaetPunkteUeberArts", {
+                budget: formatEUR(plan.budget, locale),
+                capacity: Math.round(plan.capacity ?? 0),
+                withRate: plan.artCount - ohneSatz.length,
+                total: plan.artCount,
+                b: (c) => <strong className="font-medium text-foreground tabular-nums">{c}</strong>,
+              })}
       </p>
 
       <table className="w-full text-sm">
@@ -78,19 +77,32 @@ export function CapacityPlanCard({ plan }: { plan: ValueStreamCapacityPlan }) {
 
       {ohneSatz.length > 0 && (
         <p className="rounded-r-md border-l-2 bg-surface-frame px-3 py-2 text-xs text-muted-foreground">
-          {ohneSatz.length} {ohneSatz.length === 1 ? "ART hat" : "ARTs haben"} keinen belastbaren
-          €-Satz — {ohneSatz.map((a) => a.name).join(", ")}. Ihre{" "}
-          {ohneSatz.reduce((s, a) => s + a.jobSize, 0)} eingeplanten Punkte zählen mit, eine
-          Kapazität dagegen haben sie nicht.
+          {t(
+            ohneSatz.length === 1
+              ? "work.guardrails.artOhneSatzEiner"
+              : "work.guardrails.artOhneSatzMehrere",
+            {
+              count: ohneSatz.length,
+              names: ohneSatz.map((a) => a.name).join(", "),
+              points: ohneSatz.reduce((s, a) => s + a.jobSize, 0),
+            },
+          )}
         </p>
       )}
 
       {/* Immer sichtbar, auch bei 0 — sonst liest man die Aufteilung als
           vollständig. Dieselbe Regel wie auf der Mix-Karte daneben. */}
       <p className="text-xs text-muted-foreground">
-        {plan.unclassified.count} von {plan.totalPlanned.count} eingeplanten Features ohne
-        Arbeitstyp
-        {plan.unclassified.count > 0 && ` (${plan.unclassified.jobSize} Pkt)`}
+        {plan.unclassified.count > 0
+          ? t("work.guardrails.featuresOhneArbeitstypMitPunkten", {
+              count: plan.unclassified.count,
+              total: plan.totalPlanned.count,
+              points: plan.unclassified.jobSize,
+            })
+          : t("work.guardrails.featuresOhneArbeitstyp", {
+              count: plan.unclassified.count,
+              total: plan.totalPlanned.count,
+            })}
       </p>
     </div>
   );
@@ -122,11 +134,13 @@ function Row({
   return (
     <tr className="border-b last:border-b-0">
       <td className="py-1.5">{t(CAPACITY_BUCKET_KEYS[bucket] ?? bucket)}</td>
-      <td className="py-1.5 text-right tabular-nums">{planned} Pkt</td>
+      <td className="py-1.5 text-right tabular-nums">
+        {t("work.guardrails.punkteKurz", { points: planned })}
+      </td>
       <td className="py-1.5 text-right tabular-nums text-muted-foreground">
         {available == null || capacity == null || capacity <= 0
           ? "—"
-          : `${Math.round(available)} Pkt`}
+          : t("work.guardrails.punkteKurz", { points: Math.round(available) })}
       </td>
       <td className={`py-1.5 text-right tabular-nums ${tone}`}>
         {delta == null || capacity == null || capacity <= 0

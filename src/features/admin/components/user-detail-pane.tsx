@@ -60,7 +60,9 @@ export function UserDetailPane({ user, valueStreams, canManage, canErase }: Prop
             <p className="mt-0.5 font-mono text-meta text-muted-foreground">{user.id}</p>
           </div>
           <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
-            {user.roleCount} {user.roleCount === 1 ? "Rolle" : "Rollen"}
+            {user.roleCount === 1
+              ? t("admin.ui.anzahlRolle", { count: user.roleCount })
+              : t("admin.ui.anzahlRollen", { count: user.roleCount })}
           </span>
         </div>
       </section>
@@ -189,7 +191,7 @@ function AddRoleDraft({
 
       <div className="flex items-center justify-between gap-2">
         <Button type="submit" size="sm" disabled={pending}>
-          {pending ? "Speichert…" : "Zuweisen"}
+          {pending ? t("admin.ui.rolleZuweisenLaeuft") : t("admin.ui.rolleZuweisen")}
         </Button>
         <button
           type="button"

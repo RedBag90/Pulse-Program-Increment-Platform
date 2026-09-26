@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Page } from "@/components/layout/page";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageSection } from "@/components/layout/page-section";
@@ -16,12 +17,13 @@ export function PlatformPlaceholder({
   subtitle: string;
   phase: string;
 }) {
+  const t = useTranslations();
   return (
     <Page>
       <PageHeader title={title} subtitle={subtitle} />
       <PageSection>
         <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Diese Fläche wird in Roadmap-{phase} gebaut.
+          {t("platform.ui.flaecheWirdInRoadmapGebaut", { phase })}
         </div>
       </PageSection>
     </Page>

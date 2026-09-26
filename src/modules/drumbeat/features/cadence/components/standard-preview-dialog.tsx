@@ -182,7 +182,9 @@ export function StandardPreviewDialog({
                         </span>
                       ) : (
                         <span className="rounded-full bg-warning-surface px-2 py-0.5 text-label font-medium text-warning">
-                          uebersprungen{p.conflict ? ` — Konflikt mit "${p.conflict}"` : ""}
+                          {p.conflict
+                            ? t("drumbeat.ui.uebersprungenKonfliktMit", { name: p.conflict })
+                            : t("drumbeat.ui.uebersprungenBadge")}
                         </span>
                       )}
                     </td>
@@ -193,8 +195,11 @@ export function StandardPreviewDialog({
           </div>
 
           <p className="text-xs text-muted-foreground">
-            <strong>{newCount}</strong> neu, <strong>{skipCount}</strong>{" "}
-            {t("drumbeat.ui.uebersprungen")}
+            {t.rich("drumbeat.ui.vorschauNeuUebersprungen", {
+              neu: newCount,
+              skip: skipCount,
+              b: (c) => <strong>{c}</strong>,
+            })}
           </p>
 
           {state?.error && (
@@ -218,7 +223,9 @@ export function StandardPreviewDialog({
             disabled={pending || newCount === 0}
             className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
-            {pending ? "Wende an…" : `Anwenden (${newCount})`}
+            {pending
+              ? t("drumbeat.ui.wendeAnLaeuft")
+              : t("drumbeat.ui.anwendenAnzahl", { count: newCount })}
           </button>
         </DialogFooter>
       </DialogContent>

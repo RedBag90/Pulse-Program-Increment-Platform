@@ -231,7 +231,7 @@ function FeatureEditForm({ feature }: { feature: BreakdownFeature }) {
       )}
 
       <Button type="submit" disabled={isPending}>
-        {isPending ? "Speichert…" : "Änderungen speichern"}
+        {isPending ? t("work.epic.speichertLaeuft") : t("common.ui.aenderungenSpeichern")}
       </Button>
     </form>
   );
@@ -347,8 +347,10 @@ export function EpicBreakdownTab({
       <div className="flex items-center justify-between gap-3">
         <SectionLabel>
           {view === "graph"
-            ? "Abhängigkeiten"
-            : `Deliverables${features.length > 0 ? ` · ${features.length}` : ""}`}
+            ? t("work.epic.abhaengigkeitenLabel")
+            : features.length > 0
+              ? t("work.epic.deliverablesMitAnzahl", { count: features.length })
+              : t("work.epic.deliverablesLabel")}
         </SectionLabel>
         {canEdit && view === "list" && (
           <CreateFeatureDialog
@@ -368,10 +370,9 @@ export function EpicBreakdownTab({
         </p>
       ) : (
         <p className="text-xs text-muted-foreground">
-          Der Netzplan zeigt die Features dieses Epics und ihre Abhängigkeiten.
           {canLinkDependency
-            ? " Ziehe von einem Knoten zum anderen, um eine neue Abhängigkeit anzulegen."
-            : ""}
+            ? t("work.epic.netzplanZeigtFeaturesZiehenZumVerknuepfen")
+            : t("work.epic.netzplanZeigtFeatures")}
         </p>
       )}
 
@@ -500,7 +501,7 @@ export function EpicBreakdownTab({
                         onClick={() => setExpandedId((v) => (v === f.id ? null : f.id))}
                         className="shrink-0 text-xs text-primary hover:underline"
                       >
-                        {expandedId === f.id ? "Schließen" : "Bearbeiten"}
+                        {expandedId === f.id ? t("common.ui.close") : t("common.edit")}
                       </button>
                       {f.canDelete && (
                         <DeleteFeatureButton id={f.id} artId={f.artId} title={f.title} />

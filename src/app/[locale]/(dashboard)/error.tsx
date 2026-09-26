@@ -20,7 +20,9 @@ export default function DashboardErrorPage({ error, reset }: ErrorPageProps) {
     <div className="flex flex-col items-center justify-center gap-4 p-8">
       <p className="text-muted-foreground">{t("serverError")}</p>
       {error.digest && (
-        <p className="font-mono text-xs text-muted-foreground">Ref: {error.digest}</p>
+        <p className="font-mono text-xs text-muted-foreground">
+          {t("reference", { digest: error.digest })}
+        </p>
       )}
       <button
         onClick={reset}

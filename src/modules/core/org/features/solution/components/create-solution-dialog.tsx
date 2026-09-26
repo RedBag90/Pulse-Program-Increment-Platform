@@ -97,7 +97,9 @@ export function CreateSolutionDialog({ open, onOpenChange, solution }: CreateSol
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{isEdit ? "Solution bearbeiten" : "Neue Solution"}</DialogTitle>
+            <DialogTitle>
+              {isEdit ? t("org.ui.solutionDialogBearbeiten") : t("org.ui.solutionDialogNeu")}
+            </DialogTitle>
           </DialogHeader>
           <form action={action} className="space-y-4">
             {isEdit && <input type="hidden" name="id" value={solution.id} />}
@@ -133,7 +135,11 @@ export function CreateSolutionDialog({ open, onOpenChange, solution }: CreateSol
                   disabled={fetchedVs.loading}
                   className={SELECT_CLASS}
                 >
-                  <option value="">{fetchedVs.loading ? "Lade…" : "Value Stream wählen…"}</option>
+                  <option value="">
+                    {fetchedVs.loading
+                      ? t("org.ui.solutionDialogLade")
+                      : t("org.ui.solutionDialogValueStreamWaehlen")}
+                  </option>
                   {fetchedVs.data.map((vs) => (
                     <option key={vs.id} value={vs.id}>
                       {vs.name}
@@ -161,7 +167,11 @@ export function CreateSolutionDialog({ open, onOpenChange, solution }: CreateSol
                   disabled={!vsId || arts.loading}
                   className={SELECT_CLASS}
                 >
-                  <option value="">{!vsId ? "Zuerst Value Stream…" : "— bitte wählen —"}</option>
+                  <option value="">
+                    {!vsId
+                      ? t("org.ui.solutionDialogZuerstValueStream")
+                      : t("org.ui.solutionDialogBitteWaehlen")}
+                  </option>
                   {artOptions.map((art) => (
                     <option key={art.id} value={art.id}>
                       {art.name}
@@ -208,7 +218,11 @@ export function CreateSolutionDialog({ open, onOpenChange, solution }: CreateSol
                 {t("org.ui.abbrechen")}
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Speichern…" : isEdit ? "Speichern" : "Solution anlegen"}
+                {isPending
+                  ? t("common.ui.speichernLaeuft")
+                  : isEdit
+                    ? t("common.save")
+                    : t("org.ui.solutionDialogAnlegen")}
               </Button>
             </DialogFooter>
           </form>

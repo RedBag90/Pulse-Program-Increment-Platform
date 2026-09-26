@@ -72,7 +72,7 @@ export function EpicsFunnelBar({ counts, subStageCounts, activeGate, onGateChang
             activeGate === null ? "text-foreground" : "hover:text-foreground"
           }`}
         >
-          Alle {total}
+          {t("work.epic.alleMitAnzahl", { count: total })}
         </button>
       </div>
       <div className="flex flex-wrap gap-1.5">

@@ -174,7 +174,7 @@ export function CreateIssueDialog({
                 {t("risks.ui.abbrechen")}
               </Button>
               <Button type="submit" disabled={pending}>
-                {pending ? "Speichern…" : cta}
+                {pending ? t("common.ui.speichernLaeuft") : cta}
               </Button>
             </DialogFooter>
           </form>

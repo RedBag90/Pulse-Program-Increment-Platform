@@ -86,7 +86,9 @@ export function PiDialog({ open, onOpenChange, timelineId, initial }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "PI bearbeiten" : "Neues PI"}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? t("drumbeat.ui.piBearbeiten") : t("drumbeat.ui.neuesPi")}
+          </DialogTitle>
         </DialogHeader>
         <form
           key={isEdit ? `edit-${initial?.id ?? ""}` : "create"}
@@ -98,9 +100,12 @@ export function PiDialog({ open, onOpenChange, timelineId, initial }: Props) {
 
           {isActiveOrDone && (
             <div className="rounded-md border border-warning/40 bg-warning-surface p-2.5 text-xs text-warning">
-              Dieses PI ist{" "}
-              <strong>{initial?.status === "active" ? "aktiv" : "abgeschlossen"}</strong>. Start-
-              und End-Datum sind gesperrt; nur der Name kann geändert werden.
+              {t.rich(
+                initial?.status === "active"
+                  ? "drumbeat.ui.piDatenGesperrtAktiv"
+                  : "drumbeat.ui.piDatenGesperrtAbgeschlossen",
+                { b: (c) => <strong>{c}</strong> },
+              )}
             </div>
           )}
 
@@ -179,7 +184,11 @@ export function PiDialog({ open, onOpenChange, timelineId, initial }: Props) {
               disabled={pending}
               className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground disabled:opacity-50"
             >
-              {pending ? "Speichere…" : isEdit ? "Speichern" : "Anlegen"}
+              {pending
+                ? t("drumbeat.ui.speichereLaeuft")
+                : isEdit
+                  ? t("drumbeat.ui.speichern")
+                  : t("drumbeat.ui.anlegen")}
             </button>
           </DialogFooter>
         </form>

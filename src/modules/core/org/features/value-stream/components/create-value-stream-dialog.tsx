@@ -55,7 +55,7 @@ export function CreateValueStreamDialog({
           {...(compact ? { size: "sm" as const, variant: "outline" as const } : {})}
         >
           <Plus className={compact ? "mr-1 size-3.5" : "mr-1.5 size-4"} />
-          {compact ? "Wertstrom" : "Wertstrom anlegen"}
+          {compact ? t("org.ui.wertstrom") : t("org.ui.wertstromAnlegen")}
         </Button>
       )}
 
@@ -88,7 +88,7 @@ export function CreateValueStreamDialog({
                 {t("org.ui.abbrechen")}
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Wird angelegt…" : "Anlegen"}
+                {isPending ? t("org.ui.vsWirdAngelegt") : t("org.ui.vsAnlegenButton")}
               </Button>
             </DialogFooter>
           </form>

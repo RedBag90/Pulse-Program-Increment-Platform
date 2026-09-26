@@ -113,7 +113,9 @@ function StreamLane({
             {vs.name}
           </Link>
           <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
-            Wertstrom · {artCount} ART{artCount === 1 ? "" : "s"}
+            {t(artCount === 1 ? "org.ui.strukturWertstromEinArt" : "org.ui.strukturWertstromArts", {
+              count: artCount,
+            })}
           </span>
           <GapBadge gaps={vs.gaps} />
           <StructureFigures
@@ -161,7 +163,7 @@ function ArtColumn({
           {art.name}
         </Link>
         <span className="text-label uppercase tracking-[0.1em] text-muted-foreground">
-          ART · {art.cadenceLabel}
+          {t("org.ui.strukturArtKadenz", { cadence: art.cadenceLabel })}
         </span>
         <GapBadge gaps={art.gaps} className="ml-auto shrink-0" />
       </div>

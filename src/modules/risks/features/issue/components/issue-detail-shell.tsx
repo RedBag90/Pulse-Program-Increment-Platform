@@ -300,8 +300,8 @@ function ReassessSection({ issue }: { issue: IssueListRow }) {
     <Section title={t("risks.ui.neubewertung")}>
       <p className="text-xs text-muted-foreground">
         {issue.assessments.length > 0
-          ? `${issue.assessments.length} Bewertung(en) im Verlauf — jüngste zählt.`
-          : "Noch keine Neubewertung."}
+          ? t("risks.ui.issueBewertungenImVerlauf", { count: issue.assessments.length })
+          : t("risks.ui.issueNochKeineNeubewertung")}
       </p>
       <form action={action} className="space-y-2">
         <input type="hidden" name="id" value={issue.id} />
@@ -408,7 +408,9 @@ function LinkSection({
           <span>
             {issue.initiative.title}
             <span className="ml-1 text-xs text-muted-foreground">
-              {issue.initiative.level === 0 ? "(Epic)" : "(Feature)"}
+              {issue.initiative.level === 0
+                ? t("risks.ui.issueInitiativeEpicKlammer")
+                : t("risks.ui.issueInitiativeFeatureKlammer")}
             </span>
           </span>
           <form action={link}>

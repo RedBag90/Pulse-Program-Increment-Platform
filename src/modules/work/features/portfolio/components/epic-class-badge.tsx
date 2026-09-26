@@ -1,4 +1,6 @@
-import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import { formatEUR } from "@/lib/formatting";
 import {
   classificationDrift,
@@ -33,6 +35,8 @@ export function EpicClassBadge({
   intended?: IntendedClass;
 }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
+  const b = (c: ReactNode) => <strong className="font-semibold">{c}</strong>;
   const { epicClass, cost, threshold, overridden } = classification;
   const drift = classificationDrift(intended, epicClass);
 
@@ -60,11 +64,9 @@ export function EpicClassBadge({
       )}
       {drift !== "none" && intended != null && (
         <p className="rounded-r-md border-l-2 border-l-amber-600 bg-amber-500/[0.07] px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-          <strong className="font-semibold">{t("work.epic.abweichungVonDerErwartung")}</strong>{" "}
-          Angelegt wurde dieses Epic als {t(EPIC_CLASS_KEYS[intended] ?? intended)}
-          {drift === "up"
-            ? " — die Kosten machen es zur Portfolio-Sache."
-            : " — die Kosten machen es zum ART-Epic."}
+          {t.rich(drift === "up" ? "work.epic.abweichungHoch" : "work.epic.abweichungRunter", {
+            b,
+          })}
         </p>
       )}
       {/**
@@ -87,23 +89,27 @@ export function EpicClassBadge({
           )
         ) : (
           <>
-            Kosten {formatEUR(cost ?? 0)} {epicClass === "portfolio" ? "über" : "unter"} dem
-            Portfolio-Limit von {formatEUR(threshold)} ({t(GUARDRAIL_SOURCE_KEYS[source] ?? source)}
-            ).{" "}
-            {epicClass === "art"
-              ? "Finanziert wird aus dem Rahmen des ARTs."
-              : "Finanziert wird über eine Budget-Kachel."}
+            {t(
+              epicClass === "portfolio"
+                ? "work.epic.kostenUeberLimit"
+                : "work.epic.kostenUnterLimit",
+              {
+                cost: formatEUR(cost ?? 0, locale),
+                limit: formatEUR(threshold, locale),
+                source: t(GUARDRAIL_SOURCE_KEYS[source] ?? source),
+              },
+            )}
           </>
         )}
       </p>
       {fundingGap && (
         <p className="rounded-r-md border-l-2 border-l-amber-600 bg-amber-500/[0.07] px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-          <strong className="font-semibold">{t("work.epic.keinFinanzierungsweg")}</strong>{" "}
-          {fundingGap === "noArt"
-            ? "Das Epic trägt keinen ART und kann deshalb aus keinem Rahmen finanziert werden."
-            : "Für den ART dieses Epics ist kein ART-Rahmen angelegt."}{" "}
-          Als ART-Epic steht es auch nicht auf der PB-Liste. Ausweg: einen ART-Rahmen anlegen — oder
-          das Epic mit Begründung bewusst zur Portfolio-Sache erklären.
+          {t.rich(
+            fundingGap === "noArt"
+              ? "work.epic.keinFinanzierungswegOhneArt"
+              : "work.epic.keinFinanzierungswegOhneRahmen",
+            { b },
+          )}
         </p>
       )}
     </div>

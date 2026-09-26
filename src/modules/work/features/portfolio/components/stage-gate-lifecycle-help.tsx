@@ -35,9 +35,7 @@ export function StageGateLifecycleHelp({ className }: { className?: string }) {
           <h4 className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             {t("work.epic.voraussetzungenJeWechsel")}
           </h4>
-          <p className="text-muted-foreground">
-            Fett = blockierend (der Antrag ist ohne das nicht möglich). Der Rest ist beratend.
-          </p>
+          <p className="text-muted-foreground">{t("work.epic.fettIstBlockierendRestBeratend")}</p>
           <ul className="space-y-1">
             {GATE_CRITERIA_DOC.map((g) => (
               <li

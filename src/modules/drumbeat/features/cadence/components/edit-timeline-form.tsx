@@ -84,7 +84,7 @@ export function EditTimelineForm({ timelineId, name }: Props) {
           }}
           className="h-7 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground disabled:opacity-50"
         >
-          {pending ? "Speichere…" : "Speichern"}
+          {pending ? t("drumbeat.ui.speichereLaeuft") : t("drumbeat.ui.speichern")}
         </button>
         <button
           type="button"

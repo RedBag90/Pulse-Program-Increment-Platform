@@ -330,7 +330,10 @@ export function GateApproverRulesSection({
                         </span>
                       )}
                       <span className="text-muted-foreground">
-                        · {b.quorum === "all" ? "alle müssen zustimmen" : "eine Zustimmung genügt"}
+                        ·{" "}
+                        {b.quorum === "all"
+                          ? t("work.epic.alleMuessenZustimmen")
+                          : t("work.epic.eineZustimmungGenuegt")}
                       </span>
                     </div>
                   )}
@@ -422,7 +425,7 @@ export function GateApproverRulesSection({
               disabled={pending}
               className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-              {pending ? "Speichern…" : "Speichern"}
+              {pending ? t("common.ui.speichernLaeuft") : t("common.save")}
             </button>
             <button
               type="button"

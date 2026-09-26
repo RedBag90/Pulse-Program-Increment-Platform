@@ -1,6 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
+import { formatDate } from "@/lib/formatting";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type {
@@ -27,6 +29,7 @@ const btn =
  */
 export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [amounts, setAmounts] = useState<Record<string, string>>(() =>
@@ -81,10 +84,14 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
     <div className="space-y-4">
       <div className="rounded-lg bg-card shadow-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <span className="font-semibold">{model.groupName} · Budget verteilen</span>
+          <span className="font-semibold">
+            {t("budgeting.period.gruppeBudgetVerteilen", { group: model.groupName })}
+          </span>
           {model.deadline && (
             <span className="text-xs text-muted-foreground">
-              Deadline: {model.deadline.toLocaleDateString("de-DE")}
+              {t("budgeting.period.deadlineDatum", {
+                date: formatDate(model.deadline, "date", locale),
+              })}
               {model.deadlinePassed && (
                 <span className="ml-1 text-destructive">{t("budgeting.period.verstrichen")}</span>
               )}
@@ -178,7 +185,7 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
       {model.canEdit && (
         <div className="flex items-center gap-2">
           <button type="button" onClick={save} disabled={pending} className={btn}>
-            {pending ? "…" : "Speichern"}
+            {pending ? "…" : t("common.save")}
           </button>
           {model.canSubmit && (
             <button

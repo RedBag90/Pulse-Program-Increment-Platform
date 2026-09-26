@@ -276,14 +276,17 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
       </div>
 
       <p className="mt-3 text-xs text-muted-foreground">
-        {filtered.length} von {model.rows.length} Abhängigkeiten im Zugriff.
+        {t("drumbeat.ui.abhaengigkeitenImZugriff", {
+          shown: filtered.length,
+          total: model.rows.length,
+        })}
       </p>
 
       {canBulk && selected.size > 0 && (
         <div className="pointer-events-none sticky bottom-4 z-30 mt-4 flex justify-center px-4">
           <div className="pointer-events-auto flex w-full max-w-3xl flex-wrap items-center gap-3 rounded-lg bg-card px-4 py-2 shadow-lg ring-1 ring-foreground/10">
             <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium tabular-nums text-primary-foreground">
-              {selected.size} ausgewählt
+              {t("drumbeat.ui.abhaengigkeitenAusgewaehlt", { count: selected.size })}
             </span>
             {bulkArtId == null ? (
               <p className="text-xs text-warning">{t("drumbeat.ui.bulkUnlinkNurInnerhalb")}</p>
@@ -294,7 +297,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
                 onClick={runBulk}
                 className="rounded-md border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive-surface disabled:opacity-50"
               >
-                {pending ? "…" : "Lösen"}
+                {pending ? "…" : t("drumbeat.ui.abhaengigkeitLoesenKurz")}
               </button>
             )}
             <button
@@ -366,7 +369,7 @@ function DependencyRow({
       </td>
       <td className="py-2 pr-4 text-xs text-muted-foreground">
         <div className="flex flex-wrap items-center gap-1">
-          <span>{row.from.pi?.name ?? "Backlog"}</span>
+          <span>{row.from.pi?.name ?? t("drumbeat.ui.backlog")}</span>
           {row.to.pi && row.to.pi.name !== row.from.pi?.name && (
             <>
               <span className="text-muted-foreground/60">→</span>
@@ -404,6 +407,7 @@ function EndpointStatus({ status }: { status: string }) {
 }
 
 function EndpointCell({ endpoint }: { endpoint: DependencyOverviewRow["from"] }) {
+  const t = useTranslations();
   return (
     <div className="min-w-0">
       {endpoint.id ? (
@@ -418,7 +422,7 @@ function EndpointCell({ endpoint }: { endpoint: DependencyOverviewRow["from"] })
         <span className="text-sm font-medium">{endpoint.title}</span>
       )}
       <p className="text-meta text-muted-foreground">
-        {endpoint.art?.name ?? "—"} · {endpoint.pi?.name ?? "Backlog"}
+        {endpoint.art?.name ?? "—"} · {endpoint.pi?.name ?? t("drumbeat.ui.backlog")}
       </p>
     </div>
   );

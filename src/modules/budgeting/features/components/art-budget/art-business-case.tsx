@@ -123,12 +123,11 @@ export function ArtBusinessCase({
 
       <p className="px-3 text-meta text-muted-foreground">
         {origin.basis === "mixed"
-          ? `Gemischt: was aus der Kachel kommt, ist entschieden; die Betriebspositionen sind für ${hj} noch nicht aufgeteilt und stehen mit ihrem beantragten Betrag.`
+          ? t("budgeting.art.herkunftGemischt", { hj })
           : origin.basis === "planned"
-            ? `Für ${hj} ist der Zuspruch des Wertstroms noch nicht aufgeteilt — die Betriebspositionen stehen mit ihrem beantragten Betrag.`
-            : "Alle Beträge sind für dieses Halbjahr zugesprochen."}{" "}
-        Betrieb und Veränderung stehen getrennt: Deckung, Lücke und der €-Satz rechnen ohne den
-        Betrieb.
+            ? t("budgeting.art.herkunftGeplant", { hj })
+            : t("budgeting.art.herkunftZugesprochen")}{" "}
+        {t("budgeting.art.betriebUndVeraenderungGetrennt")}
       </p>
     </SectionCard>
   );

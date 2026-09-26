@@ -48,19 +48,21 @@ export function SuspendedActions({ tenants }: { tenants: Tenant[] }) {
             {t("platform.ui.inAnderenBereichWechseln")}
           </p>
           <ul className="space-y-1.5">
-            {tenants.map((t) => {
-              const Icon = t.kind === "personal" ? Lock : Building2;
+            {tenants.map((tenant) => {
+              const Icon = tenant.kind === "personal" ? Lock : Building2;
               return (
-                <li key={t.id}>
+                <li key={tenant.id}>
                   <button
                     type="button"
-                    onClick={() => switchTo(t.id)}
+                    onClick={() => switchTo(tenant.id)}
                     disabled={isPending}
                     className="flex w-full items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted disabled:opacity-50"
                   >
                     <Icon className="size-4 shrink-0 opacity-60" aria-hidden />
                     <span className="min-w-0 flex-1 truncate text-left">
-                      {t.kind === "personal" ? `Privat (${t.name})` : t.name}
+                      {tenant.kind === "personal"
+                        ? t("platform.ui.privatMandant", { name: tenant.name })
+                        : tenant.name}
                     </span>
                   </button>
                 </li>

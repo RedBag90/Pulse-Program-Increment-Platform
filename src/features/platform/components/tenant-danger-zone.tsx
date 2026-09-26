@@ -108,7 +108,7 @@ export function TenantDangerZone({
           >
             {SEED_PROFILE_META.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.id === "none" ? "Leer zurücksetzen" : p.label}
+                {p.id === "none" ? t("platform.ui.leerZuruecksetzen") : p.label}
               </option>
             ))}
           </select>
@@ -117,7 +117,7 @@ export function TenantDangerZone({
             disabled={!passt || rPending}
             className="rounded-md border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-40"
           >
-            {rPending ? "Läuft …" : "Zurücksetzen"}
+            {rPending ? t("platform.ui.zuruecksetzenLaeuft") : t("platform.ui.zuruecksetzen")}
           </button>
         </div>
       </form>
@@ -129,13 +129,17 @@ export function TenantDangerZone({
         <label className="flex items-start gap-2 text-xs">
           <input type="checkbox" name="alsoDeleteUsers" className="mt-0.5" />
           <span>
-            Auch die Konten löschen.{" "}
+            {t("platform.ui.auchDieKontenLoeschen")}{" "}
             <span className="text-muted-foreground">
-              {t("platform.ui.betrifftNurKontenDeren")}{" "}
-              <strong className="text-foreground">{t("platform.ui.einzige")}</strong> Mitgliedschaft
-              dieser Mandant ist ({memberCount} Mitglied
-              {memberCount === 1 ? "" : "er"} insgesamt). Wer noch anderswo steht, verliert hier nur
-              seine Rolle. Das eigene Konto bleibt immer.
+              {t.rich(
+                memberCount === 1
+                  ? "platform.ui.kontenLoeschenHinweisEinMitglied"
+                  : "platform.ui.kontenLoeschenHinweisMitglieder",
+                {
+                  count: memberCount,
+                  strong: (c) => <strong className="text-foreground">{c}</strong>,
+                },
+              )}
             </span>
           </span>
         </label>
@@ -144,7 +148,9 @@ export function TenantDangerZone({
           disabled={!passt || dPending}
           className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-1.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/15 disabled:opacity-40"
         >
-          {dPending ? "Wird gelöscht …" : "Endgültig löschen"}
+          {dPending
+            ? t("platform.ui.mandantWirdGeloescht")
+            : t("platform.ui.mandantEndgueltigLoeschen")}
         </button>
       </form>
 

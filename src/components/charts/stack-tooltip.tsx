@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import { formatEUR as fmtEur } from "@/lib/formatting";
 
 /**
@@ -122,6 +123,7 @@ export function StackTooltip({
   suffix?: string;
 }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   if (!active || !payload || payload.length === 0) return null;
   const rows = stackTooltipRows(payload, stacks);
   const sum = rows.reduce((acc, r) => acc + r.total, 0);
@@ -140,12 +142,12 @@ export function StackTooltip({
                 style={{ background: r.color }}
               />
               <span>
-                {r.label}: {fmtEur(r.total)}
+                {r.label}: {fmtEur(r.total, locale)}
                 {suffix}
                 {r.forecast !== 0 && (
                   <span className="text-muted-foreground">
                     {" "}
-                    · davon {fmtEur(r.forecast)} Forecast
+                    {t("common.charts.davonForecast", { amount: fmtEur(r.forecast, locale) })}
                   </span>
                 )}
               </span>
@@ -153,7 +155,7 @@ export function StackTooltip({
           ))}
           {rows.length > 1 && (
             <div className="mt-1 border-t pt-1 font-medium">
-              Σ {fmtEur(sum)}
+              Σ {fmtEur(sum, locale)}
               {suffix}
             </div>
           )}

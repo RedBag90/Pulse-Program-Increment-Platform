@@ -71,7 +71,7 @@ export function EditValueStreamDialog({ id, name, description }: EditValueStream
                 {t("org.ui.cancel")}
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Saving…" : "Save"}
+                {isPending ? t("common.ui.speichernLaeuft") : t("common.save")}
               </Button>
             </DialogFooter>
           </form>

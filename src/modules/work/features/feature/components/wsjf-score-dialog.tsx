@@ -67,7 +67,7 @@ export function WsjfScoreDialog({ featureId, artId, current, renderTrigger }: Pr
           onClick={() => setOpen(true)}
           className="text-xs text-primary hover:underline whitespace-nowrap"
         >
-          {score !== null ? score : "Score"}
+          {score !== null ? score : t("work.feature.scoreKurz")}
         </button>
       )}
 
@@ -107,7 +107,7 @@ export function WsjfScoreDialog({ featureId, artId, current, renderTrigger }: Pr
                 {t("work.feature.cancel")}
               </Button>
               <Button type="submit" size="sm" disabled={pending}>
-                {pending ? "Saving…" : "Save"}
+                {pending ? t("common.ui.speichernLaeuft") : t("common.save")}
               </Button>
             </DialogFooter>
           </form>

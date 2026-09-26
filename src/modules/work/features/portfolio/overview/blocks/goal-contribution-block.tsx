@@ -90,6 +90,7 @@ type Emphasis = ContributionMode | null;
  * wäre das nicht von „noch nichts realisiert" zu unterscheiden.
  */
 function ValueCell({ values, emphasis }: { values: readonly UnitValue[]; emphasis: Emphasis }) {
+  const t = useTranslations();
   if (values.length === 0) {
     return <span className="text-muted-foreground">—</span>;
   }
@@ -99,8 +100,12 @@ function ValueCell({ values, emphasis }: { values: readonly UnitValue[]; emphasi
     <div className="space-y-0.5 tabular-nums">
       {values.map((v, i) => (
         <div key={v.unit ?? `u${i}`}>
-          <span className={cls("planned")}>Plan {fmt(v.unit, v.planned)}</span>{" "}
-          <span className={cls("realized")}>· Ist {fmt(v.unit, v.realized)}</span>
+          <span className={cls("planned")}>
+            {t("work.overview.contributionPlanned", { value: fmt(v.unit, v.planned) })}
+          </span>{" "}
+          <span className={cls("realized")}>
+            {t("work.overview.contributionRealized", { value: fmt(v.unit, v.realized) })}
+          </span>
         </div>
       ))}
     </div>
@@ -157,7 +162,7 @@ function PerformanceCell({
       <span
         className={`whitespace-nowrap tabular-nums ${look.cls} ${emphasised ? "font-medium" : ""}`}
       >
-        {look.sign} {perf.state === "on" ? "wie geplant" : pct}
+        {look.sign} {perf.state === "on" ? t("work.overview.asPlanned") : pct}
       </span>
       {hint && <span className="block text-label text-muted-foreground">{hint}</span>}
     </span>
@@ -213,7 +218,7 @@ function SolutionRow({
       <td className={`px-3 py-2 font-medium ${tone}`}>
         {rollup.group.name}
         <span className="ml-2 font-mono text-label font-normal opacity-80">
-          {rollup.group.count} zusammengefasst
+          {t("work.overview.groupedCount", { count: rollup.group.count })}
         </span>
       </td>
       {grouped ? (
@@ -473,7 +478,7 @@ export function GoalContributionBlock({
 
       {shownCount === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Noch keine Epic-Ziel-Beiträge berechnet.{" "}
+          {t("work.overview.noContributionsYet")}{" "}
           <Link href="/ziele" className="text-primary hover:underline">
             {t("work.overview.zieleVerknuepfen")}
           </Link>
@@ -517,7 +522,9 @@ export function GoalContributionBlock({
                 <th className="px-3 py-2 text-right font-medium">{t("work.overview.einmalig")}</th>
                 <th className="px-3 py-2 text-right font-medium">
                   {t("work.overview.istVsPlan")}
-                  <span className="block font-normal normal-case">ab L4.2</span>
+                  <span className="block font-normal normal-case">
+                    {t("work.overview.fromL42")}
+                  </span>
                 </th>
               </tr>
             </thead>

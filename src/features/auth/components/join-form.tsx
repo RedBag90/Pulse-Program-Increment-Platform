@@ -21,13 +21,13 @@ export function JoinForm({ token }: { token?: string }) {
       <div className="rounded-lg bg-card shadow-card p-6 text-center">
         <p className="text-sm font-medium">
           {state.autoAccepted
-            ? "Du bist dem Bereich beigetreten."
-            : "Deine Anfrage wurde übermittelt und wartet auf Freigabe."}
+            ? t("auth.ui.joinBeigetreten")
+            : t("auth.ui.joinAnfrageWartetAufFreigabe")}
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
           {state.autoAccepted
-            ? "Melde dich an, um loszulegen."
-            : "Du erhältst Zugang, sobald ein Admin die Anfrage bestätigt."}
+            ? t("auth.ui.joinMeldeDichAn")
+            : t("auth.ui.joinZugangNachBestaetigung")}
         </p>
       </div>
     );
@@ -78,7 +78,7 @@ export function JoinForm({ token }: { token?: string }) {
         disabled={isPending}
         className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
       >
-        {isPending ? "Wird gesendet…" : "Beitreten"}
+        {isPending ? t("auth.ui.joinWirdGesendet") : t("auth.ui.joinBeitreten")}
       </button>
     </form>
   );

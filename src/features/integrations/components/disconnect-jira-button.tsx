@@ -1,10 +1,12 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { disconnectJiraAction } from "@/features/integrations/actions/jira";
 import { Button } from "@/components/ui/button";
 
 export function DisconnectJiraButton() {
+  const t = useTranslations();
   const [isPending, startTransition] = useTransition();
 
   function handleClick() {
@@ -22,7 +24,9 @@ export function DisconnectJiraButton() {
       size="sm"
       className="text-destructive border-destructive/30 hover:bg-destructive/10"
     >
-      {isPending ? "Disconnecting…" : "Disconnect"}
+      {isPending
+        ? t("integrations.ui.verbindungWirdGetrennt")
+        : t("integrations.ui.verbindungTrennen")}
     </Button>
   );
 }

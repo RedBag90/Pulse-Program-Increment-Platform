@@ -158,7 +158,7 @@ function TransitionGateDialog({
               {t("org.ui.abbrechen")}
             </Button>
             <Button type="submit" disabled={!allChecked || pending}>
-              {pending ? "…" : "Befördern"}
+              {pending ? "…" : t("org.ui.lifecycleBefoerdern")}
             </Button>
           </DialogFooter>
         </form>

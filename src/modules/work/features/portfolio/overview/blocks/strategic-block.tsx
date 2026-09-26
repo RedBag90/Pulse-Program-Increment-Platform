@@ -57,7 +57,7 @@ export function StrategicBlock({ data }: { data: PortfolioOverview }) {
 
       {activeGoals.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Noch keine aktiven Ziele hinterlegt.{" "}
+          {t("work.overview.noActiveGoalsYet")}{" "}
           <Link href="/ziele" className="text-primary hover:underline">
             {t("work.overview.zieleAnlegen")}
           </Link>
@@ -70,11 +70,11 @@ export function StrategicBlock({ data }: { data: PortfolioOverview }) {
                 {data.goalsOnTrack}
               </span>
               <span className="text-sm text-muted-foreground">
-                / {activeGoals.length} Ziele on track
+                {t("work.overview.goalsOnTrackOf", { total: activeGoals.length })}
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Ø {pct(data.goalAverageProgress)} KPI-Erreichung
+              {t("work.overview.avgKpiAttainment", { pct: pct(data.goalAverageProgress) })}
             </p>
           </div>
 

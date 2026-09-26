@@ -92,7 +92,7 @@ export function CockpitPiStrip({ pis, window: nav, selectedPiId }: Props) {
               )}
             </span>
             <span className="flex items-baseline gap-1.5 text-meta">
-              <span>{p.featureCount} Features</span>
+              <span>{t("drumbeat.ui.anzahlFeatures", { count: p.featureCount })}</span>
               <PiJobSize pi={p} />
             </span>
           </button>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import { formatEUR } from "@/lib/formatting";
 import { CandidateWorksheet } from "@/modules/budgeting/features/components/period/candidate-worksheet";
 
@@ -30,6 +31,7 @@ export interface SheetModel {
  */
 export function Sheets({ model }: { model: SheetModel }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const groups = model.groups.length > 0 ? model.groups : [{ id: "_", name: "Gruppe" }];
 
   return (
@@ -37,8 +39,8 @@ export function Sheets({ model }: { model: SheetModel }) {
       <div className="flex items-center justify-between gap-2 print:hidden">
         <p className="text-sm text-muted-foreground">
           {model.groups.length > 0
-            ? `${model.groups.length} Verteilbögen (ein Bogen je Gruppe)`
-            : "Noch keine Gruppen — Beispielbogen"}
+            ? t("budgeting.period.anzahlVerteilboegen", { count: model.groups.length })
+            : t("budgeting.period.nochKeineGruppenBeispielbogen")}
         </p>
         <button
           type="button"
@@ -55,7 +57,9 @@ export function Sheets({ model }: { model: SheetModel }) {
           className="rounded-lg border bg-white p-6 text-black print:break-after-page print:rounded-none print:border-0 print:p-0"
         >
           <header className="flex items-baseline justify-between border-b pb-2">
-            <h2 className="text-lg font-bold">Verteilbogen · {g.name}</h2>
+            <h2 className="text-lg font-bold">
+              {t("budgeting.period.verteilbogenGruppe", { name: g.name })}
+            </h2>
             <span className="text-sm">{model.cycleLabel}</span>
           </header>
 
@@ -82,7 +86,7 @@ export function Sheets({ model }: { model: SheetModel }) {
                   value: () => 0,
                   width: "120px",
                   cell: () => (
-                    <span className="inline-block w-24 border-b border-gray-400">&nbsp;</span>
+                    <span className="inline-block w-24 border-b border-gray-400">{"\u00a0"}</span>
                   ),
                 },
               ]}
@@ -94,8 +98,9 @@ export function Sheets({ model }: { model: SheetModel }) {
           </div>
 
           <p className="mt-4 text-xs text-gray-500">
-            Die Summe der verteilten Beträge darf {formatEUR(model.distributable)} nicht
-            überschreiten.
+            {t("budgeting.period.summeDarfNichtUeberschreiten", {
+              amount: formatEUR(model.distributable, locale),
+            })}
           </p>
         </section>
       ))}

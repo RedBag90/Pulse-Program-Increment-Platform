@@ -45,7 +45,9 @@ export function PipelineBarsBlock({ data }: { data: PortfolioOverview }) {
               <span className="font-mono text-xs tabular-nums">
                 {count}
                 {over && limit !== null && (
-                  <span className="ml-1 text-label text-warning">Limit {limit} ⚠</span>
+                  <span className="ml-1 text-label text-warning">
+                    {t("work.overview.pipelineLimitExceeded", { limit })}
+                  </span>
                 )}
               </span>
             </li>

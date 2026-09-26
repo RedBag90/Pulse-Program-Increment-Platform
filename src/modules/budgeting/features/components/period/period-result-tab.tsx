@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Fragment } from "react";
@@ -50,6 +51,7 @@ export function PeriodResultTab({
   hasRevision: boolean;
 }) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -124,10 +126,14 @@ export function PeriodResultTab({
             {t("budgeting.period.finaleBetraege")}
           </h3>
           <span className="text-xs text-muted-foreground">
-            Verteilbar {formatEUR(model.distributable)} · Festgeschrieben {formatEUR(finalTotal)} ·{" "}
-            <span className={reserve < 0 ? "font-medium text-destructive" : ""}>
-              Reserve {formatEUR(reserve)}
-            </span>
+            {t.rich("budgeting.period.verteiltFestgeschriebenReserve", {
+              distributable: formatEUR(model.distributable, locale),
+              final: formatEUR(finalTotal, locale),
+              reserve: formatEUR(reserve, locale),
+              r: (c) => (
+                <span className={reserve < 0 ? "font-medium text-destructive" : ""}>{c}</span>
+              ),
+            })}
           </span>
         </div>
         <CandidateWorksheet
@@ -190,11 +196,10 @@ export function PeriodResultTab({
                   disabled={pending || reserve < 0}
                   className={btnGreen}
                 >
-                  {pending ? "…" : "Verteilung festschreiben"}
+                  {pending ? "…" : t("budgeting.period.verteilungFestschreiben")}
                 </button>
                 <span className="text-xs text-muted-foreground">
-                  Setzt die Kachel auf „abgeschlossen"; danach nur noch über „Finalisierung
-                  zurücknehmen" änderbar.
+                  {t("budgeting.period.setztKachelAufAbgeschlossen")}
                 </span>
               </>
             )}
@@ -229,10 +234,10 @@ export function PeriodResultTab({
             hiesse, Lebendiges als Beleg auszugeben.
           */}
           <p className="text-xs text-muted-foreground">
-            Stand der Finalisierung — was diese Kachel entschieden hat. Wertstrom-Budget ={" "}
-            {t(RTB_KIND_KEYS.run)} + Zuteilungen an Epics, nach ART. Ein Klick auf ein ART zeigt,
-            was dort <strong className="font-medium">{t("budgeting.period.heute")}</strong>{" "}
-            {t("budgeting.period.gilt")}
+            {t.rich("budgeting.period.standDerFinalisierung", {
+              run: t(RTB_KIND_KEYS.run),
+              b: (c) => <strong className="font-medium">{c}</strong>,
+            })}
           </p>
           <div className="overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">
@@ -274,10 +279,10 @@ export function PeriodResultTab({
                               href={`/budgeting/value-streams/${vs.valueStreamId}?tab=art:${art.artId}&cycle=${cycleKey}`}
                               className="hover:underline"
                             >
-                              ART {art.artName}
+                              {t("budgeting.period.artMitName", { name: art.artName })}
                             </Link>
                           ) : (
-                            <>ART {art.artName}</>
+                            <>{t("budgeting.period.artMitName", { name: art.artName })}</>
                           )}
                         </td>
                         <td className="px-3 py-1.5 text-right tabular-nums">
@@ -313,13 +318,13 @@ export function PeriodResultTab({
               />
             ) : (
               <span className="text-sm text-muted-foreground">
-                Ohne das Recht „Budget-Plan erfassen" nicht möglich.
+                {t("budgeting.period.ohneRechtBudgetPlanErfassen")}
               </span>
             )}
             <span className="text-xs text-muted-foreground">
               {hasRevision
-                ? "Für diesen Zeitraum ist bereits ein Budget-Plan erfasst — erneutes Erfassen überschreibt ihn."
-                : "Friert genau die Zahlen oben ein."}
+                ? t("budgeting.period.budgetPlanBereitsErfasst")
+                : t("budgeting.period.friertGenauDieZahlenEin")}
             </span>
           </div>
         </section>
@@ -328,7 +333,7 @@ export function PeriodResultTab({
       {closed && model.canFinalize && (
         <section className="flex flex-wrap items-center gap-3 border-t pt-4">
           <button type="button" onClick={runNext} disabled={pending} className={btn}>
-            {pending ? "…" : "Nächsten Zeitraum starten →"}
+            {pending ? "…" : t("budgeting.period.naechstenZeitraumStarten")}
           </button>
           <span className="text-xs text-muted-foreground">
             {t("budgeting.period.uebernimmtBeteiligteGruppenUnd")}

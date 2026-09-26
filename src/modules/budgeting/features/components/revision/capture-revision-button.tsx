@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { captureBudgetPlanRevisionAction } from "@/modules/budgeting/features/actions/budgeting";
 
@@ -30,6 +31,7 @@ export function CaptureRevisionButton({
   variant = "primary",
   disabled,
 }: Props) {
+  const t = useTranslations();
   const [state, action, pending] = useActionState(captureBudgetPlanRevisionAction, {});
 
   const className =
@@ -42,7 +44,9 @@ export function CaptureRevisionButton({
       <form action={action}>
         {cycleKey && <input type="hidden" name="cycleKey" value={cycleKey} />}
         <button type="submit" disabled={pending || disabled} className={className}>
-          {pending ? "Erstelle…" : `Snapshot für ${cycleLabel} erstellen`}
+          {pending
+            ? t("budgeting.revision.erstelle")
+            : t("budgeting.revision.snapshotFuerErstellen", { cycle: cycleLabel })}
         </button>
       </form>
       {state.error && (

@@ -47,11 +47,13 @@ export function FeatureDependenciesTab({
             <span className="font-medium">{t("drumbeat.ui.fruehestmoeglicherStart")} </span>
             {blockerSummary.earliest
               ? blockerSummary.earliest.toISOString().slice(0, 10)
-              : "unbestimmt"}
+              : t("drumbeat.ui.startUnbestimmt")}
             {blockerSummary.unscheduledBlockers.length > 0 && (
               <span className="ml-2 text-xs text-muted-foreground">
-                ({blockerSummary.unscheduledBlockers.length} Blocker noch ungeplant:{" "}
-                {blockerSummary.unscheduledBlockers.slice(0, 3).join(", ")})
+                {t("drumbeat.ui.blockerNochUngeplant", {
+                  count: blockerSummary.unscheduledBlockers.length,
+                  names: blockerSummary.unscheduledBlockers.slice(0, 3).join(", "),
+                })}
               </span>
             )}
           </p>
