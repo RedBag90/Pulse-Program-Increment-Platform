@@ -125,7 +125,7 @@ function FeatureCardImpl({ feature, canDrag, canScore, draggingId }: Props) {
           )}
         </span>
         <span className="flex shrink-0 items-center gap-1.5">
-          <FeatureBlockers blockers={feature.blockers} />
+          <FeatureBlockers blockers={feature.blockers} successors={feature.successors} />
           <FeatureScore
             feature={feature}
             canScore={canScore}
@@ -156,6 +156,8 @@ export const FeatureCard = memo(FeatureCardImpl, (a, b) => {
     x.hasBlocker === y.hasBlocker &&
     x.blockerHint === y.blockerHint &&
     x.blockers.map((b) => `${b.id}:${b.state}`).join() ===
-      y.blockers.map((b) => `${b.id}:${b.state}`).join()
+      y.blockers.map((b) => `${b.id}:${b.state}`).join() &&
+    x.successors.map((b) => `${b.id}:${b.state}`).join() ===
+      y.successors.map((b) => `${b.id}:${b.state}`).join()
   );
 });

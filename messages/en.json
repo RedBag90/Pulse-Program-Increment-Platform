@@ -2802,7 +2802,12 @@
       "blockiertNicht": "Not blocking",
       "blockerGrundErledigt": "done",
       "blockerGrundSelbesPi": "in the same PI",
-      "streifenZeigtTyp": "Stripe = type:"
+      "streifenZeigtTyp": "Stripe = type:",
+      "blockerGrundFrueheresPi": "in an earlier PI",
+      "blockiert": "blocking",
+      "blockiertAndere": "Is blocking",
+      "nachfolgerGrundErledigt": "this card is done",
+      "nachfolgerGrundSpaeteresPi": "in a later PI"
     },
     "errors": {
       "endBeforeStart": "The end date must be after the start date.",

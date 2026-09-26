@@ -63,6 +63,7 @@ function feat(id: string, piId: string | null): CockpitFeature {
     hasBlocker: false,
     blockerHint: null,
     blockers: [],
+    successors: [],
     solutionName: null,
   };
 }

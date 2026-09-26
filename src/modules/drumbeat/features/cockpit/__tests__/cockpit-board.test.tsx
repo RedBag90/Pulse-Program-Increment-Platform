@@ -64,6 +64,7 @@ function feat(id: string, status: CockpitFeature["status"]): CockpitFeature {
     hasBlocker: false,
     blockerHint: null,
     blockers: [],
+    successors: [],
     solutionName: "Logistik Betrieb",
   };
 }

@@ -96,6 +96,7 @@ function featureRow(partial: Partial<CockpitFeatureRow> & { id: string }): Cockp
     parent: null,
     dependenciesIn: [],
     dependenciesOut: [],
+    pi: null,
     ...partial,
   };
 }
@@ -382,7 +383,8 @@ describe("buildCockpitModel — blocker detection", () => {
             dependenciesIn: [
               {
                 id: "d1",
-                from: { id: "up", title: "Upstream", status: "in_progress", piId: null },
+                type: "blocks",
+                from: { id: "up", title: "Upstream", status: "in_progress", pi: null },
               },
             ],
           }),
@@ -410,7 +412,11 @@ describe("buildCockpitModel — blocker detection", () => {
           featureRow({
             id: "f1",
             dependenciesIn: [
-              { id: "d1", from: { id: "up", title: "Upstream", status: "completed", piId: null } },
+              {
+                id: "d1",
+                type: "blocks",
+                from: { id: "up", title: "Upstream", status: "completed", pi: null },
+              },
             ],
           }),
         ],
@@ -572,7 +578,7 @@ describe("buildCockpitModel — der PI-Scope grenzt ein, außer im Board", () =>
     featureRows: [
       featureRow({ id: "a", piId: "q1" }),
       featureRow({ id: "b", piId: "q2" }),
-      featureRow({ id: "c", piId: null }),
+      featureRow({ id: "c", pi: null }),
     ],
     now: D("2026-05-15").getTime(),
   };
@@ -853,7 +859,11 @@ describe("buildCockpitModel — Blocker aus blocks und depends_on", () => {
           featureRow({
             id: "f1",
             dependenciesOut: [
-              { id: "d1", to: { id: "vor", title: "Vorgänger", status: "approved", piId: null } },
+              {
+                id: "d1",
+                type: "depends_on",
+                to: { id: "vor", title: "Vorgänger", status: "approved", pi: null },
+              },
             ],
           }),
         ],
@@ -874,11 +884,23 @@ describe("buildCockpitModel — Blocker aus blocks und depends_on", () => {
           featureRow({
             id: "f1",
             dependenciesIn: [
-              { id: "d1", from: { id: "b", title: "B", status: "blocked", piId: null } },
+              {
+                id: "d1",
+                type: "blocks",
+                from: { id: "b", title: "B", status: "blocked", pi: null },
+              },
             ],
             dependenciesOut: [
-              { id: "d2", to: { id: "a", title: "A", status: "in_progress", piId: null } },
-              { id: "d3", to: { id: "c", title: "C", status: "completed", piId: null } },
+              {
+                id: "d2",
+                type: "depends_on",
+                to: { id: "a", title: "A", status: "in_progress", pi: null },
+              },
+              {
+                id: "d3",
+                type: "depends_on",
+                to: { id: "c", title: "C", status: "completed", pi: null },
+              },
             ],
           }),
         ],
@@ -901,7 +923,11 @@ describe("buildCockpitModel — Blocker aus blocks und depends_on", () => {
           featureRow({
             id: "f1",
             dependenciesOut: [
-              { id: "d1", to: { id: "x", title: "X", status: "approved", piId: null } },
+              {
+                id: "d1",
+                type: "depends_on",
+                to: { id: "x", title: "X", status: "approved", pi: null },
+              },
             ],
           }),
           featureRow({ id: "f2" }),
@@ -912,12 +938,44 @@ describe("buildCockpitModel — Blocker aus blocks und depends_on", () => {
   });
 });
 
-describe("buildCockpitModel — ein Blocker im selben PI blockiert nicht", () => {
+describe("buildCockpitModel — eingeplante Vorgänger blockieren nicht", () => {
   const arts = [
     { id: "art-1", name: "ART 1", valueStreamId: "vs-1", timelineId: null, valueStream: null },
   ];
+  const PI1 = { id: "q1", startDate: D("2026-01-01") };
+  const PI2 = { id: "q2", startDate: D("2026-04-01") };
+  const PI3 = { id: "q3", startDate: D("2026-07-01") };
+  const vor = (id: string, pi: typeof PI1 | null, status = "approved") => ({
+    id,
+    title: id,
+    status,
+    pi,
+  });
 
-  it("zählt nur, was aus einem anderen PI oder dem Backlog aufhält", () => {
+  it("der Fall „Feature 5“: Vorgänger in PI 1, Kachel in PI 2 — nicht blockiert", () => {
+    const model = buildCockpitModel(
+      rows({
+        selectedArtId: "art-1",
+        arts,
+        featureRows: [
+          featureRow({
+            id: "f5",
+            piId: "q2",
+            pi: PI2,
+            dependenciesOut: [
+              { id: "d1", type: "depends_on", to: vor("f6", PI1) },
+              { id: "d2", type: "depends_on", to: vor("f8", PI1) },
+            ],
+          }),
+        ],
+      }),
+    );
+    const f = model.features[0]!;
+    expect(f.blockers.map((b) => b.state)).toEqual(["earlierPi", "earlierPi"]);
+    expect(f.hasBlocker).toBe(false);
+  });
+
+  it("selbes PI blockiert nicht, späteres PI und Backlog schon", () => {
     const model = buildCockpitModel(
       rows({
         selectedArtId: "art-1",
@@ -926,24 +984,26 @@ describe("buildCockpitModel — ein Blocker im selben PI blockiert nicht", () =>
           featureRow({
             id: "f1",
             piId: "q2",
-            dependenciesIn: [
-              { id: "d1", from: { id: "gleich", title: "Gleich", status: "approved", piId: "q2" } },
-            ],
+            pi: PI2,
+            dependenciesIn: [{ id: "d1", type: "blocks", from: vor("gleich", PI2) }],
             dependenciesOut: [
-              { id: "d2", to: { id: "frueher", title: "Früher", status: "approved", piId: "q1" } },
-              { id: "d3", to: { id: "fertig", title: "Fertig", status: "completed", piId: "q1" } },
+              { id: "d2", type: "depends_on", to: vor("spaeter", PI3) },
+              { id: "d3", type: "depends_on", to: vor("backlog", null) },
             ],
           }),
         ],
       }),
     );
     const f = model.features[0]!;
-    expect(f.blockers.map((b) => b.state)).toEqual(["blocking", "samePi", "done"]);
+    expect(f.blockers.map((b) => [b.id, b.state])).toEqual([
+      ["backlog", "blocking"],
+      ["spaeter", "blocking"],
+      ["gleich", "samePi"],
+    ]);
     expect(f.hasBlocker).toBe(true);
-    expect(f.blockerHint).toBe("Früher");
   });
 
-  it("nur Blocker im selben PI: nicht blockiert, und der Filter lässt es weg", () => {
+  it("der Filter „hat Blocker“ lässt eine Kachel mit nur eingeplanten Vorgängern weg", () => {
     const model = buildCockpitModel(
       rows({
         selectedArtId: "art-1",
@@ -953,9 +1013,9 @@ describe("buildCockpitModel — ein Blocker im selben PI blockiert nicht", () =>
           featureRow({
             id: "f1",
             piId: "q2",
-            dependenciesIn: [
-              { id: "d1", from: { id: "g", title: "G", status: "approved", piId: "q2" } },
-            ],
+            pi: PI2,
+            dependenciesIn: [{ id: "d1", type: "blocks", from: vor("a", PI1) }],
+            dependenciesOut: [{ id: "d2", type: "depends_on", to: vor("b", PI2) }],
           }),
         ],
       }),
@@ -981,5 +1041,52 @@ describe("buildCockpitModel — Feature-Typ", () => {
     );
     const typ = Object.fromEntries(model.features.map((f) => [f.id, f.featureType]));
     expect(typ).toEqual({ a: "enabler", b: null });
+  });
+});
+
+describe("buildCockpitModel — wen die Kachel aufhält", () => {
+  const arts = [
+    { id: "art-1", name: "ART 1", valueStreamId: "vs-1", timelineId: null, valueStream: null },
+  ];
+  const PI1 = { id: "q1", startDate: D("2026-01-01") };
+  const PI2 = { id: "q2", startDate: D("2026-04-01") };
+
+  it("ausgehende blocks und eingehende depends_on sind Nachfolger — keine Blocker", () => {
+    const model = buildCockpitModel(
+      rows({
+        selectedArtId: "art-1",
+        arts,
+        featureRows: [
+          featureRow({
+            id: "x",
+            piId: "q1",
+            pi: PI1,
+            dependenciesOut: [
+              {
+                id: "d1",
+                type: "blocks",
+                to: { id: "y", title: "Y", status: "approved", pi: PI2 },
+              },
+            ],
+            dependenciesIn: [
+              {
+                id: "d2",
+                type: "depends_on",
+                from: { id: "z", title: "Z", status: "approved", pi: null },
+              },
+            ],
+          }),
+        ],
+      }),
+    );
+    const x = model.features[0]!;
+    expect(x.blockers).toEqual([]);
+    expect(x.hasBlocker).toBe(false);
+    // Y liegt nach X → aus Y-Sicht ein Blocker im früheren PI; Z im Backlog
+    // ist durch X blockiert.
+    expect(x.successors.map((s) => [s.id, s.state])).toEqual([
+      ["z", "blocking"],
+      ["y", "earlierPi"],
+    ]);
   });
 });

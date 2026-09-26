@@ -41,6 +41,7 @@ function feature(id: string, piId: string | null, status: FeatureStatus): Cockpi
     hasBlocker: false,
     blockerHint: null,
     blockers: [],
+    successors: [],
     solutionName: null,
   };
 }

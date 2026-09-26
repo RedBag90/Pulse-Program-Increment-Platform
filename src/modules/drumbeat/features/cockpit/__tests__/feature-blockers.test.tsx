@@ -40,6 +40,7 @@ const feature = (over: Partial<CockpitFeature> = {}): CockpitFeature => ({
   hasBlocker: false,
   blockerHint: null,
   blockers: [],
+  successors: [],
   solutionName: null,
   ...over,
 });
@@ -55,6 +56,7 @@ const eineVonDrei = feature({
 const erfuellt = feature({
   blockers: [
     { id: "b2", title: "Rechteprüfung", state: "samePi" },
+    { id: "b4", title: "Vorarbeit", state: "earlierPi" },
     { id: "b3", title: "Schema", state: "done" },
   ],
 });
@@ -86,16 +88,61 @@ describe("FeatureCard — Blocker", () => {
     expect(symbol.querySelectorAll("svg")).toHaveLength(2);
   });
 
-  it("das Popover gruppiert und nennt den Grund; ein Klick öffnet den Blocker", async () => {
+  /** Die Zeichen je Eintrag, in Listenreihenfolge — ihr `sr-only`-Wort. */
+  const zeichen = () =>
+    screen.getAllByRole("listitem").map((li) => li.querySelector(".sr-only")?.textContent ?? "");
+
+  it("eine Liste unter „Blockiert durch“ — Dreieck oder Häkchen je Eintrag", async () => {
     card(eineVonDrei);
     fireEvent.click(screen.getByRole("button", { name: "1 offener Blocker" }));
     await waitFor(() => expect(screen.getByText("Blockiert durch")).toBeInTheDocument());
-    expect(screen.getByText("Blockiert nicht")).toBeInTheDocument();
+    // Kein zweiter Abschnitt mehr — „Blockiert nicht“ steht nur noch als
+    // Wort am Häkchen, nicht als Überschrift.
+    expect(screen.getAllByText("Blockiert durch")).toHaveLength(1);
+    expect(screen.queryByText("Blockiert nicht", { selector: "p" })).toBeNull();
+    expect(zeichen()).toEqual(["blockiert", "Blockiert nicht", "Blockiert nicht"]);
     expect(screen.getByText("im selben PI")).toBeInTheDocument();
     expect(screen.getByText("erledigt")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Login-API" }));
     expect(setParam).toHaveBeenCalledTimes(1);
     expect(setParam).toHaveBeenCalledWith("featureId", "b1");
+  });
+
+  it("alle erfüllt: dieselbe Überschrift, jeder Eintrag mit Häkchen und Grund", async () => {
+    card(erfuellt);
+    fireEvent.click(screen.getByRole("button", { name: "Abhängigkeiten erfüllt" }));
+    await waitFor(() => expect(screen.getByText("Blockiert durch")).toBeInTheDocument());
+    expect(zeichen()).toEqual(["Blockiert nicht", "Blockiert nicht", "Blockiert nicht"]);
+    expect(screen.getByText("in früherem PI")).toBeInTheDocument();
+  });
+
+  it("„Blockiert“ nennt, wen die Kachel aufhält — mit Zeichen und Grund", async () => {
+    card(
+      feature({
+        blockers: [{ id: "b1", title: "Login-API", state: "blocking" }],
+        successors: [
+          { id: "n1", title: "Checkout", state: "blocking" },
+          { id: "n2", title: "Reporting", state: "earlierPi" },
+        ],
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "1 offener Blocker" }));
+    await waitFor(() => expect(screen.getByText("Blockiert")).toBeInTheDocument());
+    expect(screen.getByText("Blockiert durch")).toBeInTheDocument();
+    expect(zeichen()).toEqual(["blockiert", "blockiert", "Blockiert nicht"]);
+    expect(screen.getByText("in späterem PI")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Checkout" }));
+    expect(setParam).toHaveBeenCalledWith("featureId", "n1");
+  });
+
+  it("nur Nachfolger: grünes Symbol, nur der Abschnitt „Blockiert“", async () => {
+    card(feature({ successors: [{ id: "n1", title: "Checkout", state: "samePi" }] }));
+    const symbol = screen.getByRole("button", { name: "Abhängigkeiten erfüllt" });
+    expect(symbol.className).toContain("text-success");
+    fireEvent.click(symbol);
+    await waitFor(() => expect(screen.getByText("Blockiert")).toBeInTheDocument());
+    expect(screen.queryByText("Blockiert durch")).toBeNull();
   });
 });

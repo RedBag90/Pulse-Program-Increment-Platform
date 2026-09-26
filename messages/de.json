@@ -2802,7 +2802,12 @@
       "blockiertNicht": "Blockiert nicht",
       "blockerGrundErledigt": "erledigt",
       "blockerGrundSelbesPi": "im selben PI",
-      "streifenZeigtTyp": "Streifen = Typ:"
+      "streifenZeigtTyp": "Streifen = Typ:",
+      "blockerGrundFrueheresPi": "in früherem PI",
+      "blockiert": "blockiert",
+      "blockiertAndere": "Blockiert",
+      "nachfolgerGrundErledigt": "diese Karte ist erledigt",
+      "nachfolgerGrundSpaeteresPi": "in späterem PI"
     },
     "errors": {
       "endBeforeStart": "Das Enddatum muss nach dem Startdatum liegen.",

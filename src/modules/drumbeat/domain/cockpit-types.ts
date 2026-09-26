@@ -101,6 +101,11 @@ export interface CockpitFeature extends FeatureBreakdown {
    */
   blockers: BlockerRef[];
   /**
+   * Die Gegenrichtung: wen diese Kachel aufhält (`classifySuccessors`) — mit
+   * dem Zustand, den die Karte des Nachfolgers für diese Kachel zeigt.
+   */
+  successors: BlockerRef[];
+  /**
    * Name der **Primär-Solution des Epics**, an dem dieses Feature hängt;
    * `null`, wenn das Epic keine trägt (gemessen 40 % der Features).
    *

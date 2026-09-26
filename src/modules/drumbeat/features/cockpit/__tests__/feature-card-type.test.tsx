@@ -43,6 +43,7 @@ const feature = (over: Partial<CockpitFeature> = {}): CockpitFeature => ({
   hasBlocker: false,
   blockerHint: null,
   blockers: [],
+  successors: [],
   solutionName: null,
   ...over,
 });

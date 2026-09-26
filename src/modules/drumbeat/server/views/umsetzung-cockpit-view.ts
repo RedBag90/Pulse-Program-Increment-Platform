@@ -3,7 +3,12 @@ import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
-import { blockingOnly, classifyBlockers } from "@/modules/drumbeat/domain/open-blockers";
+import {
+  blockingOnly,
+  classifyBlockers,
+  classifySuccessors,
+  type BlockerPi,
+} from "@/modules/drumbeat/domain/open-blockers";
 import { isFeatureType } from "@/modules/work/domain/portfolio-guardrails";
 import {
   deriveJobSizeTarget,
@@ -308,22 +313,36 @@ export interface CockpitFeatureRow {
   wsjfRiskReduction: number | null;
   /** Feature, Enabler, Maintenance — roher Wert; der Builder normalisiert. */
   featureType: string | null;
+  /**
+   * Das eigene PI samt Start — die Blocker-Regel vergleicht mit ihm
+   * (`classifyBlockers`: früheres PI blockiert nicht). `null` = Backlog.
+   */
+  pi: BlockerPi | null;
   art: { id: string; name: string } | null;
   /** Eigene Solution des Features; `null` = die des Epics gilt. */
   primarySolution: { name: string } | null;
   parent: { id: string; title: string; primarySolution: { name: string } | null } | null;
+  /**
+   * Eingehende `blocks`- und `depends_on`-Kanten. `blocks` herein heisst
+   * „`from` blockiert dieses Feature" (ein Blocker), `depends_on` herein
+   * „`from` hängt von diesem ab" (ein Nachfolger). Beide in einer Relation,
+   * weil Prisma dieselbe Relation nicht zweimal mit verschiedenem Filter wählt;
+   * `type` trennt sie im Builder.
+   */
   dependenciesIn: ReadonlyArray<{
     id: string;
-    from: { id: string; title: string; status: string; piId: string | null } | null;
+    type: string;
+    from: { id: string; title: string; status: string; pi: BlockerPi | null } | null;
   }>;
   /**
-   * Ausgehende `depends_on`-Kanten — „dieses Feature hängt ab von `to`". Auch
-   * sie blockieren (`openBlockers`); bis September 2026 zählte die Karte sie
-   * nicht.
+   * Ausgehende `depends_on`- und `blocks`-Kanten — spiegelbildlich:
+   * `depends_on` hinaus ist ein Blocker („hängt ab von `to`"), `blocks` hinaus
+   * ein Nachfolger („blockiert `to`").
    */
   dependenciesOut: ReadonlyArray<{
     id: string;
-    to: { id: string; title: string; status: string; piId: string | null } | null;
+    type: string;
+    to: { id: string; title: string; status: string; pi: BlockerPi | null } | null;
   }>;
 }
 
@@ -424,10 +443,19 @@ function buildScopeFeatures(
 ): CockpitFeature[] {
   return rows
     .map((r) => {
+      const hinein = (typ: string) =>
+        r.dependenciesIn.filter((d) => d.type === typ).map((d) => d.from);
+      const hinaus = (typ: string) =>
+        r.dependenciesOut.filter((d) => d.type === typ).map((d) => d.to);
       const blockers = classifyBlockers({
-        piId: r.piId,
-        blocksIn: r.dependenciesIn.map((d) => d.from),
-        dependsOnOut: r.dependenciesOut.map((d) => d.to),
+        pi: r.pi,
+        blocksIn: hinein("blocks"),
+        dependsOnOut: hinaus("depends_on"),
+      });
+      const successors = classifySuccessors({
+        self: { status: r.status, pi: r.pi },
+        blocksOut: hinaus("blocks"),
+        dependsOnIn: hinein("depends_on"),
       });
       const blocking = blockingOnly(blockers);
       const f: CockpitFeature = {
@@ -450,6 +478,7 @@ function buildScopeFeatures(
         hasBlocker: blocking.length > 0,
         blockerHint: blocking[0]?.title ?? null,
         blockers,
+        successors,
         solutionName: resolveFeatureSolution({
           own: r.primarySolution?.name,
           parent: r.parent?.primarySolution?.name,
@@ -938,6 +967,7 @@ export async function loadCockpitModel(
             wsjfTimeCriticality: true,
             wsjfRiskReduction: true,
             featureType: true,
+            pi: { select: { id: true, startDate: true } },
             art: { select: { id: true, name: true } },
             // Die eigene Solution des Features — und die seines Epics als
             // Rückfall, über den ohnehin vorhandenen `parent`-Select.
@@ -946,17 +976,33 @@ export async function loadCockpitModel(
               select: { id: true, title: true, primarySolution: { select: { name: true } } },
             },
             dependenciesIn: {
-              where: { type: "blocks" },
+              where: { type: { in: ["blocks", "depends_on"] } },
               select: {
                 id: true,
-                from: { select: { id: true, title: true, status: true, piId: true } },
+                type: true,
+                from: {
+                  select: {
+                    id: true,
+                    title: true,
+                    status: true,
+                    pi: { select: { id: true, startDate: true } },
+                  },
+                },
               },
             },
             dependenciesOut: {
-              where: { type: "depends_on" },
+              where: { type: { in: ["blocks", "depends_on"] } },
               select: {
                 id: true,
-                to: { select: { id: true, title: true, status: true, piId: true } },
+                type: true,
+                to: {
+                  select: {
+                    id: true,
+                    title: true,
+                    status: true,
+                    pi: { select: { id: true, startDate: true } },
+                  },
+                },
               },
             },
           },
