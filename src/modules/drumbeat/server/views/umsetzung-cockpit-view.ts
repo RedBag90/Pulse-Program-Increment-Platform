@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@/generated/prisma";
+import type { Prisma, PrismaClient } from "@/generated/prisma";
 import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
@@ -174,6 +174,11 @@ export interface CockpitDependency {
   offScopeRole: "from" | "to" | null;
   /** Titel des Off-Scope-Knotens fuer Tooltip. Bei `offScopeRole === null` null. */
   offScopeLabel: string | null;
+  /**
+   * Das Epic des Off-Scope-Knotens — nur der Epic-Netzplan lädt es: dort ist
+   * „anderes Epic" die Auskunft, die der Geist gibt.
+   */
+  offScopeEpicTitle?: string | null;
 }
 
 export interface LoadCockpitInput {
@@ -429,8 +434,12 @@ export function resolveSelectedArtId(
   return arts[0]?.id ?? null;
 }
 
-/** Feature derivation + blocker detection + the `hasBlocker` filter. Pure. */
-function buildScopeFeatures(
+/**
+ * Feature derivation + blocker detection + the `hasBlocker` filter. Pure.
+ * Exportiert: der Epic-Netzplan (`epic-network-view.ts`) leitet seine Karten
+ * genauso ab.
+ */
+export function buildScopeFeatures(
   rows: ReadonlyArray<CockpitFeatureRow>,
   hasBlockerFilter: boolean,
   userLabels: Record<string, string>,
@@ -483,7 +492,7 @@ function buildScopeFeatures(
  * `classifyScopedEdges` (graph-scope) and maps its `{ side }` result into the
  * Cockpit `offScopeRole`/`offScopeLabel` shape. Pure.
  */
-function buildScopeDependencies(
+export function buildScopeDependencies(
   depRows: ReadonlyArray<CockpitDepRow>,
   features: ReadonlyArray<CockpitFeature>,
 ): CockpitDependency[] {
@@ -509,6 +518,114 @@ function buildScopeDependencies(
     });
   }
   return out;
+}
+
+/**
+ * **Der PI-Streifen eines ARTs** — das Fenster um den Anker (aktives PI, sonst
+ * die Uhr), je PI Zähler, Last und Ziel, dazu das gewählte PI. Rein.
+ *
+ * Aus `buildCockpitModel` gelöst, damit der Epic-Netzplan dieselben Spalten
+ * bekommt: die Taktung des Epic-ARTs, mit Job Size und Ziel im Titel.
+ */
+export function buildPiStrip(
+  allPis: ReadonlyArray<CockpitAllPiRow>,
+  input: {
+    now: number;
+    windowOffset: number;
+    rawSelectedPiId: string | null;
+    countByPi: ReadonlyMap<string, number>;
+    jobSizeByPi: ReadonlyMap<string, number>;
+  },
+): {
+  piStrip: CockpitPiSlot[];
+  piWindow: CockpitPiWindowNav;
+  activePiId: string | null;
+  selectedPi: CockpitPiSlot | null;
+  selectedPiId: string | null;
+} {
+  const { now, windowOffset, rawSelectedPiId, countByPi, jobSizeByPi } = input;
+  /**
+   * **Das Ziel je PI aus der Formel** (`deriveJobSizeTarget`): Ø JS je
+   * Kapazität der letzten 4 abgeschlossenen PIs × Kapazität × 0,8. Die
+   * Vorgänger sind die PIs derselben Taktung, die die Rechnung selbst
+   * auswählt — hier wird nur die ganze Reihe übergeben.
+   */
+  const history: PiDeliveryRecord[] = allPis.map((p) => ({
+    piId: p.id,
+    name: p.name,
+    startDate: p.startDate,
+    status: p.status,
+    capacity: p.capacity,
+    delivered: p.delivered,
+  }));
+  const targetFields = (p: CockpitAllPiRow) => ({
+    capacity: p.capacity,
+    jobSizeTarget: deriveJobSizeTarget({
+      startDate: p.startDate,
+      capacity: p.capacity,
+      history,
+    }),
+    deliveredPerCapacity:
+      p.status === "completed" && p.capacity != null && p.capacity > 0
+        ? p.delivered / p.capacity
+        : null,
+  });
+
+  const activePiId = allPis.find((p) => p.status === "active")?.id ?? null;
+  // Anker = aktives PI (Fallback: Uhr). Das Fenster darf per `windowOffset`
+  // gegen den Anker verschoben werden; `isCurrent` markiert weiterhin den Anker.
+  const anchorIdx = resolveAnchorIndex(allPis, now);
+  const anchorPiId = anchorIdx >= 0 ? (allPis[anchorIdx]?.id ?? null) : null;
+  const windowCenter =
+    anchorIdx < 0 ? -1 : Math.min(allPis.length - 1, Math.max(0, anchorIdx + windowOffset));
+  const windowPis = takePiWindow(allPis, windowCenter);
+  const winStart = windowCenter < 0 ? 0 : Math.max(0, windowCenter - 1);
+  const winEnd = windowCenter < 0 ? 0 : Math.min(allPis.length, windowCenter + 4);
+  const piWindow: CockpitPiWindowNav = {
+    offset: windowOffset,
+    canBack: winStart > 0,
+    canForward: winEnd < allPis.length,
+  };
+  const piStrip: CockpitPiSlot[] = windowPis.map((p) => ({
+    id: p.id,
+    name: p.name,
+    startDate: p.startDate,
+    endDate: p.endDate,
+    status: p.status as PiStatus,
+    featureCount: countByPi.get(p.id) ?? 0,
+    plannedJobSize: jobSizeByPi.get(p.id) ?? 0,
+    ...targetFields(p),
+    isCurrent: p.id === anchorPiId,
+  }));
+
+  // Governance-Scope: `?pi=` wenn gültig (in dieser Timeline), sonst das aktive
+  // PI als Default — so zeigt die Kontext-Leiste beim Laden sofort den Abschluss
+  // des laufenden PI. `selectedPi` wird aus `allPis` aufgelöst, damit auch ein
+  // außerhalb des Strip-Fensters liegendes PI korrekt dargestellt wird.
+  //
+  // **Ohne aktives PI das „jetzt"-PI laut Datum** (`anchorPiId`, im Streifen
+  // „NOW"). Bis September 2026 blieb die Auswahl dann leer, und die
+  // Kontext-Leiste mit Kapazität und Ziel verschwand — gemeldet nach einem
+  // ART-Wechsel, der `?pi=` leert, weil das PI zur alten Taktung gehört.
+  const selectedPiId =
+    rawSelectedPiId && allPis.some((p) => p.id === rawSelectedPiId)
+      ? rawSelectedPiId
+      : (activePiId ?? anchorPiId);
+  const selRow = selectedPiId ? allPis.find((p) => p.id === selectedPiId) : null;
+  const selectedPi: CockpitPiSlot | null = selRow
+    ? {
+        id: selRow.id,
+        name: selRow.name,
+        startDate: selRow.startDate,
+        endDate: selRow.endDate,
+        status: selRow.status as PiStatus,
+        featureCount: countByPi.get(selRow.id) ?? 0,
+        plannedJobSize: jobSizeByPi.get(selRow.id) ?? 0,
+        ...targetFields(selRow),
+        isCurrent: selRow.id === anchorPiId,
+      }
+    : null;
+  return { piStrip, piWindow, activePiId, selectedPi, selectedPiId };
 }
 
 /**
@@ -555,33 +672,6 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
    * das rote „158 / 79" war weg.
    */
   const jobSizeByPi = new Map(Object.entries(rows.jobSizeByPi));
-
-  /**
-   * **Das Ziel je PI aus der Formel** (`deriveJobSizeTarget`): Ø JS je
-   * Kapazität der letzten 4 abgeschlossenen PIs × Kapazität × 0,8. Die
-   * Vorgänger sind die PIs derselben Taktung, die die Rechnung selbst
-   * auswählt — hier wird nur die ganze Reihe übergeben.
-   */
-  const history: PiDeliveryRecord[] = rows.allPis.map((p) => ({
-    piId: p.id,
-    name: p.name,
-    startDate: p.startDate,
-    status: p.status,
-    capacity: p.capacity,
-    delivered: p.delivered,
-  }));
-  const targetFields = (p: CockpitAllPiRow) => ({
-    capacity: p.capacity,
-    jobSizeTarget: deriveJobSizeTarget({
-      startDate: p.startDate,
-      capacity: p.capacity,
-      history,
-    }),
-    deliveredPerCapacity:
-      p.status === "completed" && p.capacity != null && p.capacity > 0
-        ? p.delivered / p.capacity
-        : null,
-  });
 
   const filterOptions = {
     owners: (ownerIdsInArt ?? [])
@@ -638,60 +728,13 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
   let selectedPi: CockpitPiSlot | null = null;
   let selectedPiId: string | null = null;
   if (selectedArt) {
-    activePiId = allPis.find((p) => p.status === "active")?.id ?? null;
-    // Anker = aktives PI (Fallback: Uhr). Das Fenster darf per `windowOffset`
-    // gegen den Anker verschoben werden; `isCurrent` markiert weiterhin den Anker.
-    const anchorIdx = resolveAnchorIndex(allPis, now);
-    const anchorPiId = anchorIdx >= 0 ? (allPis[anchorIdx]?.id ?? null) : null;
-    const windowCenter =
-      anchorIdx < 0 ? -1 : Math.min(allPis.length - 1, Math.max(0, anchorIdx + windowOffset));
-    const windowPis = takePiWindow(allPis, windowCenter);
-    const winStart = windowCenter < 0 ? 0 : Math.max(0, windowCenter - 1);
-    const winEnd = windowCenter < 0 ? 0 : Math.min(allPis.length, windowCenter + 4);
-    piWindow = {
-      offset: windowOffset,
-      canBack: winStart > 0,
-      canForward: winEnd < allPis.length,
-    };
-    piStrip = windowPis.map((p) => ({
-      id: p.id,
-      name: p.name,
-      startDate: p.startDate,
-      endDate: p.endDate,
-      status: p.status as PiStatus,
-      featureCount: countByPi.get(p.id) ?? 0,
-      plannedJobSize: jobSizeByPi.get(p.id) ?? 0,
-      ...targetFields(p),
-      isCurrent: p.id === anchorPiId,
+    ({ piStrip, piWindow, activePiId, selectedPi, selectedPiId } = buildPiStrip(allPis, {
+      now,
+      windowOffset,
+      rawSelectedPiId,
+      countByPi,
+      jobSizeByPi,
     }));
-
-    // Governance-Scope: `?pi=` wenn gültig (in dieser Timeline), sonst das aktive
-    // PI als Default — so zeigt die Kontext-Leiste beim Laden sofort den Abschluss
-    // des laufenden PI. `selectedPi` wird aus `allPis` aufgelöst, damit auch ein
-    // außerhalb des Strip-Fensters liegendes PI korrekt dargestellt wird.
-    //
-    // **Ohne aktives PI das „jetzt"-PI laut Datum** (`anchorPiId`, im Streifen
-    // „NOW"). Bis September 2026 blieb die Auswahl dann leer, und die
-    // Kontext-Leiste mit Kapazität und Ziel verschwand — gemeldet nach einem
-    // ART-Wechsel, der `?pi=` leert, weil das PI zur alten Taktung gehört.
-    selectedPiId =
-      rawSelectedPiId && allPis.some((p) => p.id === rawSelectedPiId)
-        ? rawSelectedPiId
-        : (activePiId ?? anchorPiId);
-    const selRow = selectedPiId ? allPis.find((p) => p.id === selectedPiId) : null;
-    selectedPi = selRow
-      ? {
-          id: selRow.id,
-          name: selRow.name,
-          startDate: selRow.startDate,
-          endDate: selRow.endDate,
-          status: selRow.status as PiStatus,
-          featureCount: countByPi.get(selRow.id) ?? 0,
-          plannedJobSize: jobSizeByPi.get(selRow.id) ?? 0,
-          ...targetFields(selRow),
-          isCurrent: selRow.id === anchorPiId,
-        }
-      : null;
   }
 
   /*
@@ -734,6 +777,158 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
     dependencies,
     permissions,
   };
+}
+
+/**
+ * **Was eine Karte braucht** — die Auswahl der Feature-Zeile, einmal für
+ * Umsetzung und Epic-Netzplan. Die Blocker-Kanten stehen gleich mit darin:
+ * `classifyBlockers` braucht beide Enden samt PI.
+ */
+export const COCKPIT_FEATURE_SELECT = {
+  id: true,
+  title: true,
+  status: true,
+  piId: true,
+  artId: true,
+  parentId: true,
+  ownerId: true,
+  wsjfComputed: true,
+  wsjfJobSize: true,
+  wsjfBusinessValue: true,
+  wsjfTimeCriticality: true,
+  wsjfRiskReduction: true,
+  featureType: true,
+  pi: { select: { id: true, startDate: true } },
+  art: { select: { id: true, name: true } },
+  // Die eigene Solution des Features — und die seines Epics als
+  // Rückfall, über den ohnehin vorhandenen `parent`-Select.
+  primarySolution: { select: { name: true } },
+  parent: {
+    select: { id: true, title: true, primarySolution: { select: { name: true } } },
+  },
+  dependenciesIn: {
+    where: { type: "blocks" },
+    select: {
+      id: true,
+      type: true,
+      from: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          pi: { select: { id: true, startDate: true } },
+        },
+      },
+    },
+  },
+  dependenciesOut: {
+    where: { type: "blocks" },
+    select: {
+      id: true,
+      type: true,
+      to: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          pi: { select: { id: true, startDate: true } },
+        },
+      },
+    },
+  },
+} satisfies Prisma.InitiativeSelect;
+
+/**
+ * Die PIs der Taktung eines ARTs (sonst die direkt am ART), chronologisch —
+ * mit Kapazität und Lieferung **dieses** ARTs je PI, den Eingängen der
+ * Ziel-Formel (`deriveJobSizeTarget`).
+ */
+export async function loadArtPiRows(
+  db: PrismaClient,
+  tenantId: string,
+  art: { id: string; timelineId: string | null },
+): Promise<CockpitAllPiRow[]> {
+  const piRows = await db.programIncrement.findMany({
+    where: {
+      tenantId,
+      ...(art.timelineId ? { timelineId: art.timelineId } : { artId: art.id }),
+    },
+    select: {
+      id: true,
+      name: true,
+      startDate: true,
+      endDate: true,
+      status: true,
+    },
+    orderBy: { startDate: "asc" },
+  });
+  // Die Eingänge der Ziel-Formel (`deriveJobSizeTarget`): Kapazität und
+  // Lieferung **dieses ARTs** je PI. Die Taktung teilen sich mehrere ARTs;
+  // Kapazität und Last gehören dem einzelnen.
+  const piIds = piRows.map((p) => p.id);
+  const [capacities, geliefert] = await Promise.all([
+    db.artPiCapacity.findMany({
+      where: { tenantId, artId: art.id, piId: { in: piIds } },
+      select: { piId: true, capacity: true },
+    }),
+    db.initiative.groupBy({
+      by: ["piId"],
+      where: {
+        tenantId,
+        level: InitiativeLevel.FEATURE,
+        deletedAt: null,
+        artId: art.id,
+        piId: { in: piIds },
+        status: "completed",
+      },
+      _sum: { wsjfJobSize: true },
+    }),
+  ]);
+  const capacityByPi = new Map(capacities.map((c) => [c.piId, Number(c.capacity)]));
+  const deliveredByPi = new Map(
+    geliefert.map((g) => [g.piId ?? "", g._sum.wsjfJobSize ?? 0] as const),
+  );
+  return piRows.map((p) => ({
+    ...p,
+    capacity: capacityByPi.get(p.id) ?? null,
+    delivered: deliveredByPi.get(p.id) ?? 0,
+  }));
+}
+
+/**
+ * **Das L3-Tor als Abfrage:** elternlose Features gehen durch, alle anderen
+ * erst, wenn ihr Epic Budget hat. Unter `AND`, weil `epicFilterWhere` selbst
+ * ein `OR` beisteuern kann.
+ */
+export const PLANNABLE_GATE_WHERE = {
+  AND: [{ OR: [{ parentId: null }, { parent: { stageGate: { in: [...PLANNABLE_GATES] } } }] }],
+} satisfies Prisma.InitiativeWhereInput;
+
+/**
+ * Σ Job Size je PI über die **ungefilterte** planbare Menge eines ARTs — der
+ * Nenner der Überbuchung. `gateWhere` ist das L3-Tor (leer ohne Drumbeat).
+ */
+export async function loadPlannedJobSizeByPi(
+  db: PrismaClient,
+  tenantId: string,
+  artId: string,
+  gateWhere: Prisma.InitiativeWhereInput,
+): Promise<Record<string, number>> {
+  const lastJePi = await db.initiative.groupBy({
+    by: ["piId"],
+    where: {
+      tenantId,
+      level: InitiativeLevel.FEATURE,
+      deletedAt: null,
+      artId,
+      piId: { not: null },
+      ...gateWhere,
+    },
+    _sum: { wsjfJobSize: true },
+  });
+  const jobSizeByPi: Record<string, number> = {};
+  for (const r of lastJePi) if (r.piId) jobSizeByPi[r.piId] = r._sum.wsjfJobSize ?? 0;
+  return jobSizeByPi;
 }
 
 /**
@@ -829,54 +1024,7 @@ export async function loadCockpitModel(
     //    können nicht mehr auseinanderlaufen.
     (async (): Promise<{ allPis: CockpitAllPiRow[] }> => {
       if (!selectedArtRow) return { allPis: [] };
-      const piRows = await db.programIncrement.findMany({
-        where: {
-          tenantId,
-          ...(selectedArtRow.timelineId
-            ? { timelineId: selectedArtRow.timelineId }
-            : { artId: selectedArtRow.id }),
-        },
-        select: {
-          id: true,
-          name: true,
-          startDate: true,
-          endDate: true,
-          status: true,
-        },
-        orderBy: { startDate: "asc" },
-      });
-      // Die Eingänge der Ziel-Formel (`deriveJobSizeTarget`): Kapazität und
-      // Lieferung **dieses ARTs** je PI. Die Taktung teilen sich mehrere ARTs;
-      // Kapazität und Last gehören dem einzelnen.
-      const piIds = piRows.map((p) => p.id);
-      const [capacities, geliefert] = await Promise.all([
-        db.artPiCapacity.findMany({
-          where: { tenantId, artId: selectedArtRow.id, piId: { in: piIds } },
-          select: { piId: true, capacity: true },
-        }),
-        db.initiative.groupBy({
-          by: ["piId"],
-          where: {
-            tenantId,
-            level: InitiativeLevel.FEATURE,
-            deletedAt: null,
-            artId: selectedArtRow.id,
-            piId: { in: piIds },
-            status: "completed",
-          },
-          _sum: { wsjfJobSize: true },
-        }),
-      ]);
-      const capacityByPi = new Map(capacities.map((c) => [c.piId, Number(c.capacity)]));
-      const deliveredByPi = new Map(
-        geliefert.map((g) => [g.piId ?? "", g._sum.wsjfJobSize ?? 0] as const),
-      );
-      const allPis = piRows.map((p) => ({
-        ...p,
-        capacity: capacityByPi.get(p.id) ?? null,
-        delivered: deliveredByPi.get(p.id) ?? 0,
-      }));
-      return { allPis };
+      return { allPis: await loadArtPiRows(db, tenantId, selectedArtRow) };
     })(),
     // 6) Features im Scope (SQL-Filter fuer status/owner/epic; der `hasBlocker`-
     //    Filter + Blocker-Erkennung sitzt im Builder).
@@ -919,13 +1067,7 @@ export async function loadCockpitModel(
        * Unter `AND`, weil `epicFilterWhere` selbst ein `OR` beisteuern kann;
        * zwei `OR` auf derselben Ebene überschrieben einander.
        */
-      const torWhere = drumbeatEnabled
-        ? {
-            AND: [
-              { OR: [{ parentId: null }, { parent: { stageGate: { in: [...PLANNABLE_GATES] } } }] },
-            ],
-          }
-        : {};
+      const torWhere = drumbeatEnabled ? PLANNABLE_GATE_WHERE : {};
 
       /**
        * **Der Nenner steht, der Zähler wandert.** `featureRows` folgt den
@@ -935,71 +1077,11 @@ export async function loadCockpitModel(
        * deshalb aus der **ungefilterten** planbaren Menge des ARTs — das
        * L3-Tor gilt weiter, die Oberflächen-Filter nicht.
        */
-      const planbarWhere = {
-        tenantId,
-        level: InitiativeLevel.FEATURE,
-        deletedAt: null,
-        artId: selectedArtRow.id,
-        piId: { not: null },
-        ...torWhere,
-      };
 
-      const [featureRows, unterL3, lastJePi] = await Promise.all([
+      const [featureRows, unterL3, jobSizeByPi] = await Promise.all([
         db.initiative.findMany({
           where: { ...grundWhere, ...torWhere },
-          select: {
-            id: true,
-            title: true,
-            status: true,
-            piId: true,
-            artId: true,
-            parentId: true,
-            ownerId: true,
-            wsjfComputed: true,
-            wsjfJobSize: true,
-            wsjfBusinessValue: true,
-            wsjfTimeCriticality: true,
-            wsjfRiskReduction: true,
-            featureType: true,
-            pi: { select: { id: true, startDate: true } },
-            art: { select: { id: true, name: true } },
-            // Die eigene Solution des Features — und die seines Epics als
-            // Rückfall, über den ohnehin vorhandenen `parent`-Select.
-            primarySolution: { select: { name: true } },
-            parent: {
-              select: { id: true, title: true, primarySolution: { select: { name: true } } },
-            },
-            dependenciesIn: {
-              where: { type: "blocks" },
-              select: {
-                id: true,
-                type: true,
-                from: {
-                  select: {
-                    id: true,
-                    title: true,
-                    status: true,
-                    pi: { select: { id: true, startDate: true } },
-                  },
-                },
-              },
-            },
-            dependenciesOut: {
-              where: { type: "blocks" },
-              select: {
-                id: true,
-                type: true,
-                to: {
-                  select: {
-                    id: true,
-                    title: true,
-                    status: true,
-                    pi: { select: { id: true, startDate: true } },
-                  },
-                },
-              },
-            },
-          },
+          select: COCKPIT_FEATURE_SELECT,
           orderBy: [{ wsjfComputed: "desc" }, { title: "asc" }],
         }),
         // **Versteckt, aber nicht verschwiegen.** Wie viele Features fallen
@@ -1014,14 +1096,8 @@ export async function loadCockpitModel(
               },
             })
           : Promise.resolve(0),
-        db.initiative.groupBy({
-          by: ["piId"],
-          where: planbarWhere,
-          _sum: { wsjfJobSize: true },
-        }),
+        loadPlannedJobSizeByPi(db, tenantId, selectedArtRow.id, torWhere),
       ]);
-      const jobSizeByPi: Record<string, number> = {};
-      for (const r of lastJePi) if (r.piId) jobSizeByPi[r.piId] = r._sum.wsjfJobSize ?? 0;
       let depRows: CockpitDepRow[] = [];
       if (featureRows.length > 0) {
         const scopeIds = featureRows.map((f) => f.id);

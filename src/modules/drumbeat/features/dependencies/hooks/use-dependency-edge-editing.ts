@@ -16,6 +16,8 @@ import {
   type DependencyEdgeType,
 } from "@/modules/drumbeat/features/dependencies/lib/dependency-actions-client";
 
+type Done = (error: string | null) => void;
+
 /** Minimal edge shape the editing callbacks need to resolve a dependency by id. */
 interface EditableDependency {
   id: string;
@@ -32,30 +34,47 @@ interface EditableDependency {
  * `callUnlink` / `callChangeType` trio was byte-for-byte identical between
  * `CockpitNetwork` and `CockpitRoadmap`.
  */
+/**
+ * `artOf` — das ART, gegen das eine Mutation autorisiert wird: das des
+ * **Quell-Features** einer Kante. Ein fester Wert genügt, solange eine Fläche
+ * nur ein ART zeigt (Fahrplan); der Epic-Netzplan zeigt Features mehrerer
+ * ARTs und löst es deshalb je Kante auf.
+ */
 export function useDependencyEdgeEditing(
-  artId: string,
+  artOf: string | ((fromId: string) => string),
   dependencies: readonly EditableDependency[],
 ) {
+  const artFor = (fromId: string) => (typeof artOf === "string" ? artOf : artOf(fromId));
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   const depById = (depId: string): EditableDependency | undefined =>
     dependencies.find((d) => d.id === depId);
 
-  function callLink(sourceId: string, targetId: string, type: DependencyEdgeType = "blocks") {
+  /**
+   * `after` — optional, mit dem Fehler oder `null`: der Netzplan zeichnet
+   * optimistisch und muss bei einer Abweisung zurückrollen.
+   */
+  function callLink(
+    sourceId: string,
+    targetId: string,
+    type: DependencyEdgeType = "blocks",
+    after?: Done,
+  ) {
     if (sourceId === targetId) return;
     startTransition(async () => {
       const res = await linkDependency(linkDependencyAction, {
         fromId: sourceId,
         toId: targetId,
         type,
-        artId,
+        artId: artFor(sourceId),
       });
       setError(res.error ?? null);
+      after?.(res.error ?? null);
     });
   }
 
-  function callUnlink(depId: string) {
+  function callUnlink(depId: string, after?: Done) {
     const d = depById(depId);
     if (!d) return;
     startTransition(async () => {
@@ -63,13 +82,14 @@ export function useDependencyEdgeEditing(
         fromId: d.fromId,
         toId: d.toId,
         type: d.type,
-        artId,
+        artId: artFor(d.fromId),
       });
       setError(res.error ?? null);
+      after?.(res.error ?? null);
     });
   }
 
-  function callChangeType(depId: string, next: DependencyEdgeType) {
+  function callChangeType(depId: string, next: DependencyEdgeType, after?: Done) {
     const d = depById(depId);
     if (!d || d.type === next) return;
     startTransition(async () => {
@@ -78,9 +98,10 @@ export function useDependencyEdgeEditing(
         toId: d.toId,
         fromType: d.type,
         toType: next,
-        artId,
+        artId: artFor(d.fromId),
       });
       setError(res.error ?? null);
+      after?.(res.error ?? null);
     });
   }
 
@@ -108,7 +129,7 @@ export function useDependencyEdgeEditing(
         type: d.type,
         newFromId,
         newToId,
-        artId,
+        artId: artFor(d.fromId),
       });
       if (res.error) {
         setError(res.error);
@@ -127,7 +148,7 @@ export function useDependencyEdgeEditing(
                 type: d.type,
                 newFromId: d.fromId,
                 newToId: d.toId,
-                artId,
+                artId: artFor(newFromId),
               });
               if (zurueck.error) toast.error(zurueck.error);
             });

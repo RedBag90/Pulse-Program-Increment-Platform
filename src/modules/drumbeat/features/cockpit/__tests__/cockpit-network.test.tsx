@@ -1,11 +1,13 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
 import { render, screen } from "@testing-library/react";
 
+/** Die URL der Sicht — je Test setzbar (Typfilter, Suche). */
+let suche = new URLSearchParams();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn() }),
+  useRouter: () => ({ replace: vi.fn(), refresh: vi.fn() }),
   usePathname: () => "/umsetzung",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => suche,
 }));
 vi.mock("@/modules/drumbeat/features/dependencies/hooks/use-dependency-edge-editing", () => ({
   useDependencyEdgeEditing: () => ({
@@ -131,5 +133,140 @@ describe("CockpitNetwork — Spalten sichtbar getrennt", () => {
     const { container } = net([feat("a", "p1")], pis);
     const band = container.querySelector<HTMLElement>('[data-id="piband:1"]');
     expect(band?.style.pointerEvents).toBe("none");
+  });
+});
+
+describe("CockpitNetwork — der Knoten ist die Board-Karte plus Status", () => {
+  const pis = [pi("p1", "Werk-PI 1")];
+  const voll: CockpitFeature = {
+    ...feat("x", "p1"),
+    title: "Erstlösungsquote Feature 3",
+    status: "in_progress",
+    parentTitle: "Kundenservice",
+    solutionName: "Portal",
+    ownerName: "admin@pulse.dev",
+    featureType: "enabler",
+    wsjfComputed: 3,
+    wsjfJobSize: 3,
+    wsjfBusinessValue: 3,
+    wsjfTimeCriticality: 3,
+    wsjfRiskReduction: 3,
+    hasBlocker: true,
+    blockerHint: "Vorarbeit",
+    blockers: [{ id: "v", title: "Vorarbeit", state: "blocking" }],
+  };
+  const netz = (canScoreWsjf: boolean) =>
+    render(
+      <CockpitNetwork
+        features={[voll]}
+        dependencies={[]}
+        artId="art-1"
+        canLinkDependency={false}
+        canUpdate={false}
+        canScoreWsjf={canScoreWsjf}
+        savedPositions={{}}
+        pis={pis}
+        selectedPiId="p1"
+      />,
+    );
+
+  it("zeigt Epic ▸ Solution, Owner, Status, WSJF, JS und den Typ-Streifen mit Wort", () => {
+    netz(false);
+    expect(screen.getByText(/Kundenservice/)).toBeTruthy();
+    expect(screen.getByText(/Portal/)).toBeTruthy();
+    expect(screen.getByText("admin@pulse.dev")).toBeTruthy();
+    expect(screen.getByText("In Umsetzung")).toBeTruthy();
+    expect(screen.getByText("JS 3")).toBeTruthy();
+    expect(screen.getByText("WSJF 3.0")).toBeTruthy();
+    expect(screen.getByTitle("Enabler").className).toContain("bg-violet-500");
+  });
+
+  it("Blocker-Symbol und WSJF-Knopf ziehen den Knoten nicht (nodrag)", () => {
+    netz(true);
+    // React Flow blendet ungemessene Knoten aus (`visibility: hidden`) — in
+    // jsdom wird nie gemessen, und für verborgene Elemente berechnet
+    // `getByRole` keinen Namen. Deshalb über das `aria-label`.
+    const knopf = (label: RegExp) =>
+      screen
+        .getAllByRole("button", { hidden: true })
+        .find((b) => label.test(b.getAttribute("aria-label") ?? ""));
+    const blocker = knopf(/^1 offener Blocker$/);
+    const wsjf = knopf(/^WSJF bearbeiten/);
+    expect(blocker).toBeDefined();
+    expect(wsjf).toBeDefined();
+    expect(blocker!.closest(".nodrag")).not.toBeNull();
+    expect(wsjf!.closest(".nodrag")).not.toBeNull();
+  });
+});
+
+describe("DependencyNetwork — die Extras aus dem Epic-Netzplan", () => {
+  const pis = [pi("p1", "Werk-PI 1")];
+  beforeEach(() => {
+    suche = new URLSearchParams();
+  });
+  const mitEpic = (id: string): CockpitFeature => ({
+    ...feat(id, "p1"),
+    parentId: "epic-1",
+    parentTitle: "Epic 1",
+  });
+  const netz = (
+    features: CockpitFeature[],
+    rechte: { canLink?: boolean; canCreate?: boolean } = {},
+  ) =>
+    render(
+      <CockpitNetwork
+        features={features}
+        dependencies={[]}
+        artId="art-1"
+        canLinkDependency={rechte.canLink ?? false}
+        canUpdate={false}
+        canCreateFeature={rechte.canCreate ?? false}
+        savedPositions={{}}
+        pis={pis}
+        selectedPiId="p1"
+      />,
+    );
+  const plusKnoepfe = () =>
+    screen
+      .queryAllByRole("button", { hidden: true })
+      .filter((b) => b.getAttribute("aria-label") === "Folge-Feature anlegen");
+
+  it('„+" am Knoten nur mit feature.create und nur an Features mit Epic', () => {
+    netz([mitEpic("a"), feat("b", "p1")], { canCreate: true });
+    expect(plusKnoepfe()).toHaveLength(1);
+    expect(plusKnoepfe()[0]!.closest("[data-id]")?.getAttribute("data-id")).toBe("a");
+  });
+
+  it('ohne feature.create kein „+"', () => {
+    netz([mitEpic("a")]);
+    expect(plusKnoepfe()).toHaveLength(0);
+  });
+
+  it("der Typfilter blendet ab statt auszublenden", () => {
+    suche = new URLSearchParams("ntyp=enabler");
+    const { container } = netz([
+      { ...feat("a", "p1"), featureType: "enabler" },
+      { ...feat("b", "p1"), featureType: "feature" },
+    ]);
+    const knoten = (id: string) => container.querySelector<HTMLElement>(`[data-id="${id}"]`);
+    expect(knoten("b")).not.toBeNull();
+    expect(knoten("b")!.style.opacity).toBe("0.25");
+    expect(knoten("a")!.style.opacity).not.toBe("0.25");
+    expect(screen.getByText("1 von 2 sichtbar")).toBeTruthy();
+  });
+
+  it("der Typ neuer Kanten ist umschaltbar — nur mit dependency.link", () => {
+    netz([feat("a", "p1")], { canLink: true });
+    expect(screen.getByRole("group", { name: /^Kanten-Typ$/ })).toBeTruthy();
+  });
+
+  it("ohne dependency.link kein Umschalter", () => {
+    netz([feat("a", "p1")]);
+    expect(screen.queryByRole("group", { name: /^Kanten-Typ$/ })).toBeNull();
+  });
+
+  it("bietet den PNG-Export an", () => {
+    netz([feat("a", "p1")]);
+    expect(screen.getByRole("button", { name: /exportieren/i })).toBeTruthy();
   });
 });

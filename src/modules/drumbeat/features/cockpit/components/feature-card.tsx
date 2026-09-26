@@ -1,14 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { memo, type RefObject } from "react";
 import type { CockpitFeature } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
-import { FEATURE_TYPE_STRIPE } from "@/modules/drumbeat/features/lib/feature-type-tokens";
-import { FEATURE_TYPE_KEYS } from "@/modules/work/domain/portfolio-guardrails";
-import { FeatureScore } from "@/modules/drumbeat/features/cockpit/components/feature-score";
-import { FeatureBlockers } from "@/modules/drumbeat/features/cockpit/components/feature-blockers";
 import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
-import { initials } from "@/components/detail/initiative-labels";
+import { FeatureCardBody } from "@/modules/drumbeat/features/cockpit/components/feature-card-body";
 
 /**
  * Feature-Karte für das Board. Memoisiert mit Custom-Compare auf die Id und die
@@ -33,11 +28,7 @@ interface Props {
 }
 
 function FeatureCardImpl({ feature, canDrag, canScore, draggingId }: Props) {
-  const t = useTranslations();
   const { setParam } = useUrlState();
-  const typLabel = feature.featureType
-    ? t(FEATURE_TYPE_KEYS[feature.featureType])
-    : t("drumbeat.ui.ohneTyp");
 
   function openSlideOver() {
     setParam("featureId", feature.id);
@@ -69,70 +60,7 @@ function FeatureCardImpl({ feature, canDrag, canScore, draggingId }: Props) {
         feature.hasBlocker ? "border-amber-300" : "border-border"
       } ${canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
     >
-      {/* **Der Streifen zeigt den Typ, nicht den Status.** Den Status zeigen
-          die Board-Zeilen — der Streifen sagte ihn bis September 2026 ein
-          zweites Mal. Jetzt: Feature, Enabler, Maintenance
-          (`FEATURE_TYPE_STRIPE`, dieselben Töne wie im Netzplan). Die Farbe
-          steht nicht allein: der Streifen trägt das Wort, das Board eine
-          Legende. */}
-      <span
-        title={typLabel}
-        className={`absolute inset-y-0 left-0 w-1 ${FEATURE_TYPE_STRIPE[feature.featureType ?? ""]}`}
-      >
-        <span className="sr-only">{typLabel}</span>
-      </span>
-      <p className="line-clamp-2 text-xs font-medium leading-snug">{feature.title}</p>
-
-      {/* Epic ▸ Solution. Fehlt die Solution (gemessen 40 % der Features), steht
-          dort nur das Epic — kein „—", kein leerer Platzhalter. */}
-      {feature.parentTitle && (
-        <p
-          className="truncate text-label text-muted-foreground"
-          title={
-            feature.solutionName
-              ? `${feature.parentTitle} ▸ ${feature.solutionName}`
-              : feature.parentTitle
-          }
-        >
-          {feature.parentTitle}
-          {feature.solutionName && (
-            <>
-              <span aria-hidden className="mx-1 text-muted-foreground/60">
-                ▸
-              </span>
-              {feature.solutionName}
-            </>
-          )}
-        </p>
-      )}
-
-      <div className="flex items-center justify-between gap-2 text-label text-muted-foreground">
-        <span className="flex min-w-0 items-center gap-1.5">
-          {feature.ownerName ? (
-            <>
-              <span
-                aria-hidden
-                className="flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-label font-semibold text-foreground/70"
-              >
-                {initials(feature.ownerName)}
-              </span>
-              <span className="truncate" title={feature.ownerName}>
-                {feature.ownerName}
-              </span>
-            </>
-          ) : (
-            <span className="truncate text-muted-foreground/60">{t("drumbeat.ui.ohneOwner")}</span>
-          )}
-        </span>
-        <span className="flex shrink-0 items-center gap-1.5">
-          <FeatureBlockers blockers={feature.blockers} successors={feature.successors} />
-          <FeatureScore
-            feature={feature}
-            canScore={canScore}
-            badgeClassName="px-1 py-0 text-label font-medium"
-          />
-        </span>
-      </div>
+      <FeatureCardBody feature={feature} canScore={canScore} />
     </div>
   );
 }

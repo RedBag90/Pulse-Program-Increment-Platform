@@ -153,6 +153,8 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
             artId={selectedArt.id}
             canLinkDependency={permissions.canLinkDependency}
             canUpdate={permissions.canUpdate}
+            canScoreWsjf={permissions.canScoreWsjf}
+            canCreateFeature={permissions.canCreate}
             savedPositions={model.graphPositions}
             pis={piStrip}
             selectedPiId={selectedPiId}

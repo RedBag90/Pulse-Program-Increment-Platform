@@ -1,9 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useState, type ReactNode } from "react";
 import { PackageOpen } from "lucide-react";
-import dynamic from "next/dynamic";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { updateFeatureAction } from "@/modules/work/features/feature/actions/feature";
 import {
@@ -27,26 +26,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-
-// ADR-0013-Ausnahme (bewusst, dokumentiert): dies ist der EINZIGE Work→Drumbeat-
-// „Aufwärts"-Import und bewusst ein `next/dynamic`-CLIENT-Chunk — kein Server-/
-// Build-Zyklus, nur eine Bundle-Grenze. Die saubere Inversion (Render-Prop-Slot,
-// vom `src/app`-Client-Wrapper injiziert) ist bekannt, aber die Props werden hier
-// tab-intern abgeleitet (Feature-Mapping, Realtime-`savedPositions`), also ist der
-// Umbau ein eigener, UI-zu-verifizierender Schritt. Bis dahin bleibt dies die eine
-// sanktionierte Ausnahme.
-/** Lazy-import den Netzplan, damit der List-Modus die ~130 KB ReactFlow
- *  + dagre nicht ins Initial-Bundle zieht. */
-const BreakdownNetworkView = dynamic(
-  () =>
-    import("@/modules/drumbeat/features/cockpit/components/breakdown-network-view").then(
-      (m) => m.BreakdownNetworkView,
-    ),
-  {
-    ssr: false,
-    loading: NetzplanLadehinweis,
-  },
-);
 
 type BreakdownView = "list" | "graph";
 
@@ -97,8 +76,6 @@ interface Props {
    * aktiven Tab der Epic-Seite — kein interner Umschalter mehr.
    */
   view: BreakdownView;
-  /** Tenant-Id — fuer den Netzplan-Realtime-Channel (Roadmap-P8). */
-  tenantId: string;
   epicTitle: string;
   /** Wertstrom des Epics — begrenzt die ART-Auswahl beim Anlegen eines Features. */
   epicValueStreamId: string | null;
@@ -140,12 +117,16 @@ interface Props {
    *  Dependencies per Drag-Connect anlegen. Per-Edge-Auth checkt der
    *  Server-Action nochmal. */
   canLinkDependency: boolean;
-  /** Persistierte Netzplan-Positionen (Roadmap-P5). Knoten ohne Eintrag
-   *  fallen auf dagre-Auto-Layout zurueck. */
-  breakdownLayoutPositions: Record<string, { x: number; y: number }>;
-  /** Flat distinkte PI-Liste sortiert nach startDate, fuer den
-   *  Netzplan-PI-Mode (Roadmap-P9). */
-  breakdownPis: ReadonlyArray<{ id: string; name: string; startDate: string }>;
+  /**
+   * **Der Netzplan, von der Seite hereingereicht** (`view === "graph"`).
+   *
+   * Bis September 2026 lud der Reiter ihn selbst per `next/dynamic` aus
+   * Drumbeat — der einzige Work→Drumbeat-Import, als ADR-0013-Ausnahme
+   * geführt. Die Epic-Seite ist die Composition Root und darf beide sehen;
+   * sie baut den Netzplan und reicht ihn als Slot herein. Die Ausnahme
+   * entfällt.
+   */
+  networkSlot?: ReactNode;
   /** `practices.wsjf` — blendet die WSJF-Spalte aus, wie in der Features-Übersicht. */
   showWsjf: boolean;
   /** `feature.delivery.set` — ohne das Recht bleibt der Status reiner Text. */
@@ -244,7 +225,6 @@ function FeatureEditForm({ feature }: { feature: BreakdownFeature }) {
 export function EpicBreakdownTab({
   epicId,
   view,
-  tenantId,
   epicTitle,
   epicValueStreamId,
   epicArtId,
@@ -254,8 +234,7 @@ export function EpicBreakdownTab({
   canSchedule,
   dependencies,
   canLinkDependency,
-  breakdownLayoutPositions,
-  breakdownPis,
+  networkSlot,
   showWsjf,
   canSetDelivery,
 }: Props) {
@@ -377,31 +356,7 @@ export function EpicBreakdownTab({
       )}
 
       {view === "graph" ? (
-        <BreakdownNetworkView
-          epicId={epicId}
-          tenantId={tenantId}
-          epicTitle={epicTitle}
-          epicValueStreamId={epicValueStreamId}
-          features={features.map((f) => ({
-            id: f.id,
-            title: f.title,
-            status: f.status,
-            artId: f.artId,
-            artName: f.artName,
-            featureType: f.featureType,
-            wsjfComputed: f.wsjf.computed > 0 ? f.wsjf.computed : null,
-            wsjfBusinessValue: f.wsjf.bv > 0 ? f.wsjf.bv : null,
-            wsjfTimeCriticality: f.wsjf.tc > 0 ? f.wsjf.tc : null,
-            wsjfRiskReduction: f.wsjf.rr > 0 ? f.wsjf.rr : null,
-            wsjfJobSize: f.wsjf.js > 0 ? f.wsjf.js : null,
-            piId: f.piId,
-          }))}
-          pis={breakdownPis}
-          dependencies={dependencies}
-          canLinkDependency={canLinkDependency}
-          canCreateFeature={canEdit}
-          savedPositions={breakdownLayoutPositions}
-        />
+        networkSlot
       ) : features.length === 0 ? (
         <EmptyState
           icon={<PackageOpen className="size-6" />}
@@ -517,19 +472,6 @@ export function EpicBreakdownTab({
             : {})}
         />
       )}
-    </div>
-  );
-}
-
-/**
- * Eigene Komponente statt einer Pfeilfunktion in `loading`: `useTranslations`
- * ist ein Hook und braucht eine Komponente, keine beliebige Funktion.
- */
-function NetzplanLadehinweis() {
-  const t = useTranslations();
-  return (
-    <div className="flex h-[480px] items-center justify-center rounded-lg border bg-muted/20 text-sm text-muted-foreground">
-      {t("work.epic.ladeNetzplan")}
     </div>
   );
 }

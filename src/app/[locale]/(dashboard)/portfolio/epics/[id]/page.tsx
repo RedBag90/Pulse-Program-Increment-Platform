@@ -28,6 +28,8 @@ import { EpicRealizedTile } from "@/modules/work/features/portfolio/components/e
 import { EntityDetailShell, resolveTab } from "@/components/detail/entity-detail-shell";
 import { loadCockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 import { FeatureSlideOver } from "@/modules/drumbeat/features/cockpit/components/feature-slide-over";
+import { loadEpicNetworkModel } from "@/modules/drumbeat/server/views/epic-network-view";
+import { EpicNetworkLazy } from "@/modules/drumbeat/features/cockpit/components/epic-network-lazy";
 import { InitiativeActivitySidebar } from "@/components/detail/initiative-activity-sidebar";
 import { EpicHistoryTimeline } from "@/modules/work/features/portfolio/components/epic-history-timeline";
 import { EPIC_TABS } from "@/modules/work/features/portfolio/components/epic-detail-shell";
@@ -310,6 +312,16 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     ? EPIC_TABS
     : [...EPIC_TABS.slice(0, -2), { key: "issues", label: "Issues" }, ...EPIC_TABS.slice(-2)];
   const activeTab = resolveTab(tabs, tab);
+
+  // Der Netzplan im Format der Umsetzung — nur geladen, wenn sein Reiter offen ist.
+  const epicNetwork =
+    activeTab === "dependencies"
+      ? await loadEpicNetworkModel(db, principal, {
+          epicId,
+          epicArtId: epic.artId,
+          drumbeat: enabled.drumbeat,
+        })
+      : null;
 
   // Der Stand des Epics auf der Reifegrad-Achse. Er speist **vier** Flaechen:
   // das Abzeichen im Kopf, die Leiter im Unterkopf, die Ringe an den Reitern
@@ -616,7 +628,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           <EpicBreakdownTab
             view="list"
             epicId={epic.id}
-            tenantId={tenantId}
             epicTitle={epic.title}
             epicValueStreamId={epic.valueStreamId}
             epicArtId={epic.artId}
@@ -628,8 +639,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             canSetDelivery={model.canSetDelivery}
             dependencies={model.dependencies}
             canLinkDependency={model.canLinkDependency}
-            breakdownLayoutPositions={model.breakdownLayoutPositions}
-            breakdownPis={model.drumbeat.disabled ? [] : model.drumbeat.breakdownPis}
           />
         )}
 
@@ -637,7 +646,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           <EpicBreakdownTab
             view="graph"
             epicId={epic.id}
-            tenantId={tenantId}
             epicTitle={epic.title}
             epicValueStreamId={epic.valueStreamId}
             epicArtId={epic.artId}
@@ -649,8 +657,19 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             canSetDelivery={model.canSetDelivery}
             dependencies={model.dependencies}
             canLinkDependency={model.canLinkDependency}
-            breakdownLayoutPositions={model.breakdownLayoutPositions}
-            breakdownPis={model.drumbeat.disabled ? [] : model.drumbeat.breakdownPis}
+            networkSlot={
+              epicNetwork && (
+                <EpicNetworkLazy
+                  epicId={epic.id}
+                  tenantId={tenantId}
+                  epicTitle={epic.title}
+                  epicValueStreamId={epic.valueStreamId}
+                  model={epicNetwork}
+                  savedPositions={model.breakdownLayoutPositions}
+                  canEditEpic={model.canEdit}
+                />
+              )
+            }
           />
         )}
 

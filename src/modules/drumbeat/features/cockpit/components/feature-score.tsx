@@ -66,8 +66,11 @@ export function FeatureScore({
 
   const beiMir = (e: SyntheticEvent) => e.stopPropagation();
   return (
+    // `nodrag nopan`: im Netzplan startet React Flow sein Ziehen über native
+    // Zeiger-Ereignisse am Knoten — ein React-`stopPropagation` erreicht sie
+    // nicht. Ohne die Klassen zöge ein Klick auf das Symbol den Knoten.
     <span
-      className="contents"
+      className="nodrag nopan contents"
       onClick={beiMir}
       onKeyDown={beiMir}
       onPointerDown={beiMir}

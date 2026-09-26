@@ -2805,7 +2805,11 @@
       "nachfolgerGrundErledigt": "this card is done",
       "nachfolgerGrundSpaeteresPi": "in a later PI",
       "wasDiesesFeatureBlockiertOderBeruehrt": "What this feature blocks or relates to.",
-      "netzplanHinweisDragBlockiert": "Drag from right to left = new dependency, source blocks target · Click the edge label = change type or delete."
+      "netzplanHinweisDragBlockiert": "Drag from right to left = new dependency, source blocks target · Click the edge label = change type or delete.",
+      "rueckwaerts": "backwards",
+      "exportFehlgeschlagen": "Export failed",
+      "folgeFeatureAngelegt": "Follow-up feature created",
+      "featureZwischengefuegt": "Feature inserted in between"
     },
     "errors": {
       "endBeforeStart": "The end date must be after the start date.",

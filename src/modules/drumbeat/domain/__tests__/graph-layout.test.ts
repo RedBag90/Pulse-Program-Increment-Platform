@@ -23,7 +23,7 @@ describe("swimlaneLayout", () => {
       { id: "f1", piId: null }, // Backlog (col 0)
       { id: "f2", piId: "pi1" }, // col 1
       { id: "f3", piId: "pi2" }, // col 2
-      { id: "f4", piId: "unknown" }, // unknown PI → Backlog fallback
+      { id: "f4", piId: "unknown" }, // PI ohne Spalte → rechts, nicht Backlog
     ],
     [{ id: "g1" }],
     pis,
@@ -35,18 +35,24 @@ describe("swimlaneLayout", () => {
     expect(headers.every((h) => h.y === 0)).toBe(true);
   });
 
-  it("buckets features into PI columns (unknown PI falls back to Backlog)", () => {
+  /**
+   * Ein PI ohne Spalte (andere Taktung, ausserhalb des Fensters) ist **nicht**
+   * Backlog. Bis September 2026 landete es dort — im Epic-Netzplan, der
+   * Features mehrerer ARTs zeigt, hiesse das: eingeplante Arbeit als
+   * uneingeplant ausgewiesen.
+   */
+  it("buckets features into PI columns; a PI without a column goes right, not to Backlog", () => {
     const byId = new Map(features.map((f) => [f.id, f]));
-    // Backlog column (0): f1 stacked above f4.
     expect(byId.get("f1")).toEqual({ id: "f1", x: 0, y: laneY(0) });
-    expect(byId.get("f4")).toEqual({ id: "f4", x: 0, y: laneY(1) });
+    expect(byId.get("f4")).toEqual({ id: "f4", x: colWidth * 3, y: laneY(0) });
     // PI columns.
     expect(byId.get("f2")).toEqual({ id: "f2", x: colWidth, y: laneY(0) });
     expect(byId.get("f3")).toEqual({ id: "f3", x: colWidth * 2, y: laneY(0) });
   });
 
   it("places ghost nodes in the rightmost Cross-Epic column", () => {
-    expect(ghosts).toEqual([{ id: "g1", x: colWidth * 3, y: laneY(0) }]);
+    // Unter dem Feature mit fremdem PI, das dieselbe Spalte teilt.
+    expect(ghosts).toEqual([{ id: "g1", x: colWidth * 3, y: laneY(1) }]);
   });
 });
 

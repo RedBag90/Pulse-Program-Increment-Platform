@@ -2805,7 +2805,11 @@
       "nachfolgerGrundErledigt": "diese Karte ist erledigt",
       "nachfolgerGrundSpaeteresPi": "in späterem PI",
       "wasDiesesFeatureBlockiertOderBeruehrt": "Was dieses Feature blockiert oder womit es zusammenhängt.",
-      "netzplanHinweisDragBlockiert": "Drag von rechts auf links = neue Abhängigkeit, Quelle blockiert Ziel · Edge-Label anklicken = Typ ändern oder löschen."
+      "netzplanHinweisDragBlockiert": "Drag von rechts auf links = neue Abhängigkeit, Quelle blockiert Ziel · Edge-Label anklicken = Typ ändern oder löschen.",
+      "rueckwaerts": "rückwärts",
+      "exportFehlgeschlagen": "Export fehlgeschlagen",
+      "folgeFeatureAngelegt": "Folge-Feature angelegt",
+      "featureZwischengefuegt": "Feature dazwischen eingefügt"
     },
     "errors": {
       "endBeforeStart": "Das Enddatum muss nach dem Startdatum liegen.",

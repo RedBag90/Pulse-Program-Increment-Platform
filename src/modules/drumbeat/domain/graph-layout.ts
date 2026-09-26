@@ -212,7 +212,10 @@ export function swimlaneLayout(
   for (let i = 0; i <= externCol; i++) buckets.set(i, []);
 
   for (const n of nodes) {
-    const col = n.piId == null ? 0 : (colByPi.get(n.piId) ?? 0);
+    // Ein PI, das keine Spalte hat (andere Taktung, ausserhalb des Fensters),
+    // ist **nicht** Backlog — bis September 2026 landete es dort und log. Der
+    // Epic-Netzplan zeigt Features mehrerer ARTs; ihre PIs stehen rechts.
+    const col = n.piId == null ? 0 : (colByPi.get(n.piId) ?? externCol);
     buckets.get(col)!.push({ featureId: n.id });
   }
   // Je Bahn: Vorgänger nach oben. Ohne Kanten bleibt alles, wie es kam.
