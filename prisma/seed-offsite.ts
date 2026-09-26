@@ -342,7 +342,6 @@ async function main() {
         startDate: start,
         endDate: addDays(start, PI_WEEKS * 7 - 1),
         status: "planned",
-        capacityJobSize: 30,
         capacityAmount: BUDGET_TOTAL / 3,
       },
     });

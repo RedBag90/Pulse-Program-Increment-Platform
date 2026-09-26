@@ -25,6 +25,12 @@
  * folgt dem Vorgang, statt einem Abstand zu „heute".
  */
 
+import {
+  deriveJobSizeTarget,
+  TARGET_FACTOR,
+  type PiDeliveryRecord,
+} from "@/modules/drumbeat/domain/pi-job-size-target";
+
 /** Die Werte, die `fibonacci` in `src/domain/schemas/initiative.ts` zulaesst. */
 export const JOB_SIZE_SCALE = [1, 2, 3, 5, 8, 13, 20] as const;
 
@@ -321,13 +327,6 @@ export function assertPiQuotas(quotas: readonly PiQuota[], label: string): void 
 // Kapazität — die Last eines PI gegen seine Job-Size-Kapazität
 // ---------------------------------------------------------------------------
 
-export interface PiCapacityRow {
-  id: string;
-  name: string;
-  status: PiStatus;
-  capacityJobSize: number | null;
-}
-
 /** Σ Job Size je PI — die Last, die unter dem PI-Titel steht. */
 export function piLoad(features: readonly DeliveredFeature[]): Map<string, number> {
   const out = new Map<string, number>();
@@ -338,44 +337,124 @@ export function piLoad(features: readonly DeliveredFeature[]): Map<string, numbe
   return out;
 }
 
-/**
- * **Die Kapazität eines geplanten PI aus seiner Last** — mit Luft.
- *
- * Bis September 2026 kam die Kapazität aus einer Index-Formel (`70 + i·3`) und
- * die Last aus den Features, zwei Zahlen ohne gemeinsamen Ursprung. Auf einer
- * Timeline mit nur einem geplanten PI stapelte die Verteilregel alles dort
- * hinein: „158 / 79 JS", rot, im Demo-Datensatz. Die Anzeige hatte recht; die
- * Saat nicht.
- *
- * 15 % Luft, aufgerundet — genug, dass ein Feature dazukommen kann, ohne dass
- * die Demo sofort rot wird; wenig genug, dass „voll" nach voll aussieht.
- */
-export function capacityFromLoad(load: number): number {
-  return Math.ceil(load * 1.15);
+/** Die Kapazitätszahl, die jedes ART in jedem abgeschlossenen PI trägt. */
+export const SEED_BASE_CAPACITY = 10;
+
+export interface CapacityFeature {
+  piId: string | null;
+  artId: string | null;
+  jobSize: number;
+  status: string;
+}
+
+export interface ArtPiCapacitySeed {
+  artId: string;
+  piId: string;
+  capacity: number;
 }
 
 /**
- * **Kein geplantes oder laufendes PI über seiner Kapazität.**
+ * **Kapazitätszahlen je ART und PI — so, dass die Formel kein PI überbucht.**
  *
- * `assertPiQuotas` prüft nur abgeschlossene PIs — ein geplantes PI mit dem
- * Doppelten seiner Kapazität verletzte nichts. `PiQuota` kannte das Feld nicht
- * einmal. Diese Invariante hält die Saat an dem fest, was sie vorführen soll:
- * eine Planung, keine Überbuchung.
+ * Seit September 2026 ist das Job-Size-Ziel eines PI keine gesetzte Zahl
+ * mehr, sondern die Formel aus `deriveJobSizeTarget`: Ø(geliefertes JS ÷
+ * Kapazität der letzten 4 abgeschlossenen PIs) × Kapazität × 0,8. Die Saat
+ * setzt deshalb die **Kapazität**, nicht das Ziel:
+ *
+ *  - abgeschlossene PIs: `SEED_BASE_CAPACITY` — ihre Quote ist dann schlicht
+ *    die Lieferung ÷ 10, und sie streut, wie die Lieferung streut;
+ *  - laufende und geplante: so viel, dass das Ziel die eingeplante Last trägt,
+ *    mindestens `SEED_BASE_CAPACITY`. Ohne Historie bleibt es bei der Basis.
+ *
+ * Ersetzt `capacityFromLoad` (Last × 1,15 als Ziel).
  */
-export function assertPiCapacity(
-  features: readonly DeliveredFeature[],
-  pis: readonly PiCapacityRow[],
+export function artPiCapacities(
+  features: readonly CapacityFeature[],
+  pis: readonly (DeliveryPi & { name: string })[],
+): ArtPiCapacitySeed[] {
+  const arts = [...new Set(features.map((f) => f.artId).filter((a): a is string => a != null))];
+  const ordered = [...pis].sort((a, b) => a.start.getTime() - b.start.getTime());
+  const out: ArtPiCapacitySeed[] = [];
+  for (const artId of arts) {
+    const own = features.filter((f) => f.artId === artId && f.piId != null);
+    const piIds = new Set(own.map((f) => f.piId!));
+    const load = (piId: string, onlyCompleted: boolean) =>
+      own
+        .filter((f) => f.piId === piId && (!onlyCompleted || f.status === "completed"))
+        .reduce((sum, f) => sum + f.jobSize, 0);
+    const history: PiDeliveryRecord[] = [];
+    for (const pi of ordered.filter((p) => piIds.has(p.id))) {
+      let capacity = SEED_BASE_CAPACITY;
+      if (pi.status !== "completed") {
+        const perCapacity = deriveJobSizeTarget({
+          startDate: pi.start,
+          capacity: SEED_BASE_CAPACITY,
+          history,
+        }).perCapacity;
+        if (perCapacity != null && perCapacity > 0) {
+          capacity = Math.max(
+            SEED_BASE_CAPACITY,
+            Math.ceil(load(pi.id, false) / (perCapacity * TARGET_FACTOR)),
+          );
+        }
+      }
+      out.push({ artId, piId: pi.id, capacity });
+      history.push({
+        piId: pi.id,
+        name: pi.name,
+        startDate: pi.start,
+        status: pi.status,
+        capacity,
+        delivered: load(pi.id, true),
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * **Kein laufendes oder geplantes PI über seinem errechneten Ziel** — dieselbe
+ * Invariante wie zuvor `assertPiCapacity`, jetzt gegen die Formel und je ART.
+ */
+export function assertArtPiTargets(
+  features: readonly CapacityFeature[],
+  pis: readonly (DeliveryPi & { name: string })[],
+  capacities: readonly ArtPiCapacitySeed[],
   label: string,
 ): void {
-  const last = piLoad(features);
-  const ueberbucht = pis
-    .filter((p) => p.status !== "completed" && p.capacityJobSize != null)
-    .filter((p) => (last.get(p.id) ?? 0) > p.capacityJobSize!)
-    .map((p) => `${p.name} (${last.get(p.id) ?? 0} / ${p.capacityJobSize})`);
-  if (ueberbucht.length > 0) {
+  const ueberplant: string[] = [];
+  for (const artId of new Set(capacities.map((c) => c.artId))) {
+    const cap = new Map(
+      capacities.filter((c) => c.artId === artId).map((c) => [c.piId, c.capacity]),
+    );
+    const own = features.filter((f) => f.artId === artId);
+    const sum = (piId: string, onlyCompleted: boolean) =>
+      own
+        .filter((f) => f.piId === piId && (!onlyCompleted || f.status === "completed"))
+        .reduce((s, f) => s + f.jobSize, 0);
+    const history: PiDeliveryRecord[] = pis.map((p) => ({
+      piId: p.id,
+      name: p.name,
+      startDate: p.start,
+      status: p.status,
+      capacity: cap.get(p.id) ?? null,
+      delivered: sum(p.id, true),
+    }));
+    for (const pi of pis.filter((p) => p.status !== "completed" && cap.has(p.id))) {
+      const { target } = deriveJobSizeTarget({
+        startDate: pi.start,
+        capacity: cap.get(pi.id)!,
+        history,
+      });
+      const last = sum(pi.id, false);
+      if (target != null && last > target)
+        ueberplant.push(`${pi.name}/${artId} (${last} / ${target})`);
+    }
+  }
+  if (ueberplant.length > 0) {
     throw new Error(
-      `Seed-Invariante verletzt (${label}): ueberbuchte PIs — ${ueberbucht.join(", ")}. ` +
-        `Die Kapazitaet entsteht aus der Last (\`capacityFromLoad\`), nicht aus einer Formel.`,
+      `Seed-Invariante verletzt (${label}): ueberplante PIs — ${ueberplant.join(", ")}. ` +
+        `Die Kapazitaet entsteht aus \`artPiCapacities\`, das Ziel aus der Formel.`,
     );
   }
 }

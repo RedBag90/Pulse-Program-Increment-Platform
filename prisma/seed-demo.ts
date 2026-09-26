@@ -54,9 +54,8 @@ import { contentForGate, assertGateContent } from "./seed-gate-content.js";
 import {
   assertJobSizes,
   assertPiQuotas,
-  assertPiCapacity,
-  capacityFromLoad,
-  piLoad,
+  assertArtPiTargets,
+  artPiCapacities,
   jobSizeFor,
   piQuotas,
   planFeature,
@@ -273,7 +272,6 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
       startDate: p.start,
       endDate: addDays(p.start, 69),
       status: p.status,
-      capacityJobSize: 110 + i * 5,
       capacityAmount: 880_000 + i * 20_000,
       // Die drei Zeremonie-Fakten des Abschluss-Tors. Sie stehen nur an
       // abgeschlossenen PIs — im Produkt gibt es (noch) keine Fläche, sie zu
@@ -316,7 +314,6 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
       startDate: p.start,
       endDate: addDays(p.start, 69),
       status: p.status,
-      capacityJobSize: 60 + i * 4,
       capacityAmount: 420_000 + i * 15_000,
       ...(p.status === "completed"
         ? {
@@ -1315,24 +1312,28 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
 
   await prisma.initiative.createMany({ data: featureRows });
 
-  // Die Kapazität aus der Last, nicht aus einer Formel — siehe `seed-large.ts`.
-  const last = piLoad(gelieferte);
-  for (const p of namedPis.filter((p) => p.status !== "completed")) {
-    await prisma.programIncrement.update({
-      where: { id: p.id },
-      data: { capacityJobSize: capacityFromLoad(last.get(p.id) ?? 0) },
-    });
-  }
-  assertPiCapacity(
-    gelieferte,
-    namedPis.map((p) => ({
-      id: p.id,
-      name: p.name,
-      status: p.status,
-      capacityJobSize: p.status === "completed" ? null : capacityFromLoad(last.get(p.id) ?? 0),
+  /**
+   * **Die Kapazitätszahl je ART und PI**, nicht das Ziel: das errechnet sich
+   * seit September 2026 aus ihr (`deriveJobSizeTarget`). Abgeschlossene PIs
+   * tragen die Basis, laufende und geplante so viel, dass das Ziel ihre Last
+   * trägt (`artPiCapacities`).
+   */
+  const kapazitaetsFeatures = featureRows.map((f) => ({
+    piId: (f.piId as string | null) ?? null,
+    artId: (f.artId as string | null) ?? null,
+    jobSize: (f.wsjfJobSize as number | null) ?? 0,
+    status: f.status as string,
+  }));
+  const kapazitaeten = artPiCapacities(kapazitaetsFeatures, namedPis);
+  await prisma.artPiCapacity.createMany({
+    data: kapazitaeten.map((k) => ({
+      ...k,
+      tenantId,
+      createdBy: ADMIN,
+      updatedBy: ADMIN,
     })),
-    "seed-demo",
-  );
+  });
+  assertArtPiTargets(kapazitaetsFeatures, namedPis, kapazitaeten, "seed-demo");
   console.log(
     `  ✓ ${epicIds.length} Epics + ${featureRows.length} Features ` +
       `(davon ${standaloneRows.length} eigenständig)`,
