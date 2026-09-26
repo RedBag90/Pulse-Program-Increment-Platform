@@ -33,6 +33,17 @@ export interface CockpitPiSlot {
   status: BoardColumnStatus;
   /** Anzahl Features im aktuell ausgewaehlten Scope, die in diesem PI sitzen. */
   featureCount: number;
+  /**
+   * Σ Job Size der Features in diesem PI — aus **derselben** Menge wie
+   * `featureCount`.
+   *
+   * Ein PI-Titel sagte bis September 2026 nur, *wie viele* Vorhaben darunter
+   * liegen. Wie viel Arbeit das ist, stand nirgends; die Kapazität daneben war
+   * gepflegt und wurde gegen nichts gestellt.
+   */
+  plannedJobSize: number;
+  /** Die hinterlegte Kapazität (`setPiCapacity`); `null` = keine gesetzt. */
+  capacityJobSize: number | null;
   /** True wenn dieser PI das aktuelle „jetzt"-PI ist (laut Datum). */
   isCurrent: boolean;
 }
@@ -46,6 +57,8 @@ export interface CockpitPiSlot {
 export interface CockpitFeature extends FeatureBreakdown {
   /** PI-Zuordnung (Drumbeat-Kadenz); `null` = Backlog. */
   piId: string | null;
+  /** Der Aufwand; er summiert sich unter dem PI-Titel. `null` = unbewertet. */
+  wsjfJobSize: number | null;
   /** UI loest Owner-Namen separat auf (Auth-Provider) — fuer Avatare /
    *  Inline-Anzeige. Null wenn unbekannt. */
   ownerName: string | null;

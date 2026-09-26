@@ -84,6 +84,19 @@ export interface SwimlaneLayout {
   headers: SwimlaneHeader[];
   features: SwimlanePosition[];
   ghosts: SwimlanePosition[];
+  /**
+   * Die **linken Kanten** der Spalten, in Spaltenreihenfolge.
+   *
+   * Sie lagen bis September 2026 nur intern vor. Wer ein Feature auf eine
+   * andere Bahn zieht, braucht die Umkehrung — von einer x-Koordinate zurück
+   * auf die Spalte —, und die ist ohne diese Zahlen nicht zu haben: die
+   * Spaltenbreite hängt davon ab, wie voll die Spalte ist (`maxRows` erzeugt
+   * Nebenkolonnen und schiebt alles rechts davon weiter). Eine feste
+   * Schrittweite wäre geraten.
+   */
+  bands: number[];
+  /** Die Breite eines Knotens — `columnAt` braucht sie, um Lücken zu erkennen. */
+  nodeWidth: number;
 }
 
 /**
@@ -164,7 +177,60 @@ export function swimlaneLayout(
     });
   }
 
-  return { headers, features, ghosts };
+  return { headers, features, ghosts, bands: bandX, nodeWidth };
+}
+
+// ---------------------------------------------------------------------------
+// columnAt / piOfColumn — die Umkehrung: von der Koordinate zur Bahn
+// ---------------------------------------------------------------------------
+
+/**
+ * **Auf welcher Bahn liegt diese x-Koordinate?**
+ *
+ * Die Umkehrung von {@link swimlaneLayout}. Gebraucht wird sie, seit sich
+ * Features per Zug in ein anderes PI legen lassen: fällt ein Knoten irgendwo
+ * hin, muss daraus eine Spalte werden.
+ *
+ * **Keine feste Schrittweite.** Eine volle Spalte bricht in Nebenkolonnen und
+ * schiebt alle folgenden nach rechts — die Breite ist datenabhängig. Deshalb
+ * nimmt die Funktion die Bandkanten entgegen, statt zu rechnen.
+ *
+ * Zwischen zwei Spalten liegt Luft (`SWIMLANE_COL_GAP`). Ein Knoten, der dort
+ * liegen bleibt, gehört zur **letzten begonnenen** Spalte: er ist von ihr aus
+ * nach rechts gezogen worden und noch nicht bei der nächsten angekommen. Das
+ * ist freundlicher, als die Geste zu verwerfen.
+ *
+ * `null` nur links vom ersten Band — dort ist gar keine Bahn.
+ */
+export function columnAt(x: number, bands: readonly number[]): number | null {
+  if (bands.length === 0) return null;
+  const erste = bands[0]!;
+  if (x < erste) return null;
+  let treffer = 0;
+  for (let col = 0; col < bands.length; col++) {
+    if (x >= bands[col]!) treffer = col;
+    else break;
+  }
+  return treffer;
+}
+
+/**
+ * **Welches PI trägt diese Spalte?**
+ *
+ * `null` heisst **Backlog** — Spalte 0, und das ist ein gültiges Ziel: ein
+ * Feature aus einem PI zu nehmen ist eine Planungsentscheidung wie jede andere.
+ *
+ * `undefined` heisst **kein Ziel**: die Geisterspalte ganz rechts trägt
+ * Fremd-Enden, keine eigenen Features. Wer dorthin zieht, hat nichts gesagt.
+ *
+ * Die Unterscheidung ist der ganze Zweck der Funktion — `null` und „geht
+ * nicht" sehen sonst gleich aus, und der Netzplan baute sie bis September 2026
+ * an jeder Stelle neu zusammen, wo er sie brauchte.
+ */
+export function piOfColumn(col: number, pis: readonly { id: string }[]): string | null | undefined {
+  if (col === 0) return null;
+  if (col > pis.length) return undefined;
+  return pis[col - 1]?.id ?? undefined;
 }
 
 // ---------------------------------------------------------------------------

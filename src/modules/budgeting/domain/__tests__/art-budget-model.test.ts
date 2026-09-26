@@ -16,7 +16,7 @@ const LEER: ArtBudgetDetail = {
   sources: [
     {
       source: "portfolio",
-      label: "Portfolio",
+      labelKey: "budgeting.allocationSource.portfolio",
       breakdown: {
         total: 0,
         byState: { notStarted: 0, committed: 0, consumed: 0 },

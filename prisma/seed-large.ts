@@ -901,7 +901,7 @@ export async function seedLarge(ctx: SeedContext): Promise<void> {
         },
         actuals: {},
       },
-      childFeatureStats: { total: 2, started: 2, completed: 2 },
+      childFeatureStats: { total: 2, scheduled: 2, started: 2, completed: 2 },
       budgetAllocationSum: ["L3", "L4", "L5"].includes(gate) ? 120_000 : 0,
       // **Der gespielte Weg.** Jeder `advance` trägt das Datum der Runde, in der
       // er beschlossen wurde — nicht einen Anker, der rückwärts aus dem

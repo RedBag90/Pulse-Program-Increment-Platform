@@ -36,6 +36,8 @@ const pi: CockpitPiSlot = {
   endDate: new Date(0),
   status: "active",
   featureCount: 0,
+  plannedJobSize: 0,
+  capacityJobSize: null,
   isCurrent: true,
 };
 
@@ -52,6 +54,7 @@ function feat(id: string, status: CockpitFeature["status"]): CockpitFeature {
     ownerId: "u1",
     ownerName: "anna@x.dev",
     wsjfComputed: 3.2,
+    wsjfJobSize: 5,
     hasBlocker: false,
     blockerHint: null,
     solutionName: "Logistik Betrieb",

@@ -167,6 +167,9 @@ export function demoEpicDetailInputs(): EpicDetailInputs {
     pis: [],
     dependencies: [],
     budget: null,
+    // Die Beispielseite führt keine Einordnung — sie zeigt das Produkt, nicht
+    // die Guardrails eines Mandanten.
+    classification: null,
     breakdownPositions: new Map(),
     enabled: { drumbeat: false, budgeting: false, risks: false },
     multiPartyApproval: true,

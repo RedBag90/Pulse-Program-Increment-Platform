@@ -102,3 +102,31 @@ export function unlinkDependencyBatch<R>(
 ): R {
   return action(EMPTY, unlinkDependencyBatchFormData(args));
 }
+
+export interface RelinkDependencyArgs {
+  /** Die Kante, wie sie heute steht. */
+  fromId: string;
+  toId: string;
+  type: DependencyEdgeType;
+  /** Die Enden, wie sie stehen sollen. */
+  newFromId: string;
+  newToId: string;
+  artId: string;
+}
+
+/**
+ * Ein Ende einer Abhängigkeit woanders ablegen.
+ *
+ * Für „Rückgängig" genügt derselbe Aufruf mit vertauschten Rollen: was vorher
+ * das Ziel war, ist jetzt der Ausgangspunkt.
+ */
+export function relinkDependency<R>(action: ActionLike<R>, args: RelinkDependencyArgs): R {
+  const fd = new FormData();
+  fd.set("fromId", args.fromId);
+  fd.set("toId", args.toId);
+  fd.set("type", args.type);
+  fd.set("newFromId", args.newFromId);
+  fd.set("newToId", args.newToId);
+  fd.set("artId", args.artId);
+  return action(EMPTY, fd);
+}

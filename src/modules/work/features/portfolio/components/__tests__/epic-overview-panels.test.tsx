@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 /**
  * **Bei L0 zeigt das Overview, wo man anfängt.**
@@ -54,7 +54,13 @@ const EPIC = {
   epicType: null,
 };
 
-function setup(over: { currentGate?: string; canEdit?: boolean } = {}) {
+function setup(
+  over: {
+    currentGate?: string;
+    canEdit?: boolean;
+    classification?: ComponentProps<typeof EpicOverviewTab>["classification"];
+  } = {},
+) {
   const { container } = render(
     <EpicOverviewTab
       epic={EPIC}
@@ -62,6 +68,21 @@ function setup(over: { currentGate?: string; canEdit?: boolean } = {}) {
       canOverrideHorizon={false}
       totals={{ implementationCost: 0, oneTimeBenefit: 0, recurringBenefit: 0 }}
       solutions={[]}
+      classification={
+        over.classification ?? {
+          disabled: false,
+          epicClass: null,
+          provisional: null,
+          provisionalCost: null,
+          cost: null,
+          threshold: 70000,
+          overridden: false,
+          source: "tenant",
+          intended: "art",
+          fundingGap: null,
+          valueStreamId: "vs1",
+        }
+      }
       {...(over.currentGate != null ? { currentGate: over.currentGate } : {})}
     />,
   );
@@ -113,5 +134,64 @@ describe("Epic-Overview — die Kacheln bei L0", () => {
 
     expect(mitRing(container)).toEqual(["Einordnung", "Zuordnung"]);
     expect(screen.getByText("Beschreibung")).toBeInTheDocument();
+  });
+});
+
+/**
+ * **Der Wächter gegen den Rückfall.**
+ *
+ * Im September 2026 konnte man die Einordnung eines Epics ändern, bekam die
+ * Bestätigung, und das Auswahlfeld stand danach wieder auf „Noch nicht
+ * eingeordnet". Geschrieben wurde richtig — der Prüfpfad zeigte
+ * „ART-Epic → Portfolio-Epic" —, gelesen wurde nie.
+ *
+ * Die Ursache war eine **Asymmetrie**: das Abzeichen stand hinter der Practice
+ * `artEpics`, das Eingabefeld daneben ohne Bedingung. Die Lesestelle lieferte
+ * `null`, und `classification?.intended ?? null` ist ein einwandfrei
+ * typisierter Ausdruck — er macht aus „die Frage stellt sich nicht" ein „noch
+ * nichts eingetragen".
+ *
+ * Seitdem ist es **eine** Scheibe (`Gated`), und der Compiler erzwingt die
+ * Fallunterscheidung. Diese beiden Tests halten die Aussage fest, die der Typ
+ * allein nicht trifft: dass das Feld den gespeicherten Wert auch **zeigt**,
+ * und dass es bei abgeschalteter Practice gar nicht erst erscheint.
+ */
+describe("Einordnung — Anzeige und Abschaltung hängen zusammen", () => {
+  it("zeigt die gespeicherte Erwartung im Auswahlfeld", () => {
+    // Genau der gemeldete Fall: `intended` steht in der Datenbank.
+    setup({
+      classification: {
+        disabled: false,
+        epicClass: null,
+        provisional: null,
+        provisionalCost: null,
+        cost: null,
+        threshold: 70000,
+        overridden: false,
+        source: "tenant",
+        intended: "art",
+        fundingGap: null,
+        valueStreamId: "vs1",
+      },
+    });
+
+    const feld = screen.getByLabelText("Einordnung") as HTMLSelectElement;
+    expect(feld.value).toBe("art");
+  });
+
+  it("zeigt den Abschnitt gar nicht, wenn die Practice aus ist", () => {
+    // Kein Feld, das speichert, was niemand zurückliest.
+    setup({ classification: { disabled: true } });
+
+    expect(screen.queryByLabelText("Einordnung")).toBeNull();
+  });
+
+  it("lässt Epic-Typ und Horizont trotzdem stehen", () => {
+    // Sie hängen nicht an `artEpics` — die Kachel als Ganzes zu verstecken
+    // hätte zwei Felder mitgenommen, die mit der Practice nichts zu tun haben.
+    setup({ classification: { disabled: true } });
+
+    expect(screen.getByLabelText("Epic-Typ")).toBeInTheDocument();
+    expect(screen.getByLabelText("Horizont")).toBeInTheDocument();
   });
 });

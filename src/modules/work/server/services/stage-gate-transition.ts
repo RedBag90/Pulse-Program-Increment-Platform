@@ -163,8 +163,10 @@ export async function loadEpicGateFacts(
   // Die Child-IDs statt nur ihrer Zahl: die Abhängigkeitskanten hängen an den
   // Features, nicht am Epic-Knoten. `total` fällt dabei als Länge ab, der
   // frühere dritte `count` entfällt also.
-  const [children, started, completed, practices, kpiCount] = await Promise.all([
+  const [children, scheduled, started, completed, practices, kpiCount] = await Promise.all([
     tx.initiative.findMany({ where: childWhere, select: { id: true } }),
+    // Eingeplant = hat ein PI. Derselbe Durchlauf, dieselbe `childWhere`.
+    tx.initiative.count({ where: { ...childWhere, piId: { not: null } } }),
     tx.initiative.count({ where: { ...childWhere, status: { in: ["in_progress", "completed"] } } }),
     tx.initiative.count({ where: { ...childWhere, status: "completed" } }),
     loadPractices(tx, tenantId),
@@ -202,7 +204,7 @@ export async function loadEpicGateFacts(
     businessCaseApprovedAt: row.businessCaseApprovedAt,
     budgetAllocationSum: budgetingEnabled ? sumAllocations(row.budgetAllocation?.allocations) : 0,
     budgetingEnabled,
-    childFeatureStats: { total: childIds.length, started, completed },
+    childFeatureStats: { total: childIds.length, scheduled, started, completed },
     kpiCount,
     dependencyCount,
     drumbeatEnabled,

@@ -26,7 +26,10 @@ import { canDeliveryTransition } from "@/modules/core/kernel/domain/initiative-s
 import { earliestStartFromBlockers } from "@/modules/core/kernel/domain/dependency-graph";
 import { blockerWindowsFromEdges } from "@/modules/work/domain/blocker-window";
 import { featurePiConsistent } from "@/modules/work/domain/feature-pi";
-import { featureStartBlockedReason } from "@/modules/work/domain/feature-start";
+import {
+  featureStartBlockedKey,
+  featurePlanningBlockedKey,
+} from "@/modules/work/domain/feature-gates";
 import { planFeatureReparent } from "@/modules/work/domain/feature-parent";
 import type { FeatureType } from "@/modules/work/domain/portfolio-guardrails";
 import { createEdge, splitEdge } from "@/modules/work/server/services/dependency-edge";
@@ -112,6 +115,17 @@ export async function createFeature(
     );
     if (isErr(parentResult)) return parentResult;
     const epic = parentResult.value; // `null` = eigenständiges Feature
+
+    // Dasselbe Tor wie in `setFeaturePi`: wer beim Anlegen gleich ein PI
+    // mitgibt, plant ein — und das geht erst ab L3. Ohne diese Zeilen wäre der
+    // Anlegeweg die offene Hintertür zum Tor.
+    if (piId != null) {
+      const gesperrt = featurePlanningBlockedKey({
+        parentId: epic?.id ?? null,
+        parentStageGate: epic?.stageGate ?? null,
+      });
+      if (gesperrt) return err({ kind: "conflict" as const, reason: gesperrt });
+    }
 
     // **Erst das ART, dann der Abgleich.** Vorher hing die ART-Abfrage am
     // Wertstrom des Epics — ohne Epic gäbe es keinen, aus dem man kaskadieren
@@ -462,6 +476,26 @@ export async function updateFeature(
       return err({ kind: "not_found" as const, resourceType: "Feature", id });
     }
 
+    /**
+     * **Der stillste Weg zum PI.**
+     *
+     * `updateFeature` lädt das Eltern-Epic gar nicht und auditiert `piId` nicht
+     * einmal als Feld — über `PATCH /api/v1/features/[id]` liess sich damit
+     * einplanen, was `setFeaturePi` verweigert. Ein Tor, das nur einer von drei
+     * Türen kennt, ist eine Fassade.
+     */
+    if (piId != null && existing.parentId) {
+      const elter = await tx.initiative.findFirst({
+        where: { id: existing.parentId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC },
+        select: { stageGate: true },
+      });
+      const gesperrt = featurePlanningBlockedKey({
+        parentId: existing.parentId,
+        parentStageGate: elter?.stageGate ?? null,
+      });
+      if (gesperrt) return err({ kind: "conflict" as const, reason: gesperrt });
+    }
+
     const newBv = wsjfBusinessValue ?? (existing.wsjfBusinessValue as FibonacciValue);
     const newTc = wsjfTimeCriticality ?? (existing.wsjfTimeCriticality as FibonacciValue);
     const newRr = wsjfRiskReduction ?? (existing.wsjfRiskReduction as FibonacciValue);
@@ -579,13 +613,38 @@ export async function setFeaturePi(
         });
       }
 
-      // Soft check: does the PI window overlap the parent Epic's planned window?
-      // Only when both endpoints of the Soll-Fenster are set on the Epic.
       if (feature.parentId) {
         const epic = await tx.initiative.findFirst({
           where: { id: feature.parentId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC },
-          select: { plannedStartAt: true, plannedEndAt: true, title: true },
+          // `stageGate` wird hier **gelesen**, nie geschrieben — ein Feature
+          // hat keinen eigenen Reifegrad (siehe `feature-reifegrad.test.ts`).
+          select: { plannedStartAt: true, plannedEndAt: true, title: true, stageGate: true },
         });
+
+        /**
+         * **Hartes Tor: einplanen erst ab L3.**
+         *
+         * Bis September 2026 war nur der *Start* gesperrt — und die Meldung
+         * dort lautete „bitte erst einplanen". Einplanen war also die
+         * Voraussetzung des Starts und selbst ungeregelt: ein Feature, dessen
+         * Epic noch kein Budget hatte, liess sich terminieren. Die Schwelle
+         * ist dieselbe wie beim Start, und sie hat jetzt **eine** Definition
+         * (`budgetDecided`).
+         *
+         * Nur beim Setzen eines PI. Ein Feature **aus** einem PI zu nehmen ist
+         * das Gegenteil einer Zusage und bleibt immer erlaubt — sonst sässen
+         * Features fest, deren Epic zurückgestuft wurde.
+         */
+        const planungGesperrt = featurePlanningBlockedKey({
+          parentId: feature.parentId,
+          parentStageGate: epic?.stageGate ?? null,
+        });
+        if (planungGesperrt) {
+          return err({ kind: "conflict" as const, reason: planungGesperrt });
+        }
+
+        // Soft check: does the PI window overlap the parent Epic's planned window?
+        // Only when both endpoints of the Soll-Fenster are set on the Epic.
         if (
           epic &&
           !rangeOverlapsPlannedWindow(
@@ -1058,7 +1117,7 @@ export async function setFeatureDeliveryStatus(
     if (to === "in_progress") {
       // Ein eigenständiges Feature hat kein Tor, auf das es warten könnte — das
       // Tor prüft eine Finanzierungsentscheidung, die es hier nicht gibt. Die
-      // Regel steht rein in `feature-start.ts` und ist dort durchgetestet;
+      // Regel steht rein in `feature-gates.ts` und ist dort durchgetestet;
       // vorher lag sie als `if`-Verschachtelung hier und war für den
       // elternlosen Fall nie erreichbar.
       const epic = feature.parentId
@@ -1067,7 +1126,7 @@ export async function setFeatureDeliveryStatus(
             select: { stageGate: true },
           })
         : null;
-      const blocked = featureStartBlockedReason({
+      const blocked = featureStartBlockedKey({
         piId: feature.piId,
         parentId: feature.parentId,
         parentStageGate: epic?.stageGate ?? null,

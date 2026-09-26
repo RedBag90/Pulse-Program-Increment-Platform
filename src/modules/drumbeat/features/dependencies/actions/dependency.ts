@@ -6,6 +6,7 @@ import {
   unlinkDependency,
   unlinkDependencyById,
   changeDependencyType,
+  relinkDependency,
 } from "@/modules/drumbeat/server/services/dependency";
 import { createServerAction } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
@@ -109,6 +110,38 @@ export const changeDependencyTypeAction = createServerAction({
   revalidate: "dependency",
   mapError: (e, t) =>
     formatDomainError(e, { fallbackKey: "errors.action.changeDependencyType" }, t),
+});
+
+/**
+ * **Umhängen: ein Ende aufnehmen und woanders ablegen.**
+ *
+ * Recht: `dependency.link`, wie beim Typwechsel nebenan — dort war dieselbe
+ * Frage zu beantworten, und dieselbe Antwort gilt. (Der Gegeneinwand ist
+ * notiert: `dependency.unlink` ist ein eigenes Recht, weil Lösen fremde
+ * Planungsannahmen kippt. Umhängen **löst** eine Beziehung auf. Die
+ * Entscheidung fiel bewusst für den einfacheren Weg.)
+ */
+export const relinkDependencyAction = createServerAction({
+  schema: z.object({
+    fromId: z.string().uuid(),
+    toId: z.string().uuid(),
+    type: TYPE,
+    newFromId: z.string().uuid(),
+    newToId: z.string().uuid(),
+    artId: z.string().uuid(),
+  }),
+  action: "dependency.link",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  service: (ctx, input) =>
+    relinkDependency(ctx, {
+      fromId: input.fromId as InitiativeId,
+      toId: input.toId as InitiativeId,
+      type: input.type,
+      newFromId: input.newFromId as InitiativeId,
+      newToId: input.newToId as InitiativeId,
+    }),
+  revalidate: "dependency",
+  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.relinkDependency" }, t),
 });
 
 /**

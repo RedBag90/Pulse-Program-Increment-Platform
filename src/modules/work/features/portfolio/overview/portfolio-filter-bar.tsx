@@ -88,7 +88,7 @@ export function PortfolioFilterBar({
     },
   ];
   const statusSections: MultiSelectSection[] = [
-    { options: STATUS_OPTIONS.map((s) => ({ value: s, label: STATUS_KEYS[s] ?? s })) },
+    { options: STATUS_OPTIONS.map((s) => ({ value: s, label: t(STATUS_KEYS[s] ?? s) })) },
   ];
   const ownerSections: MultiSelectSection[] = [
     { options: owners.map((o) => ({ value: o.id, label: o.label })) },

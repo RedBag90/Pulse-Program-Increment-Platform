@@ -256,7 +256,12 @@ function initialFacts(input: GateHistoryInput): EpicGateFacts {
     solutionHorizon: input.solutionHorizon ?? null,
     investmentHorizon: input.investmentHorizon ?? null,
     budgetAllocationSum: input.budgetAllocationSum ?? 0,
-    childFeatureStats: input.childFeatureStats ?? { total: 0, started: 0, completed: 0 },
+    childFeatureStats: input.childFeatureStats ?? {
+      total: 0,
+      scheduled: 0,
+      started: 0,
+      completed: 0,
+    },
     // Die beiden Zaehlungen sind fuer die Faltung ohne Belang: sie tragen nur
     // beratende Kriterien, und die halten keinen Schritt auf.
     kpiCount: 0,

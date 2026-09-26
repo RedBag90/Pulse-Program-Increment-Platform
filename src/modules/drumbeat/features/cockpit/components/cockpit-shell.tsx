@@ -102,6 +102,7 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
         filters={filters}
         filterOptions={filterOptions}
         featureCount={features.length}
+        hiddenBelowL3={model.hiddenBelowL3}
       />
 
       <main className="flex-1 px-6 pb-6 pt-4">
@@ -148,6 +149,8 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
             dependencies={dependencies}
             artId={selectedArt.id}
             canLinkDependency={permissions.canLinkDependency}
+            canUpdate={permissions.canUpdate}
+            savedPositions={model.graphPositions}
             pis={piStrip}
             selectedPiId={selectedPiId}
           />

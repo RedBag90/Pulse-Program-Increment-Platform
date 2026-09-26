@@ -34,7 +34,7 @@ const base = (over: Partial<GateHistoryInput> = {}): GateHistoryInput => ({
   benefitHypothesis: { measuresHypothesis: "x" },
   businessCase: { costSlices: [] },
   timeline: { estimates: {}, actuals: {} },
-  childFeatureStats: { total: 2, started: 2, completed: 2 },
+  childFeatureStats: { total: 2, scheduled: 2, started: 2, completed: 2 },
   budgetAllocationSum: 50_000,
   moves: [],
   ...over,

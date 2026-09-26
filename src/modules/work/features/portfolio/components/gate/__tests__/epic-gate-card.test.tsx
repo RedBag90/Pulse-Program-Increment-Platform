@@ -44,7 +44,7 @@ function facts(over: Partial<EpicGateFacts> = {}): EpicGateFacts {
     hasBusinessCaseContent: false,
     businessCaseApprovedAt: null,
     budgetAllocationSum: 0,
-    childFeatureStats: { total: 0, started: 0, completed: 0 },
+    childFeatureStats: { total: 0, scheduled: 0, started: 0, completed: 0 },
     kpiCount: 0,
     dependencyCount: 0,
     selectedForDetailingAt: null,
@@ -137,7 +137,7 @@ describe("EpicGateCard — die Checkliste", () => {
 
   it("setzt den Haken, sobald im Reiter Inhalt steht", () => {
     const { container } = karte({
-      childFeatureStats: { total: 2, started: 0, completed: 0 },
+      childFeatureStats: { total: 2, scheduled: 0, started: 0, completed: 0 },
       kpiCount: 1,
     });
     const erledigt = Array.from(container.querySelectorAll("li"))

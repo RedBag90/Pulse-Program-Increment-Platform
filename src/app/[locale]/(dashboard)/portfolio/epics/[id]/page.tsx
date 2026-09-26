@@ -35,10 +35,14 @@ import {
   EpicOverviewTab,
   OVERVIEW_PANELS_GATE,
 } from "@/modules/work/features/portfolio/components/epic-overview-tab";
-import { getTenantPractices } from "@/server/services/target-model";
 import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
 import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
-import { classifyEpic, classificationDrift } from "@/modules/work/domain/pb-submission";
+import {
+  classifyEpic,
+  classificationDrift,
+  provisionalEpicClass,
+} from "@/modules/work/domain/pb-submission";
+import { computeBusinessCaseTotals, parseBusinessCase } from "@/modules/work/domain/business-case";
 import { EpicGateCard } from "@/modules/work/features/portfolio/components/gate/epic-gate-card";
 import { EpicKpisTab } from "@/modules/work/features/portfolio/components/epic-kpis-tab";
 import { EpicBusinessCaseCalcTab } from "@/modules/work/features/portfolio/components/epic-business-case-calc-tab";
@@ -52,6 +56,7 @@ import { EpicOwnerAssign } from "@/modules/work/features/portfolio/components/ep
 import { EpicGateLadder } from "@/modules/work/features/portfolio/components/epic-gate-ladder";
 import { HorizonBadge } from "@/modules/core/org/features/solution/components/horizon-badge";
 import { currentGateStep, gateStepLabel } from "@/modules/work/domain/stage-gate";
+import { budgetDecided } from "@/modules/work/domain/feature-gates";
 import { tabsNeedingAttention } from "@/modules/work/domain/gate-criterion-target";
 import { EPIC_CLASS_KEYS } from "@/modules/work/domain/pb-submission";
 import { EPIC_TYPE_KEYS, isEpicType } from "@/modules/work/domain/portfolio-guardrails";
@@ -143,6 +148,74 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             },
           };
         },
+        /**
+         * Die Einordnung — Portfolio-Epic oder ART-Epic.
+         *
+         * Sie steht hier, weil sie zwei Dinge braucht, die Work nicht
+         * importieren darf: den Schwellenwert aus den Guardrails und, bei einem
+         * ART-Epic, den Blick in den ART-Rahmen (`RunTheBusinessItem`). Die
+         * **Gestalt** der Antwort gehört der Lesesicht; ob überhaupt gefragt
+         * wird, entscheidet dort die Practice `artEpics`.
+         */
+        classification: async () => {
+          const [row, guardrailRows, tenantRow] = await Promise.all([
+            db.initiative.findFirst({
+              where: { id: epicId, tenantId },
+              select: {
+                valueStreamId: true,
+                businessCase: true,
+                businessCaseApprovedAt: true,
+                hypothesisApprovedAt: true,
+                portfolioOverrideAt: true,
+                intendedClass: true,
+                artId: true,
+              },
+            }),
+            listValueStreamGuardrailTargets(db, tenantId),
+            db.tenant.findUnique({ where: { id: tenantId }, select: { guardrailTargets: true } }),
+          ]);
+          if (!row) return null;
+          const resolved = resolveGuardrailTargets(
+            guardrailRows,
+            tenantRow?.guardrailTargets ?? null,
+            row.valueStreamId,
+          );
+          const schwelle = resolved.targets.approval.portfolioThreshold;
+          const classification = classifyEpic(row, schwelle);
+          // Die Kosten aus dem Entwurf — sie tragen den Hinweis vor der
+          // Freigabe, wo `classifyEpic` noch `null` liefert.
+          const entwurfsKosten = computeBusinessCaseTotals(
+            parseBusinessCase(row.businessCase).current,
+          ).implementationCost;
+
+          // Nach der Quellen-Trennung ist ein ART-Epic von der PB-Liste
+          // ausgeschlossen. Fehlt ihm auch ein Rahmen, hat es überhaupt keinen
+          // Weg mehr — das wird ausgewiesen, nicht verschwiegen.
+          let fundingGap: "noArt" | "noPot" | null = null;
+          if (classification.epicClass === "art") {
+            if (row.artId == null) {
+              fundingGap = "noArt";
+            } else {
+              const pot = await db.runTheBusinessItem.count({
+                where: { tenantId, artId: row.artId, kind: "art_change", active: true },
+              });
+              if (pot === 0) fundingGap = "noPot";
+            }
+          }
+
+          return {
+            epicClass: classification.epicClass,
+            provisional: provisionalEpicClass(row, schwelle),
+            provisionalCost: entwurfsKosten > 0 ? entwurfsKosten : null,
+            cost: classification.cost,
+            threshold: classification.threshold,
+            overridden: classification.overridden,
+            source: resolved.source,
+            intended: (row.intendedClass ?? null) as "portfolio" | "art" | null,
+            fundingGap,
+            valueStreamId: row.valueStreamId,
+          };
+        },
       },
       enabled,
     ),
@@ -152,71 +225,28 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   ]);
   if (!model) redirect("/portfolio/epics");
 
-  // Guardrail 3: Portfolio- oder ART-Epic. Nur mit aktiver Practice — ohne sie
-  // gibt es die Unterscheidung nicht, und ein Badge dafür wäre eine Behauptung
-  // über ein Verfahren, das nicht läuft.
-  const practices = await getTenantPractices(db, tenantId);
-  const epicClassification = practices.artEpics
-    ? await (async () => {
-        const [row, guardrailRows, tenantRow] = await Promise.all([
-          db.initiative.findFirst({
-            where: { id: epicId, tenantId },
-            select: {
-              valueStreamId: true,
-              businessCase: true,
-              businessCaseApprovedAt: true,
-              hypothesisApprovedAt: true,
-              portfolioOverrideAt: true,
-              intendedClass: true,
-            },
-          }),
-          listValueStreamGuardrailTargets(db, tenantId),
-          db.tenant.findUnique({ where: { id: tenantId }, select: { guardrailTargets: true } }),
-        ]);
-        if (!row) return null;
-        const resolved = resolveGuardrailTargets(
-          guardrailRows,
-          tenantRow?.guardrailTargets ?? null,
-          row.valueStreamId,
-        );
-        const classification = classifyEpic(row, resolved.targets.approval.portfolioThreshold);
-
-        // Nach der Quellen-Trennung ist ein ART-Epic vom PB-Liste ausgeschlossen.
-        // Fehlt ihm auch ein Rahmen, hat es überhaupt keinen Weg mehr — das
-        // wird ausgewiesen, nicht verschwiegen.
-        let fundingGap: "noArt" | "noPot" | null = null;
-        if (classification.epicClass === "art") {
-          const art = await db.initiative.findFirst({
-            where: { id: epicId, tenantId },
-            select: { artId: true },
-          });
-          if (art?.artId == null) {
-            fundingGap = "noArt";
-          } else {
-            const pot = await db.runTheBusinessItem.count({
-              where: { tenantId, artId: art.artId, kind: "art_change", active: true },
-            });
-            if (pot === 0) fundingGap = "noPot";
-          }
-        }
-
-        return {
-          classification,
-          source: resolved.source,
-          fundingGap,
-          intended: (row.intendedClass ?? null) as "portfolio" | "art" | null,
-          valueStreamId: row.valueStreamId,
-        };
-      })()
-    : null;
+  /**
+   * Die Einordnung kommt jetzt als **Scheibe** aus der Lesesicht, nicht mehr
+   * als `X | null` aus einer eigenen Abfrage hier. Der Unterschied ist nicht
+   * kosmetisch: `classification?.intended ?? null` machte aus „die Practice ist
+   * aus" ein „noch nicht eingeordnet" — gespeichert wurde, angezeigt nicht.
+   * Siehe `Gated` (`kernel/domain/gated.ts`).
+   */
+  const classification = model.classification;
 
   // Weicht die abgeleitete Klasse von der beim Anlegen hinterlegten Erwartung
-  // ab, tritt vor dem L3.1-Antrag ein Dialog dazwischen. Bestehen darf man nur
+  // ab, tritt vor dem L2-Antrag ein Dialog dazwischen. Bestehen darf man nur
   // nach unten (Portfolio-Sache bleiben) — und nur mit dem Recht dafür.
   const classDrift = (() => {
-    if (!epicClassification) return null;
-    const { intended, classification } = epicClassification;
-    const derived = classification.epicClass;
+    if (classification.disabled) return null;
+    const { intended, valueStreamId } = classification;
+    /**
+     * **Entschieden schlägt vorläufig.** Vor der Freigabe gibt es nur den
+     * Entwurf — und genau dort wird der Hinweis gebraucht: der Dialog prüfte
+     * bis September 2026 gegen die entschiedene Klasse und konnte deshalb beim
+     * L2-Antrag nie erscheinen, weil die erst durch diese Abnahme entsteht.
+     */
+    const derived = classification.epicClass ?? classification.provisional;
     if (intended == null || derived == null) return null;
     const drift = classificationDrift(intended, derived);
     if (drift === "none") return null;
@@ -224,14 +254,14 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       drift,
       intended,
       derived,
-      cost: classification.cost,
+      // Die Kosten, gegen die entschieden wurde — vor der Freigabe stehen sie
+      // nur im Entwurf, und `classifyEpic` gibt dort `null` zurück.
+      cost: classification.cost ?? classification.provisionalCost,
       threshold: classification.threshold,
-      valueStreamId: epicClassification.valueStreamId ?? "",
+      valueStreamId: valueStreamId ?? "",
       canOverride: hasCapability(principal, "epic.portfolio_override", {
         tenantId: principal.tenantId,
-        ...(epicClassification.valueStreamId
-          ? { valueStreamId: epicClassification.valueStreamId }
-          : {}),
+        ...(valueStreamId ? { valueStreamId } : {}),
       }),
     };
   })();
@@ -320,16 +350,13 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
               <span aria-hidden className="size-1.5 rounded-full bg-current" />
               {gateStepLabel(gateNow, t)}
             </span>
-            {epicClassification ? (
+            {classification.disabled ? null : (
               <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
-                {epicClassification.classification.epicClass
-                  ? t(
-                      EPIC_CLASS_KEYS[epicClassification.classification.epicClass] ??
-                        epicClassification.classification.epicClass,
-                    )
-                  : "Noch nicht eingeordnet"}
+                {classification.epicClass
+                  ? t(EPIC_CLASS_KEYS[classification.epicClass] ?? classification.epicClass)
+                  : t("work.epic.nochNichtEingeordnet")}
               </span>
-            ) : null}
+            )}
             <HorizonBadge
               horizon={resolveEpicHorizon({
                 investmentHorizon: epic.investmentHorizon,
@@ -413,7 +440,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             canOverrideHorizon={model.canOverrideHorizon}
             totals={model.heroTotals}
             solutions={availableSolutions}
-            classification={epicClassification}
+            classification={classification}
             budgetStanding={model.budgeting.disabled ? null : model.budgeting.standing}
             allocationState={model.budgeting.disabled ? null : model.budgeting.allocationState}
             fundable={
@@ -596,6 +623,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             canEdit={model.canEdit}
             features={model.breakdownFeatures}
             pisByArt={model.drumbeat.disabled ? {} : model.drumbeat.pisByArt}
+            canSchedule={budgetDecided(epic.stageGate)}
             showWsjf={model.showWsjf}
             canSetDelivery={model.canSetDelivery}
             dependencies={model.dependencies}
@@ -616,6 +644,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             canEdit={model.canEdit}
             features={model.breakdownFeatures}
             pisByArt={model.drumbeat.disabled ? {} : model.drumbeat.pisByArt}
+            canSchedule={budgetDecided(epic.stageGate)}
             showWsjf={model.showWsjf}
             canSetDelivery={model.canSetDelivery}
             dependencies={model.dependencies}

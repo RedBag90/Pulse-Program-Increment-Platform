@@ -15,6 +15,7 @@ import { intendedClassOptions } from "@/modules/work/features/portfolio/componen
 import { EPIC_CLASS_KEYS } from "@/modules/work/domain/pb-submission";
 import { PortfolioOverrideDialog } from "@/modules/work/features/portfolio/components/portfolio-override-dialog";
 import { useLocale } from "next-intl";
+import type { Gated } from "@/modules/core/kernel/domain/gated";
 
 interface Props {
   epicId: string;
@@ -31,15 +32,30 @@ interface Props {
    * **und** um ein ART-Epic zur Portfolio-Sache zu erklären.
    */
   canOverrideHorizon: boolean;
-  /** Die beim Anlegen hinterlegte Erwartung. Vor L2 das Einzige, was es gibt. */
-  intendedClass: "portfolio" | "art" | null;
   /**
-   * Die **abgeleitete** Klasse, sobald der Business Case freigegeben ist —
-   * `null`, solange sie noch nicht entstanden ist.
+   * **Die Einordnung als Scheibe, nicht als drei Felder.**
+   *
+   * Bis September 2026 standen hier `intendedClass`, `derivedClass` und
+   * `portfolioThreshold` einzeln und je `… | null`. Die Aufrufstelle füllte sie
+   * mit `classification?.intended ?? null` — und weil die Lesestelle hinter der
+   * Practice `artEpics` lag, das Feld aber davor, wurde aus „die Practice ist
+   * aus" ein „noch nicht eingeordnet": gespeichert wurde, angezeigt nicht.
+   *
+   * Als `Gated` lässt sich das nicht mehr schreiben. Ist die Practice aus,
+   * entfällt der Abschnitt — Epic-Typ und Horizont bleiben, die hängen nicht
+   * daran.
    */
-  derivedClass: "portfolio" | "art" | null;
-  /** Das Portfolio-Limit des Wertstroms; steht im Etikett der Optionen. */
-  portfolioThreshold: number | null;
+  classification: Gated<{
+    /** Die beim Anlegen hinterlegte Erwartung. Vor L2 das Einzige, was es gibt. */
+    intended: "portfolio" | "art" | null;
+    /**
+     * Die **abgeleitete** Klasse, sobald der Business Case freigegeben ist —
+     * `null`, solange sie noch nicht entstanden ist.
+     */
+    derived: "portfolio" | "art" | null;
+    /** Das Portfolio-Limit des Wertstroms; steht im Etikett der Optionen. */
+    threshold: number | null;
+  }>;
   /** Gesetzt, wenn jemand die Ableitung bereits überschrieben hat. */
   portfolioOverrideAtIso: string | null;
   /** Für `setPortfolioOverrideAction` — der Scope des Rechts. */
@@ -71,9 +87,7 @@ export function EpicClassificationForm({
   businessCaseApprovedAtIso,
   canEdit,
   canOverrideHorizon,
-  intendedClass,
-  derivedClass,
-  portfolioThreshold,
+  classification,
   portfolioOverrideAtIso,
   valueStreamId,
 }: Props) {
@@ -162,52 +176,73 @@ export function EpicClassificationForm({
          * Portfolio-Entscheidung, und der Rahmen eines ARTs könnte es ohnehin
          * nicht tragen.
          */}
-        <div>
-          <label
-            htmlFor="epic-class-select"
-            className="mb-1.5 block text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground"
-          >
-            {t("work.epic.einordnung")}
-          </label>
-          {derivedClass == null ? (
-            canEdit ? (
-              <select
-                id="epic-class-select"
-                value={intendedClass ?? ""}
-                disabled={busy}
-                onChange={(e) => update("intendedClass", e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
-              >
-                <option value="">{t("work.epic.nochNichtEingeordnet")}</option>
-                {intendedClassOptions(portfolioThreshold, t, locale).map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <div className="flex min-h-9 items-center rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-                {intendedClass ? t(EPIC_CLASS_KEYS[intendedClass]) : "—"}
-              </div>
-            )
-          ) : (
-            <div className="flex min-h-9 items-center justify-between gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-              <span>{t(EPIC_CLASS_KEYS[derivedClass])}</span>
-              {canOverrideHorizon && derivedClass === "art" && portfolioOverrideAtIso == null && (
-                <PortfolioOverrideDialog epicId={epicId} valueStreamId={valueStreamId ?? ""} />
-              )}
-            </div>
-          )}
-          <p className="mt-1 text-xs text-muted-foreground">
-            {derivedClass == null
-              ? t("work.epic.einordnungErwartung")
-              : portfolioOverrideAtIso
-                ? t("work.epic.einordnungUeberschrieben", {
-                    datum: dateLabel(portfolioOverrideAtIso),
-                  })
-                : t("work.epic.einordnungAbgeleitet")}
-          </p>
-        </div>
+        {/**
+         * **Der Abschnitt steht und fällt mit der Practice — als Ganzes.**
+         *
+         * Vorher hing das Abzeichen darüber hinter `artEpics`, dieses Feld
+         * aber davor: man konnte speichern, was nie zurückgelesen wurde. Jetzt
+         * entscheidet **eine** Bedingung über beides, und der Typ erzwingt sie.
+         */}
+        {classification.disabled
+          ? null
+          : (() => {
+              const { intended, derived, threshold } = classification;
+              return (
+                <div>
+                  <label
+                    htmlFor="epic-class-select"
+                    className="mb-1.5 block text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground"
+                  >
+                    {t("work.epic.einordnung")}
+                  </label>
+                  {derived == null ? (
+                    canEdit ? (
+                      <select
+                        id="epic-class-select"
+                        value={intended ?? ""}
+                        disabled={busy}
+                        onChange={(e) => update("intendedClass", e.target.value)}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
+                      >
+                        <option value="">{t("work.epic.nochNichtEingeordnet")}</option>
+                        {intendedClassOptions(threshold, t, locale).map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="flex min-h-9 items-center rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+                        {intended ? t(EPIC_CLASS_KEYS[intended]) : "—"}
+                      </div>
+                    )
+                  ) : (
+                    <div className="flex min-h-9 items-center justify-between gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+                      <span>{t(EPIC_CLASS_KEYS[derived])}</span>
+                      {canOverrideHorizon &&
+                        derived === "art" &&
+                        portfolioOverrideAtIso == null && (
+                          <PortfolioOverrideDialog
+                            epicId={epicId}
+                            valueStreamId={valueStreamId ?? ""}
+                          />
+                        )}
+                    </div>
+                  )}
+                  {/* Vor der Freigabe steht die Auskunft schon im Abzeichen darüber —
+                hier stünde sie zum dritten Mal. */}
+                  {derived == null ? null : (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {portfolioOverrideAtIso
+                        ? t("work.epic.einordnungUeberschrieben", {
+                            datum: dateLabel(portfolioOverrideAtIso),
+                          })
+                        : t("work.epic.einordnungAbgeleitet")}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
         <div>
           <label
             htmlFor="epic-horizon-select"

@@ -127,9 +127,9 @@ describe("resolveTour — Filterung", () => {
   it("auch die Prosa wird gefiltert — nicht nur die Schritte", () => {
     const full = resolveTour(ROLE_PLAYBOOKS[RTE], tenantWith([...MODULE_KEYS], RTE));
     const coreOnly = resolveTour(ROLE_PLAYBOOKS[RTE], tenantWith([], RTE));
-    expect(coreOnly.responsibilities.length).toBeLessThan(full.responsibilities.length);
+    expect(coreOnly.responsibilityKeys.length).toBeLessThan(full.responsibilityKeys.length);
     // Die Übergabe „…plant er die Umsetzung im ART" hängt an Drumbeat.
-    expect(coreOnly.handoffs.length).toBeLessThan(full.handoffs.length);
+    expect(coreOnly.handoffKeys.length).toBeLessThan(full.handoffKeys.length);
   });
 
   it("die Mission überlebt jede Filterung", () => {

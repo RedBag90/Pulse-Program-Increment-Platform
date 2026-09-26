@@ -29,7 +29,7 @@ function facts(stageGate: StageGate, over: Partial<EpicGateFacts> = {}): EpicGat
     hasBusinessCaseContent: false,
     businessCaseApprovedAt: null,
     budgetAllocationSum: 0,
-    childFeatureStats: { total: 0, started: 0, completed: 0 },
+    childFeatureStats: { total: 0, scheduled: 0, started: 0, completed: 0 },
     selectedForDetailingAt: null,
     selectedForAnalyzingAt: null,
     implementationStartedAt: null,
@@ -203,7 +203,7 @@ describe("gateReadiness — L2 (Business-Case-Freigabe)", () => {
 
   it("hakt die Reiter ab, sobald dort Inhalt steht", () => {
     const gepflegt = facts("L2", {
-      childFeatureStats: { total: 3, started: 0, completed: 0 },
+      childFeatureStats: { total: 3, scheduled: 0, started: 0, completed: 0 },
       dependencyCount: 2,
       kpiCount: 1,
     });
@@ -257,27 +257,54 @@ describe("gateReadiness — L4 (Start der Umsetzung)", () => {
   it("ist beratend: der Antrag selbst ist der bewusste Start", () => {
     const f = facts("L3", { budgetAllocationSum: 1 });
     expect(gateReadiness(f, "L4").ready).toBe(true);
-    expect(keys(f, "L4", "unsatisfied")).toEqual(["feature_started"]);
+    expect(keys(f, "L4", "unsatisfied")).toEqual(["features_scheduled", "feature_started"]);
     expect(keys(f, "L4", "blocking-unsatisfied")).toEqual([]);
+  });
+
+  /**
+   * **Zwischen L3 und L4.1 liegt das Einplanen** — das Budget steht, die
+   * Features brauchen Termine. Die Checkliste sagte dazu bis September 2026
+   * nichts und fragte nur, ob schon jemand angefangen hat.
+   */
+  it("meldet das Einplanen als erledigt, sobald ein Feature ein PI trägt", () => {
+    const f = facts("L3", {
+      budgetAllocationSum: 1,
+      childFeatureStats: { total: 3, scheduled: 1, started: 0, completed: 0 },
+    });
+    expect(keys(f, "L4", "unsatisfied")).toEqual(["feature_started"]);
+  });
+
+  it("zeigt es ohne Drumbeat gar nicht — ohne PIs gibt es nichts einzuplanen", () => {
+    // Ein unerfüllbares Kriterium ist schlimmer als keines. Dasselbe Vorgehen
+    // wie bei `budget_allocated` ohne Budget-Modul.
+    const f = facts("L3", { budgetAllocationSum: 1, drumbeatEnabled: false });
+    expect(keys(f, "L4", "unsatisfied")).toEqual(["feature_started"]);
+    expect(gateReadiness(f, "L4").ready).toBe(true);
   });
 });
 
 describe("gateReadiness — L4.2 (Umsetzung fertig)", () => {
   it("ist beratend: offene Features halten den Antrag nicht auf", () => {
-    const f = facts("L4", { childFeatureStats: { total: 3, started: 3, completed: 2 } });
+    const f = facts("L4", {
+      childFeatureStats: { total: 3, scheduled: 3, started: 3, completed: 2 },
+    });
     expect(gateReadiness(f, "L4.2").ready).toBe(true);
     expect(keys(f, "L4.2", "unsatisfied")).toEqual(["features_completed"]);
     expect(keys(f, "L4.2", "blocking-unsatisfied")).toEqual([]);
   });
 
   it("meldet das Kriterium als erfüllt, sobald alle Child-Features fertig sind", () => {
-    const f = facts("L4", { childFeatureStats: { total: 3, started: 3, completed: 3 } });
+    const f = facts("L4", {
+      childFeatureStats: { total: 3, scheduled: 3, started: 3, completed: 3 },
+    });
     expect(keys(f, "L4.2", "unsatisfied")).toEqual([]);
   });
 
   it("ein Epic ganz ohne Features erfüllt das Kriterium nicht, blockiert aber nicht", () => {
     // „0 von 0" bleibt unerfüllt (allChildrenCompleted) — nur eben ohne Tor.
-    const f = facts("L4", { childFeatureStats: { total: 0, started: 0, completed: 0 } });
+    const f = facts("L4", {
+      childFeatureStats: { total: 0, scheduled: 0, started: 0, completed: 0 },
+    });
     expect(gateReadiness(f, "L4.2").ready).toBe(true);
     expect(keys(f, "L4.2", "unsatisfied")).toEqual(["features_completed"]);
   });
@@ -288,7 +315,7 @@ describe("gateReadiness — L5 (Impact)", () => {
     // Alle Features fertig, aber nicht bestätigt ⇒ noch kein Impact-Antrag.
     expect(
       gateReadiness(
-        facts("L4", { childFeatureStats: { total: 3, started: 3, completed: 3 } }),
+        facts("L4", { childFeatureStats: { total: 3, scheduled: 3, started: 3, completed: 3 } }),
         "L5",
       ).ready,
     ).toBe(false);
@@ -296,7 +323,7 @@ describe("gateReadiness — L5 (Impact)", () => {
     expect(
       gateReadiness(
         facts("L4", {
-          childFeatureStats: { total: 3, started: 3, completed: 3 },
+          childFeatureStats: { total: 3, scheduled: 3, started: 3, completed: 3 },
           implementationCompletedAt: new Date("2026-05-01"),
         }),
         "L5",

@@ -36,6 +36,7 @@ import {
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { FeatureCard } from "./feature-card";
+import { PiJobSize } from "./pi-job-size";
 
 interface OptimisticPatch {
   id: string;
@@ -81,19 +82,19 @@ const LANES: ReadonlyArray<LaneDef> = [
   // Eine lange Bahn ist dort kein Anzeigefehler, sondern ein WIP-Signal.
   {
     value: "approved",
-    label: FEATURE_STATUS_KEYS.approved,
+    labelKey: FEATURE_STATUS_KEYS.approved,
     color: FEATURE_STATUS_LANE.approved,
     limit: PILE_LIMIT,
   },
   {
     value: "in_progress",
-    label: FEATURE_STATUS_KEYS.in_progress,
+    labelKey: FEATURE_STATUS_KEYS.in_progress,
     color: FEATURE_STATUS_LANE.in_progress,
   },
-  { value: "blocked", label: FEATURE_STATUS_KEYS.blocked, color: FEATURE_STATUS_LANE.blocked },
+  { value: "blocked", labelKey: FEATURE_STATUS_KEYS.blocked, color: FEATURE_STATUS_LANE.blocked },
   {
     value: "completed",
-    label: FEATURE_STATUS_KEYS.completed,
+    labelKey: FEATURE_STATUS_KEYS.completed,
     color: FEATURE_STATUS_LANE.completed,
     limit: PILE_LIMIT,
   },
@@ -270,6 +271,9 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
                 <span>{p.name}</span>
                 <span className="text-label text-muted-foreground">{p.featureCount}</span>
               </div>
+              {/* Unter dem Titel: wie viel Arbeit hier liegt — nicht nur wie
+                  viele Zeilen. */}
+              <PiJobSize pi={p} />
             </div>
           );
         })}
@@ -326,7 +330,7 @@ function LaneRow({
           beim Scrollen sah man sie nie. Oben und klebend. */}
       <div className="pr-2 pt-2">
         <span className="sticky top-16 block text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          {lane.label}
+          {t(lane.labelKey)}
         </span>
       </div>
       {pis.map((p) => {
@@ -436,7 +440,7 @@ function FeatureMoveMenu({
                 key={l.value}
                 onClick={() => onMove(feature.id, { targetStatus: l.value })}
               >
-                {l.label}
+                {t(l.labelKey)}
               </DropdownMenuItem>
             ))}
           </DropdownMenuSubContent>

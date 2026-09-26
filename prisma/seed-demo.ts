@@ -896,7 +896,7 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
         },
         actuals: {},
       },
-      childFeatureStats: { total: 2, started: 2, completed: 2 },
+      childFeatureStats: { total: 2, scheduled: 2, started: 2, completed: 2 },
       // Dieselbe Regel wie unten bei den Allokationen — vorher standen hier
       // zwei verschiedene Fassungen im selben Seed.
       budgetAllocationSum: mayHoldAllocation(target) ? 250_000 : 0,

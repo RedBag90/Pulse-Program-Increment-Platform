@@ -241,7 +241,7 @@ export const EPIC_LIFECYCLE: Guide = {
           ],
         },
         {
-          title: "L3 → L4.1 · Umsetzung starten",
+          title: "L3 → L4.1 · Feature-Umsetzung planen",
           body: [
             {
               kind: "paragraph",

@@ -116,6 +116,15 @@ interface Props {
   features: BreakdownFeature[];
   /** PI options keyed by ART — a child Feature's PI picker only lists its ART's PIs. */
   pisByArt: Record<string, Pi[]>;
+  /**
+   * Hat das Epic Budget (L3 oder später)? Erst dann lassen sich seine Features
+   * einplanen — sonst steht die PI-Spalte als Text statt als Auswahl da.
+   *
+   * Die **Zeilen** bleiben: dies ist der Reiter des Epics, keine
+   * Planungsübersicht. Wer seine Features nicht sieht, kann sie auch nicht
+   * schneiden.
+   */
+  canSchedule: boolean;
   /** Sign-off state for the Breakdown section (omit to hide the banner). */
   /** Feature-Feature-Dependencies fuer die Netzplan-Ansicht. Cross-
    *  Epic-Endpunkte tragen Ghost-Info (Roadmap-P6). */
@@ -242,6 +251,7 @@ export function EpicBreakdownTab({
   canEdit,
   features,
   pisByArt,
+  canSchedule,
   dependencies,
   canLinkDependency,
   breakdownLayoutPositions,
@@ -440,6 +450,7 @@ export function EpicBreakdownTab({
                       artId={f.artId}
                       currentPiId={f.piId}
                       pis={pisByArt[f.artId] ?? []}
+                      canSchedule={canSchedule}
                     />
                   );
                 },

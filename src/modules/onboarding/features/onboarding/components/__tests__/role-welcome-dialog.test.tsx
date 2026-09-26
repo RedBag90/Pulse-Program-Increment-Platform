@@ -94,8 +94,11 @@ describe("RoleWelcomeDialog", () => {
     render(<RoleWelcomeDialog notice={newRole} onStartTour={vi.fn()} onDismiss={vi.fn()} />);
     // Die Fläche zeigt das Wort, der Tour-Bau den Schlüssel.
     expect(screen.getByText(t(tour.missionKey))).toBeInTheDocument();
-    for (const r of tour.responsibilities) {
-      expect(screen.getByText(r)).toBeInTheDocument();
+    for (const schluessel of tour.responsibilityKeys) {
+      // Vorher stand hier `getByText(r)` — der **Schlüssel**. Der Test war grün,
+      // weil die Fläche ihn tatsächlich roh zeichnete. Er nagelte den Fehler
+      // fest, statt ihn zu finden.
+      expect(screen.getByText(t(schluessel))).toBeInTheDocument();
     }
   });
 

@@ -14,10 +14,10 @@ import type {
 } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 
 const LANES: readonly BoardLane[] = [
-  { value: "approved", label: "Bereit", color: "" },
-  { value: "in_progress", label: "In Umsetzung", color: "" },
-  { value: "blocked", label: "Blockiert", color: "" },
-  { value: "completed", label: "Fertig", color: "" },
+  { value: "approved", labelKey: "drumbeat.featureStatus.approved", color: "" },
+  { value: "in_progress", labelKey: "drumbeat.featureStatus.inProgress", color: "" },
+  { value: "blocked", labelKey: "drumbeat.featureStatus.blocked", color: "" },
+  { value: "completed", labelKey: "drumbeat.featureStatus.completed", color: "" },
 ];
 
 function feature(id: string, piId: string | null, status: FeatureStatus): CockpitFeature {
@@ -33,6 +33,7 @@ function feature(id: string, piId: string | null, status: FeatureStatus): Cockpi
     ownerId: null,
     ownerName: null,
     wsjfComputed: null,
+    wsjfJobSize: null,
     hasBlocker: false,
     blockerHint: null,
     solutionName: null,
@@ -47,6 +48,8 @@ function pi(id: string, name: string): CockpitPiSlot {
     endDate: new Date("2026-03-31"),
     status: "active",
     featureCount: 0,
+    plannedJobSize: 0,
+    capacityJobSize: null,
     isCurrent: false,
   };
 }
@@ -127,7 +130,9 @@ describe("buildBoardMatrix", () => {
  * Karte ins übernächste PI schob, sah sie nie wieder.
  */
 describe("buildBoardMatrix — die Überlauf-Spalte", () => {
-  const lanes = [{ value: "approved" as const, label: "Bereit", color: "" }];
+  const lanes = [
+    { value: "approved" as const, labelKey: "drumbeat.featureStatus.approved", color: "" },
+  ];
   const pi = (id: string): CockpitPiSlot => ({
     id,
     name: id,
@@ -135,6 +140,8 @@ describe("buildBoardMatrix — die Überlauf-Spalte", () => {
     endDate: new Date(0),
     status: "planned",
     featureCount: 0,
+    plannedJobSize: 0,
+    capacityJobSize: null,
     isCurrent: false,
   });
   const feat = (id: string, piId: string | null): CockpitFeature =>

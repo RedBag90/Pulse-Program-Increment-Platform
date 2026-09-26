@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { EpicId, StageGate } from "@/modules/core/kernel/domain/types";
+import type { Gated } from "@/modules/core/kernel/domain/gated";
 import { currentGateStep, type GateStep } from "@/modules/work/domain/stage-gate";
 import type { Principal } from "@/server/auth/principal";
 import { authorize, hasCapability } from "@/server/auth/authorize";
@@ -186,16 +187,64 @@ export interface EpicBudgetPortResult {
 
 export type EpicBudgetPort = (facts: EpicBudgetFacts) => Promise<EpicBudgetPortResult | null>;
 
+/**
+ * Port: die Einordnung dieses Epics — Portfolio-Epic oder ART-Epic.
+ *
+ * **Warum ein Port und kein Import.** Die Antwort braucht den Schwellenwert aus
+ * den Guardrails und, bei einem ART-Epic, den Blick in den ART-Rahmen
+ * (`RunTheBusinessItem`) — eine Budgeting-Tabelle. Work importiert nichts aus
+ * Budgeting (ADR-0013), also stellt die Route die Antwort zusammen und Work
+ * besitzt nur ihre **Gestalt**. Genau wie beim Budget daneben.
+ *
+ * `null` heisst: die Practice `artEpics` ist aus — dann gibt es die
+ * Unterscheidung nicht, und die Scheibe meldet `disabled`.
+ */
+export interface EpicClassificationPortResult {
+  /** Die **entschiedene** Klasse; `null`, solange der Business Case nicht freigegeben ist. */
+  epicClass: "portfolio" | "art" | null;
+  /**
+   * Die Klasse, die der **Entwurf** ergäbe — `null` ohne eingetragene Kosten.
+   *
+   * Nur für den Hinweis vor dem L2-Antrag. Sie entscheidet nichts und darf in
+   * keinen Budgeting-Weg geraten; siehe `provisionalEpicClass`.
+   */
+  provisional: "portfolio" | "art" | null;
+  /** Die Kosten aus dem **Entwurf** — dieselbe Summe, die `provisional` erzeugt hat. */
+  provisionalCost: number | null;
+  /** Die Kosten, aus denen sie entstand; `null` ohne Freigabe. */
+  cost: number | null;
+  /** Die Portfolio-Schwelle dieses Wertstroms. */
+  threshold: number;
+  /** Per `portfolioOverrideAt` von Hand auf Portfolio gesetzt. */
+  overridden: boolean;
+  /** Woher der Schwellenwert stammt (Wertstrom oder Mandant). */
+  source: string;
+  /** Die **erwartete** Klasse aus dem Anlege-Dialog. Vor L2 ist sie alles, was es gibt. */
+  intended: "portfolio" | "art" | null;
+  /** Ein ART-Epic ohne ART oder ohne aktiven Rahmen hat keinen Geldweg. */
+  fundingGap: "noArt" | "noPot" | null;
+  valueStreamId: string | null;
+}
+
+export type EpicClassificationPort = () => Promise<EpicClassificationPortResult | null>;
+
 export interface EpicDetailPorts {
   pis: EpicPisPort;
   dependencies: EpicDependenciesPort;
   budget: EpicBudgetPort;
+  classification: EpicClassificationPort;
 }
 
 // ---------------------------------------------------------------------------
-// Explicit degradation — the Drumbeat and Budgeting capabilities are optional.
-// When a capability is off the loader passes empty port results AND the builder
-// emits `{ disabled: true }` (never a "disabled=false, empty" slice).
+// Explicit degradation — Drumbeat, Budgeting, Risks, die Reifegrad-Achse und
+// die Einordnung sind optional. Ist eine Fähigkeit aus, liefert der Lader
+// leere Port-Ergebnisse UND der Erbauer `{ disabled: true }` — nie eine
+// Scheibe mit `disabled: false` und leerem Inhalt.
+//
+// Die Regel steht seit September 2026 nicht mehr nur hier, sondern als Typ:
+// `Gated<T>` (`kernel/domain/gated.ts`). Sie ist zweimal gebrochen worden,
+// beide Male, weil `T | null` „abwesend" und „leer" nicht unterscheidet; der
+// Docblock dort nennt beide Fälle.
 // ---------------------------------------------------------------------------
 
 /**
@@ -213,32 +262,40 @@ export interface EpicDetailPorts {
  * *ist* Drumbeat; eine Abhängigkeit zwischen zwei Features eines Epics ist es
  * seit dem Umzug nicht mehr.
  */
-export type DrumbeatSlice =
-  | { disabled: true }
-  | {
-      disabled: false;
-      pisByArt: Record<string, { id: string; name: string }[]>;
-      breakdownPis: { id: string; name: string; startDate: string }[];
-    };
+export type DrumbeatSlice = Gated<{
+  pisByArt: Record<string, { id: string; name: string }[]>;
+  breakdownPis: { id: string; name: string; startDate: string }[];
+}>;
 
-export type BudgetingSlice =
-  | { disabled: true }
-  | {
-      disabled: false;
-      allocated: boolean;
-      allocatedByPeriod: Record<string, number>;
-      /** Der Stand für das Budget-Panel im Overview: Betrag, Zeitraum, Zustand. */
-      standing: EpicBudgetStandingView;
-      /** „Nicht begonnen" · „Gebunden" · „Verbraucht"; `null` ohne Zuteilung. */
-      allocationState: EpicAllocationStateView | null;
-      /** Vor `firstStep` kann dieses Epic gar kein Geld halten — das erklärt ein
-       *  leeres Budget, statt es nur zu melden. */
-      fundable: { may: boolean; firstStep: string };
-    };
+export type BudgetingSlice = Gated<{
+  allocated: boolean;
+  allocatedByPeriod: Record<string, number>;
+  /** Der Stand für das Budget-Panel im Overview: Betrag, Zeitraum, Zustand. */
+  standing: EpicBudgetStandingView;
+  /** „Nicht begonnen" · „Gebunden" · „Verbraucht"; `null` ohne Zuteilung. */
+  allocationState: EpicAllocationStateView | null;
+  /** Vor `firstStep` kann dieses Epic gar kein Geld halten — das erklärt ein
+   *  leeres Budget, statt es nur zu melden. */
+  fundable: { may: boolean; firstStep: string };
+}>;
 
 /** Risks is composed in the Epic route (composition root) off the full risks
- *  model; Work only carries the entitlement gate. */
+ *  model; Work only carries the entitlement gate. Kein `Gated`, weil die
+ *  Scheibe gar keinen Inhalt trägt — es gibt nichts, was „leer" heissen
+ *  könnte. */
 export type RisksSlice = { disabled: boolean };
+
+/**
+ * **Die Einordnung: Portfolio-Epic oder ART-Epic.**
+ *
+ * Eine `Gated`-Scheibe, und das ist der ganze Punkt. Bis September 2026 stand
+ * hier `X | null`, zusammengebaut in der Route statt in der Lesesicht — und
+ * weil das Auswahlfeld **vor** der Practice-Bedingung stand und seine
+ * Lesestelle dahinter, machte `classification?.intended ?? null` aus „die
+ * Practice ist aus" ein „noch nicht eingeordnet". Gespeichert wurde,
+ * angezeigt nicht. Siehe {@link Gated}.
+ */
+export type ClassificationSlice = Gated<EpicClassificationPortResult>;
 
 // ---------------------------------------------------------------------------
 // Inputs — the plain-data bag the loader hands the pure builder.
@@ -257,6 +314,8 @@ export interface EpicDetailInputs {
   dependencies: BreakdownEdge[];
   /** Port result — null when `enabled.budgeting` is false. */
   budget: EpicBudgetPortResult | null;
+  /** Port result — null, wenn die Practice `artEpics` aus ist. */
+  classification: EpicClassificationPortResult | null;
   /** Persisted breakdown-network node positions (Work-owned, always loaded). */
   breakdownPositions: Map<string, { x: number; y: number }>;
   enabled: { drumbeat: boolean; budgeting: boolean; risks: boolean };
@@ -329,6 +388,7 @@ export interface EpicDetailModel {
   drumbeat: DrumbeatSlice;
   budgeting: BudgetingSlice;
   risks: RisksSlice;
+  classification: ClassificationSlice;
 
   activityEvents: ActivityItem[];
   /** `true` ⇒ es gibt aeltere Ereignisse, die diese Seite nicht zeigt. */
@@ -438,30 +498,27 @@ export interface EpicGateHistoryView {
  * Modul-Slices: ist die Stage-Gate-Practice im Zielbild aus, gibt es die Achse
  * nicht, und die UI rendert gar nichts statt leerer Zustände.
  */
-export type EpicGateSlice =
-  | { disabled: true }
-  | {
-      disabled: false;
-      /** Der aktuelle Schritt — innerhalb L4 ggf. bereits „L4.2". */
-      current: GateStep;
-      /** Der nächste Schritt, oder null am Endschritt L5. */
-      next: GateStep | null;
-      /** Kriterien-Checkliste für `current → next`; null am Endgate. */
-      readiness: GateReadiness | null;
-      openRequest: EpicGateRequestView | null;
-      history: EpicGateHistoryView[];
-      canRequest: boolean;
-      canWithdraw: boolean;
-      canRevert: boolean;
-      /** Der Betrachter ist selbst ein noch offener Abnehmer. */
-      viewerMustDecide: boolean;
-      /** „I need help" ist gesetzt (Owner bittet um Unterstützung). */
-      helpRequested: boolean;
-      /** Der Betrachter darf die Bitte setzen/zurücknehmen (= ist der Epic-Owner). */
-      canRequestHelp: boolean;
-      /** Besetzung je Partei am Antrag; null, wo der Schritt keine zulässt. */
-      partyStaffing: GatePartyStaffing | null;
-    };
+export type EpicGateSlice = Gated<{
+  /** Der aktuelle Schritt — innerhalb L4 ggf. bereits „L4.2". */
+  current: GateStep;
+  /** Der nächste Schritt, oder null am Endschritt L5. */
+  next: GateStep | null;
+  /** Kriterien-Checkliste für `current → next`; null am Endgate. */
+  readiness: GateReadiness | null;
+  openRequest: EpicGateRequestView | null;
+  history: EpicGateHistoryView[];
+  canRequest: boolean;
+  canWithdraw: boolean;
+  canRevert: boolean;
+  /** Der Betrachter ist selbst ein noch offener Abnehmer. */
+  viewerMustDecide: boolean;
+  /** „I need help" ist gesetzt (Owner bittet um Unterstützung). */
+  helpRequested: boolean;
+  /** Der Betrachter darf die Bitte setzen/zurücknehmen (= ist der Epic-Owner). */
+  canRequestHelp: boolean;
+  /** Besetzung je Partei am Antrag; null, wo der Schritt keine zulässt. */
+  partyStaffing: GatePartyStaffing | null;
+}>;
 
 /** Pull the free-text comment out of an audit event's `changes` diff, if any.
  *  Hypothesis approve/reject and the legacy stage-gate write it as
@@ -489,6 +546,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     pis,
     dependencies,
     budget,
+    classification,
     enabled,
     multiPartyApproval,
     showWsjf,
@@ -558,6 +616,14 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
 
   // Risks slice — entitlement gate only; the tab content is composed in the route.
   const risksSlice: RisksSlice = { disabled: !enabled.risks };
+
+  // Einordnungs-Scheibe. Der Port antwortet `null`, wenn die Practice aus ist;
+  // daraus wird `{ disabled: true }` — **nicht** eine Scheibe mit leeren
+  // Feldern. Wer sie rendert, muss den Fall behandeln, sonst kompiliert es
+  // nicht. Genau das war die Lücke.
+  const classificationSlice: ClassificationSlice = classification
+    ? { disabled: false, ...classification }
+    : { disabled: true };
 
   // Drumbeat slice — die PI-Gruppierungen. Die Kanten stehen daneben im Modell.
   let drumbeatSlice: DrumbeatSlice;
@@ -760,6 +826,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     drumbeat: drumbeatSlice,
     budgeting: budgetingSlice,
     risks: risksSlice,
+    classification: classificationSlice,
     activityEvents,
     activityTruncated,
     kpiRows,
@@ -880,6 +947,17 @@ export async function loadEpicDetailInputs(
       : Promise.resolve(null),
   ]);
 
+  /**
+   * Die Einordnung, **nach** der Welle — `practices` entsteht in ihr, und die
+   * Practice entscheidet, ob überhaupt gefragt wird. Eine Rundreise mehr, aber
+   * nur dort, wo die Unterscheidung läuft; sie stur mitzuladen hiesse, die
+   * Guardrails auch für Mandanten zu lesen, die sie nicht führen.
+   *
+   * Die Bedingung steht **hier**, damit sie neben den anderen `enabled`-Toren
+   * liegt und nicht in der Route verstreut ist. Der Port antwortet nur.
+   */
+  const classification = practices.artEpics ? await ports.classification() : null;
+
   const gate = buildGateSlice({
     stageGatesEnabled: practices.stageGates,
     current,
@@ -928,6 +1006,7 @@ export async function loadEpicDetailInputs(
     pis,
     dependencies,
     budget,
+    classification,
     breakdownPositions,
     enabled,
     multiPartyApproval: practices.multiPartyApproval,

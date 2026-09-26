@@ -41,16 +41,32 @@ interface Props {
   canSetDelivery: boolean;
 }
 
-const STATUS_OPTIONS: ReadonlyArray<{ value: FeatureStatus; label: string }> = [
-  { value: "approved", label: FEATURE_STATUS_KEYS.approved },
-  { value: "in_progress", label: FEATURE_STATUS_KEYS.in_progress },
-  { value: "blocked", label: FEATURE_STATUS_KEYS.blocked },
-  { value: "completed", label: FEATURE_STATUS_KEYS.completed },
-  { value: "cancelled", label: FEATURE_STATUS_KEYS.cancelled },
+/**
+ * Die Reihenfolge der Status — als **Schlüssel**, nicht als Wörter.
+ *
+ * Hiess bis September 2026 `STATUS_OPTIONS` mit einem Feld `label`, das einen
+ * Schlüssel trug. `SearchSelect` und die Massenleiste zeichnen ihr `label`
+ * unbesehen, also stand im Auswahlfeld `drumbeat.featureStatus.inProgress` —
+ * und die Suche darin fand nichts, weil sie ebenfalls über den Schlüssel lief.
+ * Die Werkzeugleiste eine Zeile darüber macht es seit jeher richtig
+ * (`label: t(FEATURE_STATUS_KEYS[s])`); hier war es nur nie nachgezogen.
+ */
+const STATUS_OPTION_KEYS: ReadonlyArray<{ value: FeatureStatus; labelKey: string }> = [
+  { value: "approved", labelKey: FEATURE_STATUS_KEYS.approved },
+  { value: "in_progress", labelKey: FEATURE_STATUS_KEYS.in_progress },
+  { value: "blocked", labelKey: FEATURE_STATUS_KEYS.blocked },
+  { value: "completed", labelKey: FEATURE_STATUS_KEYS.completed },
+  { value: "cancelled", labelKey: FEATURE_STATUS_KEYS.cancelled },
 ];
 
 export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }: Props) {
   const t = useTranslations();
+  // Einmal übersetzt, von beiden Verbrauchern benutzt: dem Auswahlfeld in der
+  // Zeile und der Massenleiste darunter.
+  const statusOptions = useMemo(
+    () => STATUS_OPTION_KEYS.map((o) => ({ value: o.value, label: t(o.labelKey) })),
+    [t],
+  );
   const { setParam } = useUrlState();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [, startTransition] = useTransition();
@@ -256,7 +272,7 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
                       <SearchSelect
                         value={f.status}
                         onChange={(v) => setStatus(f.id, v as FeatureStatus)}
-                        options={STATUS_OPTIONS}
+                        options={statusOptions}
                         placeholder={t("drumbeat.ui.statusWaehlen")}
                         ariaLabel={`Status für ${f.title}`}
                         className="min-w-36"
@@ -292,7 +308,7 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
       <CockpitBulkBar
         selectedCount={selected.size}
         pis={pis}
-        statusOptions={STATUS_OPTIONS}
+        statusOptions={statusOptions}
         canUpdate={canUpdate}
         canSetDelivery={canSetDelivery}
         onApply={applyBulk}

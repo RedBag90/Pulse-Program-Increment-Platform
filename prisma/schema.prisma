@@ -240,9 +240,11 @@ model TargetOperatingModel {
   featureQs          Boolean @default(true) @map("feature_qs")
   dependencies       Boolean @default(true)
   piObjectives       Boolean @default(true) @map("pi_objectives")
-  /// ART-Epics (Guardrail 3). Als einzige Practice mit Default **false**: sie
-  /// leitet Geldflüsse um und wird bewusst eingeschaltet, nicht geerbt.
-  artEpics           Boolean @default(false) @map("art_epics")
+  /// ART-Epics (Guardrail 3). Default **true** seit September 2026: vor L2
+  /// leitet die Einordnung gar kein Geld um (`classifyEpic` liefert dort
+  /// `null`), gebraucht wird sie aber genau dort — als Erwartung, bevor die
+  /// Kosten stehen. Siehe `DEFAULT_PRACTICES`.
+  artEpics           Boolean @default(true) @map("art_epics")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -1558,6 +1560,30 @@ model InitiativeGraphPosition {
   @@unique([epicId, initiativeId])
   @@index([tenantId, epicId])
   @@map("initiative_graph_positions")
+}
+
+/// Persistierte Netzplan-Position pro Feature im Scope eines **ARTs**.
+///
+/// Das Schwestermodell `InitiativeGraphPosition` hängt an einem Epic — der
+/// Netzplan im Umsetzungsmodul hat keines: sein Bezugspunkt ist die ART.
+/// Zwei Tabellen statt einer mit zwei Fremdschlüsseln, weil jede genau einen
+/// Schlüssel hat und keine Zeile je beide trägt.
+///
+/// Gilt nur für die **Topologie**-Ansicht. In der Zeitachse ist die Position
+/// die Aussage (sie ist das PI) und wird nicht gespeichert, sondern gerechnet.
+model ArtGraphPosition {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  artId        String   @map("art_id") @db.Uuid
+  initiativeId String   @map("initiative_id") @db.Uuid
+  x            Float
+  y            Float
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  updatedBy    String   @map("updated_by") @db.Uuid
+
+  @@unique([artId, initiativeId])
+  @@index([tenantId, artId])
+  @@map("art_graph_positions")
 }
 
 model AuditEvent {

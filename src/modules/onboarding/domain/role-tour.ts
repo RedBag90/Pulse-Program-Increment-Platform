@@ -63,8 +63,14 @@ export interface TourContext {
 export interface ResolvedTour {
   role: Role;
   missionKey: string;
-  responsibilities: readonly string[];
-  handoffs: readonly string[];
+  /**
+   * Katalog-**Schlüssel**, keine Sätze — `missionKey` daneben sagt es im Namen,
+   * diese beiden hiessen `responsibilities`/`handoffs` und trugen trotzdem
+   * Schlüssel. Die Fläche zeichnete sie in einer Variablen namens `text`
+   * unbesehen aus, also stand im Playbook `onboarding.playbook.rte.…`.
+   */
+  responsibilityKeys: readonly string[];
+  handoffKeys: readonly string[];
   steps: readonly TourStep[];
   /** = `steps.length`; als Feld, damit die UI „Schritt n von m" nicht nachrechnet. */
   total: number;
@@ -158,10 +164,10 @@ export function resolveTour(playbook: RolePlaybook, ctx: TourContext): ResolvedT
   return {
     role: playbook.role,
     missionKey: playbook.missionKey,
-    responsibilities: playbook.responsibilities
+    responsibilityKeys: playbook.responsibilities
       .filter((c) => claimAllowed(c, ctx))
       .map((c) => c.textKey),
-    handoffs: playbook.handoffs.filter((c) => claimAllowed(c, ctx)).map((c) => c.textKey),
+    handoffKeys: playbook.handoffs.filter((c) => claimAllowed(c, ctx)).map((c) => c.textKey),
     steps,
     total: steps.length,
   };

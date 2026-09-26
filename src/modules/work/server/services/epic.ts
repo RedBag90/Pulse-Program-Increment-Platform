@@ -28,7 +28,7 @@ import {
 } from "@/modules/work/domain/business-case";
 import { parseTimeline, type TimelineFields } from "@/modules/work/domain/timeline";
 import { timelinePlannedWindow } from "@/modules/work/domain/epic-schedule";
-import { isPbEligible } from "@/modules/work/domain/pb-submission";
+import { isPbEligible, intendedClassFrozen } from "@/modules/work/domain/pb-submission";
 import { derivedInitiativePath } from "@/modules/core/kernel/domain/initiative-path";
 
 // ---------------------------------------------------------------------------
@@ -259,6 +259,22 @@ export async function updateEpic(
         }).ok,
       });
       if (denied) return err({ kind: "forbidden" as const, reason: denied });
+    }
+
+    /**
+     * **Die Einordnung ist eine Erwartung — bis L2.**
+     *
+     * Mit der Freigabe des Business Case entsteht die Klasse aus den Kosten;
+     * ab da ist `intendedClass` Geschichte, kein Eingabefeld mehr. Das
+     * Auswahlfeld wusste das seit jeher und tauschte sich gegen Text — der
+     * Dienst nicht: Aktion und REST-Route nahmen den Wert weiter entgegen.
+     * Eine Regel, die nur die Oberfläche kennt, ist keine.
+     *
+     * Wer die entschiedene Klasse trotzdem anheben will, nimmt
+     * `setPortfolioOverride` — einmalig, mit Grund und Zeichner.
+     */
+    if (intendedClass !== undefined && intendedClassFrozen(existing)) {
+      return err({ kind: "conflict" as const, reason: "work.errors.intendedClassFrozen" });
     }
 
     // Effective post-update endpoints — used for the start ≤ end check so the

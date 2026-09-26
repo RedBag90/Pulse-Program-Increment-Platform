@@ -73,8 +73,15 @@ describe("der Anlagepfad", () => {
     // `feature.ts` legt Features an (Vollformular, Schnellanlage, mit
     // Abhaengigkeit). Kaeme hier je ein `stageGate` dazu, waere der Wert
     // wieder da — diesmal aus dem Produkt statt aus dem Seed.
+    //
+    // **Geschrieben, nicht gelesen.** Hier stand `/^[ \t]*stageGate:/` — das
+    // fing auch ein `stageGate: true` in einem Prisma-`select`, also ein
+    // reines Lesen. Genau das braucht `setFeaturePi` seit dem L3-Tor: es muss
+    // den Reifegrad des **Epics** kennen, um zu entscheiden, ob sich sein
+    // Feature einplanen lässt. Der Docblock oben nennt diese Form seit jeher
+    // harmlos; das Muster hier war nur breiter als seine eigene Begründung.
     const src = read("src/modules/work/server/services/feature.ts");
-    expect([...src.matchAll(/^[ \t]*stageGate:/gm)].map((m) => m[0].trim())).toEqual([]);
+    expect([...src.matchAll(GESETZTER_REIFEGRAD)].map((m) => m[0].trim())).toEqual([]);
   });
 });
 

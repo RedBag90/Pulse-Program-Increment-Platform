@@ -47,7 +47,9 @@ export function EpicClassBadge({
               : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
         }`}
       >
-        {epicClass == null ? "Noch nicht eingeordnet" : t(EPIC_CLASS_KEYS[epicClass] ?? epicClass)}
+        {epicClass == null
+          ? t("work.epic.nochNichtEingeordnet")
+          : t(EPIC_CLASS_KEYS[epicClass] ?? epicClass)}
       </span>
       {intended != null && epicClass == null && (
         <p className="text-xs text-muted-foreground">
@@ -65,11 +67,24 @@ export function EpicClassBadge({
             : " — die Kosten machen es zum ART-Epic."}
         </p>
       )}
+      {/**
+       * **Ein Satz, nicht drei.** Solange nichts freigegeben ist, stand hier
+       * dreimal dieselbe Auskunft: „Erwartet: … entsteht mit der Freigabe des
+       * Business Case", darunter „Ohne freigegebenen Lean Business Case liegt
+       * keine belastbare Kostenschätzung vor. Die Einordnung entsteht mit der
+       * Freigabe an L2", und im Formular darunter noch „Erwartung — die Klasse
+       * entsteht mit der Business-Case-Freigabe aus den Kosten."
+       *
+       * Jetzt gilt: gibt es eine Erwartung, sagt die Zeile darüber alles;
+       * gibt es keine, tritt die Erklärung an ihre Stelle.
+       */}
       <p className="text-xs text-muted-foreground">
         {overridden ? (
           <>{t("work.epic.ausnahmeDiesesEpicIst")}</>
         ) : epicClass == null ? (
-          <>{t("work.epic.ohneFreigegebenenLeanBusiness")}</>
+          intended != null ? null : (
+            <>{t("work.epic.ohneFreigegebenenLeanBusiness")}</>
+          )
         ) : (
           <>
             Kosten {formatEUR(cost ?? 0)} {epicClass === "portfolio" ? "über" : "unter"} dem

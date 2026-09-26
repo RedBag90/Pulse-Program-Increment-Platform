@@ -245,7 +245,7 @@ export const EPIC_LIFECYCLE_EN: Guide = {
           ],
         },
         {
-          title: "L3 → L4.1 · Starting delivery",
+          title: "L3 → L4.1 · Plan feature delivery",
           body: [
             {
               kind: "paragraph",

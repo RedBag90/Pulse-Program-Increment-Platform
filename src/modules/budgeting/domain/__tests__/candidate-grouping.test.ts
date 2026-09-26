@@ -30,7 +30,7 @@ describe("groupCandidates", () => {
       c("Betrieb", 50, "rtb", "Logistik", null),
     ]);
     expect(g.map((x) => x.kind)).toEqual(["run", "grow"]);
-    expect(g.map((x) => x.label)).toEqual([
+    expect(g.map((x) => x.labelKey)).toEqual([
       "budgeting.businessKind.run",
       "budgeting.businessKind.grow",
     ]);
@@ -152,30 +152,33 @@ describe("worksheetSections", () => {
 
   it("je Grow-Wertstrom entsteht genau ein Abschnitt", () => {
     expect(sections.filter((s) => s.kind === "grow").map((s) => s.label)).toEqual([
-      "Produktion",
-      "Logistik",
+      { kind: "text", value: "Produktion" },
+      { kind: "text", value: "Logistik" },
     ]);
   });
 
   it("Run steht vorn, danach die Wertströme nach Betrag absteigend", () => {
     expect(sections.map((s) => s.label)).toEqual([
-      "budgeting.businessKind.run",
-      "Produktion",
-      "Logistik",
+      // Der Betriebsblock trägt einen Katalog-Schlüssel, die Wertströme ihren
+      // eigenen Namen. Beides in einem Feld `label: string` hiess, dass die
+      // Fläche den Schlüssel roh zeichnete — daher die Unterscheidung.
+      { kind: "key", value: "budgeting.businessKind.run" },
+      { kind: "text", value: "Produktion" },
+      { kind: "text", value: "Logistik" },
     ]);
   });
 
   it("jeder Abschnitt trägt seine Zeilen und seine Summe", () => {
-    const prod = sections.find((s) => s.label === "Produktion")!;
+    const prod = sections.find((s) => s.label.value === "Produktion")!;
     expect(prod.items.map((i) => i.title)).toEqual(["Epic P1", "Epic P2"]);
     expect(prod.total).toBe(500);
     expect(groupItems(prod).reduce((s, i) => s + i.ask, 0)).toBe(prod.total);
   });
 
   it("die Solution-Regel gilt im Abschnitt weiter", () => {
-    const prod = sections.find((s) => s.label === "Produktion")!;
+    const prod = sections.find((s) => s.label.value === "Produktion")!;
     expect(prod.solutions[0]!.heading).toBe(true); // zwei Zeilen
-    const log = sections.find((s) => s.label === "Logistik")!;
+    const log = sections.find((s) => s.label.value === "Logistik")!;
     expect(log.solutions[0]!.heading).toBe(false); // eine Zeile
   });
 

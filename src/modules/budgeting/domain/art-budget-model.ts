@@ -66,7 +66,12 @@ export interface UnfundedCandidate {
 
 export interface ArtBudgetSourceView {
   source: AllocationSource;
-  label: string;
+  /**
+   * Der **Katalog-Schlüssel** der Quellenbezeichnung, nicht das Wort. Hiess
+   * `label` und trug trotzdem einen Schlüssel; die Kachel setzte ihn unbesehen
+   * in ihre Überschrift, also stand dort `BUDGETING.ALLOCATIONSOURCE.ART`.
+   */
+  labelKey: string;
   breakdown: AllocationBreakdown;
   /** Titel je Epic, damit die Fläche die Staffel-Zeilen benennen kann. */
   titles: Record<string, string>;

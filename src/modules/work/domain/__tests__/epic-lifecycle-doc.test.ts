@@ -47,7 +47,7 @@ describe("GATE_CRITERIA_DOC", () => {
       hasBusinessCaseContent: false,
       businessCaseApprovedAt: null,
       budgetAllocationSum: 0,
-      childFeatureStats: { total: 0, started: 0, completed: 0 },
+      childFeatureStats: { total: 0, scheduled: 0, started: 0, completed: 0 },
       selectedForDetailingAt: null,
       selectedForAnalyzingAt: null,
       implementationStartedAt: null,

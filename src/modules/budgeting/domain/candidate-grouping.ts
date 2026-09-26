@@ -52,7 +52,8 @@ export interface ValueStreamGroup<T> {
 
 export interface BusinessGroup<T> {
   kind: BusinessKind;
-  label: string;
+  /** Katalog-Schlüssel, kein Wort — „Run the Business" steht im Katalog. */
+  labelKey: string;
   total: number;
   valueStreams: ValueStreamGroup<T>[];
 }
@@ -112,7 +113,7 @@ export function groupCandidates<T extends GroupableCandidate>(
     return [
       {
         kind,
-        label: BUSINESS_KIND_KEYS[kind],
+        labelKey: BUSINESS_KIND_KEYS[kind],
         total: valueStreams.reduce((s, g) => s + g.total, 0),
         valueStreams,
       },
@@ -132,9 +133,22 @@ export function groupCandidates<T extends GroupableCandidate>(
  * kein Thema je Wertstrom. Grow zerfällt dagegen in einen Abschnitt je
  * Wertstrom — das ist die Einheit, in der Menschen die Verteilung denken.
  */
+/**
+ * **Die Überschrift eines Abschnitts — Schlüssel oder Name, nie beides in
+ * einem Feld.**
+ *
+ * Hier stand ein `label: string`, das beim Run-Abschnitt einen Katalog-
+ * Schlüssel trug und bei Grow den Namen eines Wertstroms. Die Fläche zeichnete
+ * es unbesehen, also stand über dem Betriebsblock `BUDGETING.BUSINESSKIND.RUN`
+ * in Grossbuchstaben, während die Nachbarabschnitte ihren Wertstrom richtig
+ * nannten. Ein Name aus der Datenbank lässt sich nicht übersetzen, ein
+ * Katalog-Eintrag muss es — die beiden gehören auseinander.
+ */
+export type SectionLabel = { kind: "key"; value: string } | { kind: "text"; value: string };
+
 export interface WorksheetSection<T> {
   key: string;
-  label: string;
+  label: SectionLabel;
   kind: BusinessKind;
   /** Σ über alle Zeilen des Abschnitts, mit der Sortier-Betragsfunktion. */
   total: number;
@@ -204,7 +218,7 @@ export function worksheetSections<T extends GroupableCandidate>(
       const solutions = withHeadings(mergeByName(g.valueStreams.flatMap((vs) => vs.solutions)));
       out.push({
         key: "run",
-        label: g.label,
+        label: { kind: "key", value: g.labelKey },
         kind,
         total: g.total,
         solutions,
@@ -216,7 +230,7 @@ export function worksheetSections<T extends GroupableCandidate>(
     for (const vs of g.valueStreams) {
       out.push({
         key: `${kind}:${vs.name}`,
-        label: vs.name,
+        label: { kind: "text", value: vs.name },
         kind,
         total: vs.total,
         solutions: withHeadings(vs.solutions),

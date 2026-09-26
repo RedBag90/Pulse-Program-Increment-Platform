@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { PiJobSize } from "@/modules/drumbeat/features/cockpit/components/pi-job-size";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type {
@@ -90,7 +91,10 @@ export function CockpitPiStrip({ pis, window: nav, selectedPiId }: Props) {
                 </span>
               )}
             </span>
-            <span className="text-meta">{p.featureCount} Features</span>
+            <span className="flex items-baseline gap-1.5 text-meta">
+              <span>{p.featureCount} Features</span>
+              <PiJobSize pi={p} />
+            </span>
           </button>
         );
       })}

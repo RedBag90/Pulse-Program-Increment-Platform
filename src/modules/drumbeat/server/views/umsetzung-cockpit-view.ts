@@ -32,6 +32,9 @@ import type {
 } from "@/modules/drumbeat/domain/cockpit-types";
 import { resolveFeatureSolution } from "@/modules/work/domain/feature-solution";
 import { epicFilterWhere, NO_EPIC } from "@/modules/drumbeat/domain/epic-filter";
+import { PLANNABLE_GATES } from "@/modules/work/domain/feature-gates";
+import { loadArtGraphLayout } from "@/modules/drumbeat/server/services/art-graph-layout";
+import type { ArtId, TenantId } from "@/modules/core/kernel/domain/types";
 export type { FeatureStatus, CockpitPiSlot, CockpitFeature };
 
 export interface CockpitArtRef {
@@ -110,6 +113,15 @@ export interface CockpitModel {
   /** Alle PIs der Timeline (oder Direct-ART) — Datumsfenster fuer die
    *  Roadmap-Sicht. Board + Tabelle nutzen nur den piStrip. */
   allPiWindows: CockpitPiWindow[];
+  /** Wie viele Features das L3-Tor ausblendet; 0 = keines (oder Tor aus). */
+  hiddenBelowL3: number;
+  /**
+   * Gezogene Netzplan-Positionen dieser ART (nur Topologie).
+   *
+   * Ohne sie führte der Netzplan zwei Koordinatensysteme, von denen keines vom
+   * anderen wusste — genau der Fall, für den `resolveCollisions` gebaut wurde.
+   */
+  graphPositions: Record<string, { x: number; y: number }>;
   /** Default-Sicht ist „board" (Entscheidung #1); URL-Param ueberschreibt. */
   view: CockpitView;
   /** Features im aktuell ausgewaehlten Scope, ggf. weitergefiltert. */
@@ -253,6 +265,8 @@ export interface CockpitAllPiRow {
   startDate: Date;
   endDate: Date;
   status: string;
+  /** Die gepflegte Kapazität; sie steht unter dem PI-Titel neben der Summe. */
+  capacityJobSize: number | null;
 }
 
 /** Raw feature row of the selected ART (query 6). */
@@ -265,6 +279,8 @@ export interface CockpitFeatureRow {
   parentId: string | null;
   ownerId: string | null;
   wsjfComputed: unknown;
+  /** Der Aufwand (WSJF Job Size) — er summiert sich unter dem PI-Titel. */
+  wsjfJobSize: number | null;
   art: { id: string; name: string } | null;
   /** Eigene Solution des Features; `null` = die des Epics gilt. */
   primarySolution: { name: string } | null;
@@ -296,6 +312,15 @@ export interface CockpitRows {
   allPis: ReadonlyArray<CockpitAllPiRow>;
   featureRows: ReadonlyArray<CockpitFeatureRow>;
   depRows: ReadonlyArray<CockpitDepRow>;
+  /** Gezogene Netzplan-Positionen dieser ART. */
+  graphPositions: Record<string, { x: number; y: number }>;
+  /**
+   * Wie viele Features das L3-Tor gerade ausblendet — Epic ohne Budget.
+   *
+   * Sie stehen nicht in `featureRows`; ohne diese Zahl verschwänden sie
+   * lautlos. Versteckt ist in Ordnung, verschwiegen nicht.
+   */
+  hiddenBelowL3: number;
   permissions: CockpitPermissions;
   view: CockpitView;
   filters: CockpitFilters;
@@ -373,6 +398,7 @@ function buildScopeFeatures(
         ownerId: r.ownerId,
         ownerName: r.ownerId ? (userLabels[r.ownerId] ?? null) : null,
         wsjfComputed: r.wsjfComputed ? Number(r.wsjfComputed) : null,
+        wsjfJobSize: r.wsjfJobSize ?? null,
         hasBlocker: !!openBlocker,
         blockerHint: openBlocker?.from?.title ?? null,
         solutionName: resolveFeatureSolution({
@@ -450,8 +476,14 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
   // war, und niemand konnte sehen, warum.
   const scopeFeatures = buildScopeFeatures(featureRows, filters.hasBlocker, userLabels);
   const countByPi = new Map<string, number>();
+  // **Dieselbe Menge wie der Zähler.** Eine Summe, die eine andere Feature-Menge
+  // liest als die Zahl daneben, widerspricht ihr irgendwann — und niemand kann
+  // sehen, warum. Deshalb dieselbe Schleife.
+  const jobSizeByPi = new Map<string, number>();
   for (const f of scopeFeatures) {
-    if (f.piId) countByPi.set(f.piId, (countByPi.get(f.piId) ?? 0) + 1);
+    if (!f.piId) continue;
+    countByPi.set(f.piId, (countByPi.get(f.piId) ?? 0) + 1);
+    jobSizeByPi.set(f.piId, (jobSizeByPi.get(f.piId) ?? 0) + (f.wsjfJobSize ?? 0));
   }
 
   const filterOptions = {
@@ -531,6 +563,8 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
       endDate: p.endDate,
       status: p.status as PiStatus,
       featureCount: countByPi.get(p.id) ?? 0,
+      plannedJobSize: jobSizeByPi.get(p.id) ?? 0,
+      capacityJobSize: p.capacityJobSize ?? null,
       isCurrent: p.id === anchorPiId,
     }));
 
@@ -551,6 +585,8 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
           endDate: selRow.endDate,
           status: selRow.status as PiStatus,
           featureCount: countByPi.get(selRow.id) ?? 0,
+          plannedJobSize: jobSizeByPi.get(selRow.id) ?? 0,
+          capacityJobSize: selRow.capacityJobSize ?? null,
           isCurrent: selRow.id === anchorPiId,
         }
       : null;
@@ -581,6 +617,8 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
   return {
     availableArts,
     selectedArt,
+    hiddenBelowL3: rows.hiddenBelowL3,
+    graphPositions: rows.graphPositions,
     piStrip,
     piWindow,
     activePiId,
@@ -608,6 +646,13 @@ export async function loadCockpitModel(
 ): Promise<CockpitModel> {
   const { tenantId, scopes } = principal;
   const scopedArtIds = scopes.artIds;
+  /**
+   * Ohne Drumbeat gibt es keine PIs — dann gibt es auch nichts einzuplanen,
+   * und das Tor darunter wäre eine Regel über eine Fläche, die es nicht gibt.
+   * Das Flag hing bisher nicht an dieser Lesesicht; der Route-Wächter über dem
+   * Segment `umsetzung` war die einzige Prüfung.
+   */
+  const drumbeatEnabled = principal.enabledModules.includes("drumbeat");
 
   // Wave A — zwei voneinander unabhaengige Reads parallel:
   //   1) Welche ARTs darf der User sehen? (tenant + scope)
@@ -689,7 +734,14 @@ export async function loadCockpitModel(
             ? { timelineId: selectedArtRow.timelineId }
             : { artId: selectedArtRow.id }),
         },
-        select: { id: true, name: true, startDate: true, endDate: true, status: true },
+        select: {
+          id: true,
+          name: true,
+          startDate: true,
+          endDate: true,
+          status: true,
+          capacityJobSize: true,
+        },
         orderBy: { startDate: "asc" },
       });
       return { allPis };
@@ -699,47 +751,92 @@ export async function loadCockpitModel(
     // 7) Dependencies mit mind. einem Endpunkt im (ungefilterten) Feature-Scope.
     //    Der Builder klassifiziert gegen den finalen (hasBlocker-gefilterten)
     //    Scope — Off-Scope-Ergebnis bleibt identisch.
-    (async (): Promise<{ featureRows: CockpitFeatureRow[]; depRows: CockpitDepRow[] }> => {
-      if (!selectedArtRow) return { featureRows: [], depRows: [] };
-      const featureRows = await db.initiative.findMany({
-        where: {
-          tenantId,
-          level: InitiativeLevel.FEATURE,
-          deletedAt: null,
-          artId: selectedArtRow.id,
-          ...(filters.status.length > 0 ? { status: { in: filters.status } } : {}),
-          ...(filters.ownerIds.length > 0 ? { ownerId: { in: filters.ownerIds } } : {}),
-          ...epicFilterWhere(filters.epicIds),
-          ...(filters.q.trim() !== ""
-            ? { title: { contains: filters.q.trim(), mode: "insensitive" as const } }
-            : {}),
-        },
-        select: {
-          id: true,
-          title: true,
-          status: true,
-          piId: true,
-          artId: true,
-          parentId: true,
-          ownerId: true,
-          wsjfComputed: true,
-          art: { select: { id: true, name: true } },
-          // Die eigene Solution des Features — und die seines Epics als
-          // Rückfall, über den ohnehin vorhandenen `parent`-Select.
-          primarySolution: { select: { name: true } },
-          parent: {
-            select: { id: true, title: true, primarySolution: { select: { name: true } } },
-          },
-          dependenciesIn: {
-            where: { type: "blocks" },
-            select: {
-              id: true,
-              from: { select: { id: true, title: true, status: true } },
+    (async (): Promise<{
+      featureRows: CockpitFeatureRow[];
+      depRows: CockpitDepRow[];
+      unterL3: number;
+    }> => {
+      if (!selectedArtRow) return { featureRows: [], depRows: [], unterL3: 0 };
+
+      const grundWhere = {
+        tenantId,
+        level: InitiativeLevel.FEATURE,
+        deletedAt: null,
+        artId: selectedArtRow.id,
+        ...(filters.status.length > 0 ? { status: { in: filters.status } } : {}),
+        ...(filters.ownerIds.length > 0 ? { ownerId: { in: filters.ownerIds } } : {}),
+        ...epicFilterWhere(filters.epicIds),
+        ...(filters.q.trim() !== ""
+          ? { title: { contains: filters.q.trim(), mode: "insensitive" as const } }
+          : {}),
+      };
+
+      /**
+       * **Geplant wird erst ab L3.**
+       *
+       * Ein Feature, dessen Epic noch kein Budget hat, gehört nicht in die
+       * Planung — dieselbe Schwelle, die `setFeaturePi` serverseitig
+       * durchsetzt. Elternlose Features gehen durch: für sie gibt es kein
+       * Portfolio-Tor, auf das man warten könnte.
+       *
+       * **Hier in der `where`, nicht als Filter danach** — sonst zählten die
+       * PI-Kacheln Features mit, die in keiner Zelle stehen. Genau davor warnt
+       * der Kommentar weiter oben.
+       *
+       * Unter `AND`, weil `epicFilterWhere` selbst ein `OR` beisteuern kann;
+       * zwei `OR` auf derselben Ebene überschrieben einander.
+       */
+      const torWhere = drumbeatEnabled
+        ? {
+            AND: [
+              { OR: [{ parentId: null }, { parent: { stageGate: { in: [...PLANNABLE_GATES] } } }] },
+            ],
+          }
+        : {};
+
+      const [featureRows, unterL3] = await Promise.all([
+        db.initiative.findMany({
+          where: { ...grundWhere, ...torWhere },
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            piId: true,
+            artId: true,
+            parentId: true,
+            ownerId: true,
+            wsjfComputed: true,
+            wsjfJobSize: true,
+            art: { select: { id: true, name: true } },
+            // Die eigene Solution des Features — und die seines Epics als
+            // Rückfall, über den ohnehin vorhandenen `parent`-Select.
+            primarySolution: { select: { name: true } },
+            parent: {
+              select: { id: true, title: true, primarySolution: { select: { name: true } } },
+            },
+            dependenciesIn: {
+              where: { type: "blocks" },
+              select: {
+                id: true,
+                from: { select: { id: true, title: true, status: true } },
+              },
             },
           },
-        },
-        orderBy: [{ wsjfComputed: "desc" }, { title: "asc" }],
-      });
+          orderBy: [{ wsjfComputed: "desc" }, { title: "asc" }],
+        }),
+        // **Versteckt, aber nicht verschwiegen.** Wie viele Features fallen
+        // gerade durch das Tor? Ohne diese Zahl verschwände Arbeit lautlos —
+        // und eine Arbeit, die niemand sieht, ist schlimmer als eine, die
+        // schlecht aussieht (siehe die Spalte „Außerhalb des Fensters").
+        drumbeatEnabled
+          ? db.initiative.count({
+              where: {
+                ...grundWhere,
+                parent: { stageGate: { notIn: [...PLANNABLE_GATES] } },
+              },
+            })
+          : Promise.resolve(0),
+      ]);
       let depRows: CockpitDepRow[] = [];
       if (featureRows.length > 0) {
         const scopeIds = featureRows.map((f) => f.id);
@@ -758,7 +855,7 @@ export async function loadCockpitModel(
           },
         });
       }
-      return { featureRows, depRows };
+      return { featureRows, depRows, unterL3 };
     })(),
     // Picker-Universum: distinct Owner + Parent-Epic ueber ALLE Features des ARTs
     // (ungefiltert), damit die Filter-Optionen beim Filtern nicht kollabieren.
@@ -787,12 +884,30 @@ export async function loadCockpitModel(
   ]);
 
   const { allPis } = pisResult;
-  const { featureRows, depRows } = featuresResult;
+  const { featureRows, depRows, unterL3 } = featuresResult;
   const { ownerIdsInArt, epicRows } = optionsResult;
 
   // Permissions — aus dem zentralen Policies-Registry (ADR-0002). UI nutzt die
   // Flags nur fuer Affordances; der echte Gate sitzt serverseitig.
   const resource = selectedArtRow ? { tenantId, artId: selectedArtRow.id } : { tenantId };
+  /**
+   * Die gezogenen Positionen dieser ART — nur für die Topologie.
+   *
+   * In der Zeitachse ist die Position die Aussage (sie *ist* das PI); dort
+   * gespeicherte Koordinaten zu laden hiesse, zwei Wahrheiten über dieselbe
+   * Sache zu führen.
+   */
+  const graphPositions: Record<string, { x: number; y: number }> = {};
+  if (selectedArtRow && input.view === "network") {
+    for (const [id, pos] of await loadArtGraphLayout(
+      db,
+      tenantId as TenantId,
+      selectedArtRow.id as ArtId,
+    )) {
+      graphPositions[id] = pos;
+    }
+  }
+
   const permissions: CockpitPermissions = {
     canUpdate: hasCapability(principal, "feature.update", resource),
     canSetDelivery: hasCapability(principal, "feature.delivery.set", resource),
@@ -811,6 +926,8 @@ export async function loadCockpitModel(
     allPis,
     featureRows,
     depRows,
+    hiddenBelowL3: unterL3,
+    graphPositions,
     permissions,
     view: input.view ?? "board",
     filters,

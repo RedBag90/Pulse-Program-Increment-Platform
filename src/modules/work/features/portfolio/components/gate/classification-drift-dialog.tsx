@@ -30,8 +30,10 @@ export interface DriftInfo {
 }
 
 /**
- * Der Zwischenruf vor dem L3.1-Antrag: der Business Case widerlegt die
- * Erwartung, mit der dieses Epic angelegt wurde.
+ * Der Zwischenruf vor dem **L2**-Antrag: der Business Case widerlegt die
+ * Erwartung, mit der dieses Epic angelegt wurde. Gerechnet wird dabei gegen
+ * den **Entwurf** — die entschiedene Klasse entsteht erst durch die Abnahme,
+ * vor der hier gewarnt wird.
  *
  * In **beide** Richtungen ein Hinweis — beide sind eine Überraschung, und wer
  * einreicht, soll sie nicht erst hinterher bemerken. Bestehen darf man aber nur

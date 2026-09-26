@@ -173,6 +173,54 @@ export function classifyEpic(e: EpicClassState, threshold: number): EpicClassifi
   };
 }
 
+/**
+ * **Die Klasse, die der Entwurf ergäbe** — dieselbe Rechnung wie
+ * {@link classifyEpic}, nur ohne das Freigabe-Tor.
+ *
+ * Sie wird für **einen** Zweck gebraucht: den Hinweis beim Beantragen von L2.
+ * Wer sein Vorhaben als ART-Epic führt, dessen Business Case aber über dem
+ * Limit liegt, soll das **vor** der Abnahme erfahren, nicht danach. Der Dialog
+ * dafür existierte seit jeher — und konnte nie erscheinen, weil er gegen die
+ * *entschiedene* Klasse prüfte, und die entsteht erst durch genau diese
+ * Abnahme. Ein Zirkel.
+ *
+ * **Sie ist keine Einordnung.** Sie entscheidet nichts, hält kein Geld und darf
+ * in keinen Budgeting-Weg geraten; dort zählt ausschliesslich, was
+ * `classifyEpic` / `resolveEpicClass` liefert. Deshalb der eigene Name: wer
+ * `provisional` liest, weiss, dass er die vorläufige Fassung in der Hand hält.
+ *
+ * `null`, solange keine Kosten eingetragen sind — ohne Zahl gibt es nichts zu
+ * vergleichen, und „ART-Epic, weil 0 ≤ Limit" wäre eine Behauptung über einen
+ * leeren Entwurf.
+ */
+export function provisionalEpicClass(
+  e: Pick<EpicClassState, "businessCase">,
+  threshold: number,
+): EpicClass | null {
+  const cost = computeBusinessCaseTotals(
+    parseBusinessCase(e.businessCase).current,
+  ).implementationCost;
+  if (cost <= 0) return null;
+  return cost > threshold ? "portfolio" : "art";
+}
+
+/**
+ * **Ab wann die Einordnung feststeht.**
+ *
+ * Bis zur Freigabe des Business Case ist sie eine Erwartung und frei änderbar;
+ * mit der Freigabe entsteht die Klasse aus den Kosten, und die Erwartung ist
+ * Geschichte. Das Auswahlfeld wusste das immer schon und tauschte sich gegen
+ * Text — der Dienst nicht: Aktion und REST-Route nahmen den Wert weiter
+ * entgegen. Eine Regel, die nur die Oberfläche kennt, ist keine, also steht sie
+ * hier und wird serverseitig durchgesetzt.
+ *
+ * Der bewusste Weg darüber hinweg bleibt `setPortfolioOverride` — einmalig,
+ * mit Grund und Zeichner.
+ */
+export function intendedClassFrozen(e: Pick<EpicClassState, "businessCaseApprovedAt">): boolean {
+  return e.businessCaseApprovedAt != null;
+}
+
 export const EPIC_CLASS_KEYS: Record<EpicClass, string> = {
   portfolio: "work.epicClass.portfolio",
   art: "work.epicClass.art",

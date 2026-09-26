@@ -74,6 +74,7 @@ export const TENANT_TEARDOWN_ORDER: readonly TeardownStep[] = [
   { model: "kpi" },
   { model: "dependency" },
   { model: "initiativeGraphPosition" },
+  { model: "artGraphPosition" },
 
   // ── Initiativen blattweise: Feature vor Epic
   { model: "epicSolution" },

@@ -5,6 +5,9 @@ import {
   pbSourceKind,
   resolveEpicClass,
   isEpicClass,
+  provisionalEpicClass,
+  intendedClassFrozen,
+  classifyEpic,
   type PbSource,
 } from "@/modules/work/domain/pb-submission";
 
@@ -125,5 +128,110 @@ describe("isEpicClass", () => {
     expect(isEpicClass("Portfolio")).toBe(false);
     expect(isEpicClass(null)).toBe(false);
     expect(isEpicClass(undefined)).toBe(false);
+  });
+});
+
+/**
+ * **Der Hinweis, der nie erscheinen konnte.**
+ *
+ * Wer sein Vorhaben als ART-Epic führt, dessen Business Case aber über dem
+ * Limit liegt, soll das beim Beantragen von L2 erfahren. Der Dialog dafür gab
+ * es seit jeher — und er feuerte nie, weil er gegen die **entschiedene** Klasse
+ * prüfte, und die entsteht erst durch genau diese Abnahme. Ein Zirkel.
+ *
+ * `provisionalEpicClass` bricht ihn: dieselbe Rechnung, ohne das Freigabe-Tor.
+ */
+describe("provisionalEpicClass — die Klasse, die der Entwurf ergäbe", () => {
+  const SCHWELLE = 70000;
+
+  it("nennt ein Epic über dem Limit Portfolio-Sache — **ohne** Freigabe", () => {
+    // Genau der gemeldete Fall: 200.000 € im Entwurf, nichts freigegeben.
+    expect(provisionalEpicClass({ businessCase: BUSINESS_CASE }, SCHWELLE)).toBe("portfolio");
+    // Und die entschiedene Klasse gibt es hier noch nicht — das ist der Zirkel.
+    expect(
+      classifyEpic(
+        { businessCase: BUSINESS_CASE, businessCaseApprovedAt: null, portfolioOverrideAt: null },
+        SCHWELLE,
+      ).epicClass,
+    ).toBeNull();
+  });
+
+  it("nennt ein Epic unter dem Limit ART-Sache", () => {
+    const klein = { current: { costSlices: [{ amount: 12000 }] } };
+    expect(provisionalEpicClass({ businessCase: klein }, SCHWELLE)).toBe("art");
+  });
+
+  it("schweigt, solange keine Kosten eingetragen sind", () => {
+    // „ART-Epic, weil 0 ≤ Limit" wäre eine Behauptung über einen leeren
+    // Entwurf — und der Dialog, der daraus entstünde, eine Lüge.
+    expect(provisionalEpicClass({ businessCase: null }, SCHWELLE)).toBeNull();
+    expect(provisionalEpicClass({ businessCase: { current: {} } }, SCHWELLE)).toBeNull();
+    expect(
+      provisionalEpicClass({ businessCase: { current: { costSlices: [] } } }, SCHWELLE),
+    ).toBeNull();
+  });
+
+  it("zählt Gleichstand als ART-Sache — wie die entschiedene Rechnung", () => {
+    const genau = { current: { costSlices: [{ amount: SCHWELLE }] } };
+    expect(provisionalEpicClass({ businessCase: genau }, SCHWELLE)).toBe("art");
+  });
+
+  it("stimmt mit der entschiedenen Klasse überein, sobald freigegeben ist", () => {
+    // Die beiden dürfen nie auseinanderlaufen — es ist dieselbe Rechnung.
+    const freigegeben = {
+      businessCase: BUSINESS_CASE,
+      businessCaseApprovedAt: new Date("2026-09-01"),
+      portfolioOverrideAt: null,
+    };
+    expect(provisionalEpicClass(freigegeben, SCHWELLE)).toBe(
+      classifyEpic(freigegeben, SCHWELLE).epicClass,
+    );
+  });
+});
+
+describe("intendedClassFrozen — bis L2 änderbar, danach Geschichte", () => {
+  it("lässt die Erwartung vor der Freigabe zu", () => {
+    expect(intendedClassFrozen({ businessCaseApprovedAt: null })).toBe(false);
+  });
+
+  it("friert sie mit der Freigabe ein", () => {
+    expect(intendedClassFrozen({ businessCaseApprovedAt: new Date("2026-09-01") })).toBe(true);
+  });
+});
+
+/**
+ * **Die vorläufige Klasse darf nirgends Geld bewegen.**
+ *
+ * Sie sagt, was der *Entwurf* ergäbe — änderbar, unverbindlich, ohne Abnahme.
+ * Im Budgeting zählt ausschliesslich die entschiedene Klasse; `period-detail`
+ * hält das sogar ausdrücklich fest („Seit die Klasse zweistufig auflöst,
+ * springt sonst die beim Anlegen hinterlegte Erwartung ein. Die zählt hier
+ * ausdrücklich nicht.").
+ *
+ * Ein Import in `modules/budgeting/**` wäre genau dieser Rückfall, eine Ebene
+ * weiter. Deshalb dieser Riegel — er kostet nichts und schliesst die Tür,
+ * bevor jemand sie findet.
+ */
+describe("provisionalEpicClass — der Riegel", () => {
+  it("wird im Budgeting nirgends benutzt", async () => {
+    const { readdirSync, readFileSync, statSync } = await import("node:fs");
+    const { join } = await import("node:path");
+
+    const wurzel = join(process.cwd(), "src", "modules", "budgeting");
+    const dateien = (dir: string): string[] =>
+      readdirSync(dir).flatMap((name) => {
+        const pfad = join(dir, name);
+        if (statSync(pfad).isDirectory()) return dateien(pfad);
+        return name.endsWith(".ts") || name.endsWith(".tsx") ? [pfad] : [];
+      });
+
+    const treffer = dateien(wurzel).filter((p) =>
+      /\bprovisionalEpicClass\b/.test(readFileSync(p, "utf8")),
+    );
+
+    expect(
+      treffer.map((p) => p.replace(process.cwd() + "/", "")),
+      "Im Budgeting zählt die entschiedene Klasse, nicht der Entwurf.",
+    ).toEqual([]);
   });
 });

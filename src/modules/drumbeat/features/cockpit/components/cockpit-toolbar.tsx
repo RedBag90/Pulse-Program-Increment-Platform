@@ -38,9 +38,23 @@ interface Props {
   filters: CockpitFilters;
   filterOptions: CockpitModel["filterOptions"];
   featureCount: number;
+  /**
+   * Wie viele Features das L3-Tor ausblendet — ihr Epic hat noch kein Budget.
+   *
+   * Sie stehen in keiner Sicht; ohne diese Zeile verschwänden sie lautlos.
+   * Dieselbe Lehre wie bei der Spalte „Außerhalb des Fensters": versteckt ist
+   * in Ordnung, verschwiegen nicht.
+   */
+  hiddenBelowL3: number;
 }
 
-export function CockpitToolbar({ view, filters, filterOptions, featureCount }: Props) {
+export function CockpitToolbar({
+  view,
+  filters,
+  filterOptions,
+  featureCount,
+  hiddenBelowL3,
+}: Props) {
   const t = useTranslations();
   const { setParam, setParams } = useUrlState();
 
@@ -147,6 +161,14 @@ export function CockpitToolbar({ view, filters, filterOptions, featureCount }: P
           {featureCount} {featureCount === 1 ? "Feature" : "Features"}
           {activeFilters > 0 ? " gefiltert" : " im Scope"}
         </p>
+        {hiddenBelowL3 > 0 && (
+          <p
+            className="whitespace-nowrap text-xs text-muted-foreground"
+            title={t("drumbeat.ui.unterL3Erklaerung")}
+          >
+            {t("drumbeat.ui.unterL3Ausgeblendet", { n: hiddenBelowL3 })}
+          </p>
+        )}
       </div>
     </div>
   );

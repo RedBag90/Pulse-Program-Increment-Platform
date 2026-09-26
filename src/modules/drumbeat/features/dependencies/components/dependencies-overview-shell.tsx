@@ -132,23 +132,26 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
 
       {/* Type-Funnel */}
       <div className="mb-3 flex flex-wrap gap-1.5" data-tour="dependencies-funnel">
-        {DEPENDENCY_TYPES.map((t) => (
+        {/* Die Schleifenvariable hiess `t` und verdeckte den Übersetzer — deshalb
+            stand hier `drumbeat.dependencyType.blocks` statt „blockiert", und
+            ein `t(…)` wäre ein Aufruf auf eine Zeichenkette gewesen. */}
+        {DEPENDENCY_TYPES.map((art) => (
           <button
-            key={t}
+            key={art}
             type="button"
-            onClick={() => pushParam({ type: type === t ? null : t })}
+            onClick={() => pushParam({ type: type === art ? null : art })}
             className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition ${
-              type === t
+              type === art
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-input bg-card hover:bg-muted"
             }`}
           >
-            <span className={`size-2 rounded-full ${TYPE_DOT[t]}`} />
-            <span>{TYPE_LABEL[t]}</span>
+            <span className={`size-2 rounded-full ${TYPE_DOT[art]}`} />
+            <span>{t(TYPE_LABEL[art])}</span>
             <span
-              className={`tabular-nums ${type === t ? "text-primary-foreground" : "text-muted-foreground"}`}
+              className={`tabular-nums ${type === art ? "text-primary-foreground" : "text-muted-foreground"}`}
             >
-              {model.funnelCounts[t]}
+              {model.funnelCounts[art]}
             </span>
           </button>
         ))}

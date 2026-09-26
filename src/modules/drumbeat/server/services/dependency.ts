@@ -161,6 +161,105 @@ export async function changeDependencyType(
   }
 }
 
+export interface RelinkDependencyInput {
+  /** Die Kante, wie sie heute steht. */
+  fromId: InitiativeId;
+  toId: InitiativeId;
+  type: DependencyType;
+  /** Die Enden, wie sie stehen sollen. Unverändertes bleibt unverändert. */
+  newFromId: InitiativeId;
+  newToId: InitiativeId;
+}
+
+/**
+ * **Eine Abhängigkeit umhängen: ein Ende aufnehmen und woanders ablegen.**
+ *
+ * Es gibt **kein** `dependency.update` in diesem Quelltext — eine Kante kann
+ * ihre Enden nicht ändern. Umhängen ist deshalb Löschen + Neuanlegen, und das
+ * Vorbild steht direkt darüber: {@link changeDependencyType} macht genau das
+ * in **einer** Transaktion.
+ *
+ * Drei Dinge fallen dabei ab, und alle drei sind Absicht:
+ *
+ *  - **Ein Prüfpfad-Eintrag, nicht zwei.** `emitAudit: false` am Löschen,
+ *    `auditBefore` am Anlegen — der Eintrag liest sich als „Abhängigkeit
+ *    umgehängt: B → C", nicht als „gelöst" plus „verknüpft". Eine Geste, eine
+ *    Zeile. `linkedChanges` führt `fromId`/`toId` vorher-nachher ohnehin mit;
+ *    es braucht kein neues Ereignis.
+ *  - **Die alte Kante steht sich nicht selbst im Weg.** Der Zyklus-Test in
+ *    `createEdge` liest die Kantenmenge aus der offenen Transaktion; ist die
+ *    alte dort schon gelöscht, ist sie natürlich ausgeschlossen.
+ *  - **„Existiert bereits" statt 500er.** Wer auf ein Paar zieht, das die
+ *    Kante schon trägt, läuft in den Unique-Index; die Transaktion rollt das
+ *    Löschen dann zurück, und die alte Kante steht noch. Genau richtig.
+ *
+ * Die neuen Enden werden geprüft wie in {@link linkDependency} — `createEdge`
+ * tut das **nicht**, und ohne diese Zeilen liesse sich auf ein gelöschtes oder
+ * fremdes Feature umhängen.
+ */
+export async function relinkDependency(
+  ctx: RequestContext,
+  input: RelinkDependencyInput,
+): Promise<Result<{ id: string }>> {
+  const mctx = toMutationContext(ctx);
+  const { fromId, toId, type, newFromId, newToId } = input;
+
+  if (newFromId === newToId) {
+    return err({ kind: "conflict" as const, reason: "drumbeat.errors.selfDependency" });
+  }
+  if (newFromId === fromId && newToId === toId) {
+    return err({ kind: "conflict" as const, reason: "drumbeat.errors.endpointsUnchanged" });
+  }
+
+  try {
+    return await mctx.db.$transaction(async (tx) => {
+      const existing = await tx.dependency.findFirst({
+        where: { tenantId: mctx.tenantId, fromId, toId, type },
+      });
+      if (!existing) {
+        return err({
+          kind: "not_found" as const,
+          resourceType: "Dependency",
+          id: `${fromId}→${toId}:${type}`,
+        });
+      }
+
+      const [from, to] = await Promise.all([
+        tx.initiative.findFirst({
+          where: { id: newFromId, tenantId: mctx.tenantId, deletedAt: null },
+        }),
+        tx.initiative.findFirst({
+          where: { id: newToId, tenantId: mctx.tenantId, deletedAt: null },
+        }),
+      ]);
+      if (!from) {
+        return err({ kind: "not_found" as const, resourceType: "Initiative", id: newFromId });
+      }
+      if (!to) {
+        return err({ kind: "not_found" as const, resourceType: "Initiative", id: newToId });
+      }
+
+      await deleteEdge(tx, mctx, existing, { emitAudit: false });
+
+      const created = await createEdge(
+        tx,
+        mctx,
+        { fromId: newFromId, toId: newToId, type },
+        {
+          auditBefore: { type, fromId, toId },
+          cycleReason: "Umgehängt würde diese Abhängigkeit einen Zyklus erzeugen",
+        },
+      );
+      if (isErr(created)) return created;
+      return ok({ id: created.value.id });
+    });
+  } catch (e) {
+    const mapped = onUniqueConstraint("This dependency already exists")(e);
+    if (mapped) return mapped;
+    throw e;
+  }
+}
+
 /**
  * By-id variant of `unlinkDependency` — feeds the bulk-unlink batch action
  * on the dependencies list page. The single-item action keeps the

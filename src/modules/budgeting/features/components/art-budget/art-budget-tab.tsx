@@ -147,7 +147,7 @@ export function ArtBudgetTab({
       {detail.sources.map((s) => (
         <SectionCard
           key={s.source}
-          title={`${s.label} · ${cycleLabel}`}
+          title={`${t(s.labelKey)} · ${cycleLabel}`}
           contentClassName="space-y-3"
         >
           <div className={`grid gap-4 ${s.source === "art" ? "md:grid-cols-5" : "md:grid-cols-4"}`}>

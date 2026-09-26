@@ -31,12 +31,24 @@ export interface StructureTargets {
   targetPiCadenceWeeks: number | null;
 }
 
-/** When no target model is defined yet, everything is on (today's behaviour). */
 /**
- * Wenn kein Zielbild definiert ist, ist alles an — mit **einer** Ausnahme:
- * `artEpics` startet aus. Ein Schalter, der Geldflüsse umleitet, darf nicht
- * stillschweigend angehen; er wird bewusst eingeschaltet, nachdem sichtbar ist,
- * wie viele Vorhaben er betrifft.
+ * Wenn kein Zielbild definiert ist, ist alles an — **auch `artEpics`.**
+ *
+ * Bis September 2026 war das die eine Ausnahme, mit der Begründung: „Ein
+ * Schalter, der Geldflüsse umleitet, darf nicht stillschweigend angehen."
+ * Die Begründung war richtig und trifft trotzdem nicht auf das Zeitfenster zu,
+ * in dem die Einordnung gebraucht wird:
+ *
+ *  - Geld halten darf ein Epic erst ab **L2** (`FIRST_FUNDABLE_STEP`),
+ *    durchgesetzt als `businessCaseApprovedAt != null`.
+ *  - `classifyEpic` liefert vor der Business-Case-Freigabe `null`, und **alle**
+ *    Klassenweichen im Budgeting vergleichen gegen genau diesen Wert.
+ *
+ * Vor L2 leitet eine Einordnung also nichts um — sie ist eine Erwartung. Und
+ * genau die braucht man von Anfang an: ob ein Vorhaben ein grosses oder ein
+ * kleines ist, will man sagen können, bevor die Kosten stehen, nicht erst
+ * danach. Ab L2 steht die Klasse ohnehin fest, und dort greift der alte
+ * Einwand weiter — nur ist er dann keine Frage des Schalters mehr.
  */
 export const DEFAULT_PRACTICES: PracticeFlags = {
   portfolioLevel: true,
@@ -46,7 +58,7 @@ export const DEFAULT_PRACTICES: PracticeFlags = {
   multiPartyApproval: true,
   featureQs: true,
   dependencies: true,
-  artEpics: false,
+  artEpics: true,
 };
 
 /** Katalog-Schlüssel für den Konfigurator und das Glossar (ADR-0024, Regel 2). */
@@ -110,12 +122,9 @@ export const OPERATING_MODEL_TEMPLATE_DEFS: Record<
       targetPiCadenceWeeks: 10,
     },
   },
-  // The full model — every practice on. `artEpics` ist im Default aus (ein
-  // Schalter, der Geldflüsse umleitet, geht nicht stillschweigend an) — wer
-  // dieses Template wählt, entscheidet sich aber ausdrücklich für das volle
-  // Modell, und dazu gehört es.
+  // The full model — every practice on.
   portfolio_safe: {
-    practices: { ...DEFAULT_PRACTICES, artEpics: true },
+    practices: { ...DEFAULT_PRACTICES },
     structure: {
       targetValueStreams: 1,
       targetArtsTotal: 2,
@@ -141,9 +150,11 @@ export function effectivePractices(
 ): PracticeFlags {
   if (!model) return { ...DEFAULT_PRACTICES };
   return {
-    // Ausnahme von "alles an": ART-Epics leiten Geld um und werden bewusst
-    // eingeschaltet, nicht per Default geerbt.
-    artEpics: model.artEpics ?? false,
+    // Seit September 2026 keine Ausnahme mehr — siehe DEFAULT_PRACTICES.
+    // Achtung: `art_epics` ist NOT NULL mit DB-Default, ein gespeichertes
+    // Zielbild trägt also immer einen echten Wert. Dieses `??` greift nur für
+    // Teilobjekte im Speicher, nicht für Zeilen aus der Datenbank.
+    artEpics: model.artEpics ?? true,
     portfolioLevel: model.portfolioLevel ?? true,
     programLevel: model.programLevel ?? true,
     stageGates: model.stageGates ?? true,

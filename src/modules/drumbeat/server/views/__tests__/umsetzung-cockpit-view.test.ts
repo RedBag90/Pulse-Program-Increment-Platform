@@ -61,6 +61,8 @@ function rows(partial: Partial<CockpitRows>): CockpitRows {
     allPis: [],
     featureRows: [],
     depRows: [],
+    hiddenBelowL3: 0,
+    graphPositions: {},
     permissions: NO_PERMS,
     view: "board",
     filters: EMPTY_FILTERS,
@@ -82,6 +84,7 @@ function featureRow(partial: Partial<CockpitFeatureRow> & { id: string }): Cockp
     parentId: null,
     ownerId: null,
     wsjfComputed: null,
+    wsjfJobSize: null,
     art: { id: "art-1", name: "ART 1" },
     parent: null,
     dependenciesIn: [],
@@ -213,6 +216,7 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
       startDate: D("2026-01-01"),
       endDate: D("2026-03-31"),
       status: "completed",
+      capacityJobSize: null,
     },
     {
       id: "q2",
@@ -220,6 +224,7 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
       startDate: D("2026-04-01"),
       endDate: D("2026-06-30"),
       status: "active",
+      capacityJobSize: null,
     },
     {
       id: "q3",
@@ -227,6 +232,7 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
       startDate: D("2026-07-01"),
       endDate: D("2026-09-30"),
       status: "planning",
+      capacityJobSize: null,
     },
     {
       id: "q4",
@@ -234,6 +240,7 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
       startDate: D("2026-10-01"),
       endDate: D("2026-12-31"),
       status: "planning",
+      capacityJobSize: null,
     },
   ];
 
@@ -286,6 +293,7 @@ describe("buildCockpitModel — selected-PI governance scope", () => {
       startDate: D("2026-01-01"),
       endDate: D("2026-03-31"),
       status: "completed",
+      capacityJobSize: null,
     },
     {
       id: "q2",
@@ -293,6 +301,7 @@ describe("buildCockpitModel — selected-PI governance scope", () => {
       startDate: D("2026-04-01"),
       endDate: D("2026-06-30"),
       status: "active",
+      capacityJobSize: null,
     },
     {
       id: "q3",
@@ -300,6 +309,7 @@ describe("buildCockpitModel — selected-PI governance scope", () => {
       startDate: D("2026-07-01"),
       endDate: D("2026-09-30"),
       status: "planned",
+      capacityJobSize: null,
     },
   ];
   const base = {
@@ -522,6 +532,7 @@ describe("buildCockpitModel — der PI-Scope grenzt ein, außer im Board", () =>
       startDate: D("2026-01-01"),
       endDate: D("2026-03-31"),
       status: "completed",
+      capacityJobSize: null,
     },
     {
       id: "q2",
@@ -529,6 +540,7 @@ describe("buildCockpitModel — der PI-Scope grenzt ein, außer im Board", () =>
       startDate: D("2026-04-01"),
       endDate: D("2026-06-30"),
       status: "active",
+      capacityJobSize: null,
     },
   ];
   const base = {
@@ -608,6 +620,7 @@ describe("buildCockpitModel — die Kachel-Zahl folgt den Filtern", () => {
       startDate: D("2026-01-01"),
       endDate: D("2026-03-31"),
       status: "active",
+      capacityJobSize: null,
     },
   ];
   const base = {

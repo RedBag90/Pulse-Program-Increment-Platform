@@ -84,32 +84,32 @@ export function RolePlaybookPanel({ role, tour, seenStepKeys }: Props) {
         </p>
       )}
 
-      {tour.responsibilities.length > 0 && (
+      {tour.responsibilityKeys.length > 0 && (
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t("onboarding.ui.deineVerantwortung")}
           </h3>
           <ul className="space-y-1.5">
-            {tour.responsibilities.map((text) => (
-              <li key={text} className="flex gap-2 text-sm">
+            {tour.responsibilityKeys.map((key) => (
+              <li key={key} className="flex gap-2 text-sm">
                 <Check className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-                <span>{text}</span>
+                <span>{t(key)}</span>
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      {tour.handoffs.length > 0 && (
+      {tour.handoffKeys.length > 0 && (
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t("onboarding.ui.zusammenspiel")}
           </h3>
           <ul className="space-y-1.5">
-            {tour.handoffs.map((text) => (
-              <li key={text} className="flex gap-2 text-sm text-muted-foreground">
+            {tour.handoffKeys.map((key) => (
+              <li key={key} className="flex gap-2 text-sm text-muted-foreground">
                 <ArrowRight className="mt-0.5 size-3.5 shrink-0" />
-                <span>{text}</span>
+                <span>{t(key)}</span>
               </li>
             ))}
           </ul>

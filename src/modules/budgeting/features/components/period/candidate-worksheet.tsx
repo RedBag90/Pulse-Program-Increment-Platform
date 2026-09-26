@@ -128,7 +128,7 @@ export function CandidateWorksheet<T extends GroupableCandidate>({
                         section.kind === "run" ? "text-amber-800 dark:text-amber-200" : ""
                       }`}
                     >
-                      {section.label}
+                      {section.label.kind === "key" ? t(section.label.value) : section.label.value}
                     </span>
                     <span className="text-meta font-normal normal-case text-muted-foreground">
                       {rows.length} {section.kind === "run" ? "Positionen" : "Epics"}

@@ -34,6 +34,14 @@ import {
 /** Aggregierte Zahlen über die Child-Features eines Epics. */
 export interface ChildFeatureStats {
   total: number;
+  /**
+   * Features mit einem PI — also **eingeplant**.
+   *
+   * Nicht dasselbe wie `started`: eingeplant heisst, dass ein Termin steht;
+   * gestartet heisst, dass jemand angefangen hat. Zwischen L3 und L4.1 liegt
+   * genau diese Arbeit, und bis September 2026 zählte sie niemand.
+   */
+  scheduled: number;
   started: number;
   completed: number;
 }
@@ -389,6 +397,28 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
     },
   ],
   L4: [
+    {
+      /**
+       * **Zwischen L3 und L4.1 liegt das Einplanen.** Das Budget steht, die
+       * Features sind geschnitten — was fehlt, sind Termine. Bis September
+       * 2026 sagte die Checkliste dazu nichts; sie fragte nur, ob schon jemand
+       * *angefangen* hat, und übersprang damit den Schritt, der dem Anfangen
+       * vorausgeht.
+       *
+       * Beratend wie sein Nachbar: der Antrag *ist* der bewusste Start.
+       *
+       * `applies` hängt es an das Drumbeat-Modul — ohne PIs gibt es nichts
+       * einzuplanen, und ein unerfüllbares Kriterium ist schlimmer als keines.
+       * Das Vorbild steht eine Stufe darüber (`budget_allocated` mit
+       * `budgetingEnabled`), und `drumbeatEnabled` liegt längst in den Fakten.
+       */
+      key: "features_scheduled",
+      labelKey: "work.gateCriteria.featuresScheduled.label",
+      helpKey: "work.gateCriteria.featuresScheduled.help",
+      satisfied: (f) => f.childFeatureStats.scheduled > 0,
+      blocking: false,
+      applies: (f) => f.drumbeatEnabled,
+    },
     {
       // Beratend, nicht blockierend: der Antrag *ist* der bewusste Start der
       // Umsetzung. Früher war L3→L4 explizit „manuell ohne Vorbedingung

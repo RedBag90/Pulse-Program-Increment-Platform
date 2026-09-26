@@ -5,6 +5,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getTenantPractices } from "@/server/services/target-model";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import { PLANNABLE_GATES } from "@/modules/work/domain/feature-gates";
 import { buildFeaturesOverviewModel } from "@/modules/work/server/views/features-overview";
 import { FeaturesOverviewShell } from "@/modules/drumbeat/features/implementation/components/features-overview-shell";
 import { Page } from "@/components/layout";
@@ -22,6 +23,9 @@ export default async function FeaturesOverviewPage() {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const tenantId = principal.tenantId;
+
+  // Ohne Drumbeat gibt es keine PIs — dann gibt es auch nichts einzuplanen.
+  const drumbeatEnabled = principal.enabledModules.includes("drumbeat");
 
   const scopedArtIds = principal.scopes.artIds;
   const artWhere =
@@ -59,6 +63,20 @@ export default async function FeaturesOverviewPage() {
         level: InitiativeLevel.FEATURE,
         deletedAt: null,
         artId: { in: artIds },
+        // **Geplant wird erst ab L3.** Dieselbe Schwelle, die `setFeaturePi`
+        // durchsetzt — diese Liste ist eine Planungsfläche (sie weist PIs zu
+        // und schickt Features in den Backlog zurück), also gilt sie hier
+        // genauso. Elternlose Features gehen durch: für sie gibt es kein
+        // Portfolio-Tor, auf das man warten könnte.
+        ...(drumbeatEnabled
+          ? {
+              AND: [
+                {
+                  OR: [{ parentId: null }, { parent: { stageGate: { in: [...PLANNABLE_GATES] } } }],
+                },
+              ],
+            }
+          : {}),
       },
       include: {
         parent: { select: { id: true, title: true } },

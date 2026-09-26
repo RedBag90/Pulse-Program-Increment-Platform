@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { swimlaneLayout, pointsBackwards } from "@/modules/drumbeat/domain/graph-layout";
+import {
+  swimlaneLayout,
+  pointsBackwards,
+  columnAt,
+  piOfColumn,
+} from "@/modules/drumbeat/domain/graph-layout";
 
 describe("swimlaneLayout", () => {
   const pis = [
@@ -183,5 +188,77 @@ describe("pointsBackwards", () => {
   it("behauptet nichts über ein Ende außerhalb des Fensters", () => {
     expect(pointsBackwards({ fromId: "c", toId: "weit-weg" }, columnOf)).toBe(false);
     expect(pointsBackwards({ fromId: "weit-weg", toId: "a" }, columnOf)).toBe(false);
+  });
+});
+
+/**
+ * **Die Umkehrung: von der Koordinate zurück auf die Bahn.**
+ *
+ * Seit sich Features per Zug in ein anderes PI legen lassen, muss aus einer
+ * x-Koordinate eine Spalte werden. Eine feste Schrittweite scheidet aus: eine
+ * volle Spalte bricht in Nebenkolonnen und schiebt alles rechts davon weiter.
+ */
+describe("columnAt", () => {
+  const lay = swimlaneLayout(
+    [
+      { id: "a", piId: null },
+      { id: "b", piId: "p1" },
+    ],
+    [{ id: "g1" }],
+    [
+      { id: "p1", name: "PI 1", startDate: "2026-01-01" },
+      { id: "p2", name: "PI 2", startDate: "2026-04-01" },
+    ],
+  );
+
+  it("gibt die Bandkanten mit heraus", () => {
+    // Ohne sie wäre die Umkehrung nicht zu haben — sie lagen vorher nur intern vor.
+    expect(lay.bands).toEqual(lay.headers.map((h) => h.x));
+  });
+
+  it("trifft jede Spalte an ihrer linken Kante", () => {
+    lay.bands.forEach((x, col) => expect(columnAt(x, lay.bands)).toBe(col));
+  });
+
+  it("trifft sie auch in der Mitte", () => {
+    lay.bands.forEach((x, col) => expect(columnAt(x + lay.nodeWidth / 2, lay.bands)).toBe(col));
+  });
+
+  it("ordnet die Luft dazwischen der letzten begonnenen Spalte zu", () => {
+    // Ein Knoten, der in der Lücke liegen bleibt, ist von links dorthin
+    // gezogen worden. Die Geste zu verwerfen wäre unfreundlicher.
+    const luecke = lay.bands[1]! + lay.nodeWidth + 20;
+    expect(luecke).toBeLessThan(lay.bands[2]!);
+    expect(columnAt(luecke, lay.bands)).toBe(1);
+  });
+
+  it("gibt links vom ersten Band nichts zurück", () => {
+    expect(columnAt(lay.bands[0]! - 1, lay.bands)).toBeNull();
+  });
+
+  it("kommt mit einem leeren Layout zurecht", () => {
+    expect(columnAt(0, [])).toBeNull();
+  });
+});
+
+describe("piOfColumn", () => {
+  const pis = [{ id: "p1" }, { id: "p2" }];
+
+  it("macht aus Spalte 0 den Backlog", () => {
+    // `null` ist ein **gültiges** Ziel: ein Feature aus einem PI zu nehmen ist
+    // eine Planungsentscheidung wie jede andere.
+    expect(piOfColumn(0, pis)).toBeNull();
+  });
+
+  it("macht aus den mittleren Spalten die PIs, in Reihenfolge", () => {
+    expect(piOfColumn(1, pis)).toBe("p1");
+    expect(piOfColumn(2, pis)).toBe("p2");
+  });
+
+  it("macht aus der Geisterspalte **kein** Ziel", () => {
+    // `undefined`, nicht `null` — dorthin zu ziehen sagt nichts, und die
+    // beiden dürfen nicht gleich aussehen.
+    expect(piOfColumn(3, pis)).toBeUndefined();
+    expect(piOfColumn(99, pis)).toBeUndefined();
   });
 });

@@ -294,3 +294,32 @@ describe("Das alte Reifegrad-Vokabular lebt nicht mehr im Code", () => {
     expect(funde.join("\n"), `Altes Reifegrad-Vokabular als Wert:\n${funde.join("\n")}`).toBe("");
   });
 });
+
+/**
+ * **Und der Katalog gehört dazu.**
+ *
+ * Der Wächter oben liest `src/` und `prisma/` — die Sprachkataloge nicht. Dort
+ * haben 13 Einträge je Sprache den Neuschnitt überlebt und sagten im September
+ * 2026 noch „die Einordnung entsteht mit der Freigabe an **L3.1**" oder „das
+ * Dashboard rechnet ab **L3.2**". Gefunden hat das kein Test, sondern ein Blick
+ * auf die Epic-Seite.
+ *
+ * Katalogtexte sind keine Werte im Code, aber sie sind das, was der Nutzer
+ * liest — ein falscher Reifegrad dort ist schlimmer als einer im Quelltext, wo
+ * ihn wenigstens der Compiler umgibt. Hier zählt deshalb die **Prosa**: ein
+ * `L3.1` oder `L3.2` irgendwo im Text.
+ */
+describe("Das alte Reifegrad-Vokabular lebt auch nicht mehr im Katalog", () => {
+  const KATALOGE = ["messages/de.json", "messages/en.json"];
+
+  it("nennt in keiner Sprache mehr L3.1 oder L3.2", () => {
+    const funde: string[] = [];
+    for (const rel of KATALOGE) {
+      const zeilen = readFileSync(join(process.cwd(), rel), "utf8").split("\n");
+      zeilen.forEach((z, i) => {
+        if (/L3\.[12]/.test(z)) funde.push(`  · ${rel}:${i + 1}  ${z.trim()}`);
+      });
+    }
+    expect(funde.join("\n"), `Altes Reifegrad-Vokabular im Katalog:\n${funde.join("\n")}`).toBe("");
+  });
+});

@@ -1,15 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import {
   linkDependencyAction,
   unlinkDependencyAction,
   changeDependencyTypeAction,
+  relinkDependencyAction,
 } from "@/modules/drumbeat/features/dependencies/actions/dependency";
 import {
   linkDependency,
   unlinkDependency,
   changeDependencyType,
+  relinkDependency,
   type DependencyEdgeType,
 } from "@/modules/drumbeat/features/dependencies/lib/dependency-actions-client";
 
@@ -81,5 +84,58 @@ export function useDependencyEdgeEditing(
     });
   }
 
-  return { error, callLink, callUnlink, callChangeType };
+  /**
+   * **Ein Ende aufnehmen und woanders ablegen.**
+   *
+   * Es wirkt **sofort** — und eine Meldung bietet „Rückgängig" an. Das ist die
+   * flüssigere Bedienung als ein Bestätigungsdialog vor jeder Geste, und ein
+   * Fehlgriff ist mit einem Klick geheilt: derselbe Aufruf mit vertauschten
+   * Rollen.
+   *
+   * Der Server entscheidet — Zyklus, Selbstbezug, doppeltes Paar, gelöschtes
+   * Ziel. Die Fläche prüft vorher nur, was sie ohne Rundreise wissen kann.
+   */
+  function callRelink(depId: string, newFromId: string, newToId: string) {
+    const d = depById(depId);
+    if (!d) return;
+    if (newFromId === newToId) return;
+    if (d.fromId === newFromId && d.toId === newToId) return;
+
+    startTransition(async () => {
+      const res = await relinkDependency(relinkDependencyAction, {
+        fromId: d.fromId,
+        toId: d.toId,
+        type: d.type,
+        newFromId,
+        newToId,
+        artId,
+      });
+      if (res.error) {
+        setError(res.error);
+        toast.error(res.error);
+        return;
+      }
+      setError(null);
+      toast.success("Abhängigkeit umgehängt", {
+        action: {
+          label: "Rückgängig",
+          onClick: () => {
+            startTransition(async () => {
+              const zurueck = await relinkDependency(relinkDependencyAction, {
+                fromId: newFromId,
+                toId: newToId,
+                type: d.type,
+                newFromId: d.fromId,
+                newToId: d.toId,
+                artId,
+              });
+              if (zurueck.error) toast.error(zurueck.error);
+            });
+          },
+        },
+      });
+    });
+  }
+
+  return { error, callLink, callUnlink, callChangeType, callRelink };
 }

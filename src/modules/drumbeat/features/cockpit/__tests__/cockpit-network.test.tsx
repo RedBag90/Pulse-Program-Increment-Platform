@@ -35,6 +35,8 @@ const pi = (id: string, name: string): CockpitPiSlot => ({
   endDate: new Date("2026-03-31"),
   status: "planned",
   featureCount: 0,
+  plannedJobSize: 0,
+  capacityJobSize: null,
   isCurrent: false,
 });
 
@@ -51,6 +53,7 @@ function feat(id: string, piId: string | null): CockpitFeature {
     ownerId: null,
     ownerName: null,
     wsjfComputed: null,
+    wsjfJobSize: null,
     hasBlocker: false,
     blockerHint: null,
     solutionName: null,
@@ -64,6 +67,8 @@ const net = (features: CockpitFeature[], pis: CockpitPiSlot[]) =>
       dependencies={[]}
       artId="art-1"
       canLinkDependency
+      canUpdate={false}
+      savedPositions={{}}
       pis={pis}
       selectedPiId="p2"
     />,

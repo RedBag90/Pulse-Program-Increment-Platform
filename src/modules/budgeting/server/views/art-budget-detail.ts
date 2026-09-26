@@ -123,7 +123,7 @@ export function buildArtBudgetDetail(input: {
   const sources: ArtBudgetSourceView[] = [
     {
       source: "portfolio",
-      label: ALLOCATION_SOURCE_KEYS.portfolio,
+      labelKey: ALLOCATION_SOURCE_KEYS.portfolio,
       breakdown: summarizeAllocations(allocated),
       titles,
     },
@@ -278,7 +278,7 @@ export async function loadArtBudgetDetail(
             ...detail.sources,
             {
               source: "art" as const,
-              label: ALLOCATION_SOURCE_KEYS.art,
+              labelKey: ALLOCATION_SOURCE_KEYS.art,
               breakdown: pot.breakdown,
               titles: pot.titles,
             },

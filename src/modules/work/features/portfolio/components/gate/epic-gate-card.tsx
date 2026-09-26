@@ -260,8 +260,16 @@ function NoRequest({
     startTransition(() => action(fd));
   }
 
-  // Nur an L3.1: dort entsteht die Klasse, und dort wird die Abweichung
-  // erstmals sichtbar.
+  /**
+   * **Nur an L2** — dort entsteht die Klasse, und dort muss der Hinweis fallen.
+   *
+   * Er fiel bis September 2026 nie: `classDrift` verlangte eine *abgeleitete*
+   * Klasse, und die entsteht erst **durch** diese Abnahme. Wer auf L2
+   * beantragte, hatte notwendig `derived == null` — ein Zirkel. Seitdem
+   * speist sich die Abweichung aus der vorläufigen Klasse des Entwurfs
+   * (`provisionalEpicClass`), und der Zwischenruf kommt, wo er hingehört:
+   * **vor** der Freigabe.
+   */
   const driftBlocks = classDrift != null && classDrift.drift !== "none" && gate.next === "L2";
 
   /**

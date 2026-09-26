@@ -77,6 +77,11 @@ export const CRITERION_TARGET: Record<string, CriterionTarget> = {
     href: () => "/budgeting/periods",
     labelKey: "work.gate.target.budgeting",
   },
+  features_scheduled: {
+    tab: "breakdown",
+    href: (id) => `/portfolio/epics/${id}?tab=breakdown`,
+    labelKey: "work.gate.target.deliverables",
+  },
   feature_started: {
     tab: "breakdown",
     href: (id) => `/portfolio/epics/${id}?tab=breakdown`,

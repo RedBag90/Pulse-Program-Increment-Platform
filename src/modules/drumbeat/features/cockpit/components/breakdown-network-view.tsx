@@ -20,7 +20,6 @@ import {
   Background,
   Controls,
   EdgeLabelRenderer,
-  Handle,
   MiniMap,
   Panel,
   Position,
@@ -51,23 +50,24 @@ import { CreateFeatureDialog } from "@/modules/work/features/feature/components/
 import {
   linkDependencyAction,
   unlinkDependencyAction,
+  relinkDependencyAction,
   changeDependencyTypeAction,
 } from "@/modules/drumbeat/features/dependencies/actions/dependency";
 import {
   linkDependency,
   unlinkDependency,
+  relinkDependency,
   changeDependencyType,
 } from "@/modules/drumbeat/features/dependencies/lib/dependency-actions-client";
 import { updateFeatureAction } from "@/modules/work/features/feature/actions/feature";
 import { saveBreakdownLayoutAction } from "@/modules/work/features/portfolio/actions/breakdown-layout";
 import { useBreakdownRealtime } from "@/modules/work/features/portfolio/hooks/use-breakdown-realtime";
+
 import {
-  HANDLE_SLOTS,
-  handleOffsetPercent,
-  sourceHandleId,
-  targetHandleId,
-} from "@/modules/drumbeat/domain/graph-handles";
-import { hopsFor, polylineOf, withHops, type Point } from "@/modules/drumbeat/domain/edge-hops";
+  EdgePathContext,
+  HandleRow,
+  useEdgePaths,
+} from "@/modules/drumbeat/features/cockpit/components/network-shared";
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { clearBreakdownLayoutAction } from "@/modules/work/features/portfolio/actions/breakdown-layout";
 import { mergeOptimisticEdges } from "@/modules/drumbeat/features/cockpit/lib/optimistic-edges";
@@ -231,7 +231,6 @@ const BreakdownInteractionContext = createContext<BreakdownInteractionCtx | null
  * Hier liegt die fertige Linie je Kante. Wer nichts findet, zeichnet seine
  * eigene: die Brücken sind eine Zugabe, keine Voraussetzung.
  */
-const EdgePathContext = createContext<ReadonlyMap<string, string>>(new Map());
 
 function useBreakdownInteraction(): BreakdownInteractionCtx {
   const ctx = useContext(BreakdownInteractionContext);
@@ -433,46 +432,6 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
         </form>
       </PopoverContent>
     </Popover>
-  );
-}
-
-/**
- * **Eine Reihe von Anschlüssen statt eines einzigen.**
- *
- * Vorher hatte jeder Knoten genau ein Ziel links und eine Quelle rechts, beide
- * ohne Id: jede Kante lief durch denselben Punkt, und zwei mit gleichen
- * Endpunkten zeichneten dieselbe Linie. Welche Kante welchen Anschluss nimmt,
- * entscheidet `assignHandles` — hier steht nur, wo sie sitzen.
- */
-function HandleRow({
-  type,
-  position,
-  connectable,
-  visible,
-}: {
-  type: "source" | "target";
-  position: Position;
-  connectable: boolean;
-  visible: boolean;
-}) {
-  return (
-    <>
-      {Array.from({ length: HANDLE_SLOTS }, (_, slot) => (
-        <Handle
-          key={slot}
-          id={type === "source" ? sourceHandleId(slot) : targetHandleId(slot)}
-          type={type}
-          position={position}
-          isConnectable={connectable}
-          style={{ top: `${handleOffsetPercent(slot)}%` }}
-          className={
-            visible && connectable
-              ? "!size-2 !border !border-background !bg-foreground/60 !opacity-0 transition-opacity group-hover:!opacity-100"
-              : "!size-0 !border-none !opacity-0"
-          }
-        />
-      ))}
-    </>
   );
 }
 
@@ -1118,6 +1077,86 @@ export function BreakdownNetworkView({
     setEdges((current) => mergeOptimisticEdges(baseGraph.edges, current));
   }, [baseGraph.edges]);
 
+  /**
+   * **Ein Kantenende aufnehmen und woanders ablegen.**
+   *
+   * `edgesReconnectable={false}` stand hier ausdrücklich — ReactFlow bringt die
+   * Geste mit, sie war nur nie gewollt. Jetzt ist sie es, an `canLinkDependency`
+   * gebunden.
+   *
+   * **Kein optimistischer Zwischenstand.** `mergeOptimisticEdges` hält nur
+   * `tmp-`-Kanten und kennt keinen Grabstein; eine umgehängte Kante bekommt
+   * beim Anlegen eine **neue** Id, und ein Server-Stand von vor dem Schreiben
+   * brächte die alte zurück — beide Enden gleichzeitig sichtbar. Lieber ein
+   * Sprung nach dem Serverlauf als zwei Kanten, von denen eine lügt.
+   */
+  const onReconnect = useCallback(
+    (alteKante: Edge, conn: Connection) => {
+      if (!canLinkDependency) return;
+      if (!conn.source || !conn.target) return;
+      if (conn.source === conn.target) {
+        toast.error("Eine Abhängigkeit auf dasselbe Feature ist nicht möglich.");
+        return;
+      }
+      const typ = ((alteKante.data as { type?: DependencyEdgeType } | undefined)?.type ??
+        "depends_on") as DependencyEdgeType;
+      if (
+        typ !== "relates_to" &&
+        detectCycle(
+          conn.source,
+          conn.target,
+          edges
+            .filter((e) => e.id !== alteKante.id)
+            .map((e) => ({ fromId: e.source, toId: e.target })),
+        )
+      ) {
+        toast.error("Diese Verbindung würde einen Zyklus erzeugen.");
+        return;
+      }
+      const sourceArtId = artById.get(alteKante.source);
+      if (!sourceArtId) {
+        toast.error("Source-ART unbekannt — Abhängigkeit nicht umgehängt.");
+        return;
+      }
+      startTransition(async () => {
+        const res = await relinkDependency(relinkDependencyAction, {
+          fromId: alteKante.source,
+          toId: alteKante.target,
+          type: typ,
+          newFromId: conn.source!,
+          newToId: conn.target!,
+          artId: sourceArtId,
+        });
+        if (res?.error) {
+          toast.error(res.error);
+          router.refresh();
+          return;
+        }
+        toast.success("Abhängigkeit umgehängt", {
+          action: {
+            label: "Rückgängig",
+            onClick: () => {
+              startTransition(async () => {
+                const zurueck = await relinkDependency(relinkDependencyAction, {
+                  fromId: conn.source!,
+                  toId: conn.target!,
+                  type: typ,
+                  newFromId: alteKante.source,
+                  newToId: alteKante.target,
+                  artId: sourceArtId,
+                });
+                if (zurueck?.error) toast.error(zurueck.error);
+                router.refresh();
+              });
+            },
+          },
+        });
+        router.refresh();
+      });
+    },
+    [canLinkDependency, edges, artById, router],
+  );
+
   // Filter-Overlay (Roadmap-P4): nicht-gematchte Nodes + Edges, die nicht
   // beide endpunkte gematcht haben, werden auf opacity 0.25 dimmed.
   const displayNodes = useMemo(() => {
@@ -1146,38 +1185,7 @@ export function BreakdownNetworkView({
    * Bruchteilen der Höhe. Vorher war die Höhe inhaltsabhängig, und jede
    * Rechnung darüber wäre geraten gewesen.
    */
-  const edgePaths = useMemo(() => {
-    const posOf = new Map(nodes.map((n) => [n.id, n.position]));
-    const slot = (handle: string | null | undefined): number => {
-      const n = Number(String(handle ?? "").slice(1));
-      return Number.isFinite(n) ? n : Math.floor(HANDLE_SLOTS / 2);
-    };
-
-    const roh: { id: string; d: string; points: Point[] }[] = [];
-    for (const e of edges) {
-      const s = posOf.get(e.source);
-      const ziel = posOf.get(e.target);
-      if (s == null || ziel == null) continue;
-      const [d] = getSmoothStepPath({
-        sourceX: s.x + NODE_WIDTH,
-        sourceY: s.y + (NODE_HEIGHT * handleOffsetPercent(slot(e.sourceHandle))) / 100,
-        targetX: ziel.x,
-        targetY: ziel.y + (NODE_HEIGHT * handleOffsetPercent(slot(e.targetHandle))) / 100,
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
-        offset: 32,
-        borderRadius: 16,
-      });
-      roh.push({ id: e.id, d, points: polylineOf(d) });
-    }
-
-    const out = new Map<string, string>();
-    for (const kante of roh) {
-      if (kante.points.length < 2) continue;
-      out.set(kante.id, withHops(kante.d, hopsFor(kante.id, kante.points, roh)));
-    }
-    return out;
-  }, [nodes, edges]);
+  const edgePaths = useEdgePaths(nodes, edges, { width: NODE_WIDTH, height: NODE_HEIGHT });
 
   // Connection-Typ steuert, mit welchem Edge-Type neue Drag-Connects
   // angelegt werden. Default `depends_on`.
@@ -1430,7 +1438,8 @@ export function BreakdownNetworkView({
               edgeTypes={EDGE_TYPES}
               nodesDraggable={layoutMode === "topology"}
               edgesFocusable={canLinkDependency}
-              edgesReconnectable={false}
+              edgesReconnectable={canLinkDependency}
+              onReconnect={onReconnect}
               deleteKeyCode={canLinkDependency ? ["Backspace", "Delete"] : null}
               onEdgesDelete={onEdgesDelete}
               nodesConnectable={canLinkDependency}

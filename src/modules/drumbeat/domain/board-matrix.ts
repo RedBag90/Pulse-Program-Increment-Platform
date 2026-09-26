@@ -37,7 +37,15 @@ export const OVERFLOW_COLUMN_ID = "__outside_window__";
 /** Lane descriptor the matrix buckets against (structurally the board's `LaneDef`). */
 export interface BoardLane {
   value: FeatureStatus;
-  label: string;
+  /**
+   * Der **Katalog-Schlüssel** der Bahnenbeschriftung, nicht das Wort.
+   *
+   * Hiess bis September 2026 `label` und trug trotzdem einen Schlüssel — der
+   * Compiler sah keinen Unterschied, beides ist `string`. Auf dem Board stand
+   * deshalb `DRUMBEAT.FEATURESTATUS.INPROGRESS`, in Grossbuchstaben, weil die
+   * Beschriftung `uppercase` gesetzt ist. Der Name sagt jetzt, was drin ist.
+   */
+  labelKey: string;
   color: string;
   /**
    * Wie viele Karten eine Zelle dieser Bahn zeigt, bevor der Rest aufklappt.
@@ -120,9 +128,17 @@ export function buildBoardMatrix(
 
   let backlogCount = 0;
   let overflowCount = 0;
+  let backlogJobSize = 0;
+  let overflowJobSize = 0;
   for (const f of features) {
-    if (f.piId == null) backlogCount += 1;
-    else if (isOutside(f)) overflowCount += 1;
+    const js = f.wsjfJobSize ?? 0;
+    if (f.piId == null) {
+      backlogCount += 1;
+      backlogJobSize += js;
+    } else if (isOutside(f)) {
+      overflowCount += 1;
+      overflowJobSize += js;
+    }
   }
 
   const backlogColumn: CockpitPiSlot = {
@@ -132,6 +148,10 @@ export function buildBoardMatrix(
     endDate: new Date(0),
     status: "backlog",
     featureCount: backlogCount,
+    plannedJobSize: backlogJobSize,
+    // Der Backlog hat keine Kapazität — er ist kein Zeitraum, sondern das,
+    // was noch keinen hat.
+    capacityJobSize: null,
     isCurrent: false,
   };
   const columns: CockpitPiSlot[] = [backlogColumn, ...pis];
@@ -143,6 +163,8 @@ export function buildBoardMatrix(
       endDate: new Date(0),
       status: "overflow",
       featureCount: overflowCount,
+      plannedJobSize: overflowJobSize,
+      capacityJobSize: null,
       isCurrent: false,
     });
   }

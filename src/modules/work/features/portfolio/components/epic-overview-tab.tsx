@@ -12,7 +12,7 @@ import { EpicSolutionsSection } from "./solutions/epic-solutions-section";
 import { EpicEditForm } from "./epic-edit-form";
 import { EpicGovernanceFlags } from "./epic-governance-flags";
 import { EpicClassBadge } from "./epic-class-badge";
-import type { EpicClassification } from "@/modules/work/domain/pb-submission";
+import type { ClassificationSlice } from "@/modules/work/server/views/epic-detail";
 import type { GuardrailTargetsSource } from "@/modules/work/domain/portfolio-guardrails";
 import { EpicPlannedWindowForm } from "./epic-planned-window-form";
 import { EpicBudgetPanel } from "./epic-budget-panel";
@@ -85,17 +85,16 @@ export interface EpicOverviewTabProps {
   currentGate?: string;
   /** `epic.portfolio_override` — zusätzliche Hürde für den eingefrorenen Horizont. */
   canOverrideHorizon: boolean;
-  /** Guardrail 3: Portfolio- oder ART-Epic. `null` = Practice aus. */
-  classification?:
-    | {
-        classification: EpicClassification;
-        source: GuardrailTargetsSource;
-        fundingGap?: "noArt" | "noPot" | null | undefined;
-        /** Beim Anlegen hinterlegte Erwartung; `null` bei Bestands-Epics. */
-        intended?: "portfolio" | "art" | null | undefined;
-      }
-    | null
-    | undefined;
+  /**
+   * Guardrail 3: Portfolio- oder ART-Epic — als **Scheibe**.
+   *
+   * War bis September 2026 `X | null | undefined`, und genau daran ist es
+   * gescheitert: das Abzeichen stand hinter `classification &&`, das
+   * Eingabefeld daneben ohne Bedingung, und `classification?.intended ?? null`
+   * machte aus „Practice aus" ein „noch nicht eingeordnet". Jetzt eine
+   * Bedingung für beides, vom Typ erzwungen. Siehe `Gated`.
+   */
+  classification: ClassificationSlice;
   /** Nutzen bei 100 % KPI-Zielerreichung — direkt aus den KPIs berechnet. */
   /**
    * Die im Read-Model bereits gebildeten Summen (`epic-detail.ts:heroTotals`).
@@ -355,12 +354,17 @@ export function EpicOverviewTab({
          * Eingaben; sie stehen jetzt untereinander in einer Karte.
          */}
         <Panel label={t("work.epic.einordnung")} atGate={amZug}>
-          {classification && (
+          {classification.disabled ? null : (
             <EpicClassBadge
-              classification={classification.classification}
-              source={classification.source}
+              classification={{
+                epicClass: classification.epicClass,
+                cost: classification.cost,
+                threshold: classification.threshold,
+                overridden: classification.overridden,
+              }}
+              source={classification.source as GuardrailTargetsSource}
               fundingGap={classification.fundingGap}
-              intended={classification.intended ?? null}
+              intended={classification.intended}
             />
           )}
           <EpicClassificationForm
@@ -371,9 +375,16 @@ export function EpicOverviewTab({
             businessCaseApprovedAtIso={epic.businessCaseApprovedAt?.toISOString() ?? null}
             canEdit={canEdit}
             canOverrideHorizon={canOverrideHorizon}
-            intendedClass={classification?.intended ?? null}
-            derivedClass={classification?.classification.epicClass ?? null}
-            portfolioThreshold={classification?.classification.threshold ?? null}
+            classification={
+              classification.disabled
+                ? { disabled: true }
+                : {
+                    disabled: false,
+                    intended: classification.intended,
+                    derived: classification.epicClass,
+                    threshold: classification.threshold,
+                  }
+            }
             portfolioOverrideAtIso={epic.portfolioOverrideAt?.toISOString() ?? null}
             valueStreamId={epic.valueStream?.id ?? null}
           />

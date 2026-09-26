@@ -41,7 +41,7 @@ function facts(step: GateStep, over: Partial<EpicGateFacts> = {}): EpicGateFacts
     hasBusinessCaseContent: false,
     businessCaseApprovedAt: null,
     budgetAllocationSum: 0,
-    childFeatureStats: { total: 0, started: 0, completed: 0 },
+    childFeatureStats: { total: 0, scheduled: 0, started: 0, completed: 0 },
     selectedForDetailingAt: null,
     selectedForAnalyzingAt: null,
     implementationStartedAt: null,
@@ -110,10 +110,14 @@ function readyFor(to: GateStep): EpicGateFacts {
     case "L4":
       return facts("L3", { businessCaseApprovedAt: EARLIER, budgetAllocationSum: 500_000 });
     case "L4.2":
-      return facts("L4", { childFeatureStats: { total: 2, started: 2, completed: 2 } });
+      return facts("L4", {
+        childFeatureStats: { total: 2, scheduled: 2, started: 2, completed: 2 },
+      });
     case "L5":
       // Reif für den Impact-Antrag heißt: die Umsetzung ist abgenommen (L4.2).
-      return facts("L4.2", { childFeatureStats: { total: 2, started: 2, completed: 2 } });
+      return facts("L4.2", {
+        childFeatureStats: { total: 2, scheduled: 2, started: 2, completed: 2 },
+      });
     default:
       return facts("L0");
   }
@@ -303,7 +307,9 @@ describe("decideGateTransitionOutcome — Aktualität des Antrags", () => {
   });
 
   it("die Unterscheidung hängt am Stempel, nicht an der Spalte", () => {
-    const onL4 = facts("L4", { childFeatureStats: { total: 2, started: 2, completed: 2 } });
+    const onL4 = facts("L4", {
+      childFeatureStats: { total: 2, scheduled: 2, started: 2, completed: 2 },
+    });
     // Dieselbe Spalte „L4", zwei verschiedene Schritte: ohne
     // `implementationCompletedAt` steht das Epic auf L4, mit ihm auf L4.2.
     expect(decide({ facts: onL4, from: "L4.2", to: "L5" }).kind).toBe("stale");
