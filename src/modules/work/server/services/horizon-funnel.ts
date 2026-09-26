@@ -85,10 +85,21 @@ export function countDeliveryLoad(epics: readonly CountableEpic[]): Map<string, 
   const out = new Map<string, number>();
   for (const e of epics) {
     if (e.primarySolutionId == null) continue;
-    if (!carriesDeliveryLoad(stepOf(e))) continue;
+    if (!inDeliveryWindow(e)) continue;
     out.set(e.primarySolutionId, (out.get(e.primarySolutionId) ?? 0) + 1);
   }
   return out;
+}
+
+/**
+ * **Erscheint dieses Epic im Trichter?** Das Lieferfenster L3–L4.2 — dieselbe
+ * Grenze für die Größe eines Produkts und für die Punkte der Epics ohne
+ * Produkt. Davor ist nichts beschlossen, danach (L5) wird nichts mehr geliefert.
+ */
+export function inDeliveryWindow(
+  e: Pick<CountableEpic, "stageGate" | "selectedForAnalyzingAt" | "implementationCompletedAt">,
+): boolean {
+  return carriesDeliveryLoad(stepOf(e));
 }
 
 /** Der Schritt eines Epics — `stage_gate` allein kennt keine Unterstufen. */
@@ -113,13 +124,6 @@ export interface HorizonFunnelPorts {
   artAllocations: Record<string, number>;
   /** Die Einordnung je Epic — sie wählt den Topf (`chooseAllocation`). */
   epicClasses: Map<string, { epicClass: "portfolio" | "art" | null }>;
-  /**
-   * Ist das Budget-Modul an? Aus ⇒ es gibt kein Geld, und die Zeichnung misst
-   * stattdessen die laufenden Epics. Dann entscheidet **nicht** mehr die
-   * Zuteilung, welches produktlose Epic als Punkt erscheint, sondern dasselbe
-   * Lieferfenster, das auch die Produktgröße trägt.
-   */
-  budgetingEnabled: boolean;
 }
 
 export async function loadHorizonFunnelItems(
@@ -128,7 +132,6 @@ export async function loadHorizonFunnelItems(
   ports: HorizonFunnelPorts,
 ): Promise<FunnelItem[]> {
   const { runBySolution, unassignedRun, cycleAllocations, artAllocations, epicClasses } = ports;
-  const { budgetingEnabled } = ports;
 
   /** Ein Euro, ein Topf — die Klasse wählt, ein leerer Topf tritt zurück. */
   const investOf = (epicId: string): number =>
@@ -197,17 +200,14 @@ export async function loadHorizonFunnelItems(
 
   for (const e of epics) {
     if (e.primarySolutionId != null) continue;
-    // **Das Geld entscheidet, nicht der Reifegrad.** Vorher stand hier ein
-    // Filter auf „ab L3.2" — eine Näherung für „hat Budget". Die Zuteilung
-    // selbst ist die genauere Auskunft und braucht keine zweite Bedingung, die
-    // danebenliegen kann.
+    // **Eine Regel für Größe und Punkte: das Lieferfenster L3–L4.2.**
+    // Bis September 2026 entschied hier mit Budget-Modul die Zuteilung — ein
+    // Epic ohne Produkt erschien damit schon ab L2 und blieb auf L5 stehen,
+    // solange Geld darauf lag, während die Produktgröße daneben nur L3–L4.2
+    // zählte. Dieselbe Zeichnung, zwei Regeln. Jetzt gilt für beide dieselbe;
+    // das Geld bestimmt nur noch den Invest des Punkts, nicht ob er erscheint.
+    if (!inDeliveryWindow(e)) continue;
     const invest = investOf(e.id);
-    // Mit Budget-Modul entscheidet das Geld: eine Zuteilung ist die genauere
-    // Auskunft als „ab L3.2" und braucht keine zweite Bedingung daneben. Ohne
-    // Modul gibt es kein Geld — dann entscheidet dasselbe Lieferfenster, das
-    // auch die Produktgröße trägt. Ohne diese Grenze würde jede L0-Idee zum
-    // Punkt und die Zeichnung überflutet.
-    if (budgetingEnabled ? invest <= 0 : !carriesDeliveryLoad(stepOf(e))) continue;
     items.push({
       id: e.id,
       kind: "epic",

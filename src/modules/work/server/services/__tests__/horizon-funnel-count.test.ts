@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   countDeliveryLoad,
   funnelCode,
+  inDeliveryWindow,
   type CountableEpic,
 } from "@/modules/work/server/services/horizon-funnel";
 
@@ -68,5 +69,37 @@ describe("funnelCode", () => {
 
   it("kommt ohne Wertstrom aus", () => {
     expect(funnelCode("Core", null)).toBe("Core");
+  });
+});
+
+/**
+ * **Eine Regel für Produkte und Epic-Punkte.**
+ *
+ * Ein Epic ohne Produkt erschien mit Budget-Modul, sobald Geld darauf lag —
+ * also schon ab L2 und auch noch auf L5 —, während die Größe eines Produkts
+ * nur L3–L4.2 zählte. Jetzt entscheidet für beide dasselbe Fenster.
+ */
+describe("inDeliveryWindow", () => {
+  it("lässt L2 draussen — ein freigegebener Business Case ist noch kein Beschluss", () => {
+    expect(inDeliveryWindow(epic({ stageGate: "L2" }))).toBe(false);
+  });
+
+  it("nimmt L3 bis L4.2 auf", () => {
+    expect(inDeliveryWindow(epic({ stageGate: "L3" }))).toBe(true);
+    expect(inDeliveryWindow(epic({ stageGate: "L4" }))).toBe(true);
+    expect(
+      inDeliveryWindow(
+        epic({ stageGate: "L4", implementationCompletedAt: new Date("2026-09-01") }),
+      ),
+    ).toBe(true);
+  });
+
+  it("lässt L5 draussen — dort wird nichts mehr geliefert", () => {
+    expect(inDeliveryWindow(epic({ stageGate: "L5" }))).toBe(false);
+  });
+
+  it("ist dieselbe Grenze wie die Produktgröße", () => {
+    const epics = ["L0", "L1", "L2", "L3", "L4", "L5"].map((g) => epic({ stageGate: g }));
+    expect(countDeliveryLoad(epics).get("s1")).toBe(epics.filter(inDeliveryWindow).length);
   });
 });

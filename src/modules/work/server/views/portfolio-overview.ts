@@ -1156,7 +1156,6 @@ export async function loadPortfolioOverviewInputs(
         cycleAllocations,
         artAllocations,
         epicClasses,
-        budgetingEnabled,
       })
     : [];
 
