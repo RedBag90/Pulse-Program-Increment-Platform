@@ -929,7 +929,8 @@ export function DependencyNetwork({
   }
 
   return (
-    <div className="relative space-y-2">
+    // `data-tour`: Ziel des Onboardings und des Wikis für „Abhängigkeiten".
+    <div className="relative space-y-2" data-tour="dependency-network">
       {/* Werkzeugzeile: Anordnung, Suche und Typfilter links; der Typ neuer
           Kanten und die Cross-ART-Auswahl rechts. */}
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">

@@ -5,7 +5,6 @@ import { DEPENDENCY_TYPES } from "@/modules/core/kernel/domain/types";
 import {
   linkDependency,
   unlinkDependency,
-  unlinkDependencyById,
   changeDependencyType,
   relinkDependency,
 } from "@/modules/drumbeat/server/services/dependency";
@@ -143,26 +142,4 @@ export const relinkDependencyAction = createServerAction({
     }),
   revalidate: "dependency",
   mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.relinkDependency" }, t),
-});
-
-/**
- * Bulk unlink — drives the dependencies list bulk-action bar. Round 3
- * batch mode over the per-id `unlinkDependencyById` service so the user
- * can clean up dozens of stale `relates_to` links in one go. ART-scoped
- * so the policy check honours the team's reach (matches the single-item
- * `unlinkDependencyAction`).
- */
-export const unlinkDependencyBatchAction = createServerAction({
-  schema: z.object({
-    dependencyIds: z.array(z.string().uuid()).min(1).max(50),
-    artId: z.string().uuid(),
-  }),
-  action: "dependency.unlink",
-  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  batch: {
-    iterateOver: "dependencyIds",
-    service: (ctx, id) => unlinkDependencyById(ctx, { id }),
-  },
-  revalidate: "dependency",
-  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.resolveDependency" }, t),
 });

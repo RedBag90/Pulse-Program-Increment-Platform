@@ -117,10 +117,10 @@ describe("moduleForAction", () => {
     // **Work, nicht Drumbeat** — seit September 2026. Der Netzplan im Epic ist
     // eine Work-Fläche; solange das Recht bei Drumbeat hing, bekam ein
     // Work-Mandant dort „Dieses Modul ist in diesem Bereich nicht verfügbar".
-    // Die Fläche `/dependencies` bleibt über ihr Segment drumbeat-gegated.
+    // Eine eigene Fläche `/dependencies` gibt es seit September 2026 nicht
+    // mehr; Abhängigkeiten stehen im Netzplan der Umsetzung und im Epic.
     expect(moduleForAction("dependency.link")).toBe("work");
     expect(moduleForAction("dependency.unlink")).toBe("work");
-    expect(moduleForPath("/dependencies")).toBe("drumbeat");
     // `impediment.` ist im September 2026 aus der drumbeat-Praefixliste
     // entfallen — Impedimente leben im Issue-Register und laufen ueber `risk.*`.
     expect(moduleForAction("impediment.raise")).toBeNull();

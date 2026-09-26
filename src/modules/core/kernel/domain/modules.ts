@@ -122,20 +122,20 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
     // verfügbar". Abhängigkeiten gehören dorthin, wo der Inhalt eines Epics
     // definiert wird.
     //
-    // Die eigene Fläche `/dependencies` bleibt Drumbeat — sie hängt am
-    // **Segment**, nicht an der Aktion. Und `applyModulePrerequisites` sorgt
-    // dafür, dass Drumbeat nie ohne Work kommt: ein Drumbeat-Mandant verliert
-    // dabei nichts.
+    // Die eigene Fläche `/dependencies` ist im September 2026 entfallen;
+    // Abhängigkeiten stehen im Netzplan der Umsetzung (Drumbeat) und im Epic
+    // (Work). `applyModulePrerequisites` sorgt dafür, dass Drumbeat nie ohne
+    // Work kommt.
     actions: ["epic.", "feature.", "dependency.", "portfolio_filter.manage"],
     home: "/portfolio",
   },
   drumbeat: {
     label: "Drumbeat",
-    // Detailliertes Planen/Ausführen: Cockpit, PI-Planung, Dependencies, Roadmap.
+    // Detailliertes Planen/Ausführen: Cockpit (mit Netzplan), PI-Planung, Roadmap.
     // Die PI-Kadenz (Timelines/PI-Standards) liegt seit dem Struktur-Umbau unter
     // `/structure/timelines` und wird über `PATH_OVERRIDES` gegated — sie ist
     // deshalb kein eigenes Einstiegssegment mehr.
-    segments: ["umsetzung", "implementation", "pi", "pi-planning", "dependencies", "roadmap"],
+    segments: ["umsetzung", "implementation", "pi", "pi-planning", "roadmap"],
     actions: ["pi.", "timeline.manage", "pi_standard.manage"],
     home: "/umsetzung",
   },

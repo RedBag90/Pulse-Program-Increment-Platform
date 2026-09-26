@@ -79,30 +79,6 @@ export function changeDependencyType<R>(action: ActionLike<R>, args: ChangeDepen
   return action(EMPTY, fd);
 }
 
-export interface UnlinkDependencyBatchArgs {
-  dependencyIds: readonly string[];
-  artId: string;
-}
-
-/**
- * Builds the batch-unlink FormData. Exposed as a builder (not only an invoke
- * wrapper) because one caller dispatches through `useActionState`, where no
- * bound action is available to invoke — it calls `dispatch(...)` with this.
- */
-export function unlinkDependencyBatchFormData(args: UnlinkDependencyBatchArgs): FormData {
-  const fd = new FormData();
-  for (const id of args.dependencyIds) fd.append("dependencyIds", id);
-  fd.set("artId", args.artId);
-  return fd;
-}
-
-export function unlinkDependencyBatch<R>(
-  action: ActionLike<R>,
-  args: UnlinkDependencyBatchArgs,
-): R {
-  return action(EMPTY, unlinkDependencyBatchFormData(args));
-}
-
 export interface RelinkDependencyArgs {
   /** Die Kante, wie sie heute steht. */
   fromId: string;

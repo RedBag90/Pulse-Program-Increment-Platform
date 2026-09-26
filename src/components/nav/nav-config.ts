@@ -158,8 +158,9 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       // PI-Planning, Impediments und Dependencies sind seit Roadmap-P2.B/C
       // in den PI-Workspace eingezogen (Tabs Plan, Impediments, Dependencies).
-      // Die Routen `/pi-planning`, `/impediments`, `/dependencies` bleiben
-      // als Deep-Link-Targets erreichbar; aus dem Nav sind sie raus.
+      // Die Routen `/pi-planning` und `/impediments` bleiben als
+      // Deep-Link-Targets erreichbar; aus dem Nav sind sie raus. `/dependencies`
+      // ist entfallen — Abhängigkeiten stehen im Netzplan der Umsetzung.
     ],
   },
   {

@@ -260,32 +260,6 @@ export async function relinkDependency(
   }
 }
 
-/**
- * By-id variant of `unlinkDependency` — feeds the bulk-unlink batch action
- * on the dependencies list page. The single-item action keeps the
- * `(fromId, toId, type)` lookup so existing callers don't churn.
- */
-export async function unlinkDependencyById(
-  ctx: RequestContext,
-  input: { id: string },
-): Promise<Result<void>> {
-  const mctx = toMutationContext(ctx);
-  return mctx.db.$transaction(async (tx) => {
-    const dep = await tx.dependency.findFirst({
-      where: { id: input.id, tenantId: mctx.tenantId },
-    });
-    if (!dep) {
-      return err({
-        kind: "not_found" as const,
-        resourceType: "Dependency",
-        id: input.id,
-      });
-    }
-    await deleteEdge(tx, mctx, dep);
-    return ok(undefined);
-  });
-}
-
 export async function listDependencies(
   db: PrismaClient,
   tenantId: TenantId,

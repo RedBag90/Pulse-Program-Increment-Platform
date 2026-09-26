@@ -139,22 +139,28 @@ WSJF =  ────────────────────────
       question: "Wer wartet auf wen?",
       stations: [
         {
-          title: "Abhängigkeiten sind eine eigene Praxis",
-          route: "/dependencies",
-          anchor: "dependencies-funnel",
+          title: "Abhängigkeiten im Netzplan",
+          route: "/umsetzung?view=network",
+          anchor: "dependency-network",
           body: [
             {
               kind: "paragraph",
-              text: "Hier liegen sie über alle PIs hinweg, mit **Cross-ART** und **Critical Path** direkt sichtbar. Vier Handlungen, und sie sind bewusst nicht dasselbe:",
+              text: "Sie liegen im **Netzplan** der Umsetzung — über das Zeitfenster aus Backlog und fünf PIs, Abhängigkeiten zu Features anderer ARTs als gestrichelte Knoten am Rand. Dieselbe Fläche steht im Epic unter „Dependencies“. Vier Handlungen, und sie sind bewusst nicht dasselbe:",
             },
             {
               kind: "table",
               head: ["Handlung", "Was sie tut"],
               rows: [
-                ["**Anlegen**", "eine neue Abhängigkeit als eigenes Objekt"],
-                ["**Verknüpfen**", "eine bestehende an ein Arbeitspaket hängen"],
-                ["**Typ ändern**", "blockiert · hängt ab von · bezieht sich auf"],
-                ["**Lösen**", "einzeln oder im Stapel — **ein eigenes Recht**"],
+                [
+                  "**Anlegen**",
+                  "vom Anschluss rechts auf ein anderes Feature ziehen — der Typ der neuen Kante steht im Umschalter darüber",
+                ],
+                [
+                  "**Umhängen**",
+                  "ein Kantenende aufnehmen und woanders ablegen — mit „Rückgängig“",
+                ],
+                ["**Typ ändern**", "am Kantenlabel: blockiert · bezieht sich auf"],
+                ["**Lösen**", "am Kantenlabel oder mit Entf — **ein eigenes Recht**"],
               ],
             },
             {

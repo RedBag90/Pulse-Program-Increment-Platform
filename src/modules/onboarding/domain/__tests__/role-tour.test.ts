@@ -93,8 +93,9 @@ describe("resolveTour — Filterung", () => {
     const withoutDrumbeat = resolveTour(ROLE_PLAYBOOKS[RTE], tenantWith(["work"], RTE));
     expect(withoutDrumbeat.total).toBeLessThan(withDrumbeat.total);
     // Kein verbleibender Schritt zeigt noch auf eine Drumbeat-Fläche.
+    // Nach dem Pfad, ohne Query: `/umsetzung?view=network` ist dieselbe Fläche.
     for (const s of withoutDrumbeat.steps) {
-      expect(["/timelines", "/umsetzung", "/dependencies"]).not.toContain(s.route);
+      expect(["/timelines", "/umsetzung"]).not.toContain(s.route?.split("?")[0]);
     }
   });
 

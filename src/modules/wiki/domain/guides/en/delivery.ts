@@ -139,22 +139,25 @@ WSJF =  ────────────────────────
       question: "Who is waiting on whom?",
       stations: [
         {
-          title: "Dependencies are a practice of their own",
-          route: "/dependencies",
-          anchor: "dependencies-funnel",
+          title: "Dependencies in the network plan",
+          route: "/umsetzung?view=network",
+          anchor: "dependency-network",
           body: [
             {
               kind: "paragraph",
-              text: "Here they lie across every PI, with **cross-ART** and **critical path** visible straight away. Four actions, and they are deliberately not the same thing:",
+              text: "They live in the delivery **network plan** — across the window of backlog and five PIs, with dependencies on features of other ARTs as dashed nodes at the edge. The same surface appears on the epic under “Dependencies”. Four actions, and they are deliberately not the same thing:",
             },
             {
               kind: "table",
               head: ["Action", "What it does"],
               rows: [
-                ["**Create**", "a new dependency as an object of its own"],
-                ["**Link**", "attach an existing one to a work item"],
-                ["**Change type**", "blocks · depends on · relates to"],
-                ["**Unlink**", "one at a time or in bulk — **a right of its own**"],
+                [
+                  "**Create**",
+                  "drag from the handle on the right onto another feature — the type of the new edge is set in the toggle above",
+                ],
+                ["**Move**", "pick up one end of an edge and drop it elsewhere — with “Undo”"],
+                ["**Change type**", "on the edge label: blocks · relates to"],
+                ["**Unlink**", "on the edge label or with Delete — **a right of its own**"],
               ],
             },
             {
