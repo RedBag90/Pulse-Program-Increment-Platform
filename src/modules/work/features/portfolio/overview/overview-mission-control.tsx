@@ -58,6 +58,7 @@ export function OverviewMissionControl({
           items={data.funnelItems}
           cycleKey={data.budgetCycleKey}
           horizonTargets={data.horizonTargets}
+          pool={data.budgetPool}
           budgetingEnabled={data.budgetingEnabled}
         />
       )}

@@ -1,11 +1,12 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
 import { formatScaledEUR } from "@/lib/formatting";
+import type { Locale } from "@/i18n/routing";
 import { lighten, darken } from "@/lib/color";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import {
@@ -17,6 +18,7 @@ import {
   halfAt,
   stripRowOf,
   DEFAULT_GEOMETRY as G,
+  type FunnelBand,
   type FunnelItem,
   type HorizonTargets,
   type PlacedItem,
@@ -232,8 +234,6 @@ function Cube({ item }: { item: PlacedItem }) {
  * die Null: „kein Geld" ist dieselbe Sprache, die die Bandbeschriftung schon
  * spricht (`kein Geld · Mindestöffnung`).
  */
-const amountOf = (n: number) => (n === 0 ? "kein Geld" : formatScaledEUR(n));
-
 /** Der Klick führt dorthin, wo das Symbol seine Heimat hat. */
 const hrefOf = (item: PlacedItem): string => {
   if (item.kind === "solution") return `/structure/solution/${item.id}`;
@@ -242,30 +242,57 @@ const hrefOf = (item: PlacedItem): string => {
   return `/portfolio/epics/${item.id}`;
 };
 
-const moneyOf = (item: PlacedItem) =>
-  item.run > 0
-    ? `${amountOf(item.total)} · davon Betrieb ${amountOf(item.run)}`
-    : amountOf(item.total);
-
 /**
  * **Was ein Symbol beziffert** — je nach Modus Geld oder laufende Epics.
  *
  * Ohne Budget-Modul darf hier kein Betrag mehr stehen: die Zahl wäre überall
  * null, und die Karte behauptete eine Aussage, die sie nicht hat.
+ *
+ * Als Hook, weil jede dieser Wendungen übersetzt wird und jeder Betrag die
+ * Sprache braucht — bis September 2026 standen sie als deutsche Literale in
+ * Modul-Konstanten, die kein Übersetzer erreichte.
  */
-const countOf = (n: number) => (n === 1 ? "1 Epic" : `${n} Epics`);
-
-const measureOf = (item: PlacedItem, budgetingEnabled: boolean) =>
-  budgetingEnabled ? moneyOf(item) : countOf(item.count);
-
-const bandMeasureOf = (value: number, minimal: boolean, budgetingEnabled: boolean) =>
-  budgetingEnabled
-    ? minimal
-      ? "kein Geld · Mindestöffnung"
-      : formatScaledEUR(value)
-    : minimal
-      ? "nichts in Umsetzung"
-      : countOf(value);
+function useFunnelWords() {
+  const t = useTranslations();
+  const locale = useLocale() as Locale;
+  const amountOf = (n: number) =>
+    n === 0 ? t("work.overview.funnelKeinGeld") : formatScaledEUR(n, locale);
+  const countOf = (n: number) =>
+    n === 1 ? t("work.overview.funnelEinEpic") : t("work.overview.funnelEpicsAnzahl", { count: n });
+  const moneyOf = (item: PlacedItem) =>
+    item.run > 0
+      ? t("work.overview.funnelDavonBetrieb", {
+          total: amountOf(item.total),
+          run: amountOf(item.run),
+        })
+      : amountOf(item.total);
+  const measureOf = (item: PlacedItem, budgetingEnabled: boolean) =>
+    budgetingEnabled ? moneyOf(item) : countOf(item.count);
+  const bandMeasureOf = (value: number, minimal: boolean, budgetingEnabled: boolean) =>
+    budgetingEnabled
+      ? minimal
+        ? t("work.overview.funnelBandKeinGeld")
+        : formatScaledEUR(value, locale)
+      : minimal
+        ? t("work.overview.funnelLegendNothingInProgress")
+        : countOf(value);
+  /**
+   * Die Bandzeile: Ist, dahinter das Ziel laut Guardrail, wo es eines gibt.
+   * Ein Schlüssel je Variante — die Zeile wird nicht aus Stücken gebaut.
+   */
+  const bandLineOf = (b: FunnelBand, budgetingEnabled: boolean) => {
+    const measure = bandMeasureOf(b.money, b.minimal, budgetingEnabled);
+    const dense = b.enlarged && !b.minimal;
+    if (budgetingEnabled && b.targetMoney != null) {
+      const target = formatScaledEUR(b.targetMoney, locale);
+      return dense
+        ? t("work.overview.funnelBandDenseMitZiel", { measure, target })
+        : t("work.overview.funnelBandMitZiel", { measure, target });
+    }
+    return dense ? t("work.overview.funnelBandDense", { measure }) : measure;
+  };
+  return { amountOf, countOf, measureOf, bandLineOf };
+}
 
 function Symbol({
   item,
@@ -277,6 +304,7 @@ function Symbol({
   budgetingEnabled: boolean;
 }) {
   const base = item.horizon ? HORIZON_HEX[item.horizon] : HORIZON_NONE_HEX;
+  const { amountOf, countOf, measureOf } = useFunnelWords();
   return (
     <Link href={hrefOf(item)} aria-label={`${item.name}: ${measureOf(item, budgetingEnabled)}`}>
       <g className="cursor-pointer [&:hover>g]:opacity-80">
@@ -333,6 +361,11 @@ interface FunnelProps {
   /** Soll-Verteilung (Guardrail) — `null` = keine Vergleichslinie. */
   horizonTargets: HorizonTargets | null;
   /**
+   * Budgettopf des Halbjahres — Basis der Zielbeträge (abzüglich der Kosten
+   * ohne Produkt-Zuordnung). `null` = keine Zielbeträge, nur die Silhouette.
+   */
+  pool: number | null;
+  /**
    * Budget-Modul an? Aus ⇒ es gibt kein Geld zu messen. Dann misst die
    * Zeichnung die **laufenden Epics** (L3.2–L4.2), und jede Beschriftung, die
    * von Geld spricht, muss schweigen — sonst behauptet die Karte etwas, das
@@ -350,6 +383,7 @@ export function HorizonFunnelBlock({
   items,
   cycleKey,
   horizonTargets,
+  pool,
   budgetingEnabled,
 }: FunnelProps) {
   const t = useTranslations();
@@ -368,13 +402,16 @@ export function HorizonFunnelBlock({
       items={items}
       cycleKey={cycleKey}
       horizonTargets={horizonTargets}
+      pool={pool}
       budgetingEnabled={budgetingEnabled}
     />
   );
 }
 
-function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: FunnelProps) {
+function FunnelCard({ items, cycleKey, horizonTargets, pool, budgetingEnabled }: FunnelProps) {
   const t = useTranslations();
+  const locale = useLocale() as Locale;
+  const { amountOf, countOf, bandLineOf } = useFunnelWords();
   const [wrapRef, measured] = useMeasuredWidth();
 
   const layout = useMemo(
@@ -385,9 +422,9 @@ function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: Funne
         undefined,
         undefined,
         horizonTargets,
-        { sizing: budgetingEnabled ? "money" : "count" },
+        { sizing: budgetingEnabled ? "money" : "count", pool },
       ),
-    [items, measured, horizonTargets, budgetingEnabled],
+    [items, measured, horizonTargets, budgetingEnabled, pool],
   );
   const { bands, profile } = layout;
   const split = layout.h1;
@@ -411,6 +448,7 @@ function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: Funne
   const zoom = Math.min(1, (measured ?? TARGET_WIDTH) / layout.width);
   const withLabels = LABEL_PX * zoom >= MIN_READABLE_PX;
   const total = items.reduce((n, i) => n + i.invest + i.run, 0);
+  const productCount = items.filter((i) => i.kind === "solution").length;
   const first = bands[0]!;
   const last = bands[bands.length - 1]!;
 
@@ -438,18 +476,32 @@ function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: Funne
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <SectionLabel>{t("work.overview.produkteImInvestitionshorizont")}</SectionLabel>
         <p className="text-xs text-muted-foreground">
-          {items.filter((i) => i.kind === "solution").length} Produkte ·{" "}
-          {budgetingEnabled ? (
-            <>
-              {formatScaledEUR(total)} gebunden
-              {cycleKey ? ` im Zyklus ${halfYearLabel(cycleKey)}` : ""} · Größe und Öffnung sind
-              Invest + Betrieb dieses Halbjahrs
-            </>
-          ) : (
-            <>{t("work.overview.groesseUndOeffnungSind")}</>
-          )}
+          {!budgetingEnabled
+            ? t("work.overview.funnelSubtitleNoBudget", { count: productCount })
+            : cycleKey
+              ? t("work.overview.funnelSubtitleBudgetCycle", {
+                  count: productCount,
+                  amount: formatScaledEUR(total, locale),
+                  cycle: halfYearLabel(cycleKey),
+                })
+              : t("work.overview.funnelSubtitleBudget", {
+                  count: productCount,
+                  amount: formatScaledEUR(total, locale),
+                })}
         </p>
       </div>
+
+      {/* Die Basis der Zielbeträge, einmal genannt: ohne sie wäre „Ziel 25 T€"
+          eine Zahl, die niemand nachrechnen kann. */}
+      {budgetingEnabled && horizonTargets != null && layout.targetBasis != null && (
+        <p className="text-xs text-muted-foreground">
+          {t("work.overview.funnelZielBasis", {
+            base: formatScaledEUR(layout.targetBasis.base, locale),
+            pool: formatScaledEUR(layout.targetBasis.pool, locale),
+            homeless: formatScaledEUR(layout.targetBasis.homeless, locale),
+          })}
+        </p>
+      )}
 
       {!budgetingEnabled ? null : cycleKey == null ? (
         <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
@@ -458,21 +510,21 @@ function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: Funne
       ) : (
         total === 0 && (
           <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-            Im Zyklus {halfYearLabel(cycleKey)} ist kein Budget alloziert — die Produkte stehen als
-            leere Umrisse in ihrem Horizont.
+            {t("work.overview.funnelNoBudgetInCycle", { cycle: halfYearLabel(cycleKey) })}
           </p>
         )
       )}
 
       {layout.dropped.length > 0 && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-          Nicht gezeichnet: {layout.dropped.map((d) => d.name).join(", ")} — lieber dieser Hinweis
-          als ein Bild, das etwas verschweigt.
+          {t("work.overview.funnelNotDrawn", {
+            names: layout.dropped.map((d) => d.name).join(", "),
+          })}
         </p>
       )}
       {layout.collisions.length > 0 && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-          Überschneidung in der Zeichnung: {layout.collisions.join(", ")}
+          {t("work.overview.funnelOverlap", { names: layout.collisions.join(", ") })}
         </p>
       )}
 
@@ -517,8 +569,7 @@ function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: Funne
                 fontSize={10.5}
                 className="fill-muted-foreground"
               >
-                {bandMeasureOf(b.money, b.minimal, budgetingEnabled)}
-                {b.enlarged && !b.minimal ? " · dicht belegt" : ""}
+                {bandLineOf(b, budgetingEnabled)}
               </text>
               {/* Je Station ein Fuss, mittig unter ihrem **Plateau**. Die
                   Zeichnung fuehrt die Stationen selbst — nachgerechnet aus der
@@ -742,21 +793,23 @@ function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: Funne
         </li>
         <li className="flex items-center gap-1.5">
           <span className="inline-block size-2 rounded-full border border-dashed border-muted-foreground/70" />
-          {budgetingEnabled ? "kein Geld im Zyklus" : "nichts in Umsetzung"}
+          {budgetingEnabled
+            ? t("work.overview.funnelLegendNoMoney")
+            : t("work.overview.funnelLegendNothingInProgress")}
         </li>
         {budgetingEnabled ? (
           <>
-            <li>Größe = gebundenes Geld</li>
-            <li>dunkler Sockel = Betriebsanteil</li>
-            <li>Kurvenabstand = Geld des Horizonts</li>
+            <li>{t("work.overview.funnelLegendSizeMoney")}</li>
+            <li>{t("work.overview.funnelLegendRunBase")}</li>
+            <li>{t("work.overview.funnelLegendCurveMoney")}</li>
           </>
         ) : (
           <>
             {/* Der Sockel entfällt von selbst: ohne Budget-Modul gibt es keinen
                 Betrieb, den er zeigen könnte. */}
-            <li>Größe = Epics in Umsetzung</li>
-            <li>Punkt = ein Epic ohne Produkt</li>
-            <li>Kurvenabstand = Epics des Horizonts</li>
+            <li>{t("work.overview.funnelLegendSizeEpics")}</li>
+            <li>{t("work.overview.funnelLegendDotEpic")}</li>
+            <li>{t("work.overview.funnelLegendCurveEpics")}</li>
           </>
         )}
         {layout.targetProfile != null && (

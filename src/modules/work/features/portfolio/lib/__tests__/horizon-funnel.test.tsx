@@ -801,3 +801,62 @@ describe("stripRowOf", () => {
     expect(stripRowOf([], MIN)).toEqual({ rowH: MIN, cyOffset: 0 });
   });
 });
+
+describe("Zielbeträge gegen den Topf", () => {
+  const ZIELE = { h3: 10, h2: 20, "h1.1": 30, "h1.2": 30, h0: 10 };
+  const ITEMS: FunnelItem[] = [
+    sol("a", "h3", 100_000),
+    sol("b", "h1", 200_000, 0, "investing"),
+    sol("c", "h1", 100_000, 0, "extracting"),
+    // Ohne Produkt-Zuordnung: liegt im Streifen, in keinem Band.
+    sol("ohne", null, 150_000, 50_000),
+  ];
+  const band = (l: ReturnType<typeof layoutFunnel>, h: Horizon) =>
+    l.bands.find((b) => b.horizon === h)!;
+  const mitTopf = (pool: number | null, items = ITEMS) =>
+    layoutFunnel(items, DEFAULT_GEOMETRY, CODE_STEPS[0], ZIELE, { pool });
+
+  it("rechnet den Anteil gegen Topf minus Kosten ohne Produkt-Zuordnung", () => {
+    const l = mitTopf(1_000_000);
+    expect(l.targetBasis).toEqual({ pool: 1_000_000, homeless: 200_000, base: 800_000 });
+    expect(band(l, "h3").targetMoney).toBeCloseTo(80_000);
+    expect(band(l, "h2").targetMoney).toBeCloseTo(160_000);
+    expect(band(l, "h0").targetMoney).toBeCloseTo(80_000);
+  });
+
+  it("H1 trägt die Ziele beider Stationen", () => {
+    expect(band(mitTopf(1_000_000), "h1").targetMoney).toBeCloseTo(0.6 * 800_000);
+  });
+
+  it("ein Posten im Streifen senkt die Basis, ein Posten im Band nicht", () => {
+    const mehrStreifen = mitTopf(1_000_000, [...ITEMS, sol("ohne2", null, 100_000)]);
+    const mehrBand = mitTopf(1_000_000, [...ITEMS, sol("d", "h2", 100_000)]);
+    expect(mehrStreifen.targetBasis!.base).toBe(700_000);
+    expect(mehrBand.targetBasis!.base).toBe(800_000);
+  });
+
+  it("die gestrichelte Linie misst dieselbe Basis wie die Zahl", () => {
+    const l = mitTopf(1_000_000);
+    const h3 = band(l, "h3");
+    const mitte = (h3.x0 + h3.x1) / 2;
+    // Öffnung ∝ Geld: Ziel-Öffnung / Ist-Öffnung = Zielbetrag / Ist-Betrag.
+    expect(halfAt(l.targetProfile!, mitte) / h3.half).toBeCloseTo(h3.targetMoney! / h3.money, 6);
+  });
+
+  it("ohne Topf: keine Zielbeträge, die Linie wie bisher gegen das Bandgeld", () => {
+    const ohne = mitTopf(null);
+    expect(ohne.targetBasis).toBeNull();
+    expect(ohne.bands.every((b) => b.targetMoney == null)).toBe(true);
+    expect(ohne.targetProfile).toEqual(
+      layoutFunnel(ITEMS, DEFAULT_GEOMETRY, CODE_STEPS[0], ZIELE).targetProfile,
+    );
+  });
+
+  it("im Zählmodus gibt es keinen Zielbetrag", () => {
+    const l = layoutFunnel(ITEMS, DEFAULT_GEOMETRY, CODE_STEPS[0], ZIELE, {
+      pool: 1_000_000,
+      sizing: "count",
+    });
+    expect(l.targetBasis).toBeNull();
+  });
+});

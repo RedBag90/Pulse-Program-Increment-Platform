@@ -125,6 +125,27 @@ export interface FunnelBand {
    * Proportionalität nicht **still** bricht.
    */
   enlarged: boolean;
+  /**
+   * Der **Zielbetrag** dieses Bandes laut Guardrail: Σ Ziel-% seiner Stationen
+   * × `targetBasis.base`. `null` ohne Topf oder ohne Ziele — dann gibt es keine
+   * Zahl, gegen die sich das Ist lesen liesse.
+   */
+  targetMoney: number | null;
+}
+
+/**
+ * **Wogegen die Ziele rechnen** — damit die Fläche die Zahl nachrechenbar
+ * benennen kann.
+ *
+ * `base = pool − homeless`: der Topf des Halbjahres ohne das Geld, das keinem
+ * Produkt und damit keinem Horizont zugeordnet ist. Dieses Geld liegt im
+ * Streifen unter dem Trichter und zählt in keinem Band — ein Ziel, das es
+ * mitrechnete, verlangte von den Bändern Geld, das sie nie bekommen können.
+ */
+export interface FunnelTargetBasis {
+  pool: number;
+  homeless: number;
+  base: number;
 }
 
 export interface FunnelLayout {
@@ -145,6 +166,8 @@ export interface FunnelLayout {
    * dann gibt es nichts zu vergleichen.
    */
   targetProfile: [number, number][] | null;
+  /** `null` = kein Topf übergeben; die Silhouette rechnet dann gegen Σ Bandgeld. */
+  targetBasis: FunnelTargetBasis | null;
   /** Die natürliche Breite der Zeichnung; sie wird per `viewBox` gestaucht. */
   width: number;
   /**
@@ -298,6 +321,13 @@ export type FunnelSizing = "money" | "count";
 
 export interface FunnelOptions {
   sizing?: FunnelSizing;
+  /**
+   * Der **Budgettopf** des Halbjahres (Σ `poolTotal` seiner Runden). Gesetzt,
+   * rechnen die Ziele gegen den Topf statt gegen das, was gerade im Trichter
+   * liegt — abzüglich der Kosten ohne Produkt-Zuordnung (siehe
+   * `FunnelLayout.targetBasis`). Nur im Geld-Modus.
+   */
+  pool?: number | null;
 }
 
 const totalOf = (i: FunnelItem) => i.invest + i.run;
@@ -531,10 +561,27 @@ export function layoutFunnel(
   //     das Ist misst, schneidet die Vergleichslinie oben ab, und zwar genau
   //     dann, wenn der Abstand am größten und die Aussage am wichtigsten ist.
   const totalMoney = STATIONS.reduce((sum, st) => sum + money[st], 0);
+  // **Die Basis der Ziele.** Mit Topf: Topf minus Streifen. Ohne: wie bisher
+  // das, was im Trichter liegt — dann gibt die Silhouette nur die Verteilung
+  // wieder, keinen Betrag, und die Fläche nennt keine Zielzahl.
+  const homelessMoney = homelessItems.reduce((sum, i) => sum + totalOf(i), 0);
+  const targetBasis: FunnelTargetBasis | null =
+    sizing === "money" && options.pool != null && options.pool > 0
+      ? {
+          pool: options.pool,
+          homeless: homelessMoney,
+          base: Math.max(0, options.pool - homelessMoney),
+        }
+      : null;
+  const targetBase = targetBasis?.base ?? totalMoney;
   const targetHalfOf = (st: Station): number =>
-    horizonTargets == null || totalMoney <= 0
+    horizonTargets == null || totalMoney <= 0 || targetBase <= 0
       ? 0
-      : (((horizonTargets[st] ?? 0) / 100) * totalMoney * g.maxHalf * openFactor) / richest;
+      : (((horizonTargets[st] ?? 0) / 100) * targetBase * g.maxHalf * openFactor) / richest;
+  const targetMoneyOf = (h: Horizon): number | null =>
+    horizonTargets == null || targetBasis == null || targetBasis.base <= 0
+      ? null
+      : stationsOf(h).reduce((sum, st) => sum + ((horizonTargets[st] ?? 0) / 100) * targetBase, 0);
   const maxHalf = Math.max(...STATIONS.map((st) => Math.max(halfOf(st).half, targetHalfOf(st))));
   const mid = Math.max(g.mid, maxHalf + g.headroom);
 
@@ -568,6 +615,7 @@ export function layoutFunnel(
       half: Math.max(...stations.map((z) => z.half)),
       minimal: stations.every((z) => z.minimal),
       enlarged: stations.some((z) => z.enlarged),
+      targetMoney: targetMoneyOf(h),
     });
     x += w + (index < HORIZONS.length - 1 ? g.transition : 0);
   }
@@ -597,7 +645,7 @@ export function layoutFunnel(
   //      kleines Ziel künstlich an und behauptete eine Vorgabe, die es nicht
   //      gibt.
   const targetProfile: [number, number][] | null =
-    horizonTargets == null || totalMoney <= 0
+    horizonTargets == null || totalMoney <= 0 || targetBase <= 0
       ? null
       : bands.flatMap((b) =>
           b.stations.flatMap(
@@ -691,6 +739,7 @@ export function layoutFunnel(
     dropped,
     profile,
     targetProfile,
+    targetBasis,
     width,
     maxHalf,
     mid,

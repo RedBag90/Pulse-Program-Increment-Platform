@@ -404,6 +404,16 @@ export interface PortfolioOverview {
    */
   horizonTargets: HorizonTargets | null;
   /**
+   * Der Budgettopf des laufenden Budget-Halbjahres (Σ `poolTotal` seiner
+   * Runden) — die Basis, gegen die der Trichter die Zielbeträge rechnet.
+   * `null` ohne laufendes Halbjahr oder ohne Budget-Modul.
+   *
+   * Derselbe Schlüssel wie bei den Allokationen (`budgetCycleKey`), nicht der
+   * Kalender-Schlüssel von `funding.currentPeriod` — beide können auseinander
+   * liegen, und der Trichter misst das Geld des Budget-Halbjahres.
+   */
+  budgetPool: number | null;
+  /**
    * Zeigt diese Seite die Horizont-Achse? Gesetzt im Guardrail-Formular unter
    * dem HORIZON-Block. Aus ⇒ weder der Trichter noch die Horizont-Bahnen des
    * Kanbans; `funnelItems` ist dann leer, weil gar nicht erst geladen.
@@ -1015,6 +1025,8 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     budgetingEnabled,
     risksEnabled,
     horizonTargets,
+    budgetPool:
+      budgetingEnabled && budgetCycleKey != null ? (board.pool[budgetCycleKey] ?? null) : null,
     horizonOnOverview,
     goals,
     goalsOnTrack,
