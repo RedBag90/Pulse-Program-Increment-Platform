@@ -312,18 +312,91 @@ describe("createRound — Reserve-Übertrag", () => {
   });
 });
 
+/**
+ * **Löschen setzt das Geld des Halbjahres zurück.**
+ *
+ * Gemeldet: die laufende Kachel gelöscht, im ART standen danach weiter
+ * 200.000 € zu verteilen. Das Geld liegt nur am `cycleKey`, nicht an der
+ * Runde — der Cascade-Baum der Runde erreichte es nie.
+ */
 describe("deletePeriod — Kachel löschen", () => {
-  it("löscht die eigene Runde (Cascade räumt die Subtree)", async () => {
-    const t: Tx = {
+  function geldTx(andereRunden: number) {
+    const t = {
       budgetRound: {
-        findFirst: vi.fn(async () => ({ id: "r1" })),
+        findFirst: vi.fn(async () => ({ id: "r1", cycleKey: "2026-H2" })),
+        count: vi.fn(async () => andereRunden),
         delete: vi.fn(async () => ({})),
+      },
+      rtbItemAward: {
+        findMany: vi.fn(async () => [
+          { amount: 200000, rtbItem: { kind: "art_change" } },
+          { amount: 170000, rtbItem: { kind: "run" } },
+        ]),
+        deleteMany: vi.fn(async () => ({ count: 2 })),
+      },
+      artEpicAllocation: {
+        aggregate: vi.fn(async () => ({ _sum: { amount: 0 } })),
+        deleteMany: vi.fn(async () => ({ count: 0 })),
+      },
+      artOwnWorkAllocation: {
+        aggregate: vi.fn(async () => ({ _sum: { amount: 0 } })),
+        deleteMany: vi.fn(async () => ({ count: 0 })),
+      },
+      budgetAllocation: {
+        findMany: vi.fn(async () => [
+          { id: "b1", allocations: { "2026-H2": 42000 } },
+          { id: "b2", allocations: { "2026-H1": 5000, "2026-H2": 10000 } },
+        ]),
+        delete: vi.fn(async () => ({})),
+        update: vi.fn(async () => ({})),
       },
       auditEvent: { create: vi.fn(async () => ({})) },
     };
-    const res = await deletePeriod(ctxWith(t), { id: "r1" });
+    return t;
+  }
+
+  it("löscht die Runde und das Geld ihres Halbjahres", async () => {
+    const t = geldTx(0);
+    const res = await deletePeriod(ctxWith(t as unknown as Tx), { id: "r1" });
+
     expect(res.ok).toBe(true);
-    expect(t.budgetRound!.delete).toHaveBeenCalledWith({ where: { id: "r1" } });
+    expect(t.budgetRound.delete).toHaveBeenCalledWith({ where: { id: "r1" } });
+    const nurDiesesHalbjahr = { where: { tenantId: expect.any(String), cycleKey: "2026-H2" } };
+    expect(t.rtbItemAward.deleteMany).toHaveBeenCalledWith(nurDiesesHalbjahr);
+    expect(t.artEpicAllocation.deleteMany).toHaveBeenCalledWith(nurDiesesHalbjahr);
+    expect(t.artOwnWorkAllocation.deleteMany).toHaveBeenCalledWith(nurDiesesHalbjahr);
+  });
+
+  it("nimmt aus den Epic-Budgets nur dieses Halbjahr heraus", async () => {
+    const t = geldTx(0);
+    await deletePeriod(ctxWith(t as unknown as Tx), { id: "r1" });
+
+    // b1 trug nur H2 → weg. b2 behält H1.
+    expect(t.budgetAllocation.delete).toHaveBeenCalledWith({ where: { id: "b1" } });
+    expect(t.budgetAllocation.update).toHaveBeenCalledWith({
+      where: { id: "b2" },
+      data: expect.objectContaining({ allocations: { "2026-H1": 5000 } }),
+    });
+  });
+
+  it("schreibt die entfernten Summen in den Prüfpfad", async () => {
+    const t = geldTx(0);
+    await deletePeriod(ctxWith(t as unknown as Tx), { id: "r1" });
+
+    const audit = (t.auditEvent.create.mock.calls as unknown[][])[0]![0] as {
+      data: { changes: unknown };
+    };
+    expect(JSON.stringify(audit.data.changes)).toContain("200000");
+    expect(JSON.stringify(audit.data.changes)).toContain("52000");
+  });
+
+  it("lässt das Geld stehen, wenn eine andere Kachel dasselbe Halbjahr trägt", async () => {
+    const t = geldTx(1);
+    await deletePeriod(ctxWith(t as unknown as Tx), { id: "r1" });
+
+    expect(t.budgetRound.delete).toHaveBeenCalled();
+    expect(t.rtbItemAward.deleteMany).not.toHaveBeenCalled();
+    expect(t.budgetAllocation.delete).not.toHaveBeenCalled();
   });
 
   it("lehnt eine fremde/fehlende Runde ab (kein delete)", async () => {

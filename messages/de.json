@@ -1033,7 +1033,16 @@
       "steuerungsmerkerEntfernen": "Von der Steuerungs-Liste nehmen",
       "steuerungsmerkerEntfernenFuer": "„{title}\" von der Steuerungs-Liste nehmen",
       "inDieserKlasseNichtsMarkiert": "In dieser Klasse ist nichts markiert.",
-      "keineInitiativeMarkiert": "Keine Initiative für das nächste Steering-Meeting markiert."
+      "keineInitiativeMarkiert": "Keine Initiative für das nächste Steering-Meeting markiert.",
+      "beantragteEntscheidungen": "Beantragte Entscheidungen",
+      "keineOffenenAntraege": "Keine offenen Anträge auf Analyse oder Business-Case-Freigabe.",
+      "inDieserKlasseKeinAntrag": "In dieser Klasse liegt kein offener Antrag.",
+      "antrag": "Antrag",
+      "beantragtVon": "Beantragt von",
+      "abnahmen": "Abnahmen",
+      "tageOffen": "Tage offen",
+      "antragAnalyse": "Zur Analyse auswählen",
+      "antragBusinessCase": "Business-Case-Freigabe"
     },
     "gate": {
       "todosFor": "To-dos für {step}",
@@ -1906,7 +1915,10 @@
       "vomVorherigenZeitraumUebernehmen": "Vom vorherigen Zeitraum übernehmen",
       "beteiligteGruppenInklSprecher": "Beteiligte, Gruppen (inkl. Sprecher) und die PB-Liste (Epics). Danach im Setup anpassbar.",
       "abbrechen": "Abbrechen",
-      "kandidat": "Kandidat"
+      "kandidat": "Kandidat",
+      "loeschenFrage": "Diese Kachel inkl. Gruppen, Beteiligten und Verteilungen löschen? Das kann nicht rückgängig gemacht werden.",
+      "loeschenFrageMitGeld": "Diese Kachel löschen? Damit wird auch das Geld von {halbjahr} zurückgesetzt: ART-Töpfe {artTopf}, Run {run}, Epic-Budgets {epics}. Das kann nicht rückgängig gemacht werden.",
+      "loeschtGerade": "Lösche…"
     },
     "page": {
       "participatoryBudgeting": "Participatory Budgeting",

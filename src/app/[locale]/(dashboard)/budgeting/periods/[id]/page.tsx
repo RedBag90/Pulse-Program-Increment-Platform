@@ -11,6 +11,7 @@ import { PeriodDistributionTab } from "@/modules/budgeting/features/components/p
 import { PeriodResultTab } from "@/modules/budgeting/features/components/period/period-result-tab";
 import { PeriodPhaseRail } from "@/modules/budgeting/features/components/period/period-phase-rail";
 import { DeletePeriodButton } from "@/modules/budgeting/features/components/period/delete-period-button";
+import { cycleMoneyAtStake } from "@/modules/budgeting/server/services/cycle-money";
 import {
   periodPhases,
   PERIOD_TABS,
@@ -74,13 +75,17 @@ export default async function BudgetingPeriodDetailPage({ params, searchParams }
 
   // Die Verteilungs-Matrix speist beide hinteren Reiter **und** die Phasen —
   // deshalb immer laden; die abgeleiteten Budgets erst, wenn es sie gibt.
-  const [overview, valueStreams, revision] = await Promise.all([
+  const [overview, valueStreams, revision, geldAufDemSpiel] = await Promise.all([
     loadDistributionOverview(db, principal, id),
     closed ? loadPeriodValueStreams(db, principal.tenantId, id) : Promise.resolve(null),
     db.budgetPlanRevision.findFirst({
       where: { tenantId: principal.tenantId, cycleKey: model.round.cycleKey },
       select: { id: true },
     }),
+    // Was das Löschen mitnimmt — der Dialog nennt es vorher.
+    model.canManage
+      ? cycleMoneyAtStake(db, principal.tenantId, model.round.cycleKey)
+      : Promise.resolve(null),
   ]);
 
   const phases = periodPhases({
@@ -122,7 +127,15 @@ export default async function BudgetingPeriodDetailPage({ params, searchParams }
       tabs={TABS}
       activeTab={activeTab}
       basePath={basePath}
-      headerActions={model.canManage ? <DeletePeriodButton id={id} /> : undefined}
+      headerActions={
+        model.canManage ? (
+          <DeletePeriodButton
+            id={id}
+            atStake={geldAufDemSpiel}
+            cycleLabel={halfYearLabel(model.round.cycleKey)}
+          />
+        ) : undefined
+      }
       subHeader={<PeriodPhaseRail phases={phases} basePath={basePath} />}
     >
       {activeTab === "setup" && <PeriodSetupTab model={model} />}

@@ -1033,7 +1033,16 @@
       "steuerungsmerkerEntfernen": "Remove from the steering list",
       "steuerungsmerkerEntfernenFuer": "Remove “{title}” from the steering list",
       "inDieserKlasseNichtsMarkiert": "Nothing is marked in this class.",
-      "keineInitiativeMarkiert": "No initiative marked for the next steering meeting."
+      "keineInitiativeMarkiert": "No initiative marked for the next steering meeting.",
+      "beantragteEntscheidungen": "Requested decisions",
+      "keineOffenenAntraege": "No open requests for analysis or business-case approval.",
+      "inDieserKlasseKeinAntrag": "No open request in this class.",
+      "antrag": "Request",
+      "beantragtVon": "Requested by",
+      "abnahmen": "Sign-offs",
+      "tageOffen": "Days open",
+      "antragAnalyse": "Select for analysis",
+      "antragBusinessCase": "Business case approval"
     },
     "gate": {
       "todosFor": "To-dos for {step}",
@@ -1906,7 +1915,10 @@
       "vomVorherigenZeitraumUebernehmen": "Carry over from the previous period",
       "beteiligteGruppenInklSprecher": "Participants, groups (including spokespeople) and the PB list (epics). Adjustable afterwards in setup.",
       "abbrechen": "Cancel",
-      "kandidat": "Candidate"
+      "kandidat": "Candidate",
+      "loeschenFrage": "Delete this tile including groups, participants and distributions? This cannot be undone.",
+      "loeschenFrageMitGeld": "Delete this tile? This also resets the money of {halbjahr}: ART pots {artTopf}, run {run}, epic budgets {epics}. This cannot be undone.",
+      "loeschtGerade": "Deleting…"
     },
     "page": {
       "participatoryBudgeting": "Participatory budgeting",

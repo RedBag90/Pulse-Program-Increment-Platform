@@ -19,6 +19,7 @@ import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 import { carryReserveForward, pickCarriedReserve } from "@/modules/budgeting/domain/reserve";
 import { materializeRtbCandidates } from "@/modules/budgeting/server/services/candidate-service";
+import { clearCycleMoney, NO_CYCLE_MONEY } from "@/modules/budgeting/server/services/cycle-money";
 import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
 import {
   periodValidity,
@@ -401,9 +402,18 @@ export async function updateRoundFrame(
 
 /**
  * Löscht eine Kachel (Runde) samt Subtree (Gruppen/Mitglieder/Allocations,
- * Kandidaten, Beteiligte, Decisions, Report-outs — alle `onDelete: Cascade`).
- * App-weite Epic-Budgets (`BudgetAllocation`) bleiben (epic-keyed, nicht an die
- * Runde gekoppelt). Gate: `budget.round.manage` (Action-Layer).
+ * Kandidaten, Beteiligte, Decisions, Report-outs — alle `onDelete: Cascade`)
+ * **und setzt das Geld ihres Halbjahres zurück**: ART-Topf, Run-Zuspruch,
+ * ART-Verteilungen und Epic-Budgets unter ihrem `cycleKey`.
+ *
+ * Bis September 2026 blieb dieses Geld stehen — es liegt nur am Schlüssel,
+ * nicht an der Runde. Im ART stand danach weiter „200.000 € zu verteilen",
+ * und eine neue Kachel desselben Halbjahres übernahm den Topf still. Siehe
+ * `cycle-money.ts`.
+ *
+ * Trägt eine **andere** Runde desselben Mandanten denselben `cycleKey`, gehört
+ * das Geld ihr; dann verschwindet nur diese Runde. Gate:
+ * `budget.round.manage` (Action-Layer).
  */
 export async function deletePeriod(
   ctx: RequestContext,
@@ -413,10 +423,18 @@ export async function deletePeriod(
   return withAuditedTransaction(mctx, async (tx) => {
     const round = await tx.budgetRound.findFirst({
       where: { id: input.id, tenantId: mctx.tenantId },
-      select: { id: true },
+      select: { id: true, cycleKey: true },
     });
     if (!round)
       return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.id });
+
+    const geteilt = await tx.budgetRound.count({
+      where: { tenantId: mctx.tenantId, cycleKey: round.cycleKey, id: { not: round.id } },
+    });
+    const entfernt =
+      geteilt === 0
+        ? await clearCycleMoney(tx, mctx.tenantId, round.cycleKey, mctx.actorId)
+        : NO_CYCLE_MONEY;
 
     await tx.budgetRound.delete({ where: { id: input.id } });
 
@@ -426,7 +444,10 @@ export async function deletePeriod(
         action: "budget.round.deleted" as const,
         resourceType: "budget_round" as const,
         resourceId: input.id,
-        changes: {},
+        changes: {
+          cycleKey: { before: round.cycleKey, after: null },
+          geldZurueckgesetzt: { before: entfernt, after: null },
+        },
       },
     });
   });
