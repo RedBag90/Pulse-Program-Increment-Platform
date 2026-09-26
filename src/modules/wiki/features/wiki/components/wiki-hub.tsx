@@ -112,18 +112,31 @@ function ReferenceTile() {
       <h2 className="font-mono text-label uppercase tracking-[0.14em] text-muted-foreground">
         {t("wiki.ui.nachschlagen")}
       </h2>
-      <Link
-        href="/wiki/rollen"
-        className="block rounded-lg bg-card shadow-card px-3.5 py-3 transition-colors hover:border-foreground/25"
-      >
-        <h3 className="font-heading text-sm font-semibold leading-snug">
-          {t("wiki.ui.werWasVerantwortet")}
-        </h3>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          {t("wiki.ui.rolesTeaser")}
-        </p>
-      </Link>
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        <ReferenceLink
+          href="/wiki/rollen"
+          title={t("wiki.ui.werWasVerantwortet")}
+          teaser={t("wiki.ui.rolesTeaser")}
+        />
+        <ReferenceLink
+          href="/wiki/termine"
+          title={t("wiki.ui.welcheTermineEsBraucht")}
+          teaser={t("wiki.ui.termineTeaser")}
+        />
+      </div>
     </div>
+  );
+}
+
+function ReferenceLink({ href, title, teaser }: { href: string; title: string; teaser: string }) {
+  return (
+    <Link
+      href={href as never}
+      className="block rounded-lg bg-card shadow-card px-3.5 py-3 transition-colors hover:border-foreground/25"
+    >
+      <h3 className="font-heading text-sm font-semibold leading-snug">{title}</h3>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{teaser}</p>
+    </Link>
   );
 }
 
