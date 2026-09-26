@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import React from "react";
 import { render, screen, within } from "@testing-library/react";
-import { FundingSnapshotTable } from "@/modules/work/features/portfolio/overview/blocks/funding-snapshot-table";
+import {
+  FundingBar,
+  FundingSnapshotTable,
+} from "@/modules/work/features/portfolio/overview/blocks/funding-snapshot-table";
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 
 vi.mock("@/i18n/navigation", () => ({
@@ -93,5 +96,29 @@ describe("FundingSnapshotTable", () => {
   it("ohne Geld in der Kachel: der leere Zustand mit dem Weg ins Budgeting", () => {
     render(<FundingSnapshotTable data={daten([])} />);
     expect(screen.getByRole("link").getAttribute("href")).toBe("/budgeting/periods");
+  });
+});
+
+describe("FundingBar", () => {
+  it("ein negativer Rest hat keine Breite, steht aber als Zahl in der Zeile", () => {
+    const { container } = render(
+      <FundingBar
+        row={{ portfolio: 100_000, toEpics: 30_000, toOwnWork: 0, open: -10_000 }}
+        max={200_000}
+      />,
+    );
+    expect(container.querySelector('[data-segment="portfolio"]')).not.toBeNull();
+    expect(container.querySelector('[data-segment="toEpics"]')).not.toBeNull();
+    expect(container.querySelector('[data-segment="toOwnWork"]')).toBeNull();
+    expect(container.querySelector('[data-segment="open"]')).toBeNull();
+    expect(screen.getByText(/davon .*-10.* noch nicht vergeben/)).toBeInTheDocument();
+  });
+
+  it("die Breite ist relativ zum größten Wertstrom", () => {
+    const { container } = render(
+      <FundingBar row={{ portfolio: 50, toEpics: 0, toOwnWork: 0, open: 50 }} max={400} />,
+    );
+    const balken = container.firstElementChild!.firstElementChild as HTMLElement;
+    expect(balken.style.width).toBe("25%");
   });
 });

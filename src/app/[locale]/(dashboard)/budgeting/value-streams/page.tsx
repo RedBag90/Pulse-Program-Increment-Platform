@@ -4,12 +4,18 @@ import { Link } from "@/i18n/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
-import { getValueStreamBudgets } from "@/modules/budgeting/server/services/budgeting";
+import { getEpicCycleAllocations } from "@/modules/budgeting/server/services/epic-allocation";
+import { getValueStreamChangeBudgets } from "@/modules/budgeting/server/services/value-stream-change-budget";
+import {
+  FundingBar,
+  FundingLegend,
+  summe,
+} from "@/modules/work/features/portfolio/overview/blocks/funding-snapshot-table";
 import { Page, PageHeader } from "@/components/layout";
 import { Stat, StatStrip } from "@/components/ui/stat";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatEUR } from "@/lib/formatting";
-import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
+import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import { Landmark } from "lucide-react";
 
 /**
@@ -36,6 +42,14 @@ import { Landmark } from "lucide-react";
  * Betrag da, nicht `0 €`. `/structure` unterscheidet das seit jeher
  * (`money === null` heisst „nicht gemessen"); hier las sich jeder Wertstrom
  * ohne Zuteilung wie einer mit null Euro.
+ *
+ * **Seit September 2026 dieselben Zahlen wie der Funding-Snapshot** der
+ * Portfolio-Übersicht: das Veränderungsgeld der **geltenden Budget-Kachel**
+ * (nicht des Kalender-Halbjahrs) — Portfolio-Epics plus ART-Rahmen, der Rahmen
+ * aufgeteilt in an ART-Epics / für ART-eigene Arbeit / noch nicht vergeben.
+ * Vorher stand hier nur das Portfolio-Geld, und daneben eine Summe über alle
+ * Halbjahre. Den Balken liefert das Snapshot-Bauteil aus Work — der App-Baum
+ * darf beide Module zusammensetzen (ADR-0013).
  */
 
 export default async function BudgetingValueStreamsPage() {
@@ -46,17 +60,22 @@ export default async function BudgetingValueStreamsPage() {
   const budgetingEnabled = principal.enabledModules.includes("budgeting");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const [valueStreams, budgets] = await Promise.all([
+  const [valueStreams, cycle] = await Promise.all([
     listValueStreams(db, principal.tenantId),
     budgetingEnabled
-      ? getValueStreamBudgets(db, principal.tenantId)
-      : Promise.resolve({ periods: [], valueStreams: [] }),
+      ? getEpicCycleAllocations(db, principal.tenantId, new Date())
+      : Promise.resolve({ cycleKey: null }),
   ]);
+  // Ohne geltende Kachel gibt es kein Veränderungsgeld — und keinen Betrag.
+  const cycleKey = cycle.cycleKey;
+  const change = cycleKey
+    ? await getValueStreamChangeBudgets(db, principal.tenantId, cycleKey)
+    : [];
 
-  const budgetOf = new Map(budgets.valueStreams.map((b) => [b.valueStreamId, b]));
-  const cycleKey = halfYearKey(new Date());
+  const changeOf = new Map(change.map((c) => [c.valueStreamId, c]));
   const artCount = valueStreams.reduce((sum, vs) => sum + vs.arts.length, 0);
-  const cycleTotal = budgets.valueStreams.reduce((sum, b) => sum + (b.byPeriod[cycleKey] ?? 0), 0);
+  const cycleTotal = change.reduce((sum, c) => sum + summe(c), 0);
+  const max = Math.max(...change.map(summe), 1);
 
   return (
     <Page>
@@ -79,7 +98,7 @@ export default async function BudgetingValueStreamsPage() {
           <StatStrip>
             <Stat label={t("budgeting.ui.wertstroeme")} value={valueStreams.length} />
             <Stat label={t("budgeting.ui.arts")} value={artCount} />
-            {budgetingEnabled && (
+            {cycleKey && (
               <Stat
                 label={t("budgeting.ui.zugeteiltImHalbjahr", { cycle: halfYearLabel(cycleKey) })}
                 value={formatEUR(cycleTotal)}
@@ -87,12 +106,18 @@ export default async function BudgetingValueStreamsPage() {
             )}
           </StatStrip>
 
+          {cycleKey && <FundingLegend />}
+
           <ul className="divide-y rounded-lg border">
             {valueStreams.map((vs) => {
-              const budget = budgetOf.get(vs.id);
+              const row = changeOf.get(vs.id);
               return (
-                <li key={vs.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
-                  <div className="min-w-0 flex-1">
+                <li
+                  key={vs.id}
+                  data-vs={vs.id}
+                  className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3"
+                >
+                  <div className="min-w-0 sm:w-56">
                     <Link
                       href={`/budgeting/value-streams/${vs.id}`}
                       className="font-medium hover:underline"
@@ -105,13 +130,15 @@ export default async function BudgetingValueStreamsPage() {
                         : t("budgeting.ui.artsAnzahl", { n: vs.arts.length })}
                     </p>
                   </div>
-                  {budgetingEnabled && (
-                    <div className="text-right text-sm tabular-nums">
-                      <p className="font-medium">{formatEUR(budget?.byPeriod[cycleKey] ?? 0)}</p>
-                      <p className="text-meta text-muted-foreground">
-                        {formatEUR(budget?.total ?? 0)} {t("budgeting.ui.zugeteiltInsgesamt")}
+                  {cycleKey && (
+                    <>
+                      <div className="order-last min-w-0 basis-full sm:order-none sm:basis-0 sm:flex-1">
+                        {row && <FundingBar row={row} max={max} />}
+                      </div>
+                      <p className="ml-auto text-right text-sm font-medium tabular-nums sm:ml-0">
+                        {formatEUR(row ? summe(row) : 0)}
                       </p>
-                    </div>
+                    </>
                   )}
                 </li>
               );

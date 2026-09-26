@@ -39,7 +39,68 @@ const SEGMENTS: { key: Segment; labelKey: string; className: string }[] = [
   },
 ];
 
-const summe = (r: ValueStreamChangeRow) => r.portfolio + r.toEpics + r.toOwnWork + r.open;
+/** Die vier Beträge eines Wertstroms — die Form des Snapshots. */
+export type FundingRow = Pick<ValueStreamChangeRow, "portfolio" | "toEpics" | "toOwnWork" | "open">;
+
+export const summe = (r: FundingRow) => r.portfolio + r.toEpics + r.toOwnWork + r.open;
+
+/** Die Legende der vier Segmente — einmal über der Liste. */
+export function FundingLegend() {
+  const t = useTranslations();
+  return (
+    <ul className="flex flex-wrap gap-x-3 gap-y-1 text-meta text-muted-foreground">
+      {SEGMENTS.map((s) => (
+        <li key={s.key} className="flex items-center gap-1.5">
+          <span aria-hidden className={`inline-block size-2.5 rounded-sm ${s.className}`} />
+          {t(s.labelKey)}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * Der gestapelte Balken eines Wertstroms und darunter die Zeile mit den
+ * Beträgen. Die Breite ist relativ zu `max`, dem größten Wertstrom der Liste.
+ * Auch die Wertstrom-Liste des Budgetings zeigt ihn (über den App-Baum).
+ */
+export function FundingBar({ row, max }: { row: FundingRow; max: number }) {
+  const t = useTranslations();
+  const locale = useLocale() as Locale;
+  const eur = (n: number) => formatScaledEUR(n, locale);
+  const gesamt = summe(row);
+  const rahmen = row.toEpics + row.toOwnWork + row.open;
+  return (
+    <div className="space-y-1">
+      <div
+        className="flex h-2 overflow-hidden rounded-full bg-muted"
+        style={{ width: `${(Math.max(gesamt, 0) / Math.max(max, 1)) * 100}%` }}
+      >
+        {SEGMENTS.map((s) => {
+          // Ein negativer Rest (gekürzter Rahmen) hat keine Breite;
+          // er steht in der Zeile darunter als Zahl.
+          const wert = Math.max(0, row[s.key]);
+          if (wert === 0) return null;
+          return (
+            <div
+              key={s.key}
+              data-segment={s.key}
+              className={`h-full ${s.className}`}
+              style={{ width: `${(wert / Math.max(gesamt, 1)) * 100}%` }}
+            />
+          );
+        })}
+      </div>
+      <p className="text-meta text-muted-foreground">
+        {t("work.overview.snapshotZeile", {
+          portfolio: eur(row.portfolio),
+          rahmen: eur(rahmen),
+          offen: eur(row.open),
+        })}
+      </p>
+    </div>
+  );
+}
 
 export function FundingSnapshotTable({ data }: { data: PortfolioOverview }) {
   const t = useTranslations();
@@ -70,54 +131,19 @@ export function FundingSnapshotTable({ data }: { data: PortfolioOverview }) {
   return (
     <Card className="h-full space-y-3 p-4">
       <SectionLabel>{titel}</SectionLabel>
-      <ul className="flex flex-wrap gap-x-3 gap-y-1 text-meta text-muted-foreground">
-        {SEGMENTS.map((s) => (
-          <li key={s.key} className="flex items-center gap-1.5">
-            <span aria-hidden className={`inline-block size-2.5 rounded-sm ${s.className}`} />
-            {t(s.labelKey)}
+      <FundingLegend />
+      <ul className="space-y-3">
+        {ranked.map((r) => (
+          <li key={r.valueStreamId} className="space-y-1" data-vs={r.valueStreamId}>
+            <div className="flex items-baseline justify-between gap-3 text-xs">
+              <span className="truncate font-medium">{r.name}</span>
+              <span className="shrink-0 font-mono tabular-nums text-muted-foreground">
+                {eur(summe(r))}
+              </span>
+            </div>
+            <FundingBar row={r} max={max} />
           </li>
         ))}
-      </ul>
-      <ul className="space-y-3">
-        {ranked.map((r) => {
-          const rahmen = r.toEpics + r.toOwnWork + r.open;
-          return (
-            <li key={r.valueStreamId} className="space-y-1" data-vs={r.valueStreamId}>
-              <div className="flex items-baseline justify-between gap-3 text-xs">
-                <span className="truncate font-medium">{r.name}</span>
-                <span className="shrink-0 font-mono tabular-nums text-muted-foreground">
-                  {eur(summe(r))}
-                </span>
-              </div>
-              <div
-                className="flex h-2 overflow-hidden rounded-full bg-muted"
-                style={{ width: `${(summe(r) / max) * 100}%` }}
-              >
-                {SEGMENTS.map((s) => {
-                  // Ein negativer Rest (gekürzter Rahmen) hat keine Breite;
-                  // er steht in der Zeile darunter als Zahl.
-                  const wert = Math.max(0, r[s.key]);
-                  if (wert === 0) return null;
-                  return (
-                    <div
-                      key={s.key}
-                      data-segment={s.key}
-                      className={`h-full ${s.className}`}
-                      style={{ width: `${(wert / Math.max(summe(r), 1)) * 100}%` }}
-                    />
-                  );
-                })}
-              </div>
-              <p className="text-meta text-muted-foreground">
-                {t("work.overview.snapshotZeile", {
-                  portfolio: eur(r.portfolio),
-                  rahmen: eur(rahmen),
-                  offen: eur(r.open),
-                })}
-              </p>
-            </li>
-          );
-        })}
       </ul>
     </Card>
   );

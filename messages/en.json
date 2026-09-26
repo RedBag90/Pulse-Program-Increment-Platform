@@ -2492,7 +2492,6 @@
       "zugeteiltImHalbjahr": "Allocated · {cycle}",
       "artsAnzahl": "{n} ARTs",
       "artEinzahl": "1 ART",
-      "zugeteiltInsgesamt": "allocated in total",
       "ohneBudgetingModul": "Without the budgeting module no amounts are kept.",
       "artRahmenStehtNochNichtVerteilt": "<b>💶 {art}</b> — the ART budget for <b>{cycle}</b> is set: <num>{amount}</num> not yet distributed."
     },
