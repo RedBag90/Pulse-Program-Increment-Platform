@@ -94,6 +94,7 @@ function featureRow(partial: Partial<CockpitFeatureRow> & { id: string }): Cockp
     art: { id: "art-1", name: "ART 1" },
     parent: null,
     dependenciesIn: [],
+    dependenciesOut: [],
     ...partial,
   };
 }
@@ -831,5 +832,68 @@ describe("buildCockpitModel — Job-Size-Ziel aus der Formel", () => {
     ];
     const model = buildCockpitModel(rows({ ...base, allPis, selectedPiId: "q2" }));
     expect(model.selectedPi?.jobSizeTarget).toMatchObject({ target: null, reason: "noCapacity" });
+  });
+});
+
+describe("buildCockpitModel — Blocker aus blocks und depends_on", () => {
+  const arts = [
+    { id: "art-1", name: "ART 1", valueStreamId: "vs-1", timelineId: null, valueStream: null },
+  ];
+
+  it("eine ausgehende depends_on-Kante blockiert — mit Link-Ziel", () => {
+    const model = buildCockpitModel(
+      rows({
+        selectedArtId: "art-1",
+        arts,
+        featureRows: [
+          featureRow({
+            id: "f1",
+            dependenciesOut: [
+              { id: "d1", to: { id: "vor", title: "Vorgänger", status: "approved" } },
+            ],
+          }),
+        ],
+      }),
+    );
+    expect(model.features[0]!.hasBlocker).toBe(true);
+    expect(model.features[0]!.blockers).toEqual([{ id: "vor", title: "Vorgänger" }]);
+  });
+
+  it("nennt alle offenen Blocker, nicht nur den ersten", () => {
+    const model = buildCockpitModel(
+      rows({
+        selectedArtId: "art-1",
+        arts,
+        featureRows: [
+          featureRow({
+            id: "f1",
+            dependenciesIn: [{ id: "d1", from: { id: "b", title: "B", status: "blocked" } }],
+            dependenciesOut: [
+              { id: "d2", to: { id: "a", title: "A", status: "in_progress" } },
+              { id: "d3", to: { id: "c", title: "C", status: "completed" } },
+            ],
+          }),
+        ],
+      }),
+    );
+    expect(model.features[0]!.blockers.map((b) => b.id)).toEqual(["a", "b"]);
+  });
+
+  it("der Filter „hat Blocker“ greift auch bei depends_on", () => {
+    const model = buildCockpitModel(
+      rows({
+        selectedArtId: "art-1",
+        arts,
+        filters: { ...EMPTY_FILTERS, hasBlocker: true },
+        featureRows: [
+          featureRow({
+            id: "f1",
+            dependenciesOut: [{ id: "d1", to: { id: "x", title: "X", status: "approved" } }],
+          }),
+          featureRow({ id: "f2" }),
+        ],
+      }),
+    );
+    expect(model.features.map((f) => f.id)).toEqual(["f1"]);
   });
 });

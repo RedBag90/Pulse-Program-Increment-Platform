@@ -39,6 +39,7 @@ function feature(id: string, piId: string | null, status: FeatureStatus): Cockpi
     wsjfRiskReduction: null,
     hasBlocker: false,
     blockerHint: null,
+    blockers: [],
     solutionName: null,
   };
 }

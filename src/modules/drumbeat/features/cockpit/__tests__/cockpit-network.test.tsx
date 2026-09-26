@@ -61,6 +61,7 @@ function feat(id: string, piId: string | null): CockpitFeature {
     wsjfRiskReduction: null,
     hasBlocker: false,
     blockerHint: null,
+    blockers: [],
     solutionName: null,
   };
 }

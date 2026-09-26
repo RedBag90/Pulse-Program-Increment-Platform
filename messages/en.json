@@ -2701,7 +2701,6 @@
       "grund": "Reason",
       "warumWirdDieArbeit": "Why is the work being paused?",
       "ohneOwner": "no owner",
-      "blocktDurch": "⚠ blocked by",
       "piStandard": "PI standard",
       "featureOhneArtZuordnung": "Feature without an ART assignment — acceptance criteria are not editable right now.",
       "acceptanceCriteriaGespeichert": "Acceptance criteria saved.",
@@ -2795,7 +2794,10 @@
       "jobSizeFeature": "JS {n}",
       "jobSizeFeatureLeer": "JS —",
       "jobSizeFeatureErklaerung": "Job size of this feature — it counts against the PI's target.",
-      "wsjfBearbeitenFuer": "Edit WSJF: {title}"
+      "wsjfBearbeitenFuer": "Edit WSJF: {title}",
+      "blockiertDurch": "Blocked by",
+      "offenerBlockerEins": "1 open blocker",
+      "offeneBlockerMehrere": "{n} open blockers"
     },
     "errors": {
       "endBeforeStart": "The end date must be after the start date.",

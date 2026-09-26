@@ -62,6 +62,7 @@ function feat(id: string, status: CockpitFeature["status"]): CockpitFeature {
     wsjfRiskReduction: null,
     hasBlocker: false,
     blockerHint: null,
+    blockers: [],
     solutionName: "Logistik Betrieb",
   };
 }

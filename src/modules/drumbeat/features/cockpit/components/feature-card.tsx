@@ -5,6 +5,7 @@ import { memo, type RefObject } from "react";
 import type { CockpitFeature } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { FEATURE_STATUS_DOT } from "@/modules/drumbeat/features/lib/status-badges";
 import { FeatureScore } from "@/modules/drumbeat/features/cockpit/components/feature-score";
+import { FeatureBlockers } from "@/modules/drumbeat/features/cockpit/components/feature-blockers";
 import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
 import { initials } from "@/components/detail/initiative-labels";
 
@@ -112,18 +113,15 @@ function FeatureCardImpl({ feature, canDrag, canScore, draggingId }: Props) {
             <span className="truncate text-muted-foreground/60">{t("drumbeat.ui.ohneOwner")}</span>
           )}
         </span>
-        <FeatureScore
-          feature={feature}
-          canScore={canScore}
-          badgeClassName="px-1 py-0 text-label font-medium"
-        />
+        <span className="flex shrink-0 items-center gap-1.5">
+          <FeatureBlockers blockers={feature.blockers} />
+          <FeatureScore
+            feature={feature}
+            canScore={canScore}
+            badgeClassName="px-1 py-0 text-label font-medium"
+          />
+        </span>
       </div>
-
-      {feature.hasBlocker && feature.blockerHint && (
-        <p className="line-clamp-1 text-label text-warning">
-          {t("drumbeat.ui.blocktDurch")} <span className="font-medium">{feature.blockerHint}</span>
-        </p>
-      )}
     </div>
   );
 }
@@ -144,6 +142,7 @@ export const FeatureCard = memo(FeatureCardImpl, (a, b) => {
     x.wsjfTimeCriticality === y.wsjfTimeCriticality &&
     x.wsjfRiskReduction === y.wsjfRiskReduction &&
     x.hasBlocker === y.hasBlocker &&
-    x.blockerHint === y.blockerHint
+    x.blockerHint === y.blockerHint &&
+    x.blockers.map((b) => b.id).join() === y.blockers.map((b) => b.id).join()
   );
 });

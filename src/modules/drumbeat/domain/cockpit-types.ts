@@ -14,6 +14,7 @@ export type { FeatureStatus } from "@/modules/drumbeat/domain/status";
 import type { PiStatus } from "@/modules/drumbeat/domain/pi-rules";
 import type { FeatureBreakdown } from "@/modules/work/domain/feature-breakdown";
 import type { JobSizeTarget } from "@/modules/drumbeat/domain/pi-job-size-target";
+import type { BlockerRef } from "@/modules/drumbeat/domain/open-blockers";
 
 /**
  * Status einer Board-Spalte: PI-Status oder eine der beiden synthetischen
@@ -86,6 +87,11 @@ export interface CockpitFeature extends FeatureBreakdown {
   hasBlocker: boolean;
   /** Erste blockierende Quelle, fuer den Karten-Hinweis „blockt durch X". */
   blockerHint: string | null;
+  /**
+   * **Alle** offenen Blocker, nach Titel — eingehende `blocks` und ausgehende
+   * `depends_on` (`openBlockers`). Die Karte zeigt sie als Symbol mit Links.
+   */
+  blockers: BlockerRef[];
   /**
    * Name der **Primär-Solution des Epics**, an dem dieses Feature hängt;
    * `null`, wenn das Epic keine trägt (gemessen 40 % der Features).

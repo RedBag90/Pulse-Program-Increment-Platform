@@ -2701,7 +2701,6 @@
       "grund": "Grund",
       "warumWirdDieArbeit": "Warum wird die Arbeit angehalten?",
       "ohneOwner": "ohne Owner",
-      "blocktDurch": "⚠ blockt durch",
       "piStandard": "PI-Standard",
       "featureOhneArtZuordnung": "Feature ohne ART-Zuordnung — Acceptance Criteria sind aktuell nicht editierbar.",
       "acceptanceCriteriaGespeichert": "Akzeptanzkriterien gespeichert.",
@@ -2795,7 +2794,10 @@
       "jobSizeFeature": "JS {n}",
       "jobSizeFeatureLeer": "JS —",
       "jobSizeFeatureErklaerung": "Job Size dieses Features — sie zählt gegen das Ziel des PI.",
-      "wsjfBearbeitenFuer": "WSJF bearbeiten: {title}"
+      "wsjfBearbeitenFuer": "WSJF bearbeiten: {title}",
+      "blockiertDurch": "Blockiert durch",
+      "offenerBlockerEins": "1 offener Blocker",
+      "offeneBlockerMehrere": "{n} offene Blocker"
     },
     "errors": {
       "endBeforeStart": "Das Enddatum muss nach dem Startdatum liegen.",

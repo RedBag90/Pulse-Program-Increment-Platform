@@ -3,6 +3,7 @@ import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import { openBlockers } from "@/modules/drumbeat/domain/open-blockers";
 import {
   deriveJobSizeTarget,
   type PiDeliveryRecord,
@@ -312,6 +313,15 @@ export interface CockpitFeatureRow {
     id: string;
     from: { id: string; title: string; status: string } | null;
   }>;
+  /**
+   * Ausgehende `depends_on`-Kanten — „dieses Feature hängt ab von `to`". Auch
+   * sie blockieren (`openBlockers`); bis September 2026 zählte die Karte sie
+   * nicht.
+   */
+  dependenciesOut: ReadonlyArray<{
+    id: string;
+    to: { id: string; title: string; status: string } | null;
+  }>;
 }
 
 /** Raw dependency row touching the feature scope (query 7). */
@@ -411,9 +421,10 @@ function buildScopeFeatures(
 ): CockpitFeature[] {
   return rows
     .map((r) => {
-      const openBlocker = r.dependenciesIn.find(
-        (d) => d.from && d.from.status !== "completed" && d.from.status !== "cancelled",
-      );
+      const blockers = openBlockers({
+        blocksIn: r.dependenciesIn.map((d) => d.from),
+        dependsOnOut: r.dependenciesOut.map((d) => d.to),
+      });
       const f: CockpitFeature = {
         id: r.id,
         title: r.title,
@@ -430,8 +441,9 @@ function buildScopeFeatures(
         wsjfBusinessValue: r.wsjfBusinessValue ?? null,
         wsjfTimeCriticality: r.wsjfTimeCriticality ?? null,
         wsjfRiskReduction: r.wsjfRiskReduction ?? null,
-        hasBlocker: !!openBlocker,
-        blockerHint: openBlocker?.from?.title ?? null,
+        hasBlocker: blockers.length > 0,
+        blockerHint: blockers[0]?.title ?? null,
+        blockers,
         solutionName: resolveFeatureSolution({
           own: r.primarySolution?.name,
           parent: r.parent?.primarySolution?.name,
@@ -931,6 +943,13 @@ export async function loadCockpitModel(
               select: {
                 id: true,
                 from: { select: { id: true, title: true, status: true } },
+              },
+            },
+            dependenciesOut: {
+              where: { type: "depends_on" },
+              select: {
+                id: true,
+                to: { select: { id: true, title: true, status: true } },
               },
             },
           },
