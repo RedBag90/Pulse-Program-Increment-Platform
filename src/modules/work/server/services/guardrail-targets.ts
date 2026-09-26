@@ -23,7 +23,7 @@ import {
 
 /** Alle Wertstrom-Zeilen eines Mandanten — Eingabe der Auflösung. */
 export async function listValueStreamGuardrailTargets(
-  db: PrismaClient,
+  db: PrismaClient | Prisma.TransactionClient,
   tenantId: TenantId,
 ): Promise<GuardrailTargetsRow[]> {
   const rows = await db.valueStreamGuardrailTargets.findMany({

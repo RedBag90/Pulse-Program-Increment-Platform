@@ -174,7 +174,7 @@ export const EPIC_LIFECYCLE: Guide = {
             },
             {
               kind: "note",
-              text: "**Vor dem Absenden kann ein Dialog dazwischentreten.** Beim Anlegen habe ich hinterlegt, womit ich rechne. Weicht die aus den Kosten abgeleitete Einordnung davon ab, sagt Pulse mir das, bevor der Antrag rausgeht: „angelegt als …, die Kosten machen es zum …“.",
+              text: "**Vor dem Absenden kann ein Dialog dazwischentreten.** Beim Anlegen habe ich hinterlegt, womit ich rechne. Weicht die aus den Kosten abgeleitete Einordnung davon ab, sagt Pulse mir das, bevor der Antrag rausgeht: „angelegt als …, die Kosten machen es zum …“. Liegen die Kosten über dem Portfolio-Limit, stellt der Antrag die Einordnung selbst auf Portfolio-Epic um — ein ART-Rahmen könnte das nicht tragen. Liegt ein Portfolio-Epic darunter, darf es mit Begründung Portfolio-Sache bleiben.",
             },
             {
               kind: "paragraph",

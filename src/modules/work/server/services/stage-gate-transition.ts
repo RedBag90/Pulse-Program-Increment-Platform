@@ -46,6 +46,7 @@ import {
   type GateTransitionStatus,
 } from "@/modules/work/domain/gate-transition";
 import { loadAuthorizedEpic } from "@/modules/work/server/services/epic-access";
+import { reclassifyAboveLimit } from "@/modules/work/server/services/epic-class";
 
 // ---------------------------------------------------------------------------
 // Reifegrad-Wechsel — der impure Rand um die reine Gate-Logik.
@@ -569,6 +570,13 @@ export async function requestGateTransition(
         select: { id: true, status: true },
       });
 
+      // Über dem Limit bleibt kein Epic ART — schon mit dem Antrag, nicht erst
+      // mit der Abnahme (siehe `reclassifyAboveLimit`).
+      const reclassified =
+        to === "L2"
+          ? await reclassifyAboveLimit(tx, mctx.tenantId, input.epicId, mctx.actorId)
+          : null;
+
       if (immediate && stamps) {
         await applyGateStamps(tx, input.epicId, stamps, mctx.actorId, to);
       }
@@ -597,6 +605,7 @@ export async function requestGateTransition(
               after: plan.value.approvers.map((a) => a.userId),
             },
             ...(input.reason ? { comment: { before: null, after: input.reason } } : {}),
+            ...(reclassified ? { intendedClass: reclassified } : {}),
           },
         },
       });
@@ -755,6 +764,12 @@ export async function decideGateTransition(
     const to = transition.toGate as GateStep;
 
     if (outcome.kind === "advance") {
+      // Der Business Case kann sich seit dem Antrag geändert haben — die
+      // Abnahme rechnet mit dem, was sie freigibt.
+      const reclassified =
+        outcome.to === "L2"
+          ? await reclassifyAboveLimit(tx, mctx.tenantId, transition.initiativeId, mctx.actorId)
+          : null;
       await applyGateStamps(tx, transition.initiativeId, outcome.stamps, mctx.actorId, outcome.to);
       await tx.stageGateTransition.update({
         where: { id: transition.id },
@@ -769,6 +784,7 @@ export async function decideGateTransition(
           changes: {
             stageGate: { before: from, after: to },
             ...(input.comment ? { comment: { before: null, after: input.comment } } : {}),
+            ...(reclassified ? { intendedClass: reclassified } : {}),
           },
         },
       });

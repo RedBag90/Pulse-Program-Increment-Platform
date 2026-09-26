@@ -16,11 +16,12 @@
  * fasst den Epic-Beitrag wahlweise danach zusammen.
  */
 
-import type { PrismaClient } from "@/generated/prisma";
+import type { Prisma, PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel, type TenantId } from "@/modules/core/kernel/domain/types";
 import {
   classifyEpic,
   isEpicClass,
+  provisionalEpicClass,
   resolveEpicClass,
   type EpicClass,
   type EpicClassSource,
@@ -116,4 +117,67 @@ export async function classifyEpics(
       },
     ]),
   );
+}
+
+/**
+ * Das Portfolio-Limit **eines** Wertstroms — derselbe Weg wie in
+ * `classifyEpics` (Wertstrom → Tenant → Code-Default), nur für eine Zeile.
+ */
+export async function portfolioThresholdFor(
+  db: PrismaClient | Prisma.TransactionClient,
+  tenantId: TenantId,
+  valueStreamId: string | null,
+): Promise<number> {
+  const [rows, tenant] = await Promise.all([
+    listValueStreamGuardrailTargets(db, tenantId),
+    db.tenant.findUnique({ where: { id: tenantId }, select: { guardrailTargets: true } }),
+  ]);
+  return resolveGuardrailTargets(rows, tenant?.guardrailTargets ?? null, valueStreamId ?? "")
+    .targets.approval.portfolioThreshold;
+}
+
+/** Was `reclassifyAboveLimit` geändert hat — Form eines Audit-Eintrags. */
+export interface IntendedClassChange {
+  before: "art";
+  after: "portfolio";
+}
+
+/**
+ * **Über dem Limit bleibt kein Epic ART.**
+ *
+ * Die Erwartung (`intendedClass`) wird beim Anlegen gesetzt; der Business Case
+ * kann sie widerlegen. Nach oben ist das keine Ansichtssache: was über dem
+ * Portfolio-Limit liegt, braucht eine Portfolio-Entscheidung, und ein
+ * ART-Rahmen könnte es nicht tragen. Bis September 2026 blieb die Erwartung
+ * trotzdem auf „art" stehen — zwischen Antrag und Abnahme lief das Epic
+ * überall als ART-Epic, und nach der Abnahme meldete die Karte eine
+ * „Abweichung von der Erwartung", die niemand mehr auflösen konnte.
+ *
+ * Jetzt stellt der Gate-Dienst die Erwartung um, beim L2-Antrag **und** bei
+ * der Abnahme (der Business Case kann sich dazwischen geändert haben).
+ *
+ * **Nur nach oben.** Ein Portfolio-Epic unter dem Limit darf Portfolio
+ * bleiben — dafür gibt es die begründete Ausnahme (`portfolioOverrideAt`);
+ * ohne sie wird es mit der Abnahme ohnehin ART (`classifyEpic`).
+ *
+ * Läuft in der Transaktion des Aufrufers; idempotent.
+ */
+export async function reclassifyAboveLimit(
+  tx: Prisma.TransactionClient,
+  tenantId: TenantId,
+  epicId: string,
+  actorId: string,
+): Promise<IntendedClassChange | null> {
+  const row = await tx.initiative.findFirst({
+    where: { id: epicId, tenantId },
+    select: { intendedClass: true, valueStreamId: true, businessCase: true },
+  });
+  if (row?.intendedClass !== "art") return null;
+  const limit = await portfolioThresholdFor(tx, tenantId, row.valueStreamId);
+  if (provisionalEpicClass(row, limit) !== "portfolio") return null;
+  await tx.initiative.update({
+    where: { id: epicId },
+    data: { intendedClass: "portfolio", updatedBy: actorId },
+  });
+  return { before: "art", after: "portfolio" };
 }

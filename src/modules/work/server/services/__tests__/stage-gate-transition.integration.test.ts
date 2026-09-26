@@ -519,3 +519,82 @@ describe("Kein Vorgang bewegt den Reifegrad als Nebenwirkung", () => {
     expect(await db.stageGateTransition.count({ where: { initiativeId: epicId } })).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+
+describe("Über dem Portfolio-Limit bleibt kein Epic ART", () => {
+  /** Weit über jedem Limit bzw. weit darunter — unabhängig vom Default. */
+  const TEUER = { current: { costSlices: [{ amount: 900_000_000 }] } };
+  const GUENSTIG = { current: { costSlices: [{ amount: 1 }] } };
+
+  async function intended(epicId: string) {
+    return (await db.initiative.findFirst({ where: { id: epicId } }))!.intendedClass;
+  }
+
+  it("der L2-Antrag stellt ein ART-Epic über dem Limit auf Portfolio um — mit Audit", async () => {
+    await withApprovers("L2");
+    const epicId = await makeEpic("L2", {
+      ...READY_FOR_L3,
+      intendedClass: "art",
+      businessCase: TEUER,
+    });
+
+    const result = await requestGateTransition(requesterCtx(), { epicId, toGate: "L2" });
+
+    expect(isOk(result)).toBe(true);
+    expect(await intended(epicId)).toBe("portfolio");
+    const audit = await db.auditEvent.findFirst({
+      where: { tenantId: seed.tenantId, resourceId: epicId },
+      orderBy: { occurredAt: "desc" },
+    });
+    expect((audit!.changes as Record<string, unknown>).intendedClass).toEqual({
+      before: "art",
+      after: "portfolio",
+    });
+  });
+
+  it("die Abnahme stellt um, wenn der Business Case nach dem Antrag gewachsen ist", async () => {
+    await withApprovers("L2");
+    const epicId = await makeEpic("L2", {
+      ...READY_FOR_L3,
+      intendedClass: "art",
+      businessCase: GUENSTIG,
+    });
+    const req = await requestGateTransition(requesterCtx(), { epicId, toGate: "L2" });
+    if (!isOk(req)) throw new Error("Antrag gescheitert");
+    expect(await intended(epicId)).toBe("art");
+
+    await db.initiative.update({ where: { id: epicId }, data: { businessCase: TEUER } });
+    const transitionId = req.value.transitionId;
+    await decideGateTransition(approverCtx(VMO), { transitionId, decision: "approve" });
+    const result = await decideGateTransition(approverCtx(FINANCE), {
+      transitionId,
+      decision: "approve",
+    });
+
+    expect(isOk(result) && result.value.outcome).toBe("advanced");
+    expect(await intended(epicId)).toBe("portfolio");
+  });
+
+  it("ein Portfolio-Epic unter dem Limit bleibt Portfolio", async () => {
+    await withApprovers("L2");
+    const epicId = await makeEpic("L2", {
+      ...READY_FOR_L3,
+      intendedClass: "portfolio",
+      businessCase: GUENSTIG,
+    });
+
+    await requestGateTransition(requesterCtx(), { epicId, toGate: "L2" });
+
+    expect(await intended(epicId)).toBe("portfolio");
+  });
+
+  it("andere Gates lassen die Einordnung in Ruhe", async () => {
+    await withApprovers("L4");
+    const epicId = await makeEpic("L3", { intendedClass: "art", businessCase: TEUER });
+
+    await requestGateTransition(requesterCtx(), { epicId, toGate: "L4" });
+
+    expect(await intended(epicId)).toBe("art");
+  });
+});

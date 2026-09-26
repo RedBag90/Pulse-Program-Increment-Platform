@@ -178,7 +178,7 @@ export const EPIC_LIFECYCLE_EN: Guide = {
             },
             {
               kind: "note",
-              text: "**A dialogue may intervene before I send it.** At creation I recorded what I was expecting. If the classification derived from the costs differs from that, Pulse tells me before the request goes out: “created as …, the costs make it a …”.",
+              text: "**A dialogue may intervene before I send it.** At creation I recorded what I was expecting. If the classification derived from the costs differs from that, Pulse tells me before the request goes out: “created as …, the costs make it a …”. If the costs are above the portfolio limit, the request itself switches the classification to portfolio epic — an ART budget could not carry it. If a portfolio epic comes in below the limit, it may stay a portfolio matter, with a reason.",
             },
             {
               kind: "paragraph",
