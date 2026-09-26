@@ -2841,6 +2841,23 @@
       "systemDemoMissing": "System demo date missing",
       "inspectAdaptMissing": "Inspect & Adapt date missing",
       "retrospectiveMissing": "Retrospective notes missing"
+    },
+    "velocity": {
+      "titel": "PI velocity",
+      "fenster": "JS per capacity unit · PIs ending in {fenster}",
+      "verlauf": "JS per capacity across the counted PIs",
+      "mittelDerPis": "mean of PIs",
+      "summeDurchSumme": "Σ JS ÷ Σ capacity",
+      "keinePis": "No PIs ending in {fenster}.",
+      "pi": "PI",
+      "ende": "End",
+      "geliefert": "Delivered (JS)",
+      "kapazitaet": "Capacity",
+      "jsJeKapazitaet": "JS / capacity",
+      "ohneKapazitaet": "no capacity · not counted",
+      "nichtAbgeschlossen": "not completed · not counted",
+      "gleicheEinheit": "The sum assumes all ARTs record capacity in the same unit; larger ARTs weigh more.",
+      "laufend": "{halbjahr} (running, completed PIs only)"
     }
   },
   "risks": {

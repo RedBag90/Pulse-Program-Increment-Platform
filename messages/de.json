@@ -2841,6 +2841,23 @@
       "systemDemoMissing": "System-Demo-Termin fehlt",
       "inspectAdaptMissing": "Inspect & Adapt-Termin fehlt",
       "retrospectiveMissing": "Retrospektive-Notizen fehlen"
+    },
+    "velocity": {
+      "titel": "PI-Velocity",
+      "fenster": "JS je Kapazitätseinheit · PIs mit Ende in {fenster}",
+      "verlauf": "Verlauf JS je Kapazität über die gezählten PIs",
+      "mittelDerPis": "Ø der PIs",
+      "summeDurchSumme": "Σ JS ÷ Σ Kapazität",
+      "keinePis": "Keine PIs mit Ende in {fenster}.",
+      "pi": "PI",
+      "ende": "Ende",
+      "geliefert": "Geliefert (JS)",
+      "kapazitaet": "Kapazität",
+      "jsJeKapazitaet": "JS / Kapazität",
+      "ohneKapazitaet": "ohne Kapazität · zählt nicht",
+      "nichtAbgeschlossen": "nicht abgeschlossen · zählt nicht",
+      "gleicheEinheit": "Die Summe setzt voraus, dass alle ARTs ihre Kapazität in derselben Einheit erfassen; große ARTs wiegen mehr.",
+      "laufend": "{halbjahr} (laufend, nur abgeschlossene PIs)"
     }
   },
   "risks": {

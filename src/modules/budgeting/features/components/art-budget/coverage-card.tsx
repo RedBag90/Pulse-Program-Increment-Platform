@@ -1,4 +1,5 @@
 import { useLocale, useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import type { Locale } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
 import { formatEUR } from "@/lib/formatting";
@@ -231,8 +232,22 @@ function RateDetails({ rate }: { rate: JobSizeRate }) {
   );
 }
 
-/** Die vollständige Karte eines ARTs — Ampel, Zahlen, Herleitung. */
-export function ArtCoverageCard({ name, coverage }: { name: string; coverage: ArtCoverage }) {
+/**
+ * Die vollständige Karte eines ARTs — Ampel, Zahlen, Herleitung.
+ *
+ * `extra` steht unter den Zahlen: die Seite reicht dort die PI-Velocity
+ * herein. Sie stammt aus Drumbeat, und Budgeting darf Drumbeat nicht
+ * importieren (ADR-0013) — die Seite darf beide.
+ */
+export function ArtCoverageCard({
+  name,
+  coverage,
+  extra,
+}: {
+  name: string;
+  coverage: ArtCoverage;
+  extra?: ReactNode;
+}) {
   return (
     <SectionCard title={name} contentClassName="space-y-3">
       <CoverageVerdictLine coverage={coverage} />
@@ -244,6 +259,7 @@ export function ArtCoverageCard({ name, coverage }: { name: string; coverage: Ar
         allocated={coverage.allocated}
         gap={coverage.gap}
       />
+      {extra}
       <RateDetails rate={coverage.rate} />
     </SectionCard>
   );
@@ -256,7 +272,16 @@ export function ArtCoverageCard({ name, coverage }: { name: string; coverage: Ar
  * Wertstrom-Satz wäre eine Erfindung; die Karte sagt das, statt die Spalte leer
  * zu lassen und die Frage offen.
  */
-export function StreamCoverageCard({ name, stream }: { name: string; stream: StreamKpi }) {
+export function StreamCoverageCard({
+  name,
+  stream,
+  extra,
+}: {
+  name: string;
+  stream: StreamKpi;
+  /** Unter der Erklärung — wie bei `ArtCoverageCard`, die PI-Velocity des Wertstroms. */
+  extra?: ReactNode;
+}) {
   const t = useTranslations();
   const locale = useLocale() as Locale;
   const verdict: CoverageVerdict =
@@ -331,6 +356,7 @@ export function StreamCoverageCard({ name, stream }: { name: string; stream: Str
           </>
         )}
       </p>
+      {extra}
     </SectionCard>
   );
 }

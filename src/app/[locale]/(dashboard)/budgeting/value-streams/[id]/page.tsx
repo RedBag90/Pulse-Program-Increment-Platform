@@ -9,7 +9,10 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { hasCapability } from "@/server/auth/authorize";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import { loadValueStreamBudgetAccess } from "@/modules/budgeting/server/services/value-stream-budget-access";
-import { resolveCycle } from "@/modules/budgeting/domain/cycle";
+import { currentCycle, previousCycles, resolveCycle } from "@/modules/budgeting/domain/cycle";
+import { RATE_WINDOW } from "@/modules/budgeting/domain/art-throughput";
+import { loadPiVelocity } from "@/modules/drumbeat/server/views/pi-velocity-view";
+import { PiVelocityTable } from "@/modules/drumbeat/features/cockpit/components/pi-velocity-table";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
 import { loadRtbAwards } from "@/modules/budgeting/server/services/rtb-award-service";
 import { loadArtGridModel } from "@/modules/budgeting/server/views/art-budget-breakdown";
@@ -133,7 +136,9 @@ export default async function BudgetingValueStreamPage({
    */
   const arts = await db.art.findMany({
     where: { valueStreamId: vs.id, tenantId: principal.tenantId, deletedAt: null },
-    select: { id: true, name: true },
+    // `timelineId` für die PI-Velocity der Budget-KPIs: die PIs eines ARTs
+    // kommen aus seiner Taktung.
+    select: { id: true, name: true, timelineId: true },
     orderBy: { name: "asc" },
   });
   const access = await loadValueStreamBudgetAccess(db, principal, vs, arts);
@@ -645,7 +650,7 @@ async function KpiTab({
 }: {
   db: ReturnType<typeof createPrismaClient>;
   principal: Awaited<ReturnType<typeof requirePrincipal>>;
-  arts: readonly { id: string; name: string }[];
+  arts: readonly { id: string; name: string; timelineId: string | null }[];
   cycleKey: string;
   vsName: string;
   /** Ohne Wertstrom-Recht entfällt die Summenzeile — wie in „Nachsehen" (REQ-3). */
@@ -663,14 +668,64 @@ async function KpiTab({
     );
   }
 
-  const kpis = await loadBudgetKpis(db, principal.tenantId as never, arts, cycleKey);
+  /**
+   * **PI-Velocity: dasselbe Fenster wie der €-Satz** — die Halbjahre vor dem
+   * gewählten (`RATE_WINDOW`), gezählt nach dem Ende der PIs — plus die schon
+   * abgeschlossenen PIs des laufenden Halbjahrs. Sie kommt aus
+   * Drumbeat; Budgeting darf es nicht importieren (ADR-0013), deshalb wird sie
+   * hier geladen und als Slot in die Karten gereicht. Ohne Drumbeat gibt es
+   * keine PIs und keinen Slot.
+   */
+  const velocityWindow = {
+    closedKeys: previousCycles(cycleKey, RATE_WINDOW),
+    runningKey: currentCycle(new Date()),
+  };
+  const [kpis, velocity] = await Promise.all([
+    loadBudgetKpis(db, principal.tenantId as never, arts, cycleKey),
+    principal.enabledModules.includes("drumbeat")
+      ? loadPiVelocity(db, principal.tenantId, arts, velocityWindow)
+      : Promise.resolve(null),
+  ]);
+  const velocityOf = new Map(velocity?.arts.map((v) => [v.artId, v]) ?? []);
 
   return (
     <div className="space-y-6">
-      {showTotals && <StreamCoverageCard name={`${vsName} · gesamt`} stream={kpis.stream} />}
-      {kpis.arts.map((a) => (
-        <ArtCoverageCard key={a.artId} name={a.name} coverage={a.coverage} />
-      ))}
+      {showTotals && (
+        <StreamCoverageCard
+          name={`${vsName} · gesamt`}
+          stream={kpis.stream}
+          extra={
+            velocity && (
+              <PiVelocityTable
+                rows={velocity.stream.rows}
+                summary={velocity.stream.ratio}
+                kind="stream"
+                window={velocityWindow}
+              />
+            )
+          }
+        />
+      )}
+      {kpis.arts.map((a) => {
+        const v = velocityOf.get(a.artId);
+        return (
+          <ArtCoverageCard
+            key={a.artId}
+            name={a.name}
+            coverage={a.coverage}
+            extra={
+              v && (
+                <PiVelocityTable
+                  rows={v.rows}
+                  summary={v.mean}
+                  kind="art"
+                  window={velocityWindow}
+                />
+              )
+            }
+          />
+        );
+      })}
       <p className="px-1 text-meta text-muted-foreground">
         {t("budgeting.page.betriebZaehltInKeiner")}
       </p>
