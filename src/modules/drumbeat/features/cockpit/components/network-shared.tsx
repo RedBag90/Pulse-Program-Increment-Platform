@@ -4,6 +4,7 @@ import { createContext, useContext, useMemo } from "react";
 import { Handle, Position, getSmoothStepPath, type Edge, type Node } from "@xyflow/react";
 import {
   HANDLE_SLOTS,
+  assignHandles,
   handleOffsetPercent,
   isBracketTarget,
   sourceHandleId,
@@ -230,4 +231,39 @@ export function useFocusDimming(
       ),
     };
   }, [nodes, edges, focusId]);
+}
+
+/**
+ * **Die Anschlüsse folgen den Knoten, auch nach dem Ziehen.**
+ *
+ * Das Layout teilt die Anschlüsse einmal zu, nach der Lage beim Laden. Wird
+ * danach ein Ziel unter ein anderes gezogen, stimmte die Reihenfolge nicht
+ * mehr: der obere Ausgang lief zum unteren Ziel, der untere zum oberen, und
+ * beide Linien liefen ein Stück parallel übereinander. Hier wird über die
+ * **Live**-Positionen neu verteilt — dieselbe Rechnung, die `useEdgePaths`
+ * danach zeichnet.
+ *
+ * Eine Klammer (Ziel von rechts) bleibt eine Klammer: die Art des Anschlusses
+ * steht in seiner Id und wird übernommen, nur die Reihenfolge ändert sich.
+ * Kanten, deren Anschlüsse schon stimmen, behalten ihre Identität — ReactFlow
+ * zeichnet dann nichts neu.
+ */
+export function useLiveHandles(nodes: readonly Node[], edges: readonly Edge[]): Edge[] {
+  return useMemo(() => {
+    const yById = new Map(nodes.map((n) => [n.id, n.position.y]));
+    const zuteilung = assignHandles(
+      edges.map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sameColumn: isBracketTarget(e.targetHandle),
+      })),
+      (id) => yById.get(id),
+    );
+    return edges.map((e) => {
+      const a = zuteilung.get(e.id);
+      if (!a || (a.sourceHandle === e.sourceHandle && a.targetHandle === e.targetHandle)) return e;
+      return { ...e, sourceHandle: a.sourceHandle, targetHandle: a.targetHandle };
+    });
+  }, [nodes, edges]);
 }

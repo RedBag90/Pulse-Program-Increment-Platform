@@ -77,23 +77,47 @@ interface EdgeRef {
   span?: number;
 }
 
+const nachId = (a: EdgeRef, b: EdgeRef) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
 /**
  * Ordnet jeder Kante einen Anschluss an beiden Enden zu.
  *
- * **Deterministisch**: sortiert wird nach Kanten-Id, damit dasselbe Bild immer
- * gleich aussieht — eine Anordnung, die sich bei jedem Laden ändert, ist
- * schlimmer als eine, die manchmal eng ist.
+ * **Nach Lage, nicht nach Id.** Slot 0 ist oben. Die ausgehenden Kanten eines
+ * Knotens werden nach der Höhe ihres **Ziels** sortiert, die eingehenden nach
+ * der Höhe ihrer **Quelle** — das oberste Gegenstück bekommt den obersten
+ * Anschluss. Bis September 2026 wurde nur nach Kanten-Id sortiert; welcher
+ * Ausgang oben lag, war damit Zufall, und zwei Kanten desselben Knotens liefen
+ * über Kreuz: der obere Ausgang zum unteren Ziel, der untere zum oberen, ein
+ * Stück parallel übereinander.
+ *
+ * `yOf` liefert die senkrechte Mitte eines Knotens. Gleichstand oder
+ * unbekannte Lage fallen auf die Id zurück — **deterministisch** bleibt es,
+ * denn eine Anordnung, die sich bei jedem Laden ändert, ist schlimmer als eine,
+ * die manchmal eng ist. Ohne `yOf` gilt allein die Id.
  *
  * Hat ein Knoten mehr Kanten als Anschlüsse, teilen sich einige wieder einen —
  * dann trennen sie sich am **anderen** Ende, und wo auch das nicht reicht,
  * bleibt die Kreuzungs-Brücke als letzte Auskunft.
  */
-export function assignHandles(edges: readonly EdgeRef[]): Map<string, HandleAssignment> {
+export function assignHandles(
+  edges: readonly EdgeRef[],
+  yOf?: (nodeId: string) => number | undefined,
+): Map<string, HandleAssignment> {
   const ausgehend = new Map<string, EdgeRef[]>();
   const eingehend = new Map<string, EdgeRef[]>();
-  for (const e of [...edges].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
+  for (const e of [...edges].sort(nachId)) {
     (ausgehend.get(e.source) ?? ausgehend.set(e.source, []).get(e.source)!).push(e);
     (eingehend.get(e.target) ?? eingehend.set(e.target, []).get(e.target)!).push(e);
+  }
+  if (yOf) {
+    const nachLage = (gegenstueck: (e: EdgeRef) => string) => (a: EdgeRef, b: EdgeRef) => {
+      const ya = yOf(gegenstueck(a));
+      const yb = yOf(gegenstueck(b));
+      if (ya != null && yb != null && ya !== yb) return ya - yb;
+      return nachId(a, b);
+    };
+    for (const liste of ausgehend.values()) liste.sort(nachLage((e) => e.target));
+    for (const liste of eingehend.values()) liste.sort(nachLage((e) => e.source));
   }
 
   const out = new Map<string, HandleAssignment>();

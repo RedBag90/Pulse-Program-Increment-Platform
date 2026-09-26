@@ -195,7 +195,8 @@ export function layoutGraph(
     });
   }
 
-  const handles = assignHandles(edges);
+  // Nach Lage: das oberste Gegenstück bekommt den obersten Anschluss.
+  const handles = assignHandles(edges, (id) => platziert.get(id)?.y);
   const rfEdges: Edge[] = edges.map((e) => {
     const s = edgeStyle(e.type);
     const anschluss = handles.get(e.id);
@@ -306,6 +307,7 @@ export function layoutByPi(
     });
   }
 
+  const yById = new Map(rfNodes.map((n) => [n.id, n.position.y]));
   // **Klammern**: beide Enden in derselben Bahn → von rechts wieder herein.
   const handles = assignHandles(
     edges.map((e) => {
@@ -322,6 +324,7 @@ export function layoutByPi(
           : {}),
       };
     }),
+    (id) => yById.get(id),
   );
   const rfEdges: Edge[] = edges.map((e) => {
     const s = edgeStyle(e.type);

@@ -38,6 +38,7 @@ import {
   useEdgePath,
   useEdgePaths,
   useFocusDimming,
+  useLiveHandles,
 } from "@/modules/drumbeat/features/cockpit/components/network-shared";
 import { assignHandles } from "@/modules/drumbeat/domain/graph-handles";
 import { resolveCollisions } from "@/modules/drumbeat/domain/graph-collision";
@@ -356,7 +357,9 @@ export function CockpitNetwork({
    * sind keine Features und haben keine Nachbarn.
    */
   const [hoverId, setHoverId] = useState<string | null>(null);
-  const sicht = useFocusDimming(nodes, edges, hoverId);
+  // Anschlüsse nach der **Live**-Lage — nach dem Ziehen stimmt die Reihenfolge weiter.
+  const liveEdges = useLiveHandles(nodes, edges);
+  const sicht = useFocusDimming(nodes, liveEdges, hoverId);
 
   /** Speicher-Entprellung je Knoten — wie im Epic-Breakdown. */
   const dragSaveTimers = useMemo<Map<string, ReturnType<typeof setTimeout>>>(() => new Map(), []);
@@ -367,7 +370,7 @@ export function CockpitNetwork({
    * Über die **Live**-Positionen (`nodes`), nicht über das Layout-Ergebnis:
    * sonst stünden die Bögen nach jedem Ziehen falsch.
    */
-  const edgePaths = useEdgePaths(nodes, edges, { width: NODE_W, height: NODE_H });
+  const edgePaths = useEdgePaths(nodes, liveEdges, { width: NODE_W, height: NODE_H });
 
   /**
    * **Ein Zug auf eine andere Bahn ist eine Umplanung.**
@@ -866,6 +869,7 @@ function buildLayoutedGraph(
   // die Kante von rechts wieder herein statt links — sie wird zur Klammer
   // neben der Bahn und läuft durch keinen Knoten dazwischen. `span` sagt, wie
   // viele Reihen sie überspannt; längere Klammern greifen weiter aus.
+  const yById = new Map(nodes.map((n) => [n.id, n.position.y]));
   const anschluesse = assignHandles(
     edges.map((e) => {
       const cs = colOf.get(e.source);
@@ -881,6 +885,8 @@ function buildLayoutedGraph(
           : {}),
       };
     }),
+    // Nach Lage: das oberste Gegenstück bekommt den obersten Anschluss.
+    (id) => yById.get(id),
   );
   for (const e of edges) {
     const a = anschluesse.get(e.id);

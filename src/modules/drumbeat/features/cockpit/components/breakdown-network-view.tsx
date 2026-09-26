@@ -69,6 +69,7 @@ import {
   HandleRow,
   useEdgePaths,
   useFocusDimming,
+  useLiveHandles,
 } from "@/modules/drumbeat/features/cockpit/components/network-shared";
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { clearBreakdownLayoutAction } from "@/modules/work/features/portfolio/actions/breakdown-layout";
@@ -1194,7 +1195,9 @@ export function BreakdownNetworkView({
    * überfahrene Knoten und seine Nachbarn bleiben satt, der Rest wird blass.
    */
   const [hoverId, setHoverId] = useState<string | null>(null);
-  const sicht = useFocusDimming(displayNodes, displayEdges, hoverId);
+  // Anschlüsse nach der **Live**-Lage — nach dem Ziehen stimmt die Reihenfolge weiter.
+  const liveEdges = useLiveHandles(nodes, displayEdges);
+  const sicht = useFocusDimming(displayNodes, liveEdges, hoverId);
 
   /**
    * **Die Linien aller Kanten, einmal berechnet — samt Brücken.**
@@ -1207,7 +1210,7 @@ export function BreakdownNetworkView({
    * Bruchteilen der Höhe. Vorher war die Höhe inhaltsabhängig, und jede
    * Rechnung darüber wäre geraten gewesen.
    */
-  const edgePaths = useEdgePaths(nodes, edges, { width: NODE_WIDTH, height: NODE_HEIGHT });
+  const edgePaths = useEdgePaths(nodes, liveEdges, { width: NODE_WIDTH, height: NODE_HEIGHT });
 
   // Connection-Typ steuert, mit welchem Edge-Type neue Drag-Connects
   // angelegt werden. Default `depends_on`.

@@ -4,6 +4,7 @@ import type { Edge, Node } from "@xyflow/react";
 import {
   slotOf,
   useEdgePaths,
+  useLiveHandles,
 } from "@/modules/drumbeat/features/cockpit/components/network-shared";
 import { polylineOf } from "@/modules/drumbeat/domain/edge-hops";
 
@@ -98,5 +99,47 @@ describe("slotOf", () => {
     expect(slotOf(undefined)).toBe(2);
     expect(slotOf("")).toBe(2);
     expect(slotOf("s")).toBe(2);
+  });
+});
+
+/**
+ * **Nach dem Ziehen stimmt die Reihenfolge weiter.**
+ *
+ * Das Layout verteilt die Anschlüsse einmal, nach der Lage beim Laden. Zieht
+ * jemand danach ein Ziel unter das andere, liefen die Linien über Kreuz.
+ */
+describe("useLiveHandles", () => {
+  const knoten = (id: string, y: number): Node => ({ id, position: { x: 0, y }, data: {} });
+  const kanten: Edge[] = [
+    { id: "a", source: "q", target: "z1", sourceHandle: "s1", targetHandle: "t2" },
+    { id: "b", source: "q", target: "z2", sourceHandle: "s3", targetHandle: "t2" },
+  ];
+
+  it("tauscht die Ausgänge, wenn die Ziele die Plätze tauschen", () => {
+    const vorher = [knoten("q", 100), knoten("z1", 0), knoten("z2", 300)];
+    const nachher = [knoten("q", 100), knoten("z1", 300), knoten("z2", 0)];
+
+    const v = renderHook(() => useLiveHandles(vorher, kanten)).result.current;
+    const n = renderHook(() => useLiveHandles(nachher, kanten)).result.current;
+
+    expect(v.find((e) => e.id === "a")!.sourceHandle).toBe("s1");
+    expect(n.find((e) => e.id === "a")!.sourceHandle).toBe("s3");
+    expect(n.find((e) => e.id === "b")!.sourceHandle).toBe("s1");
+  });
+
+  it("lässt eine Klammer eine Klammer", () => {
+    const klammer: Edge[] = [
+      { id: "k", source: "q", target: "z", sourceHandle: "s2", targetHandle: "tr2" },
+    ];
+    const out = renderHook(() => useLiveHandles([knoten("q", 0), knoten("z", 200)], klammer)).result
+      .current;
+    expect(out[0]!.targetHandle).toBe("tr2");
+  });
+
+  it("gibt unveränderte Kanten unverändert zurück", () => {
+    // Dieselbe Identität: ReactFlow zeichnet dann nichts neu.
+    const vorher = [knoten("q", 100), knoten("z1", 0), knoten("z2", 300)];
+    const out = renderHook(() => useLiveHandles(vorher, kanten)).result.current;
+    expect(out[0]).toBe(kanten[0]);
   });
 });

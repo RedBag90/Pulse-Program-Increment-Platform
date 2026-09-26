@@ -161,3 +161,48 @@ describe("isBracketTarget", () => {
     expect(isBracketTarget(undefined)).toBe(false);
   });
 });
+
+/**
+ * **Der obere Ausgang gehört zum oberen Ziel.**
+ *
+ * Gemeldet: ein Knoten mit zwei ausgehenden Kanten — der obere Ausgang lief
+ * zum unteren Ziel, der untere zum oberen, beide ein Stück parallel
+ * übereinander. Sortiert wurde nach Kanten-Id, und die sagt nichts über die
+ * Lage.
+ */
+describe("assignHandles — nach Lage", () => {
+  const kante = (id: string, source: string, target: string) => ({ id, source, target });
+  const lage: Record<string, number> = { quelle: 100, oben: 0, unten: 300, ziel: 100 };
+  const yOf = (id: string) => lage[id];
+
+  it("gibt dem oberen Ziel den oberen Ausgang — auch wenn seine Id später kommt", () => {
+    // Die Id-Reihenfolge ist absichtlich verkehrt: "a" geht nach unten.
+    const out = assignHandles([kante("a", "quelle", "unten"), kante("b", "quelle", "oben")], yOf);
+
+    expect(out.get("b")!.sourceHandle).toBe("s1");
+    expect(out.get("a")!.sourceHandle).toBe("s3");
+  });
+
+  it("gibt der oberen Quelle den oberen Eingang", () => {
+    const out = assignHandles([kante("a", "unten", "ziel"), kante("b", "oben", "ziel")], yOf);
+
+    expect(out.get("b")!.targetHandle).toBe("t1");
+    expect(out.get("a")!.targetHandle).toBe("t3");
+  });
+
+  it("fällt bei gleicher Höhe auf die Id zurück", () => {
+    const gleich = (id: string) => (id === "quelle" ? 0 : 50);
+    const out = assignHandles([kante("b", "quelle", "x"), kante("a", "quelle", "y")], gleich);
+
+    expect(out.get("a")!.sourceHandle).toBe("s1");
+    expect(out.get("b")!.sourceHandle).toBe("s3");
+  });
+
+  it("verhält sich ohne Lage wie bisher", () => {
+    const kanten = [kante("a", "quelle", "unten"), kante("b", "quelle", "oben")];
+    expect([...assignHandles(kanten).entries()]).toEqual([
+      ...assignHandles(kanten, () => undefined).entries(),
+    ]);
+    expect(assignHandles(kanten).get("a")!.sourceHandle).toBe("s1");
+  });
+});
