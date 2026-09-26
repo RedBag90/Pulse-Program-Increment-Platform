@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { jobSizeBurn, halfYearWindow } from "@/modules/budgeting/domain/job-size-burn";
 
 import { buildArtBudgetDetail } from "@/modules/budgeting/server/views/art-budget-detail";
 import { coverageVerdict } from "@/modules/budgeting/domain/art-budget-model";
@@ -202,6 +203,7 @@ describe("coverageVerdict", () => {
     rate: {
       rate: 600,
       source: "tenantDefault" as const,
+      artEstimate: null,
       cycles: [],
       caveats: [],
       budgetSum: 0,
@@ -213,6 +215,14 @@ describe("coverageVerdict", () => {
     loadEuro: null,
     allocated: over.allocated ?? 0,
     gap: over.gap === undefined ? 0 : over.gap,
+    burn: jobSizeBurn({
+      window: halfYearWindow("2026-H2"),
+      allocated: 0,
+      rate: null,
+      completions: [],
+      today: new Date("2026-09-01T00:00:00Z"),
+    }),
+    cycleCompletions: [],
   });
 
   // Ohne eigenen Zustand meldete ein leerer ART „Gedeckt" — Entwarnung über nichts.

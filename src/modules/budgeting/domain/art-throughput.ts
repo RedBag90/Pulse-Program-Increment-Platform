@@ -45,10 +45,21 @@ export interface ThroughputCycle {
   standaloneFeatureCount: number;
 }
 
-export type RateSource = "empirical" | "tenantDefault" | "none";
+/**
+ * Woher der Satz kommt. `artEstimate` — eine Schätzung, die jemand für dieses
+ * ART eingetragen hat, weil die Historie keinen Satz hergibt; sie geht dem
+ * Mandanten-Satz vor, weil sie das ART kennt.
+ */
+export type RateSource = "empirical" | "artEstimate" | "tenantDefault" | "none";
 
 export interface JobSizeRate {
   source: RateSource;
+  /**
+   * Die gespeicherte Schätzung dieses ARTs, **ob sie greift oder nicht** — die
+   * Fläche zeigt sie zum Ändern, und bei `empirical` den Hinweis, dass sie
+   * nicht mehr gebraucht wird. `null` = keine eingetragen.
+   */
+  artEstimate: number | null;
   /** €/Punkt. `null`, wenn weder empirisch noch als Tenant-Wert verfügbar. */
   rate: number | null;
   /** Die Zyklen, aus denen der Satz stammt — leer beim Rückfall. */
@@ -76,6 +87,11 @@ export interface RateInput {
   /** Abgeschlossene Zyklen, beliebige Reihenfolge. */
   cycles: readonly ThroughputCycle[];
   tenantDefault: number | null;
+  /**
+   * Die Schätzung dieses ARTs (`Art.jobSizeRateEstimate`). Sie greift **nur**,
+   * wenn die Historie keinen Satz hergibt — vor dem Mandanten-Satz.
+   */
+  artEstimate?: number | null;
   /** Features ohne Abschlussdatum **und** ohne PI-Ende — sie fehlen im Nenner. */
   undatedFeatures: number;
   /** Features mit dem Schnellanlage-Platzhalter Job Size 3. */
@@ -111,10 +127,18 @@ export function deriveJobSizeRate(input: RateInput): JobSizeRate {
     );
   }
 
+  const artEstimate = input.artEstimate != null && input.artEstimate > 0 ? input.artEstimate : null;
+
   if (jobSizeSum === 0 || cycles.length === 0) {
     return {
-      source: input.tenantDefault != null ? "tenantDefault" : "none",
-      rate: input.tenantDefault,
+      source:
+        artEstimate != null
+          ? "artEstimate"
+          : input.tenantDefault != null
+            ? "tenantDefault"
+            : "none",
+      rate: artEstimate ?? input.tenantDefault,
+      artEstimate,
       cycles: [],
       budgetSum: 0,
       jobSizeSum: 0,
@@ -151,6 +175,7 @@ export function deriveJobSizeRate(input: RateInput): JobSizeRate {
   return {
     source: "empirical",
     rate: budgetSum / cycles.length / (jobSizeSum / cycles.length),
+    artEstimate,
     cycles,
     budgetSum,
     jobSizeSum,

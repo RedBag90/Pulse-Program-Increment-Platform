@@ -201,3 +201,50 @@ describe("deriveJobSizeRate — eigenständiger Anteil", () => {
     expect(ohneAnteil.standaloneJobSizeSum).toBe(0);
   });
 });
+
+/**
+ * **Die Schätzung je ART** — greift nur, wenn die Historie keinen Satz
+ * hergibt, und dann vor dem Mandanten-Satz.
+ */
+describe("deriveJobSizeRate — Schätzung je ART", () => {
+  it("ohne Historie: die ART-Schätzung vor dem Mandanten-Satz", () => {
+    const r = deriveJobSizeRate(
+      input({
+        cycles: [cycle("2026-H1", 500_000, 0, 0)],
+        tenantDefault: 1_800,
+        artEstimate: 2_500,
+      }),
+    );
+    expect(r.source).toBe("artEstimate");
+    expect(r.rate).toBe(2_500);
+    expect(r.artEstimate).toBe(2_500);
+  });
+
+  it("mit Historie gilt der gemessene Satz — die Schätzung bleibt nur vermerkt", () => {
+    const r = deriveJobSizeRate(
+      input({ cycles: [cycle("2026-H1", 300_000, 100)], artEstimate: 9_999 }),
+    );
+    expect(r.source).toBe("empirical");
+    expect(r.rate).toBe(3_000);
+    expect(r.artEstimate).toBe(9_999);
+  });
+
+  it("die Vorbehalte bleiben auch mit Schätzung", () => {
+    const r = deriveJobSizeRate(
+      input({
+        cycles: [cycle("2026-H1", 500_000, 0, 0)],
+        artEstimate: 2_500,
+        placeholderJobSize: 36,
+      }),
+    );
+    expect(r.caveats.some((c) => c.includes("nichts fertiggestellt"))).toBe(true);
+    expect(r.caveats.some((c) => c.includes("Job Size 3"))).toBe(true);
+  });
+
+  it("eine Schätzung von 0 zählt nicht — dann der Mandanten-Satz oder keiner", () => {
+    expect(deriveJobSizeRate(input({ artEstimate: 0, tenantDefault: 700 })).source).toBe(
+      "tenantDefault",
+    );
+    expect(deriveJobSizeRate(input({ artEstimate: 0 })).source).toBe("none");
+  });
+});

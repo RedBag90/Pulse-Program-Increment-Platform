@@ -15,6 +15,7 @@
  */
 
 import type { AllocationBreakdown } from "@/modules/budgeting/domain/allocation-state";
+import type { Completion, JobSizeBurn } from "@/modules/budgeting/domain/job-size-burn";
 import type { JobSizeRate } from "@/modules/budgeting/domain/art-throughput";
 import type { PointCell } from "@/modules/budgeting/domain/capacity-plan";
 import type { CapacityBucket } from "@/modules/work/domain/portfolio-guardrails";
@@ -172,6 +173,15 @@ export interface ArtCoverage {
   allocated: number;
   /** `loadEuro − allocated`; positiv = überbucht. `null` ohne Satz. */
   gap: number | null;
+  /**
+   * Plan gegen Ist in Job Size über die **laufende Budget-Kachel**: erwartet =
+   * Geld der Kachel ÷ Satz, Ist = fertige Features bis heute
+   * (`job-size-burn.ts`). `null`, wenn der Aufrufer kein Fenster reicht oder
+   * es keine laufende Kachel gibt.
+   */
+  burn: JobSizeBurn | null;
+  /** Die Abschlüsse in der Kachel — der Wertstrom summiert sie. */
+  cycleCompletions: Completion[];
 }
 
 /**

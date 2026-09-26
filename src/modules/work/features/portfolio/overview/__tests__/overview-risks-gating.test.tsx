@@ -72,12 +72,17 @@ describe("Risiken auf der Portfolio-Übersicht", () => {
     expect(screen.queryByText(/Keine Risiken in diesem Zustand/)).not.toBeInTheDocument();
   });
 
-  it("nimmt „Top-Risiken“ nicht mit — das sind Work-Daten", () => {
-    // Der Name legt es nahe, die Herkunft nicht: `TopRisksBlock` liest
-    // blockierte und liegengebliebene Epics, nicht das Risiko-Register. Wer
-    // später „alles mit Risk im Namen" abschaltet, bricht hier.
-    // Seit September 2026 im Portfolio Sync (vorher in der Executive-Variante).
-    render(<OverviewSync data={modell(false)} />);
+  /**
+   * **Seit September 2026 umgedreht.** „Top-Risiken" las früher Work-Daten
+   * (blockierte, stehende Epics) und blieb deshalb auch ohne das Modul stehen.
+   * Jetzt sind es die kritischen Risiken aus dem Issue-Register — ohne das
+   * Modul gibt es sie nicht, und der Block fehlt wie der ROAM-Block.
+   */
+  it("„Top-Risiken“ im Sync nur mit dem Risiken-Modul", () => {
+    const { unmount } = render(<OverviewSync data={modell(false)} />);
+    expect(screen.queryByText("Top-Risiken")).not.toBeInTheDocument();
+    unmount();
+    render(<OverviewSync data={modell(true)} />);
     expect(screen.getByText("Top-Risiken")).toBeInTheDocument();
   });
 });

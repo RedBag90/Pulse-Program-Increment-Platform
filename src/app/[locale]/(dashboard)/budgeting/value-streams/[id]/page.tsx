@@ -1,6 +1,5 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import type { Locale } from "@/i18n/routing";
-import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { Link } from "@/i18n/navigation";
@@ -9,17 +8,14 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { hasCapability } from "@/server/auth/authorize";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import { loadValueStreamBudgetAccess } from "@/modules/budgeting/server/services/value-stream-budget-access";
-import { currentCycle, previousCycles, resolveCycle } from "@/modules/budgeting/domain/cycle";
-import { RATE_WINDOW } from "@/modules/budgeting/domain/art-throughput";
-import { loadPiVelocity } from "@/modules/drumbeat/server/views/pi-velocity-view";
-import { PiVelocityTable } from "@/modules/drumbeat/features/cockpit/components/pi-velocity-table";
+import { resolveCycle } from "@/modules/budgeting/domain/cycle";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
 import { loadRtbAwards } from "@/modules/budgeting/server/services/rtb-award-service";
 import { loadArtGridModel } from "@/modules/budgeting/server/views/art-budget-breakdown";
 import { loadArtBudgetDetail } from "@/modules/budgeting/server/views/art-budget-detail";
 import { loadArtBusinessCase } from "@/modules/budgeting/server/views/art-business-case";
 import { loadValueStreamRoundResult } from "@/modules/budgeting/server/views/value-stream-round-result";
-import { loadBudgetKpis } from "@/modules/budgeting/server/views/budget-kpis";
+import { BudgetKpiPanel } from "@/app/[locale]/(dashboard)/budgeting/_components/budget-kpi-panel";
 import { artDetailIsEmpty } from "@/modules/budgeting/domain/art-budget-model";
 import { getTenantPractices } from "@/server/services/target-model";
 import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
@@ -32,10 +28,6 @@ import { ArtBudgetBreakdown } from "@/modules/budgeting/features/components/art-
 import { ArtBudgetTab } from "@/modules/budgeting/features/components/art-budget/art-budget-tab";
 import { ArtBusinessCase } from "@/modules/budgeting/features/components/art-budget/art-business-case";
 import { RoundResult } from "@/modules/budgeting/features/components/art-budget/round-result";
-import {
-  ArtCoverageCard,
-  StreamCoverageCard,
-} from "@/modules/budgeting/features/components/art-budget/coverage-card";
 import { loadArtEpicBudgets } from "@/modules/budgeting/server/services/art-epic-budget";
 import { readSolutions } from "@/modules/budgeting/server/services/budget-reads";
 import { ArtFundingRail } from "@/modules/budgeting/features/components/art-funding-rail";
@@ -45,7 +37,6 @@ import {
   type DetailTab,
 } from "@/components/detail/entity-detail-shell";
 import { SectionCard } from "@/components/ui/section-card";
-import { EmptyState } from "@/components/ui/empty-state";
 import { formatCompactEUR } from "@/lib/formatting";
 
 /**
@@ -138,7 +129,7 @@ export default async function BudgetingValueStreamPage({
     where: { valueStreamId: vs.id, tenantId: principal.tenantId, deletedAt: null },
     // `timelineId` für die PI-Velocity der Budget-KPIs: die PIs eines ARTs
     // kommen aus seiner Taktung.
-    select: { id: true, name: true, timelineId: true },
+    select: { id: true, name: true, timelineId: true, valueStreamId: true },
     orderBy: { name: "asc" },
   });
   const access = await loadValueStreamBudgetAccess(db, principal, vs, arts);
@@ -263,7 +254,7 @@ export default async function BudgetingValueStreamPage({
           canManage={canManage}
         />
       ) : active === "kpi" ? (
-        <KpiTab
+        <BudgetKpiPanel
           db={db}
           principal={principal}
           arts={sichtbareArts}
@@ -628,107 +619,6 @@ async function CycleTab({
           })}
         </p>
       )}
-    </div>
-  );
-}
-
-/**
- * Der Reiter **„Budget-KPIs"** — kein Prozessschritt, sondern der Ort, an dem
- * die Herleitung wohnt.
- *
- * Dieselbe Karte für den Wertstrom und für jedes sichtbare ART, untereinander.
- * Es gibt ihn, damit die Arbeitsreiter die Rechnung **nicht** mitschleppen:
- * dort steht das Ergebnis in einer Zeile, hier steht, wie es zustande kommt.
- */
-async function KpiTab({
-  db,
-  principal,
-  arts,
-  cycleKey,
-  vsName,
-  showTotals,
-}: {
-  db: ReturnType<typeof createPrismaClient>;
-  principal: Awaited<ReturnType<typeof requirePrincipal>>;
-  arts: readonly { id: string; name: string; timelineId: string | null }[];
-  cycleKey: string;
-  vsName: string;
-  /** Ohne Wertstrom-Recht entfällt die Summenzeile — wie in „Nachsehen" (REQ-3). */
-  showTotals: boolean;
-}) {
-  const t = useTranslations();
-  if (arts.length === 0) {
-    return (
-      <SectionCard title={`Wofür · eingeplant · ${halfYearLabel(cycleKey)}`}>
-        <EmptyState
-          title={t("budgeting.page.nochKeinArt")}
-          body={t("budgeting.page.dieRechnungLastGegen")}
-        />
-      </SectionCard>
-    );
-  }
-
-  /**
-   * **PI-Velocity: dasselbe Fenster wie der €-Satz** — die Halbjahre vor dem
-   * gewählten (`RATE_WINDOW`), gezählt nach dem Ende der PIs — plus die schon
-   * abgeschlossenen PIs des laufenden Halbjahrs. Sie kommt aus
-   * Drumbeat; Budgeting darf es nicht importieren (ADR-0013), deshalb wird sie
-   * hier geladen und als Slot in die Karten gereicht. Ohne Drumbeat gibt es
-   * keine PIs und keinen Slot.
-   */
-  const velocityWindow = {
-    closedKeys: previousCycles(cycleKey, RATE_WINDOW),
-    runningKey: currentCycle(new Date()),
-  };
-  const [kpis, velocity] = await Promise.all([
-    loadBudgetKpis(db, principal.tenantId as never, arts, cycleKey),
-    principal.enabledModules.includes("drumbeat")
-      ? loadPiVelocity(db, principal.tenantId, arts, velocityWindow)
-      : Promise.resolve(null),
-  ]);
-  const velocityOf = new Map(velocity?.arts.map((v) => [v.artId, v]) ?? []);
-
-  return (
-    <div className="space-y-6">
-      {showTotals && (
-        <StreamCoverageCard
-          name={`${vsName} · gesamt`}
-          stream={kpis.stream}
-          extra={
-            velocity && (
-              <PiVelocityTable
-                rows={velocity.stream.rows}
-                summary={velocity.stream.ratio}
-                kind="stream"
-                window={velocityWindow}
-              />
-            )
-          }
-        />
-      )}
-      {kpis.arts.map((a) => {
-        const v = velocityOf.get(a.artId);
-        return (
-          <ArtCoverageCard
-            key={a.artId}
-            name={a.name}
-            coverage={a.coverage}
-            extra={
-              v && (
-                <PiVelocityTable
-                  rows={v.rows}
-                  summary={v.mean}
-                  kind="art"
-                  window={velocityWindow}
-                />
-              )
-            }
-          />
-        );
-      })}
-      <p className="px-1 text-meta text-muted-foreground">
-        {t("budgeting.page.betriebZaehltInKeiner")}
-      </p>
     </div>
   );
 }

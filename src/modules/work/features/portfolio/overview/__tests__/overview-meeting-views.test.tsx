@@ -19,6 +19,12 @@ import { DEFAULT_CONTRIBUTION_VIEW } from "@/modules/work/domain/contribution-vi
  * braucht, und der Weg zu seiner Agenda im Wiki.
  */
 
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace }),
+  usePathname: () => "/portfolio",
+  useSearchParams: () => new URLSearchParams("view=sync&vs=x"),
+}));
 vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, href }: { children: React.ReactNode; href?: string }) => (
     <a href={href}>{children}</a>
@@ -144,34 +150,60 @@ describe("die Ansichten", () => {
     expect(screen.queryByText("Features fällig (≤ 2 Wochen)")).not.toBeInTheDocument();
   });
 
-  it("Portfolio Sync: die Steering-Agenda, Fälligkeiten und die Wege zu Issues und Abhängigkeiten", () => {
+  it("Portfolio Sync: die Steering-Agenda, Fälligkeiten und der Weg zu den Issues", () => {
     render(<OverviewSync data={buildPortfolioOverviewModel(inputs())} />);
     expect(wikiLink("portfolio-sync")).toBe(true);
     expect(screen.getByText("Features fällig (≤ 2 Wochen)")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Alle Issues/ }).getAttribute("href")).toBe("/issues");
-    expect(screen.getByRole("link", { name: /Abhängigkeiten/ }).getAttribute("href")).toBe(
-      "/dependencies",
-    );
+    // Die eigene Abhängigkeits-Übersicht ist zurückgebaut — kein Link darauf.
+    expect(screen.queryByRole("link", { name: /Abhängigkeiten/ })).toBeNull();
   });
 
-  it("Portfolio Sync: je Wertstrom der Weg zu seinen Budget-KPIs", () => {
-    render(
+  it("Portfolio Sync: Funding-Snapshot links, der Job-Size-Graf mit Auswahl rechts", () => {
+    const { container } = render(
       <OverviewSync
-        data={buildPortfolioOverviewModel(
-          inputs({
-            vsBudgets: {
-              valueStreams: [
-                { valueStreamId: "vs1", name: "Wertstrom A", total: 100, byPeriod: {} },
-              ],
-            } as never,
-          }),
-        )}
+        data={buildPortfolioOverviewModel(inputs())}
+        burn={{
+          options: [
+            {
+              id: "vs1",
+              name: "Wertstrom A",
+              showTotals: true,
+              arts: [{ id: "a1", name: "ART 1" }],
+            },
+          ],
+          selectedVs: "vs1",
+          selectedArt: null,
+          chart: <div>Graf des Wertstroms</div>,
+        }}
       />,
     );
-    const karte = screen.getByText("Budget-KPIs je Wertstrom").closest("div")!.parentElement!;
-    expect(within(karte).getByRole("link", { name: "Wertstrom A" }).getAttribute("href")).toBe(
-      "/budgeting/value-streams/vs1?tab=kpi",
+    const karte = container.querySelector('[data-card="burn"]') as HTMLElement;
+    expect(within(karte).getByText("Graf des Wertstroms")).toBeInTheDocument();
+    expect(within(karte).getByLabelText("Wertstrom")).toBeInTheDocument();
+    expect(within(karte).getByLabelText("Sicht")).toBeInTheDocument();
+    // Dieselbe Zeile wie der Funding-Snapshot — halbe-halbe.
+    const zeile = karte.parentElement!;
+    expect(zeile.className).toContain("md:grid-cols-2");
+    expect(within(zeile).getByText(/Funding-Snapshot/)).toBeInTheDocument();
+    // Kein Abschnitt in voller Breite, keine alte Linkkarte.
+    expect(screen.queryByRole("region", { name: "Budget-KPIs" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Budget-KPIs je Wertstrom")).not.toBeInTheDocument();
+  });
+
+  it("Portfolio Sync: ohne Slot nur der Funding-Snapshot; ohne Sichtbares ein Satz", () => {
+    const { container, unmount } = render(
+      <OverviewSync data={buildPortfolioOverviewModel(inputs())} />,
     );
+    expect(container.querySelector('[data-card="burn"]')).toBeNull();
+    unmount();
+    render(
+      <OverviewSync
+        data={buildPortfolioOverviewModel(inputs())}
+        burn={{ options: [], selectedVs: null, selectedArt: null, chart: null }}
+      />,
+    );
+    expect(screen.getByText(/^Keine Budget-KPIs sichtbar/)).toBeInTheDocument();
   });
 
   it("Budgeting: der Topf des Budget-Halbjahrs, nicht die Summe aller Perioden", () => {
@@ -211,5 +243,22 @@ describe("die Ansichten", () => {
     expect(screen.queryByText(/^6[.,]0 Mio/)).not.toBeInTheDocument();
     const zeile = screen.getByRole("link", { name: "Epic b" }).closest("tr")!;
     expect(within(zeile).getByText(/250/)).toBeInTheDocument();
+  });
+});
+
+describe("Funding-Snapshot im Modell", () => {
+  it("das Veränderungsgeld je Wertstrom kommt durch den Port unverändert an", () => {
+    const zeile = {
+      valueStreamId: "vs9",
+      name: "Nur Rahmen",
+      portfolio: 0,
+      toEpics: 0,
+      toOwnWork: 0,
+      open: 30_000,
+    };
+    const m = buildPortfolioOverviewModel(inputs({ changeBudgets: [zeile] }));
+    expect(m.changeBudgets).toEqual([zeile]);
+    // Die übrigen Zahlen bleiben unberührt: kein Wertstrom kommt dazu.
+    expect(m.valueStreamCount).toBe(0);
   });
 });

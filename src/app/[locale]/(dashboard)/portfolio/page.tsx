@@ -14,6 +14,7 @@ import {
   artEpicCycleAllocations,
 } from "@/modules/budgeting/server/services/rtb-item-service";
 import { getEpicCycleAllocations } from "@/modules/budgeting/server/services/epic-allocation";
+import { getValueStreamChangeBudgets } from "@/modules/budgeting/server/services/value-stream-change-budget";
 import type { RoamStatus } from "@/modules/core/kernel/domain/roam";
 import { bandForScore, riskExposure, type RiskLevel } from "@/modules/core/kernel/domain/exposure";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
@@ -38,6 +39,14 @@ import { OverviewReview } from "@/modules/work/features/portfolio/overview/overv
 import { OverviewSync } from "@/modules/work/features/portfolio/overview/overview-sync";
 import { OverviewBudgeting } from "@/modules/work/features/portfolio/overview/overview-budgeting";
 import { Page, PageHeader } from "@/components/layout";
+import { loadValueStreamBudgetAccess } from "@/modules/budgeting/server/services/value-stream-budget-access";
+import { resolveCycle } from "@/modules/budgeting/domain/cycle";
+import { BudgetBurnPanel } from "@/app/[locale]/(dashboard)/budgeting/_components/budget-burn-panel";
+import {
+  resolveKpiSelection,
+  type KpiValueStreamOption,
+} from "@/modules/work/domain/budget-kpi-selection";
+import type { SyncBurn } from "@/modules/work/features/portfolio/overview/overview-sync";
 
 interface Props {
   searchParams: Promise<{
@@ -50,6 +59,10 @@ interface Props {
     cls?: string;
     /** Marker "f=0" = Nutzer hat explizit zurückgesetzt → kein Auto-Standard. */
     f?: string;
+    /** Portfolio Sync: der Wertstrom der Budget-KPIs. */
+    kpiVs?: string;
+    /** Portfolio Sync: das ART darin; fehlt = „Wertstrom gesamt". */
+    kpiArt?: string;
   }>;
 }
 
@@ -170,6 +183,15 @@ export default async function PortfolioPage({ searchParams }: Props) {
             ),
           }
         : vsBudgets;
+      // Veränderungsgeld je Wertstrom in der geltenden Kachel — Portfolio-Epics
+      // und ART-Rahmen (vergeben an Epics, an eigene Arbeit, noch offen). Der
+      // Funding-Snapshot zeigt es; ohne geltende Kachel gibt es keins.
+      const change = cycle.cycleKey
+        ? await getValueStreamChangeBudgets(db, principal.tenantId, cycle.cycleKey)
+        : [];
+      const changeBudgets = filter.valueStreamIds.length
+        ? change.filter((c) => filter.valueStreamIds.includes(c.valueStreamId))
+        : change;
       // Zyklus-Allokationen werden im Work-Modell nur über die (bereits
       // gefilterten) Karten aggregiert — kein zusätzlicher VS-Filter nötig.
       return {
@@ -177,6 +199,7 @@ export default async function PortfolioPage({ searchParams }: Props) {
         vsBudgets: filteredVs,
         cycleAllocations: cycle.byEpic,
         budgetCycleKey: cycle.cycleKey,
+        changeBudgets,
       };
     },
     async () => {
@@ -264,6 +287,67 @@ export default async function PortfolioPage({ searchParams }: Props) {
     risksEnabled,
   );
 
+  /**
+   * **Der Job-Size-Verlauf im Portfolio Sync** — ein Wertstrom, darin „gesamt"
+   * oder ein ART, neben dem Funding-Snapshot. Dieselben Rechte wie auf der Wertstrom-Budgetseite
+   * (`loadValueStreamBudgetAccess`): in der Auswahl steht nur, was der
+   * Betrachter sehen darf. Nur im Sync und nur mit dem Budgeting-Modul
+   * geladen; die übrigen Ansichten zahlen nichts dafür.
+   */
+  let burn: SyncBurn | undefined;
+  if (view === "sync" && budgetingEnabled) {
+    const streams = filter.valueStreamIds.length
+      ? valueStreamRows.filter((v) => filter.valueStreamIds.includes(v.id))
+      : valueStreamRows;
+    const alleArts = await db.art.findMany({
+      where: {
+        tenantId: principal.tenantId,
+        deletedAt: null,
+        valueStreamId: { in: streams.map((v) => v.id) },
+      },
+      select: { id: true, name: true, timelineId: true, valueStreamId: true },
+      orderBy: { name: "asc" },
+    });
+    const zugriff = await Promise.all(
+      streams.map(async (v) => {
+        const arts = alleArts.filter((a) => a.valueStreamId === v.id);
+        const access = await loadValueStreamBudgetAccess(
+          db,
+          principal,
+          { id: v.id, financeApproverId: v.financeApproverId ?? null },
+          arts,
+        );
+        return { v, arts: arts.filter((a) => access.visibleArtIds.has(a.id)), access };
+      }),
+    );
+    const options: KpiValueStreamOption[] = zugriff
+      .filter((z) => z.access.deniedReason === null)
+      .map((z) => ({
+        id: z.v.id,
+        name: z.v.name,
+        arts: z.arts.map((a) => ({ id: a.id, name: a.name })),
+        showTotals: z.access.showTotals,
+      }));
+    const wahl = resolveKpiSelection(options, sp.kpiVs, sp.kpiArt);
+    const gewaehlt = wahl ? zugriff.find((z) => z.v.id === wahl.valueStream.id) : undefined;
+    burn = {
+      options,
+      selectedVs: wahl?.valueStream.id ?? null,
+      selectedArt: wahl?.artId ?? null,
+      chart:
+        wahl && gewaehlt ? (
+          <BudgetBurnPanel
+            db={db}
+            principal={principal}
+            arts={gewaehlt.arts}
+            // Wie die Vorgabe des KPI-Reiters: das laufende Kalender-Halbjahr.
+            cycleKey={resolveCycle(undefined, new Date()).cycleKey}
+            artId={wahl.artId}
+          />
+        ) : null,
+    };
+  }
+
   return (
     <Page>
       <PageHeader
@@ -285,7 +369,7 @@ export default async function PortfolioPage({ searchParams }: Props) {
         <OverviewMissionControl data={data} contributionView={contributionView} />
       )}
       {view === "review" && <OverviewReview data={data} contributionView={contributionView} />}
-      {view === "sync" && <OverviewSync data={data} />}
+      {view === "sync" && <OverviewSync data={data} burn={burn} />}
       {view === "budgeting" && <OverviewBudgeting data={data} />}
     </Page>
   );

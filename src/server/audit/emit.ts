@@ -80,6 +80,7 @@ export type AuditAction =
   | "value_stream.updated"
   | "value_stream.guardrails.updated"
   | "art.epic_allocation.set"
+  | "art.job_size_rate_estimate.set"
   | "value_stream.deleted"
   | "art.created"
   | "art.updated"

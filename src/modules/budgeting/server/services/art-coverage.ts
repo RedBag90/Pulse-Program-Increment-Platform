@@ -27,6 +27,11 @@ import {
 } from "@/modules/work/domain/portfolio-guardrails";
 import type { ArtCoverage } from "@/modules/budgeting/domain/art-budget-model";
 import { getTenantBudgetSettings } from "@/modules/budgeting/server/services/tenant-budget-settings";
+import {
+  jobSizeBurn,
+  type BurnWindow,
+  type Completion,
+} from "@/modules/budgeting/domain/job-size-burn";
 
 /**
  * Last gegen Deckung eines ARTs im gewählten Halbjahr.
@@ -51,8 +56,16 @@ export async function loadArtCoverage(
   artId: string,
   cycleKey: string,
   allocatedByCycle: Record<string, number>,
+  /** Für den Job-Size-Verlauf: bis wann das Ist zählt. Hereingereicht, damit testbar. */
+  today: Date = new Date(),
+  /**
+   * Das Fenster des Job-Size-Verlaufs — die laufende Budget-Kachel
+   * (`loadRunningPeriod`). Ohne Fenster kein Verlauf: nur die Budget-KPIs
+   * zeigen ihn.
+   */
+  burnWindow: BurnWindow | null = null,
 ): Promise<ArtCoverage> {
-  const [features, tenant] = await Promise.all([
+  const [features, tenant, art] = await Promise.all([
     db.initiative.findMany({
       where: { tenantId, level: InitiativeLevel.FEATURE, deletedAt: null, artId },
       select: {
@@ -67,6 +80,8 @@ export async function loadArtCoverage(
       },
     }),
     getTenantBudgetSettings(db, tenantId),
+    // Die Schätzung dieses ARTs — greift nur ohne ableitbaren Satz.
+    db.art.findFirst({ where: { id: artId, tenantId }, select: { jobSizeRateEstimate: true } }),
   ]);
 
   // Zähler: das Primitiv, nicht von Hand.
@@ -124,6 +139,10 @@ export async function loadArtCoverage(
   >();
   let undated = 0;
   let placeholder = 0;
+  // Die Abschlüsse in der laufenden Kachel — das Ist des Job-Size-Verlaufs.
+  // Dieselbe Datierung wie der Nenner des Satzes, im selben Durchlauf; das
+  // Fenster sind die Daten der Kachel, nicht das Kalender-Halbjahr.
+  const cycleCompletions: Completion[] = [];
 
   for (const f of features) {
     const jobSize = f.wsjfJobSize ?? 0;
@@ -136,6 +155,9 @@ export async function loadArtCoverage(
       continue;
     }
     const key = halfYearKey(at);
+    if (burnWindow && at >= burnWindow.start && at < burnWindow.end) {
+      cycleCompletions.push({ at, jobSize });
+    }
     const cur = doneByCycle.get(key) ?? {
       jobSize: 0,
       count: 0,
@@ -183,6 +205,7 @@ export async function loadArtCoverage(
   const rate = deriveJobSizeRate({
     cycles,
     tenantDefault: tenant.costPerJobSizePoint,
+    artEstimate: art?.jobSizeRateEstimate != null ? Number(art.jobSizeRateEstimate) : null,
     undatedFeatures: undated,
     placeholderJobSize: placeholder,
   });
@@ -200,5 +223,17 @@ export async function loadArtCoverage(
     loadEuro,
     allocated,
     gap: loadEuro == null ? null : loadEuro - allocated,
+    // Das Geld **der Kachel**, unter ihrem Schlüssel — nicht das des
+    // Halbjahr-Umschalters, nach dem die übrigen Zahlen der Karte rechnen.
+    burn: burnWindow
+      ? jobSizeBurn({
+          window: burnWindow,
+          allocated: allocatedByCycle[burnWindow.cycleKey] ?? 0,
+          rate: rate.rate,
+          completions: cycleCompletions,
+          today,
+        })
+      : null,
+    cycleCompletions,
   };
 }

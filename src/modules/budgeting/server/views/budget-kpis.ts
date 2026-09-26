@@ -22,6 +22,11 @@ import type { TenantId } from "@/modules/core/kernel/domain/types";
 import type { ArtCoverage } from "@/modules/budgeting/domain/art-budget-model";
 import { loadArtCoverage } from "@/modules/budgeting/server/services/art-coverage";
 import { loadArtChangeBudgetByCycle } from "@/modules/budgeting/server/services/art-epic-budget";
+import {
+  streamBurn,
+  type BurnWindow,
+  type JobSizeBurn,
+} from "@/modules/budgeting/domain/job-size-burn";
 
 export interface ArtKpiRow {
   artId: string;
@@ -45,6 +50,12 @@ export interface StreamKpi {
    * eine unvollständige Zahl als vollständige auszugeben.
    */
   withoutRate: string[];
+  /**
+   * Plan gegen Ist in Job Size für den Wertstrom — Σ der ARTs **mit** Satz, je
+   * mit ihrem eigenen Satz (`streamBurn`). Die ARTs ohne Satz stehen in
+   * `withoutRate`; sie fehlen in Plan **und** Ist. `null` ohne laufende Kachel.
+   */
+  burn: JobSizeBurn | null;
 }
 
 export interface BudgetKpis {
@@ -54,7 +65,12 @@ export interface BudgetKpis {
 }
 
 /** Faltet die ART-Rechnungen zur Wertstrom-Zeile. Rein. */
-export function buildStreamKpi(arts: readonly ArtKpiRow[]): StreamKpi {
+export function buildStreamKpi(
+  arts: readonly ArtKpiRow[],
+  /** Die laufende Budget-Kachel; ohne sie kein Verlauf. */
+  burnWindow: BurnWindow | null = null,
+  today: Date = new Date(),
+): StreamKpi {
   const berechenbar = arts.filter((a) => a.coverage.loadEuro != null);
   const loadEuro =
     berechenbar.length === 0
@@ -69,6 +85,18 @@ export function buildStreamKpi(arts: readonly ArtKpiRow[]): StreamKpi {
     allocated,
     gap: loadEuro == null ? null : loadEuro - allocated,
     withoutRate: arts.filter((a) => a.coverage.loadEuro == null).map((a) => a.name),
+    burn:
+      burnWindow == null
+        ? null
+        : streamBurn(
+            burnWindow,
+            today,
+            arts.flatMap((a) =>
+              a.coverage.burn
+                ? [{ burn: a.coverage.burn, completions: a.coverage.cycleCompletions }]
+                : [],
+            ),
+          ),
   };
 }
 
@@ -77,6 +105,9 @@ export async function loadBudgetKpis(
   tenantId: TenantId,
   arts: readonly { id: string; name: string }[],
   cycleKey: string,
+  today: Date = new Date(),
+  /** Die laufende Budget-Kachel (`loadRunningPeriod`) — das Fenster des Verlaufs. */
+  burnWindow: BurnWindow | null = null,
 ): Promise<BudgetKpis> {
   /**
    * Das Veränderungsgeld **je ART und Halbjahr** — Bezugsgröße der Lücke im
@@ -94,9 +125,17 @@ export async function loadBudgetKpis(
     arts.map(async (a) => ({
       artId: a.id,
       name: a.name,
-      coverage: await loadArtCoverage(db, tenantId, a.id, cycleKey, zuteilung.get(a.id) ?? {}),
+      coverage: await loadArtCoverage(
+        db,
+        tenantId,
+        a.id,
+        cycleKey,
+        zuteilung.get(a.id) ?? {},
+        today,
+        burnWindow,
+      ),
     })),
   );
 
-  return { cycleKey, stream: buildStreamKpi(rows), arts: rows };
+  return { cycleKey, stream: buildStreamKpi(rows, burnWindow, today), arts: rows };
 }

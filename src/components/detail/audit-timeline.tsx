@@ -12,6 +12,7 @@ const ACTION_LABELS: Record<string, string> = {
   "value_stream.updated": "Value Stream aktualisiert",
   "value_stream.guardrails.updated": "Guardrail-Ziele geändert",
   "art.epic_allocation.set": "ART-Rahmen verteilt",
+  "art.job_size_rate_estimate.set": "€-Satz je Job Size geschätzt",
   "value_stream.deleted": "Value Stream gelöscht",
   "art.created": "ART erstellt",
   "art.updated": "ART aktualisiert",

@@ -1,8 +1,10 @@
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
-import { SectionLabel } from "@/components/ui/section-label";
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
+import type { KpiValueStreamOption } from "@/modules/work/domain/budget-kpi-selection";
+import { BudgetKpiSelect } from "@/modules/work/features/portfolio/overview/budget-kpi-select";
 import { MeetingHeader } from "@/modules/work/features/portfolio/overview/meeting-header";
 import { GuardrailsLink } from "@/modules/work/features/portfolio/overview/overview-review";
 import { PeriodBanner } from "@/modules/work/features/portfolio/overview/blocks/period-banner";
@@ -18,11 +20,32 @@ import { RisksBlock } from "@/modules/work/features/portfolio/overview/blocks/ri
  * **Portfolio Sync** (monatlich) — „Was läuft, was hakt, was eskalieren wir?"
  *
  * Die Agenda steht oben: die Epics, die fürs Steering markiert sind. Darunter
- * Umsetzung, Budget-Ist gegen die Guardrails, Risiken. Die Abhängigkeiten
- * gehören Drumbeat, und Work darf Drumbeat nicht lesen (ADR-0013) — deshalb
- * ein Link statt einer Zahl.
+ * Umsetzung, Budget-Ist gegen die Guardrails, Risiken. Abhängigkeiten stehen
+ * im Netzplan der Umsetzung und im Epic — eine eigene Übersicht gibt es seit
+ * September 2026 nicht mehr.
+ *
+ * Neben dem Funding-Snapshot steht der **Job-Size-Verlauf** eines Wertstroms
+ * (oder eines seiner ARTs), mit Auswahl: liefern wir, was das Geld kaufen
+ * sollte? Rechnung und Grafik gehören Budgeting; die Seite setzt sie zusammen
+ * und reicht sie als Slot herein (`burn`).
  */
-export function OverviewSync({ data }: { data: PortfolioOverview }) {
+export interface SyncBurn {
+  options: readonly KpiValueStreamOption[];
+  selectedVs: string | null;
+  /** `null` = „Wertstrom gesamt". */
+  selectedArt: string | null;
+  /** Der Graf der Auswahl — von der Composition Root gerendert. */
+  chart: ReactNode;
+}
+
+export function OverviewSync({
+  data,
+  burn,
+}: {
+  data: PortfolioOverview;
+  /** Ohne Budgeting-Modul fehlt er; der Funding-Snapshot steht dann allein. */
+  burn?: SyncBurn | undefined;
+}) {
   const t = useTranslations();
   return (
     <div className="space-y-6">
@@ -31,8 +54,10 @@ export function OverviewSync({ data }: { data: PortfolioOverview }) {
 
       <SteeringTableBlock data={data} />
 
+      {/* Die kritischen Risiken kommen aus dem Issue-Register — ohne das
+          Risiken-Modul gibt es sie nicht, und der Block fehlt wie der ROAM-Block. */}
       <div className="grid items-start gap-4 md:grid-cols-2">
-        <TopRisksBlock data={data} />
+        {data.risksEnabled && <TopRisksBlock data={data} />}
         <PipelineBarsBlock data={data} />
       </div>
 
@@ -53,10 +78,12 @@ export function OverviewSync({ data }: { data: PortfolioOverview }) {
         />
       </div>
 
+      {/* Halbe-halbe: links das Geld je Wertstrom, rechts, was es liefert.
+          Beide Karten gleich hoch — `items-stretch` und `h-full` an den Karten. */}
       {data.budgetingEnabled && (
-        <div className="grid items-start gap-4 md:grid-cols-2">
+        <div className="grid items-stretch gap-4 md:grid-cols-2">
           <FundingSnapshotTable data={data} />
-          <BudgetKpiLinks data={data} />
+          {burn && <BurnCard burn={burn} />}
         </div>
       )}
       {data.horizonOnOverview && (
@@ -74,45 +101,38 @@ export function OverviewSync({ data }: { data: PortfolioOverview }) {
 
       {data.risksEnabled && <RisksBlock data={data} />}
 
-      <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-        {data.risksEnabled && (
+      {data.risksEnabled && (
+        <p className="text-sm">
           <Link href="/issues" className="text-primary hover:underline">
             {t("work.overview.alleIssues")}
           </Link>
-        )}
-        <Link href="/dependencies" className="text-primary hover:underline">
-          {t("work.overview.abhaengigkeitenUeberArts")}
-        </Link>
-      </p>
+        </p>
+      )}
     </div>
   );
 }
 
 /**
- * Je Wertstrom der Weg zu seinen Budget-KPIs: Deckung, Lücke und die
- * PI-Velocity der ARTs. Die Zahlen gehören Budgeting und Drumbeat; hier steht
- * der Link, nicht die Rechnung.
+ * Der Job-Size-Verlauf der Auswahl: oben die Auswahl, darunter der Graf. Die
+ * Überschrift trägt der Graf selbst („Job Size: Plan gegen Ist" samt Kachel).
  */
-function BudgetKpiLinks({ data }: { data: PortfolioOverview }) {
+function BurnCard({ burn }: { burn: SyncBurn }) {
   const t = useTranslations();
   return (
-    <Card className="space-y-3 p-4">
-      <SectionLabel>{t("work.overview.budgetKpisJeWertstrom")}</SectionLabel>
-      {data.budgets.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("work.overview.execNoBudgets")}</p>
+    <Card className="h-full space-y-3 p-4" data-card="burn">
+      {burn.selectedVs ? (
+        <>
+          <BudgetKpiSelect
+            options={burn.options}
+            selectedVs={burn.selectedVs}
+            selectedArt={burn.selectedArt}
+          />
+          {burn.chart}
+        </>
       ) : (
-        <ul className="space-y-1.5 text-sm">
-          {data.budgets.map((b) => (
-            <li key={b.valueStreamId}>
-              <Link
-                href={`/budgeting/value-streams/${b.valueStreamId}?tab=kpi` as never}
-                className="text-primary hover:underline"
-              >
-                {b.name}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <p className="text-sm text-muted-foreground">
+          {t("work.overview.keineBudgetKpisSichtbar")}
+        </p>
       )}
     </Card>
   );

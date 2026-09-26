@@ -22,6 +22,7 @@ import { CAPACITY_BUCKETS } from "@/modules/work/domain/portfolio-guardrails";
 
 const rate = (r: number | null, source?: JobSizeRate["source"]): JobSizeRate => ({
   source: source ?? (r == null ? "none" : "empirical"),
+  artEstimate: null,
   rate: r,
   cycles: [],
   budgetSum: 0,

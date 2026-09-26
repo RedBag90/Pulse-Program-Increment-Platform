@@ -1,26 +1,59 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
-import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
-
-function eur(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M €`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)}k €`;
-  return `${Math.round(n)} €`;
-}
+import { formatScaledEUR } from "@/lib/formatting";
+import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
+import type {
+  PortfolioOverview,
+  ValueStreamChangeRow,
+} from "@/modules/work/server/views/portfolio-overview";
 
 /**
- * Per-Value-Stream breakdown of allocations — used in the Hero variant where
- * a single funding stat doesn't carry enough signal. Bar width relative to
- * the largest VS so the ranking is read-at-a-glance.
+ * **Funding-Snapshot — das Veränderungsgeld je Wertstrom in der geltenden
+ * Budget-Kachel.**
+ *
+ * Bis September 2026 stand hier eine einzige Zahl je Wertstrom: die
+ * Portfolio-Epic-Finals, summiert über **alle** Halbjahre. Der ART-Rahmen
+ * fehlte ganz. Jetzt ist die Summe Portfolio-Epics **plus** ART-Rahmen, und
+ * der Rahmen ist so aufgeteilt wie die Gruppe „Veränderung" der
+ * ART-Budget-Übersicht: an ART-Epics, für ART-eigene Arbeit, noch nicht
+ * vergeben. Der offene Teil ist hell und gestreift — Geld, über das der RTE
+ * noch entscheidet.
+ *
+ * Betrieb gehört nicht hinein (REQ-10). Farbe steht nie allein (ADR-0021):
+ * die Legende nennt jedes Segment, die Zeile darunter die Beträge.
  */
+
+type Segment = "portfolio" | "toEpics" | "toOwnWork" | "open";
+
+const SEGMENTS: { key: Segment; labelKey: string; className: string }[] = [
+  { key: "portfolio", labelKey: "work.overview.snapshotPortfolio", className: "bg-primary" },
+  { key: "toEpics", labelKey: "work.overview.snapshotArtEpics", className: "bg-primary/60" },
+  { key: "toOwnWork", labelKey: "work.overview.snapshotArtEigen", className: "bg-primary/35" },
+  {
+    key: "open",
+    labelKey: "work.overview.snapshotArtOffen",
+    className: "bg-[repeating-linear-gradient(135deg,var(--muted)_0_4px,var(--border)_4px_8px)]",
+  },
+];
+
+const summe = (r: ValueStreamChangeRow) => r.portfolio + r.toEpics + r.toOwnWork + r.open;
+
 export function FundingSnapshotTable({ data }: { data: PortfolioOverview }) {
   const t = useTranslations();
-  if (data.budgets.length === 0) {
+  const locale = useLocale() as Locale;
+  const eur = (n: number) => formatScaledEUR(n, locale);
+  const kachel = data.budgetCycleKey ? halfYearLabel(data.budgetCycleKey) : null;
+  const titel = kachel
+    ? t("work.overview.fundingSnapshotKachel", { kachel })
+    : t("work.overview.fundingSnapshot");
+
+  if (data.changeBudgets.length === 0) {
     return (
-      <Card className="space-y-2 p-4">
-        <SectionLabel>{t("work.overview.fundingSnapshot")}</SectionLabel>
+      <Card className="h-full space-y-2 p-4">
+        <SectionLabel>{titel}</SectionLabel>
         <p className="text-sm text-muted-foreground">
           {t("work.overview.noBudgetsDistributed")}{" "}
           <Link href="/budgeting/periods" className="text-primary hover:underline">
@@ -31,29 +64,57 @@ export function FundingSnapshotTable({ data }: { data: PortfolioOverview }) {
     );
   }
 
-  const max = Math.max(...data.budgets.map((b) => b.total), 1);
-  const ranked = [...data.budgets].sort((a, b) => b.total - a.total);
+  const ranked = [...data.changeBudgets].sort((a, b) => summe(b) - summe(a));
+  const max = Math.max(...ranked.map(summe), 1);
 
   return (
-    <Card className="space-y-3 p-4">
-      <SectionLabel>{t("work.overview.fundingSnapshot")}</SectionLabel>
-      <ul className="space-y-2">
-        {ranked.map((b) => {
-          const widthPct = (b.total / max) * 100;
+    <Card className="h-full space-y-3 p-4">
+      <SectionLabel>{titel}</SectionLabel>
+      <ul className="flex flex-wrap gap-x-3 gap-y-1 text-meta text-muted-foreground">
+        {SEGMENTS.map((s) => (
+          <li key={s.key} className="flex items-center gap-1.5">
+            <span aria-hidden className={`inline-block size-2.5 rounded-sm ${s.className}`} />
+            {t(s.labelKey)}
+          </li>
+        ))}
+      </ul>
+      <ul className="space-y-3">
+        {ranked.map((r) => {
+          const rahmen = r.toEpics + r.toOwnWork + r.open;
           return (
-            <li key={b.valueStreamId} className="space-y-1">
+            <li key={r.valueStreamId} className="space-y-1" data-vs={r.valueStreamId}>
               <div className="flex items-baseline justify-between gap-3 text-xs">
-                <span className="truncate font-medium">{b.name}</span>
+                <span className="truncate font-medium">{r.name}</span>
                 <span className="shrink-0 font-mono tabular-nums text-muted-foreground">
-                  {eur(b.total)}
+                  {eur(summe(r))}
                 </span>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary/70"
-                  style={{ width: `${widthPct}%` }}
-                />
+              <div
+                className="flex h-2 overflow-hidden rounded-full bg-muted"
+                style={{ width: `${(summe(r) / max) * 100}%` }}
+              >
+                {SEGMENTS.map((s) => {
+                  // Ein negativer Rest (gekürzter Rahmen) hat keine Breite;
+                  // er steht in der Zeile darunter als Zahl.
+                  const wert = Math.max(0, r[s.key]);
+                  if (wert === 0) return null;
+                  return (
+                    <div
+                      key={s.key}
+                      data-segment={s.key}
+                      className={`h-full ${s.className}`}
+                      style={{ width: `${(wert / Math.max(summe(r), 1)) * 100}%` }}
+                    />
+                  );
+                })}
               </div>
+              <p className="text-meta text-muted-foreground">
+                {t("work.overview.snapshotZeile", {
+                  portfolio: eur(r.portfolio),
+                  rahmen: eur(rahmen),
+                  offen: eur(r.open),
+                })}
+              </p>
             </li>
           );
         })}

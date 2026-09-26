@@ -12,6 +12,8 @@ import {
 import type { JobSizeRate } from "@/modules/budgeting/domain/art-throughput";
 import type { StreamKpi } from "@/modules/budgeting/server/views/budget-kpis";
 import { SectionCard } from "@/components/ui/section-card";
+import { JobSizeBurnChart } from "@/modules/budgeting/features/components/art-budget/job-size-burn-chart";
+import { RateEstimateForm } from "@/modules/budgeting/features/components/art-budget/rate-estimate-form";
 
 /**
  * **„Wofür · eingeplant"** — Last gegen Deckung, als Karte.
@@ -166,18 +168,33 @@ function CoverageFigures({
  * gelbe Kästen untereinander erklärten eine Zahl, die eine Zeile höher schon
  * stand. Wer wissen will, woher sie kommt, klappt auf.
  */
-function RateDetails({ rate }: { rate: JobSizeRate }) {
+/**
+ * `estimate` — ist gesetzt, darf der Betrachter den Satz für dieses ART
+ * schätzen (`art_budget.distribute`, von der Seite geprüft). Ohne ableitbaren
+ * Satz steht der Falter dann offen: das Formular ist die Antwort auf „kein
+ * Satz".
+ */
+function RateDetails({
+  rate,
+  estimate,
+}: {
+  rate: JobSizeRate;
+  estimate?: { artId: string } | undefined;
+}) {
   const t = useTranslations();
   const locale = useLocale() as Locale;
+  const ohneSatz = rate.source === "none";
   return (
-    <details className="group/rate rounded-lg border">
+    <details className="group/rate rounded-lg border" open={ohneSatz && estimate != null}>
       <summary className="cursor-pointer list-none px-3 py-2 text-sm text-muted-foreground marker:content-[''] hover:text-foreground">
         <span className="group-open/rate:hidden">▸ </span>
         <span className="hidden group-open/rate:inline">▾ </span>
         <strong className="font-medium text-foreground">
           {rate.rate == null
             ? t("budgeting.art.keinSatzJeJobSize")
-            : t("budgeting.art.satzJeJobSize", { rate: formatEUR(rate.rate, locale) })}
+            : rate.source === "artEstimate"
+              ? t("budgeting.art.geschaetzterSatz", { rate: formatEUR(rate.rate, locale) })
+              : t("budgeting.art.satzJeJobSize", { rate: formatEUR(rate.rate, locale) })}
         </strong>
         {rate.caveats.length > 0 && (
           <span className="ml-1.5 text-warning">
@@ -214,12 +231,35 @@ function RateDetails({ rate }: { rate: JobSizeRate }) {
               </>
             )}
           </>
+        ) : rate.source === "artEstimate" ? (
+          <>{t("budgeting.art.schaetzungFuerDiesenArt")}</>
         ) : rate.source === "tenantDefault" ? (
           <>{t("budgeting.art.derTenantWeiteVorgabewert")}</>
         ) : (
           <>{t("budgeting.art.wederAusDerHistorie")}</>
         )}
+        {/* Die Schätzung bleibt gespeichert, auch wenn die Historie wieder
+            einen Satz hergibt — sie wird dann nur nicht mehr gebraucht. */}
+        {rate.source === "empirical" && rate.artEstimate != null && (
+          <>
+            {" "}
+            {t("budgeting.art.schaetzungNichtMehrNoetig", {
+              rate: formatEUR(rate.artEstimate, locale),
+            })}
+          </>
+        )}
       </p>
+
+      {/* Schätzen: ohne ableitbaren Satz, oder um eine bestehende Schätzung zu
+          ändern. Über dem Mandanten-Satz auch — die Schätzung kennt das ART. */}
+      {estimate && rate.source !== "empirical" && (
+        <RateEstimateForm artId={estimate.artId} current={rate.artEstimate} />
+      )}
+      {!estimate && ohneSatz && (
+        <p className="border-t px-3 py-2 text-sm text-muted-foreground">
+          {t("budgeting.art.schaetzenDarf")}
+        </p>
+      )}
 
       {rate.caveats.length > 0 && (
         <ul className="space-y-1 border-t px-3 py-2 text-sm text-warning">
@@ -243,10 +283,13 @@ export function ArtCoverageCard({
   name,
   coverage,
   extra,
+  estimate,
 }: {
   name: string;
   coverage: ArtCoverage;
   extra?: ReactNode;
+  /** Gesetzt, wenn der Betrachter den Satz dieses ARTs schätzen darf. */
+  estimate?: { artId: string } | undefined;
 }) {
   return (
     <SectionCard title={name} contentClassName="space-y-3">
@@ -259,8 +302,9 @@ export function ArtCoverageCard({
         allocated={coverage.allocated}
         gap={coverage.gap}
       />
+      <JobSizeBurnChart burn={coverage.burn} />
       {extra}
-      <RateDetails rate={coverage.rate} />
+      <RateDetails rate={coverage.rate} estimate={estimate} />
     </SectionCard>
   );
 }
@@ -356,6 +400,7 @@ export function StreamCoverageCard({
           </>
         )}
       </p>
+      <JobSizeBurnChart burn={stream.burn} />
       {extra}
     </SectionCard>
   );

@@ -665,23 +665,26 @@ model ValueStream {
 }
 
 model Art {
-  id              String    @id @default(uuid()) @db.Uuid
-  tenantId        String    @map("tenant_id") @db.Uuid
-  valueStreamId   String    @map("value_stream_id") @db.Uuid
-  name            String
-  description     String?
-  rteId           String?   @map("rte_id") @db.Uuid // Release Train Engineer
+  id                  String    @id @default(uuid()) @db.Uuid
+  tenantId            String    @map("tenant_id") @db.Uuid
+  valueStreamId       String    @map("value_stream_id") @db.Uuid
+  name                String
+  description         String?
+  rteId               String?   @map("rte_id") @db.Uuid // Release Train Engineer
   /// Technisch Verantwortliche:r dieses ARTs. **Vorerst nur benannt**: keine
   /// Gate-Abnahme, kein Recht, kein Lücken-Signal — die Zuständigkeit steht
   /// fest, bevor entschieden ist, wo sie greift.
-  technicalLeadId String?   @map("technical_lead_id") @db.Uuid
+  technicalLeadId     String?   @map("technical_lead_id") @db.Uuid
   /// Subscription to a shared Timeline. Each ART belongs to at most one
   /// Timeline; nullable during the rollout so brand-new ARTs (or those that
   /// left a Timeline) live without one. The PI grid the ART planss against
   /// comes from `timeline.programIncrements`.
-  timelineId      String?   @map("timeline_id") @db.Uuid
-  createdAt       DateTime  @default(now()) @map("created_at")
-  deletedAt       DateTime? @map("deleted_at")
+  timelineId          String?   @map("timeline_id") @db.Uuid
+  /// Geschätzter €-Satz je Job-Size-Punkt — greift nur, wenn die Historie des
+  /// ARTs keinen Satz hergibt (`deriveJobSizeRate`), vor dem Mandanten-Satz.
+  jobSizeRateEstimate Decimal?  @map("job_size_rate_estimate") @db.Decimal(12, 2)
+  createdAt           DateTime  @default(now()) @map("created_at")
+  deletedAt           DateTime? @map("deleted_at")
 
   tenant             Tenant                 @relation(fields: [tenantId], references: [id])
   valueStream        ValueStream            @relation(fields: [valueStreamId], references: [id])

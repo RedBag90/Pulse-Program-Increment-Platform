@@ -296,6 +296,24 @@ export interface DueSoonItem {
   solution: SolutionRef | null;
 }
 
+/**
+ * **Veränderungsgeld eines Wertstroms in der geltenden Budget-Kachel** —
+ * Portfolio-Epics plus der ART-Rahmen seiner ARTs, aufgeteilt wie die Gruppe
+ * „Veränderung" der ART-Budget-Übersicht. Budgeting rechnet es; Work bekommt
+ * es fertig über den Port (ADR-0013).
+ */
+export interface ValueStreamChangeRow {
+  valueStreamId: string;
+  name: string;
+  portfolio: number;
+  /** ART-Rahmen, an ART-Epics vergeben. */
+  toEpics: number;
+  /** ART-Rahmen, für ART-eigene Arbeit vergeben. */
+  toOwnWork: number;
+  /** ART-Rahmen, noch nicht vergeben — ungekappt. */
+  open: number;
+}
+
 export interface OverviewBudget {
   valueStreamId: string;
   name: string;
@@ -480,6 +498,11 @@ export interface PortfolioOverview {
   /** Halbjahres-Key des laufenden Budget-Zyklus (Bezug der Horizont-Budgets). */
   /** `null` = es gilt gerade kein Budget-Rahmen (`appliedPeriod`). */
   budgetCycleKey: string | null;
+  /**
+   * Veränderungsgeld je Wertstrom in der geltenden Kachel — der
+   * Funding-Snapshot. Leer ohne Kachel oder ohne Budgeting.
+   */
+  changeBudgets: ValueStreamChangeRow[];
 
   activePis: OverviewActivePi[];
   nearestPiEnd: OverviewActivePi | null;
@@ -555,6 +578,8 @@ export interface PortfolioOverviewInputs {
   /** Halbjahres-Key des laufenden Budget-Zyklus. */
   /** `null` = es gilt gerade kein Budget-Rahmen (`appliedPeriod`). */
   budgetCycleKey: string | null;
+  /** Veränderungsgeld je Wertstrom in dieser Kachel; fehlt = keins. */
+  changeBudgets?: ValueStreamChangeRow[];
   activePis: Array<{ id: string; name: string; endDate: Date }>;
   structureGap: StructureGap;
   practiceAdoption: PracticeAdoption;
@@ -639,6 +664,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     vsBudgets,
     cycleAllocations,
     budgetCycleKey,
+    changeBudgets = [],
     activePis: activePisRaw,
     structureGap,
     practiceAdoption,
@@ -1099,6 +1125,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     },
     horizonBudgets: aggregateHorizonBudgets(cards, cycleAllocations),
     budgetCycleKey,
+    changeBudgets,
     activePis,
     nearestPiEnd,
     recentActivity,
@@ -1134,6 +1161,8 @@ export type BudgetingDataPort = () => Promise<{
   cycleAllocations: Record<string, number>;
   /** `null` = es gilt gerade kein Budget-Rahmen (`appliedPeriod`). */
   budgetCycleKey: string | null;
+  /** Veränderungsgeld je Wertstrom in der geltenden Kachel (Funding-Snapshot). */
+  changeBudgets?: ValueStreamChangeRow[];
 }>;
 
 /**
@@ -1268,6 +1297,7 @@ export async function loadPortfolioOverviewInputs(
   }));
 
   const { board, vsBudgets, cycleAllocations, budgetCycleKey } = budgeting;
+  const changeBudgets = budgeting.changeBudgets ?? [];
 
   /**
    * **Welche Ziele gelten, wenn gefiltert ist.** Genau ein Wertstrom gewaehlt →
@@ -1345,6 +1375,7 @@ export async function loadPortfolioOverviewInputs(
     themes,
     board,
     vsBudgets,
+    changeBudgets,
     cycleAllocations,
     budgetCycleKey,
     activePis,

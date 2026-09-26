@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { jobSizeBurn, halfYearWindow } from "@/modules/budgeting/domain/job-size-burn";
 import {
   artDetailIsEmpty,
   type ArtBudgetDetail,
@@ -62,6 +63,7 @@ describe("artDetailIsEmpty", () => {
           plannedUnclassified: { count: 0, jobSize: 0 },
           rate: {
             source: "none",
+            artEstimate: null,
             rate: null,
             cycles: [],
             budgetSum: 0,
@@ -74,6 +76,14 @@ describe("artDetailIsEmpty", () => {
           loadEuro: null,
           allocated: 0,
           gap: null,
+          burn: jobSizeBurn({
+            window: halfYearWindow("2026-H2"),
+            allocated: 0,
+            rate: null,
+            completions: [],
+            today: new Date("2026-09-01T00:00:00Z"),
+          }),
+          cycleCompletions: [],
         },
       }),
     ).toBe(false);
