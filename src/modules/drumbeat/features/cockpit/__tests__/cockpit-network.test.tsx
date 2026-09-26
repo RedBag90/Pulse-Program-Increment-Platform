@@ -59,6 +59,7 @@ function feat(id: string, piId: string | null): CockpitFeature {
     wsjfBusinessValue: null,
     wsjfTimeCriticality: null,
     wsjfRiskReduction: null,
+    featureType: null,
     hasBlocker: false,
     blockerHint: null,
     blockers: [],

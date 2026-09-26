@@ -3,7 +3,8 @@ import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
-import { openBlockers } from "@/modules/drumbeat/domain/open-blockers";
+import { blockingOnly, classifyBlockers } from "@/modules/drumbeat/domain/open-blockers";
+import { isFeatureType } from "@/modules/work/domain/portfolio-guardrails";
 import {
   deriveJobSizeTarget,
   type PiDeliveryRecord,
@@ -305,13 +306,15 @@ export interface CockpitFeatureRow {
   wsjfBusinessValue: number | null;
   wsjfTimeCriticality: number | null;
   wsjfRiskReduction: number | null;
+  /** Feature, Enabler, Maintenance — roher Wert; der Builder normalisiert. */
+  featureType: string | null;
   art: { id: string; name: string } | null;
   /** Eigene Solution des Features; `null` = die des Epics gilt. */
   primarySolution: { name: string } | null;
   parent: { id: string; title: string; primarySolution: { name: string } | null } | null;
   dependenciesIn: ReadonlyArray<{
     id: string;
-    from: { id: string; title: string; status: string } | null;
+    from: { id: string; title: string; status: string; piId: string | null } | null;
   }>;
   /**
    * Ausgehende `depends_on`-Kanten — „dieses Feature hängt ab von `to`". Auch
@@ -320,7 +323,7 @@ export interface CockpitFeatureRow {
    */
   dependenciesOut: ReadonlyArray<{
     id: string;
-    to: { id: string; title: string; status: string } | null;
+    to: { id: string; title: string; status: string; piId: string | null } | null;
   }>;
 }
 
@@ -421,10 +424,12 @@ function buildScopeFeatures(
 ): CockpitFeature[] {
   return rows
     .map((r) => {
-      const blockers = openBlockers({
+      const blockers = classifyBlockers({
+        piId: r.piId,
         blocksIn: r.dependenciesIn.map((d) => d.from),
         dependsOnOut: r.dependenciesOut.map((d) => d.to),
       });
+      const blocking = blockingOnly(blockers);
       const f: CockpitFeature = {
         id: r.id,
         title: r.title,
@@ -441,8 +446,9 @@ function buildScopeFeatures(
         wsjfBusinessValue: r.wsjfBusinessValue ?? null,
         wsjfTimeCriticality: r.wsjfTimeCriticality ?? null,
         wsjfRiskReduction: r.wsjfRiskReduction ?? null,
-        hasBlocker: blockers.length > 0,
-        blockerHint: blockers[0]?.title ?? null,
+        featureType: isFeatureType(r.featureType) ? r.featureType : null,
+        hasBlocker: blocking.length > 0,
+        blockerHint: blocking[0]?.title ?? null,
         blockers,
         solutionName: resolveFeatureSolution({
           own: r.primarySolution?.name,
@@ -931,6 +937,7 @@ export async function loadCockpitModel(
             wsjfBusinessValue: true,
             wsjfTimeCriticality: true,
             wsjfRiskReduction: true,
+            featureType: true,
             art: { select: { id: true, name: true } },
             // Die eigene Solution des Features — und die seines Epics als
             // Rückfall, über den ohnehin vorhandenen `parent`-Select.
@@ -942,14 +949,14 @@ export async function loadCockpitModel(
               where: { type: "blocks" },
               select: {
                 id: true,
-                from: { select: { id: true, title: true, status: true } },
+                from: { select: { id: true, title: true, status: true, piId: true } },
               },
             },
             dependenciesOut: {
               where: { type: "depends_on" },
               select: {
                 id: true,
-                to: { select: { id: true, title: true, status: true } },
+                to: { select: { id: true, title: true, status: true, piId: true } },
               },
             },
           },

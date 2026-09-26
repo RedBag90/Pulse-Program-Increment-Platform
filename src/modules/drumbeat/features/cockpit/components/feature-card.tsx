@@ -3,7 +3,8 @@
 import { useTranslations } from "next-intl";
 import { memo, type RefObject } from "react";
 import type { CockpitFeature } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
-import { FEATURE_STATUS_DOT } from "@/modules/drumbeat/features/lib/status-badges";
+import { FEATURE_TYPE_STRIPE } from "@/modules/drumbeat/features/lib/feature-type-tokens";
+import { FEATURE_TYPE_KEYS } from "@/modules/work/domain/portfolio-guardrails";
 import { FeatureScore } from "@/modules/drumbeat/features/cockpit/components/feature-score";
 import { FeatureBlockers } from "@/modules/drumbeat/features/cockpit/components/feature-blockers";
 import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
@@ -34,6 +35,9 @@ interface Props {
 function FeatureCardImpl({ feature, canDrag, canScore, draggingId }: Props) {
   const t = useTranslations();
   const { setParam } = useUrlState();
+  const typLabel = feature.featureType
+    ? t(FEATURE_TYPE_KEYS[feature.featureType])
+    : t("drumbeat.ui.ohneTyp");
 
   function openSlideOver() {
     setParam("featureId", feature.id);
@@ -65,11 +69,18 @@ function FeatureCardImpl({ feature, canDrag, canScore, draggingId }: Props) {
         feature.hasBlocker ? "border-amber-300" : "border-border"
       } ${canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
     >
-      {/* Status-Farbstreifen (Registry-Hue) — dasselbe Vokabular wie Lane/Badge/Graph. */}
+      {/* **Der Streifen zeigt den Typ, nicht den Status.** Den Status zeigen
+          die Board-Zeilen — der Streifen sagte ihn bis September 2026 ein
+          zweites Mal. Jetzt: Feature, Enabler, Maintenance
+          (`FEATURE_TYPE_STRIPE`, dieselben Töne wie im Netzplan). Die Farbe
+          steht nicht allein: der Streifen trägt das Wort, das Board eine
+          Legende. */}
       <span
-        aria-hidden
-        className={`absolute inset-y-0 left-0 w-1 ${FEATURE_STATUS_DOT[feature.status]}`}
-      />
+        title={typLabel}
+        className={`absolute inset-y-0 left-0 w-1 ${FEATURE_TYPE_STRIPE[feature.featureType ?? ""]}`}
+      >
+        <span className="sr-only">{typLabel}</span>
+      </span>
       <p className="line-clamp-2 text-xs font-medium leading-snug">{feature.title}</p>
 
       {/* Epic ▸ Solution. Fehlt die Solution (gemessen 40 % der Features), steht
@@ -135,6 +146,7 @@ export const FeatureCard = memo(FeatureCardImpl, (a, b) => {
     x.id === y.id &&
     x.title === y.title &&
     x.status === y.status &&
+    x.featureType === y.featureType &&
     x.piId === y.piId &&
     x.wsjfComputed === y.wsjfComputed &&
     x.wsjfJobSize === y.wsjfJobSize &&
@@ -143,6 +155,7 @@ export const FeatureCard = memo(FeatureCardImpl, (a, b) => {
     x.wsjfRiskReduction === y.wsjfRiskReduction &&
     x.hasBlocker === y.hasBlocker &&
     x.blockerHint === y.blockerHint &&
-    x.blockers.map((b) => b.id).join() === y.blockers.map((b) => b.id).join()
+    x.blockers.map((b) => `${b.id}:${b.state}`).join() ===
+      y.blockers.map((b) => `${b.id}:${b.state}`).join()
   );
 });

@@ -2797,7 +2797,12 @@
       "wsjfBearbeitenFuer": "Edit WSJF: {title}",
       "blockiertDurch": "Blocked by",
       "offenerBlockerEins": "1 open blocker",
-      "offeneBlockerMehrere": "{n} open blockers"
+      "offeneBlockerMehrere": "{n} open blockers",
+      "abhaengigkeitenErfuellt": "Dependencies met",
+      "blockiertNicht": "Not blocking",
+      "blockerGrundErledigt": "done",
+      "blockerGrundSelbesPi": "in the same PI",
+      "streifenZeigtTyp": "Stripe = type:"
     },
     "errors": {
       "endBeforeStart": "The end date must be after the start date.",

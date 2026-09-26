@@ -36,6 +36,12 @@ import {
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { FeatureCard } from "./feature-card";
+import { FEATURE_TYPE_STRIPE } from "@/modules/drumbeat/features/lib/feature-type-tokens";
+import {
+  FEATURE_TYPES,
+  FEATURE_TYPE_KEYS,
+  type FeatureType,
+} from "@/modules/work/domain/portfolio-guardrails";
 import { PiJobSize } from "./pi-job-size";
 
 interface OptimisticPatch {
@@ -112,6 +118,7 @@ export function CockpitBoard({
   canSetDelivery,
   canScoreWsjf = false,
 }: Props) {
+  const t = useTranslations();
   const draggingId = useRef<string | null>(null);
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -250,6 +257,22 @@ export function CockpitBoard({
           {error}
         </div>
       )}
+
+      {/* Die Legende zum Streifen der Kacheln: er zeigt den Typ, nicht den
+          Status — der steht in den Zeilen. Ohne Legende stünde die Farbe
+          allein (ADR-0021). */}
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-label text-muted-foreground">
+        <span>{t("drumbeat.ui.streifenZeigtTyp")}</span>
+        {[...FEATURE_TYPES, ""].map((typ) => (
+          <span key={typ || "none"} className="flex items-center gap-1">
+            <span
+              aria-hidden
+              className={`inline-block h-3 w-1 rounded-sm ${FEATURE_TYPE_STRIPE[typ as FeatureType | ""]}`}
+            />
+            {typ ? t(FEATURE_TYPE_KEYS[typ as FeatureType]) : t("drumbeat.ui.ohneTyp")}
+          </span>
+        ))}
+      </p>
 
       {/* Grid: 1 Label-Spalte + Backlog-Spalte + N PI-Spalten. Status-Lanes
           sind die Zeilen. */}

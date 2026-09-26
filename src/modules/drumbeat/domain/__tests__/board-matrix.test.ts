@@ -37,6 +37,7 @@ function feature(id: string, piId: string | null, status: FeatureStatus): Cockpi
     wsjfBusinessValue: null,
     wsjfTimeCriticality: null,
     wsjfRiskReduction: null,
+    featureType: null,
     hasBlocker: false,
     blockerHint: null,
     blockers: [],

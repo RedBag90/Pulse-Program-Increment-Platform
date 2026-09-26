@@ -15,6 +15,7 @@ import type { PiStatus } from "@/modules/drumbeat/domain/pi-rules";
 import type { FeatureBreakdown } from "@/modules/work/domain/feature-breakdown";
 import type { JobSizeTarget } from "@/modules/drumbeat/domain/pi-job-size-target";
 import type { BlockerRef } from "@/modules/drumbeat/domain/open-blockers";
+import type { FeatureType } from "@/modules/work/domain/portfolio-guardrails";
 
 /**
  * Status einer Board-Spalte: PI-Status oder eine der beiden synthetischen
@@ -79,6 +80,11 @@ export interface CockpitFeature extends FeatureBreakdown {
   wsjfBusinessValue: number | null;
   wsjfTimeCriticality: number | null;
   wsjfRiskReduction: number | null;
+  /**
+   * Feature, Enabler oder Maintenance; `null` = ohne Typ oder unbekannter Wert.
+   * Er färbt den Streifen der Kachel (`FEATURE_TYPE_STRIPE`).
+   */
+  featureType: FeatureType | null;
   /** UI loest Owner-Namen separat auf (Auth-Provider) — fuer Avatare /
    *  Inline-Anzeige. Null wenn unbekannt. */
   ownerName: string | null;
@@ -88,8 +94,10 @@ export interface CockpitFeature extends FeatureBreakdown {
   /** Erste blockierende Quelle, fuer den Karten-Hinweis „blockt durch X". */
   blockerHint: string | null;
   /**
-   * **Alle** offenen Blocker, nach Titel — eingehende `blocks` und ausgehende
-   * `depends_on` (`openBlockers`). Die Karte zeigt sie als Symbol mit Links.
+   * **Alle** blockierenden Abhängigkeiten mit ihrem Zustand — eingehende
+   * `blocks` und ausgehende `depends_on` (`classifyBlockers`): `blocking`,
+   * `samePi` (offen, aber im selben PI) oder `done`. `hasBlocker` zählt nur
+   * `blocking`; die Karte zeigt alle.
    */
   blockers: BlockerRef[];
   /**

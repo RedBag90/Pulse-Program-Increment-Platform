@@ -36,18 +36,26 @@ const feature = (over: Partial<CockpitFeature> = {}): CockpitFeature => ({
   wsjfBusinessValue: 3,
   wsjfTimeCriticality: 3,
   wsjfRiskReduction: 3,
+  featureType: null,
   hasBlocker: false,
   blockerHint: null,
   blockers: [],
   solutionName: null,
   ...over,
 });
-const blockiert = feature({
+const eineVonDrei = feature({
   hasBlocker: true,
   blockerHint: "Login-API",
   blockers: [
-    { id: "b1", title: "Login-API" },
-    { id: "b2", title: "Rechteprüfung" },
+    { id: "b1", title: "Login-API", state: "blocking" },
+    { id: "b2", title: "Rechteprüfung", state: "samePi" },
+    { id: "b3", title: "Schema", state: "done" },
+  ],
+});
+const erfuellt = feature({
+  blockers: [
+    { id: "b2", title: "Rechteprüfung", state: "samePi" },
+    { id: "b3", title: "Schema", state: "done" },
   ],
 });
 
@@ -57,22 +65,34 @@ const card = (f: CockpitFeature) =>
 describe("FeatureCard — Blocker", () => {
   beforeEach(() => setParam.mockClear());
 
-  it("ohne Blocker kein Symbol", () => {
+  it("ohne blockierende Abhängigkeiten kein Symbol", () => {
     card(feature());
-    expect(screen.queryByRole("button", { name: /Blocker/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Blocker|Abhängigkeiten/ })).toBeNull();
   });
 
-  it("mit Blockern: Symbol mit Zahl, die alte Textzeile ist weg", () => {
-    card(blockiert);
-    expect(screen.getByRole("button", { name: "2 offene Blocker" })).toBeInTheDocument();
+  it("zählt nur, was tatsächlich blockiert: eine von drei → 1", () => {
+    card(eineVonDrei);
+    const symbol = screen.getByRole("button", { name: "1 offener Blocker" });
+    expect(symbol.textContent).toBe("1");
+    expect(symbol.className).toContain("text-warning");
     expect(screen.queryByText(/blockt durch/i)).toBeNull();
   });
 
-  it("zeigt alle Blocker als Links; ein Klick öffnet den Blocker, nicht die eigene Karte", async () => {
-    card(blockiert);
-    fireEvent.click(screen.getByRole("button", { name: "2 offene Blocker" }));
+  it("blockiert keine: grünes Dreieck mit Häkchen", () => {
+    card(erfuellt);
+    const symbol = screen.getByRole("button", { name: "Abhängigkeiten erfüllt" });
+    expect(symbol.className).toContain("text-success");
+    expect(symbol.textContent).toBe("");
+    expect(symbol.querySelectorAll("svg")).toHaveLength(2);
+  });
+
+  it("das Popover gruppiert und nennt den Grund; ein Klick öffnet den Blocker", async () => {
+    card(eineVonDrei);
+    fireEvent.click(screen.getByRole("button", { name: "1 offener Blocker" }));
     await waitFor(() => expect(screen.getByText("Blockiert durch")).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: "Rechteprüfung" })).toBeInTheDocument();
+    expect(screen.getByText("Blockiert nicht")).toBeInTheDocument();
+    expect(screen.getByText("im selben PI")).toBeInTheDocument();
+    expect(screen.getByText("erledigt")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Login-API" }));
     expect(setParam).toHaveBeenCalledTimes(1);

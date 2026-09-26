@@ -46,6 +46,11 @@ import {
   type FeatureType,
 } from "@/modules/work/domain/portfolio-guardrails";
 import { formatWsjf } from "@/modules/core/kernel/domain/wsjf";
+import {
+  FEATURE_TYPE_BADGE,
+  FEATURE_TYPE_MINIMAP,
+  normalizeFeatureType,
+} from "@/modules/drumbeat/features/lib/feature-type-tokens";
 import { CreateFeatureDialog } from "@/modules/work/features/feature/components/create-feature-dialog";
 import {
   linkDependencyAction,
@@ -148,43 +153,6 @@ interface Props {
   /** Persistierte Node-Positionen (Roadmap-P5). Knoten ohne Eintrag
    *  fallen auf dagre-Auto-Layout zurueck. */
   savedPositions?: Record<string, { x: number; y: number }>;
-}
-
-/**
- * **Der Arbeitstyp am Knoten — je Typ ein Eintrag, kein Ja/Nein.**
- *
- * Bis September 2026 stand hier ein Boolean (`isEnabler ? violett : blau`). Mit
- * dem dritten Typ `maintenance` haette er still das Falsche gemalt: alles, was
- * nicht Enabler ist, waere als „Feature" erschienen. Eine Tabelle je Typ kann
- * das nicht — ein neuer Wert zwingt hier einen Eintrag.
- *
- * Die Farbe steht nie allein (ADR-0021): daneben steht das Wort.
- */
-const TYPE_BADGE: Record<FeatureType | "", string> = {
-  feature: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-  enabler: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
-  maintenance: "bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300",
-  "": "bg-muted text-muted-foreground",
-};
-
-/** Dieselbe Zuordnung fuer die MiniMap, die nur eine Farbe tragen kann. */
-const TYPE_MINIMAP: Record<FeatureType | "", string> = {
-  feature: "var(--chart-1)",
-  enabler: "var(--chart-4)",
-  maintenance: "var(--chart-3)",
-  "": "var(--muted-foreground)",
-};
-
-/**
- * Ein roher Typ-String aus dem Server-Modell auf einen bekannten Wert.
- *
- * Bis September 2026 war das eine ternaere Kaskade, die **jeden** unbekannten
- * Wert auf `""` warf — also den Typ **loeschte**, sobald jemand einen Knoten mit
- * einem neueren Typ im Schnell-Editor oeffnete. Das war kein Anzeigefehler,
- * sondern stiller Datenverlust.
- */
-function normalizeType(raw: string | null): FeatureType | "" {
-  return isFeatureType(raw) ? raw : "";
 }
 
 const TIER_BADGE: Record<BreakdownGraphNode["wsjfTier"], string> = {
@@ -346,13 +314,15 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
   );
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(node.title);
-  const [featureType, setFeatureType] = useState<FeatureType | "">(normalizeType(node.featureType));
+  const [featureType, setFeatureType] = useState<FeatureType | "">(
+    normalizeFeatureType(node.featureType),
+  );
 
   // sync state, wenn der Server-Refresh neue Werte liefert
   useEffect(() => {
     if (!open) {
       setTitle(node.title);
-      setFeatureType(normalizeType(node.featureType));
+      setFeatureType(normalizeFeatureType(node.featureType));
     }
   }, [open, node.title, node.featureType]);
 
@@ -453,7 +423,7 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
 const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
   const t = useTranslations();
   const node = data as unknown as FeatureNodeData;
-  const type = normalizeType(node.featureType);
+  const type = normalizeFeatureType(node.featureType);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -482,7 +452,7 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
           </span>
         </div>
         <div className="mt-auto flex items-center gap-1.5 text-label">
-          <span className={`rounded-full px-1.5 py-0.5 ${TYPE_BADGE[type]}`}>
+          <span className={`rounded-full px-1.5 py-0.5 ${FEATURE_TYPE_BADGE[type]}`}>
             {type === "" ? t("drumbeat.ui.ohneTyp") : t(FEATURE_TYPE_KEYS[type] ?? type)}
           </span>
           <span className={`rounded-full px-1.5 py-0.5 ${TIER_BADGE[node.wsjfTier]}`}>
@@ -1508,7 +1478,7 @@ export function BreakdownNetworkView({
                   if (n.type === "pi-header") return "var(--muted)";
                   if (n.type === "ghost") return "var(--border)";
                   const d = n.data as unknown as FeatureNodeData | undefined;
-                  return TYPE_MINIMAP[normalizeType(d?.featureType ?? null)];
+                  return FEATURE_TYPE_MINIMAP[normalizeFeatureType(d?.featureType ?? null)];
                 }}
                 nodeStrokeWidth={0}
                 maskColor="color-mix(in oklab, var(--background) 92%, transparent)"

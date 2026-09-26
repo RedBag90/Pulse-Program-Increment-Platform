@@ -60,6 +60,7 @@ function feat(id: string, status: CockpitFeature["status"]): CockpitFeature {
     wsjfBusinessValue: null,
     wsjfTimeCriticality: null,
     wsjfRiskReduction: null,
+    featureType: null,
     hasBlocker: false,
     blockerHint: null,
     blockers: [],
@@ -133,5 +134,15 @@ describe("CockpitBoard — die vier Signale der Karte", () => {
     board([{ ...feat("x", "approved"), solutionName: null }]);
     expect(screen.getByText("Mein Epic")).toBeTruthy();
     expect(screen.queryByText("▸")).toBeNull();
+  });
+});
+
+describe("CockpitBoard — Legende zum Typ-Streifen", () => {
+  it("nennt alle Typen samt „ohne Typ“ — die Farbe steht nicht allein", () => {
+    board([feat("a", "approved")]);
+    expect(screen.getByText("Streifen = Typ:")).toBeTruthy();
+    for (const wort of ["Feature", "Enabler", "Maintenance", "ohne Typ"]) {
+      expect(screen.getAllByText(wort).length).toBeGreaterThan(0);
+    }
   });
 });
