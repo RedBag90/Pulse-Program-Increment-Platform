@@ -184,7 +184,7 @@ export const PORTFOLIO_CYCLE: Guide = {
     },
 
     {
-      label: "Der Wertstrom-Owner",
+      label: "Der Business Owner",
       role: "value_stream_owner",
       question: "Was braucht mein Wertstrom, und wo trage ich es ein?",
       stations: [
@@ -290,7 +290,7 @@ export const PORTFOLIO_CYCLE: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Vor jeder Runde melde ich meinem Wertstrom-Owner, was der Betrieb im kommenden Halbjahr kostet, und was ich für die Weiterentwicklung einplane.",
+              text: "Vor jeder Runde melde ich meinem Business Owner, was der Betrieb im kommenden Halbjahr kostet, und was ich für die Weiterentwicklung einplane.",
             },
             {
               kind: "paragraph",
@@ -349,7 +349,7 @@ export const PORTFOLIO_CYCLE: Guide = {
     },
     {
       step: "Run-the-Business-Positionen pflegen",
-      who: "Wertstrom-Owner, Finance-Partei, Portfolio Manager / Admin",
+      who: "Business Owner, Finance-Partei, Portfolio Manager / Admin",
       capability: "rtb_item.manage",
     },
     {

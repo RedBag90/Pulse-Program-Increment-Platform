@@ -18,7 +18,7 @@ export const PORTFOLIO_SETUP_EN: Guide = {
   slug: "ein-portfolio-entsteht",
   title: "A portfolio comes into being",
   standfirst:
-    "The build-up, told three times over: from the view of the portfolio manager who sets the top goal and takes down the organisation, the value stream owner who brings their own section into focus, and the product manager who classifies their solution. The one procedure you generally go through **once**.",
+    "The build-up, told three times over: from the view of the portfolio manager who sets the top goal and takes down the organisation, the business owner who brings their own section into focus, and the product manager who classifies their solution. The one procedure you generally go through **once**.",
   teaser: "Top goal, value streams, ARTs, solutions, timelines, guardrails, sub-goals.",
   cadence: "einmalig",
   seeAlso: ["der-mandant-und-seine-menschen"],
@@ -65,7 +65,7 @@ Portfolio guardrails ── tenant-wide, at any time`,
     },
     {
       kind: "aside",
-      text: "**At the start the portfolio manager is all three.** On the very first pass there is nobody to ask: no value stream owners, no product managers, no finance party. They enter everything themselves and **name the others as they go**. From the second pass on it runs as set out here in three parts.",
+      text: "**At the start the portfolio manager is all three.** On the very first pass there is nobody to ask: no business owners, no product managers, no finance party. They enter everything themselves and **name the others as they go**. From the second pass on it runs as set out here in three parts.",
     },
     {
       kind: "note",
@@ -282,7 +282,7 @@ Portfolio guardrails ── tenant-wide, at any time`,
             },
             {
               kind: "aside",
-              text: "What I still lack now are the **sub-goals** — step 7. They are in the next part, because they belong to the value stream owners. After that comes no further step in the tool but the starting gun: telling the participants about the goals and opening up the identification of opportunities.",
+              text: "What I still lack now are the **sub-goals** — step 7. They are in the next part, because they belong to the business owners. After that comes no further step in the tool but the starting gun: telling the participants about the goals and opening up the identification of opportunities.",
             },
           ],
         },
@@ -290,7 +290,7 @@ Portfolio guardrails ── tenant-wide, at any time`,
     },
 
     {
-      label: "The value stream owner",
+      label: "The business owner",
       role: "value_stream_owner",
       question: "who signs within my section, and for what?",
       stations: [
@@ -366,7 +366,7 @@ Portfolio guardrails ── tenant-wide, at any time`,
             },
             {
               kind: "paragraph",
-              text: "The route: the **“+”** on the top goal's row (“add a sub-goal”), or in the drawer under _links_ the **sub-goals** section with **+ new sub-goal**. **The same dialogue as for the top goal** opens. As owner I choose the value stream owners.",
+              text: "The route: the **“+”** on the top goal's row (“add a sub-goal”), or in the drawer under _links_ the **sub-goals** section with **+ new sub-goal**. **The same dialogue as for the top goal** opens. As owner I choose the business owners.",
             },
             {
               kind: "list",
@@ -496,18 +496,18 @@ Portfolio guardrails ── tenant-wide, at any time`,
   who: [
     {
       step: "Create a goal and a sub-goal, keep the metric",
-      who: "Portfolio manager / admin; value stream owner within their value stream only",
+      who: "Portfolio manager / admin; business owner within their value stream only",
       capability: "target.manage",
     },
     { step: "Create a value stream", who: "Portfolio manager", capability: "value_stream.create" },
     {
       step: "Set the finance approver and portfolio manager",
-      who: "Portfolio manager / admin, value stream owner",
+      who: "Portfolio manager / admin, business owner",
       capability: "value_stream.update",
     },
     {
       step: "Change the sign-offs per maturity level",
-      who: "Portfolio manager / admin, value stream owner",
+      who: "Portfolio manager / admin, business owner",
       capability: "epic.gate.approvers.configure",
     },
     {
@@ -518,7 +518,7 @@ Portfolio guardrails ── tenant-wide, at any time`,
     { step: "Delete an ART", who: "tenant admin only", capability: "art.delete" },
     {
       step: "Create a solution, change its status",
-      who: "Portfolio manager / admin — not the value stream owner",
+      who: "Portfolio manager / admin — not the business owner",
       capability: "solution.manage",
     },
     {

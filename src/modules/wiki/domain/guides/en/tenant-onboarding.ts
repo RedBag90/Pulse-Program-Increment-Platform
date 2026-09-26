@@ -200,7 +200,7 @@ it has even ONE
             },
             {
               kind: "paragraph",
-              text: "Some roles carry a **scope**: the value stream owner may change their epics only within their own value streams, the RTE may distribute only on their own ARTs. **The scope is set when granting, not on the right.**",
+              text: "Some roles carry a **scope**: the business owner may change their epics only within their own value streams, the RTE may distribute only on their own ARTs. **The scope is set when granting, not on the right.**",
             },
             { kind: "figure", figure: "roleList" },
             {

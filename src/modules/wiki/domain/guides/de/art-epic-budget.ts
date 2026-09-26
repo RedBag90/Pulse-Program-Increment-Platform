@@ -12,7 +12,7 @@ export const ART_EPIC_BUDGET: Guide = {
   title: "Ein ART-Epic kommt an Geld",
   teaser: "Rahmen, Zuteilung, Deckel.",
   standfirst:
-    "Ein ART-Epic wartet auf keine Budget-Runde. Es steht auf keiner Kandidatenliste — nicht abgelehnt, sondern woanders zuhause. Der zweite Weg zum Geld, dreimal erzählt: aus Sicht des Epic Owners, des Produkt-Managers und des Wertstrom-Owners, bei dem der Rahmen entsteht.",
+    "Ein ART-Epic wartet auf keine Budget-Runde. Es steht auf keiner Kandidatenliste — nicht abgelehnt, sondern woanders zuhause. Der zweite Weg zum Geld, dreimal erzählt: aus Sicht des Epic Owners, des Produkt-Managers und des Business Owners, bei dem der Rahmen entsteht.",
   cadence: "je_halbjahr",
   module: "budgeting",
   seeAlso: ["ein-budget-zeitraum", "ein-epic-reift"],
@@ -110,7 +110,7 @@ export const ART_EPIC_BUDGET: Guide = {
             },
             {
               kind: "paragraph",
-              text: "Auskunft geben mir der **Wertstrom-Owner**, die **Finance-Partei**, der **RTE** — der den Rahmen seines ARTs sieht — oder das **Portfolio-Management**. Und der **Produkt-Manager** meiner Primär-Solution, der nicht nur Auskunft gibt, sondern selbst zuteilen darf.",
+              text: "Auskunft geben mir der **Business Owner**, die **Finance-Partei**, der **RTE** — der den Rahmen seines ARTs sieht — oder das **Portfolio-Management**. Und der **Produkt-Manager** meiner Primär-Solution, der nicht nur Auskunft gibt, sondern selbst zuteilen darf.",
             },
           ],
         },
@@ -177,7 +177,7 @@ export const ART_EPIC_BUDGET: Guide = {
     },
 
     {
-      label: "Der Wertstrom-Owner",
+      label: "Der Business Owner",
       role: "value_stream_owner",
       question: "Reicht das Geld, das ich habe, für das, was ansteht?",
       stations: [
@@ -275,7 +275,7 @@ export const ART_EPIC_BUDGET: Guide = {
   who: [
     {
       step: "ART-Rahmen anlegen",
-      who: "Wertstrom-Owner, Portfolio-Management; Finance-Partei über den Seam",
+      who: "Business Owner, Portfolio-Management; Finance-Partei über den Seam",
       capability: "rtb_item.manage",
     },
     {
@@ -286,12 +286,12 @@ export const ART_EPIC_BUDGET: Guide = {
     { step: "Epic vormerken", who: "Epic Owner", capability: "epic.update" },
     {
       step: "Freien Rahmen sehen",
-      who: "Tenant-Admin, Portfolio Manager, Wertstrom-Owner; RTE auf seinem ART; Finance-Partei; Produkt-Manager auf seinen ARTs",
+      who: "Tenant-Admin, Portfolio Manager, Business Owner; RTE auf seinem ART; Finance-Partei; Produkt-Manager auf seinen ARTs",
       capability: "budget.read",
     },
     {
       step: "Aus dem Rahmen zuteilen",
-      who: "Wertstrom-Owner, Portfolio-Management; **RTE** auf seinem eigenen ART; Finance-Partei; **Produkt-Manager** für die Epics seiner Solution",
+      who: "Business Owner, Portfolio-Management; **RTE** auf seinem eigenen ART; Finance-Partei; **Produkt-Manager** für die Epics seiner Solution",
       capability: "art_budget.distribute",
     },
     { step: "L3 und L4.1 beantragen", who: "Epic Owner", capability: "epic.gate.request" },

@@ -315,7 +315,7 @@ export const BUDGETING: Guide = {
     },
     {
       step: "Run-the-Business-Positionen pflegen",
-      who: "Wertstrom-Owner, Finance-Partei des Wertstroms, Portfolio Manager / Admin",
+      who: "Business Owner, Finance-Partei des Wertstroms, Portfolio Manager / Admin",
       capability: "rtb_item.manage",
     },
     { step: "Beträge einer Gruppe setzen", who: "jedes Mitglied der Gruppe" },
@@ -332,7 +332,7 @@ export const BUDGETING: Guide = {
     },
     {
       step: "Die Geld-Reiter eines Knotens überhaupt sehen",
-      who: "Admin, Portfolio Manager, Wertstrom-Owner; RTE auf **seinem** ART; Finance-Partei",
+      who: "Admin, Portfolio Manager, Business Owner; RTE auf **seinem** ART; Finance-Partei",
       capability: "budget.read",
     },
   ],

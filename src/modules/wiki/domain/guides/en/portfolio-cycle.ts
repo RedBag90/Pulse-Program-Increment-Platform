@@ -185,7 +185,7 @@ export const PORTFOLIO_CYCLE_EN: Guide = {
     },
 
     {
-      label: "The value stream owner",
+      label: "The business owner",
       role: "value_stream_owner",
       question: "What does my value stream need, and where do I record it?",
       stations: [
@@ -288,7 +288,7 @@ export const PORTFOLIO_CYCLE_EN: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Before every round I report to my value stream owner what operations will cost in the coming half-year, and what I am planning for further development.",
+              text: "Before every round I report to my business owner what operations will cost in the coming half-year, and what I am planning for further development.",
             },
             {
               kind: "paragraph",

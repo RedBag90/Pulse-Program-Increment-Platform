@@ -48,7 +48,7 @@ export const EPIC_INTAKE: Guide = {
     },
     {
       kind: "note",
-      text: "**„Ein Mitarbeiter mit einer Idee“ ist im Rechtemodell nicht vorgesehen.** Ein Epic anlegen dürfen nur Portfolio Manager, Epic Owner und — auf seinen eigenen Wertstrom beschränkt — der Wertstrom-Owner. Ein Feature Owner, ein RTE oder ein Nur-Leser kann **kein** Epic anlegen. Wer Ideen aus der Breite der Organisation einsammeln will, braucht dafür heute einen Weg außerhalb von Pulse — oder gibt den Einreichern die Rolle Epic Owner.",
+      text: "**„Ein Mitarbeiter mit einer Idee“ ist im Rechtemodell nicht vorgesehen.** Ein Epic anlegen dürfen nur Portfolio Manager, Epic Owner und — auf seinen eigenen Wertstrom beschränkt — der Business Owner. Ein Feature Owner, ein RTE oder ein Nur-Leser kann **kein** Epic anlegen. Wer Ideen aus der Breite der Organisation einsammeln will, braucht dafür heute einen Weg außerhalb von Pulse — oder gibt den Einreichern die Rolle Epic Owner.",
     },
   ],
 
@@ -301,7 +301,7 @@ export const EPIC_INTAKE: Guide = {
   misconceptions: [
     {
       claim: "Jeder Mitarbeiter kann ein Epic einreichen.",
-      why: "Das Recht tragen nur Portfolio Manager, Epic Owner und der Wertstrom-Owner seines Stroms.",
+      why: "Das Recht tragen nur Portfolio Manager, Epic Owner und der Business Owner seines Stroms.",
     },
     {
       claim: "Im Dialog schätze ich die Größe.",
@@ -340,7 +340,7 @@ export const EPIC_INTAKE: Guide = {
   who: [
     {
       step: "Epic anlegen",
-      who: "Portfolio Manager, Epic Owner; Wertstrom-Owner in seinem Strom",
+      who: "Portfolio Manager, Epic Owner; Business Owner in seinem Strom",
       capability: "epic.create",
     },
     {
@@ -350,7 +350,7 @@ export const EPIC_INTAKE: Guide = {
     },
     {
       step: "Epic Owner benennen",
-      who: "Portfolio Manager; Wertstrom-Owner in seinem Strom",
+      who: "Portfolio Manager; Business Owner in seinem Strom",
       capability: "epic.owner.assign",
     },
     {

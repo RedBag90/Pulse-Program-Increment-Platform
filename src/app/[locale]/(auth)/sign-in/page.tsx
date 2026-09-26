@@ -10,7 +10,7 @@ const TEST_USERS = [
   { email: "platform-admin@pulse.dev", role: "Platform Admin" },
   { email: "tenant-admin@pulse.dev", role: "Tenant Admin" },
   { email: "portfolio-manager@pulse.dev", role: "Portfolio Manager" },
-  { email: "value-stream-owner@pulse.dev", role: "Value Stream Owner" },
+  { email: "value-stream-owner@pulse.dev", role: "Business Owner" },
   { email: "epic-owner@pulse.dev", role: "Epic Owner" },
   { email: "rte@pulse.dev", role: "RTE · Feature QA" },
   { email: "feature-owner@pulse.dev", role: "Feature Owner" },

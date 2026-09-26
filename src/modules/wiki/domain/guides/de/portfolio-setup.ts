@@ -15,7 +15,7 @@ export const PORTFOLIO_SETUP: Guide = {
   slug: "ein-portfolio-entsteht",
   title: "Ein Portfolio entsteht",
   standfirst:
-    "Der Aufbau, dreimal erzählt: aus Sicht des Portfolio Managers, der das Kopfziel setzt und die Organisation aufnimmt, des Wertstrom-Owners, der seinen Ausschnitt scharf stellt, und des Produkt-Managers, der seine Solution einordnet. Der einzige Ablauf, den man in aller Regel **einmal** durchläuft.",
+    "Der Aufbau, dreimal erzählt: aus Sicht des Portfolio Managers, der das Kopfziel setzt und die Organisation aufnimmt, des Business Owners, der seinen Ausschnitt scharf stellt, und des Produkt-Managers, der seine Solution einordnet. Der einzige Ablauf, den man in aller Regel **einmal** durchläuft.",
   teaser: "Kopfziel, Wertströme, ARTs, Solutions, Timelines, Guardrails, Unterziele.",
   cadence: "einmalig",
   seeAlso: ["der-mandant-und-seine-menschen"],
@@ -62,7 +62,7 @@ Portfolio-Guardrails ── tenant-weit, jederzeit`,
     },
     {
       kind: "aside",
-      text: "**Am Anfang ist der Portfolio Manager alle drei.** Beim allerersten Durchlauf gibt es niemanden, den man fragen könnte: keine Wertstrom-Owner, keine Produkt-Manager, keine Finance-Partei. Er trägt alles selbst ein und **benennt die anderen dabei**. Ab dem zweiten Durchlauf läuft es so, wie es hier in drei Teilen steht.",
+      text: "**Am Anfang ist der Portfolio Manager alle drei.** Beim allerersten Durchlauf gibt es niemanden, den man fragen könnte: keine Business Owner, keine Produkt-Manager, keine Finance-Partei. Er trägt alles selbst ein und **benennt die anderen dabei**. Ab dem zweiten Durchlauf läuft es so, wie es hier in drei Teilen steht.",
     },
     {
       kind: "note",
@@ -279,7 +279,7 @@ Portfolio-Guardrails ── tenant-weit, jederzeit`,
             },
             {
               kind: "aside",
-              text: "Was mir jetzt noch fehlt, sind die **Unterziele** — Schritt 7. Sie stehen im nächsten Teil, weil sie den Wertstrom-Ownern gehören. Danach folgt kein Werkzeug-Schritt mehr, sondern der Startschuss: die Beteiligten über die Ziele informieren und die Identifikation von Potenzialen freigeben.",
+              text: "Was mir jetzt noch fehlt, sind die **Unterziele** — Schritt 7. Sie stehen im nächsten Teil, weil sie den Business Ownern gehören. Danach folgt kein Werkzeug-Schritt mehr, sondern der Startschuss: die Beteiligten über die Ziele informieren und die Identifikation von Potenzialen freigeben.",
             },
           ],
         },
@@ -287,7 +287,7 @@ Portfolio-Guardrails ── tenant-weit, jederzeit`,
     },
 
     {
-      label: "Der Wertstrom-Owner",
+      label: "Der Business Owner",
       role: "value_stream_owner",
       question: "wer zeichnet in meinem Ausschnitt, und wofür?",
       stations: [
@@ -363,7 +363,7 @@ Portfolio-Guardrails ── tenant-weit, jederzeit`,
             },
             {
               kind: "paragraph",
-              text: "Der Weg: das **„+“** an der Zeile des Kopfziels („Unterziel hinzufügen“), oder im Drawer unter _Verknüpfungen_ der Abschnitt **Unterziele** mit **+ Neues Unterziel**. Es öffnet sich **derselbe Dialog wie beim Kopfziel**. Als Owner wähle ich die Wertstrom-Owner.",
+              text: "Der Weg: das **„+“** an der Zeile des Kopfziels („Unterziel hinzufügen“), oder im Drawer unter _Verknüpfungen_ der Abschnitt **Unterziele** mit **+ Neues Unterziel**. Es öffnet sich **derselbe Dialog wie beim Kopfziel**. Als Owner wähle ich die Business Owner.",
             },
             {
               kind: "list",
@@ -493,25 +493,25 @@ Portfolio-Guardrails ── tenant-weit, jederzeit`,
   who: [
     {
       step: "Ziel und Unterziel anlegen, Metrik pflegen",
-      who: "Portfolio Manager / Admin; Wertstrom-Owner nur in seinem Wertstrom",
+      who: "Portfolio Manager / Admin; Business Owner nur in seinem Wertstrom",
       capability: "target.manage",
     },
     { step: "Wertstrom anlegen", who: "Portfolio Manager", capability: "value_stream.create" },
     {
       step: "Finance Approver und Portfolio Manager setzen",
-      who: "Portfolio Manager / Admin, Wertstrom-Owner",
+      who: "Portfolio Manager / Admin, Business Owner",
       capability: "value_stream.update",
     },
     {
       step: "Freigaben je Reifegrad ändern",
-      who: "Portfolio Manager / Admin, Wertstrom-Owner",
+      who: "Portfolio Manager / Admin, Business Owner",
       capability: "epic.gate.approvers.configure",
     },
     { step: "ART anlegen, RTE setzen", who: "Portfolio Manager / Admin", capability: "art.create" },
     { step: "ART löschen", who: "nur Tenant-Admin", capability: "art.delete" },
     {
       step: "Solution anlegen, Status ändern",
-      who: "Portfolio Manager / Admin — nicht der Wertstrom-Owner",
+      who: "Portfolio Manager / Admin — nicht der Business Owner",
       capability: "solution.manage",
     },
     {
@@ -531,7 +531,7 @@ Portfolio-Guardrails ── tenant-weit, jederzeit`,
     { step: "PI-Standard anwenden", who: "RTE / Admin", capability: "pi.create" },
     {
       step: "Run-the-Business-Positionen pflegen",
-      who: "Wertstrom-Owner, Finance-Partei, Portfolio Manager / Admin",
+      who: "Business Owner, Finance-Partei, Portfolio Manager / Admin",
       capability: "rtb_item.manage",
     },
   ],

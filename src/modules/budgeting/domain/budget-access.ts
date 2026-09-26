@@ -35,9 +35,9 @@ export interface RtbManageFacts {
 
 const RTB_REASON: Record<RtbManagePurpose, string> = {
   items:
-    "Nur der Wertstrom-Owner/Finance-Partei (oder Portfolio-Manager/Admin) darf Run-the-Business-Positionen pflegen.",
+    "Nur der Business Owner/Finance-Partei (oder Portfolio-Manager/Admin) darf Run-the-Business-Positionen pflegen.",
   awards:
-    "Nur der Wertstrom-Owner, die Finance-Partei oder das Portfolio-Management dürfen den Zuspruch aufteilen.",
+    "Nur der Business Owner, die Finance-Partei oder das Portfolio-Management dürfen den Zuspruch aufteilen.",
 };
 
 /**
@@ -86,7 +86,7 @@ export function artPotAccessDeniedReason(facts: ArtPotAccessFacts): string | nul
   if (facts.hasArtDistributeCapability) return null;
   if (facts.isEpicSolutionProductManager) return null;
   return (
-    "Nur der RTE dieses ARTs, Wertstrom-Owner, Finance-Partei, Portfolio-Management " +
+    "Nur der RTE dieses ARTs, Business Owner, Finance-Partei, Portfolio-Management " +
     "oder der Produkt-Manager der Solution dieses Epics dürfen den ART-Rahmen verteilen."
   );
 }

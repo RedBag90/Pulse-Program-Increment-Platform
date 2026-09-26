@@ -337,7 +337,7 @@ Value (conversion)             0 € /year`,
   who: [
     {
       step: "Create, weight and delete a KPI",
-      who: "Epic owner, portfolio manager, value stream owner (limited to their stream)",
+      who: "Epic owner, portfolio manager, business owner (limited to their stream)",
       capability: "epic.update",
     },
     { step: "Record a measurement", who: "the same", capability: "epic.update" },
@@ -350,7 +350,7 @@ Value (conversion)             0 € /year`,
     { step: "Sign off the impact (L5)", who: "Finance", capability: "epic.gate.decide" },
     {
       step: "Check-in, progress, comment",
-      who: "Portfolio manager / admin; value stream owner within their value stream",
+      who: "Portfolio manager / admin; business owner within their value stream",
       capability: "target.manage",
     },
     {

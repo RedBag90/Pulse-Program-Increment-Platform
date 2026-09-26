@@ -37,7 +37,7 @@ export const PI_EN: Guide = {
     { kind: "quote", text: "The closing gate — and why there are two ways through it." },
     {
       kind: "paragraph",
-      text: "Closing a PI means claiming that a period is genuinely over. Pulse has a gate for that, with four conditions:",
+      text: "Closing a PI means claiming that a period is genuinely over. Pulse has a gate for that, with three conditions:",
     },
     {
       kind: "table",
@@ -48,17 +48,16 @@ export const PI_EN: Guide = {
           "A risk nobody has classified would otherwise drift unnoticed into the next PI",
         ],
         ["system demo date set", "There was an occasion to show the result"],
-        ["inspect & adapt date set", "There was an occasion to learn from it"],
         ["retrospective notes present", "What was learned is written down somewhere"],
       ],
     },
     {
       kind: "note",
-      text: "**Today that gate is reachable only through the API.** The interface offers exactly one way to end a PI — _close the PI and open the next_ — and it checks only the open ROAM concerns, and those only as a **warning** that does not block. The three ceremonies are not checked there at all.",
+      text: "**Today that gate is reachable only through the API.** The interface offers exactly one way to end a PI — _close the PI and open the next_ — and it checks only the open ROAM concerns, and those only as a **warning** that does not block. The two ceremonies are not checked there at all.",
     },
     {
       kind: "paragraph",
-      text: "That is not an oversight but a deliberate gap, and the reason is written in the code: **there is no surface for setting the three dates.** A gate nobody can open would bring the work to a halt.",
+      text: "That is not an oversight but a deliberate gap, and the reason is written in the code: **there is no surface for recording the system demo and the retrospective.** A gate nobody can open would bring the work to a halt.",
     },
     {
       kind: "quote",
@@ -134,7 +133,7 @@ export const PI_EN: Guide = {
             },
             {
               kind: "aside",
-              text: "What I do **not** get along the way is the standard the closing gate sets out: nobody here asks me about the system demo, inspect & adapt, or the retrospective. Anyone who wants that discipline has to keep it outside Pulse for now.",
+              text: "What I do **not** get along the way is the standard the closing gate sets out: nobody here asks me about the system demo or the retrospective. Anyone who wants that discipline has to keep it outside Pulse for now.",
             },
           ],
         },
@@ -225,7 +224,7 @@ export const PI_EN: Guide = {
 
   misconceptions: [
     {
-      claim: "The interface checks the four closing conditions.",
+      claim: "The interface checks the three closing conditions.",
       why: "It checks one of them, and that only as a warning. The full gate exists only through the API.",
     },
     {
@@ -260,15 +259,15 @@ export const PI_EN: Guide = {
 
   who: [
     { step: "Create, change, delete a PI", who: "RTE", capability: "pi.create" },
-    { step: "Start a PI", who: "RTE, value stream owner", capability: "pi.start" },
+    { step: "Start a PI", who: "RTE, business owner", capability: "pi.start" },
     {
       step: "Roll the cadence forward (the way through the interface)",
-      who: "RTE, value stream owner",
+      who: "RTE, business owner",
       capability: "pi.advance",
     },
     {
       step: "Close a PI (full gate, API only)",
-      who: "RTE, value stream owner",
+      who: "RTE, business owner",
       capability: "pi.complete",
     },
     {

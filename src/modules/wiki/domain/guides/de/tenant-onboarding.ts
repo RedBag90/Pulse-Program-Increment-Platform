@@ -196,7 +196,7 @@ hat er auch nur EINE
             },
             {
               kind: "paragraph",
-              text: "Manche Rollen tragen einen **Scope**: der Wertstrom-Owner darf seine Epics nur in seinen Wertströmen ändern, der RTE nur auf seinen ARTs verteilen. **Der Scope wird beim Zuweisen gesetzt, nicht beim Recht.**",
+              text: "Manche Rollen tragen einen **Scope**: der Business Owner darf seine Epics nur in seinen Wertströmen ändern, der RTE nur auf seinen ARTs verteilen. **Der Scope wird beim Zuweisen gesetzt, nicht beim Recht.**",
             },
             { kind: "figure", figure: "roleList" },
             {

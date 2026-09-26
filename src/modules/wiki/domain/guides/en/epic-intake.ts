@@ -48,7 +48,7 @@ export const EPIC_INTAKE_EN: Guide = {
     },
     {
       kind: "note",
-      text: "**“An employee with an idea” is not provided for in the permission model.** Only portfolio managers, epic owners and — limited to their own value stream — the value stream owner may create an epic. A feature owner, an RTE or a read-only user can create **no** epic. Anyone wanting to gather ideas from across the organisation needs a route outside Pulse for now — or gives the submitters the epic owner role.",
+      text: "**“An employee with an idea” is not provided for in the permission model.** Only portfolio managers, epic owners and — limited to their own value stream — the business owner may create an epic. A feature owner, an RTE or a read-only user can create **no** epic. Anyone wanting to gather ideas from across the organisation needs a route outside Pulse for now — or gives the submitters the epic owner role.",
     },
   ],
 
@@ -301,7 +301,7 @@ export const EPIC_INTAKE_EN: Guide = {
   misconceptions: [
     {
       claim: "Any employee can submit an epic.",
-      why: "Only portfolio managers, epic owners and the value stream owner of their own stream hold that right.",
+      why: "Only portfolio managers, epic owners and the business owner of their own stream hold that right.",
     },
     {
       claim: "In the dialogue I estimate the size.",
@@ -340,7 +340,7 @@ export const EPIC_INTAKE_EN: Guide = {
   who: [
     {
       step: "Create an epic",
-      who: "Portfolio manager, epic owner; value stream owner within their stream",
+      who: "Portfolio manager, epic owner; business owner within their stream",
       capability: "epic.create",
     },
     {
@@ -350,7 +350,7 @@ export const EPIC_INTAKE_EN: Guide = {
     },
     {
       step: "Name the epic owner",
-      who: "Portfolio manager; value stream owner within their stream",
+      who: "Portfolio manager; business owner within their stream",
       capability: "epic.owner.assign",
     },
     {

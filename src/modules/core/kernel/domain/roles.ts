@@ -32,7 +32,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   platform_admin: "Platform-Admin",
   tenant_admin: "Tenant-Admin",
   portfolio_manager: "Portfolio Manager",
-  value_stream_owner: "Value Stream Owner",
+  value_stream_owner: "Business Owner",
   epic_owner: "Epic Owner",
   // Bis September 2026 stand hier „RTE (Feature-QS)". Die Feature-QS fiel
   // 2026-06 mit dem Feature-QA-Gate weg (`policies/index.ts`); das Etikett blieb

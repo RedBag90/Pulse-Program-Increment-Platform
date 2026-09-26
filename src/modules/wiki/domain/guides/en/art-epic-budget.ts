@@ -13,7 +13,7 @@ export const ART_EPIC_BUDGET_EN: Guide = {
   title: "An ART epic gets its money",
   teaser: "Pot, allocation, ceiling.",
   standfirst:
-    "An ART epic waits for no budget round. It appears on no candidate list — not rejected, but at home somewhere else. The second route to money, told three times over: from the view of the epic owner, the product manager, and the value stream owner where the pot comes from.",
+    "An ART epic waits for no budget round. It appears on no candidate list — not rejected, but at home somewhere else. The second route to money, told three times over: from the view of the epic owner, the product manager, and the business owner where the pot comes from.",
   cadence: "je_halbjahr",
   module: "budgeting",
   seeAlso: ["ein-budget-zeitraum", "ein-epic-reift"],
@@ -111,7 +111,7 @@ export const ART_EPIC_BUDGET_EN: Guide = {
             },
             {
               kind: "paragraph",
-              text: "Those who can tell me are the **value stream owner**, the **finance party**, the **RTE** — who sees their ART's pot — or **portfolio management**. And the **product manager** of my primary solution, who does not merely inform me but may allocate.",
+              text: "Those who can tell me are the **business owner**, the **finance party**, the **RTE** — who sees their ART's pot — or **portfolio management**. And the **product manager** of my primary solution, who does not merely inform me but may allocate.",
             },
           ],
         },
@@ -178,7 +178,7 @@ export const ART_EPIC_BUDGET_EN: Guide = {
     },
 
     {
-      label: "The value stream owner",
+      label: "The business owner",
       role: "value_stream_owner",
       question: "Is the money I have enough for what is coming?",
       stations: [
@@ -287,7 +287,7 @@ export const ART_EPIC_BUDGET_EN: Guide = {
     { step: "Put an epic forward", who: "Epic owner", capability: "epic.update" },
     {
       step: "See the free pot",
-      who: "Tenant admin, portfolio manager, value stream owner; RTE on their ART; finance party; product manager on their ARTs",
+      who: "Tenant admin, portfolio manager, business owner; RTE on their ART; finance party; product manager on their ARTs",
       capability: "budget.read",
     },
     {

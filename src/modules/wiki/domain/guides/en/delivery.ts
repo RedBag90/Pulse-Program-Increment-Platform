@@ -176,7 +176,7 @@ WSJF =  ────────────────────────
             },
             {
               kind: "paragraph",
-              text: "The role model has no inheritance, which is why “epic owner and above” is written out in full: portfolio manager, RTE, feature owner and epic owner unscoped, the value stream owner limited to their own stream — the same construction as on the epic.",
+              text: "The role model has no inheritance, which is why “epic owner and above” is written out in full: portfolio manager, RTE, feature owner and epic owner unscoped, the business owner limited to their own stream — the same construction as on the epic.",
             },
           ],
         },
@@ -286,7 +286,7 @@ WSJF =  ────────────────────────
     },
     {
       step: "Assign responsibility",
-      who: "the same **plus epic owner**; value stream owner limited to their own stream",
+      who: "the same **plus epic owner**; business owner limited to their own stream",
       capability: "feature.owner.assign",
     },
     {

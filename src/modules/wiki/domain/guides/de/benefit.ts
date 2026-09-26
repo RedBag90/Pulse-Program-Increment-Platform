@@ -341,7 +341,7 @@ Wert  (Umrechnungsfaktor)        0 € /Jahr`,
   who: [
     {
       step: "KPI anlegen, gewichten, löschen",
-      who: "Epic Owner, Portfolio Manager, Wertstrom-Owner (auf seinen Strom beschränkt)",
+      who: "Epic Owner, Portfolio Manager, Business Owner (auf seinen Strom beschränkt)",
       capability: "epic.update",
     },
     { step: "Messwert erfassen", who: "dieselben", capability: "epic.update" },
@@ -354,7 +354,7 @@ Wert  (Umrechnungsfaktor)        0 € /Jahr`,
     { step: "Impact abnehmen (L5)", who: "Finance", capability: "epic.gate.decide" },
     {
       step: "Check-in, Fortschritt, Kommentar",
-      who: "Portfolio Manager / Admin; Wertstrom-Owner in seinem Wertstrom",
+      who: "Portfolio Manager / Admin; Business Owner in seinem Wertstrom",
       capability: "target.manage",
     },
     {

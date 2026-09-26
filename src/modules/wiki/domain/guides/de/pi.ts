@@ -6,7 +6,7 @@ import type { Guide } from "@/modules/wiki/domain/guide";
  *
  * Die einzige Anleitung, die eine **bewusste Luecke** im Produkt beschreibt,
  * statt sie zu verschweigen: das Abschluss-Tor ist nur ueber die Schnittstelle
- * scharf, weil es fuer zwei seiner vier Bedingungen keine Flaeche gibt.
+ * scharf, weil es fuer zwei seiner drei Bedingungen keine Flaeche gibt.
  */
 export const PI: Guide = {
   slug: "ein-pi-von-anfang-bis-ende",
@@ -37,7 +37,7 @@ export const PI: Guide = {
     { kind: "quote", text: "Das Abschluss-Tor — und warum es zwei Wege gibt." },
     {
       kind: "paragraph",
-      text: "Ein PI abzuschließen heißt zu behaupten, dass ein Zeitraum wirklich zu Ende ist. Pulse kennt dafür ein Tor mit vier Bedingungen:",
+      text: "Ein PI abzuschließen heißt zu behaupten, dass ein Zeitraum wirklich zu Ende ist. Pulse kennt dafür ein Tor mit drei Bedingungen:",
     },
     {
       kind: "table",
@@ -48,17 +48,16 @@ export const PI: Guide = {
           "Ein Risiko, das niemand eingeordnet hat, wandert sonst unbemerkt ins nächste PI",
         ],
         ["System-Demo-Termin gesetzt", "Es gab eine Gelegenheit, das Ergebnis zu zeigen"],
-        ["Inspect-&-Adapt-Termin gesetzt", "Es gab eine Gelegenheit, daraus zu lernen"],
         ["Retrospektive-Notizen vorhanden", "Das Gelernte steht irgendwo"],
       ],
     },
     {
       kind: "note",
-      text: "**Dieses Tor ist heute nur über die Schnittstelle erreichbar.** In der Oberfläche gibt es genau einen Weg, ein PI zu beenden — _PI abschließen & nächstes öffnen_ —, und der prüft nur die offenen ROAM-Issues, und auch die nur als **Warnung**, die nicht blockiert. Die drei Zeremonien werden dort gar nicht geprüft.",
+      text: "**Dieses Tor ist heute nur über die Schnittstelle erreichbar.** In der Oberfläche gibt es genau einen Weg, ein PI zu beenden — _PI abschließen & nächstes öffnen_ —, und der prüft nur die offenen ROAM-Issues, und auch die nur als **Warnung**, die nicht blockiert. Die beiden Zeremonien werden dort gar nicht geprüft.",
     },
     {
       kind: "paragraph",
-      text: "Das ist kein Versehen, sondern eine bewusste Lücke mit einem Grund, der im Code steht: **es gibt keine Oberfläche, um die drei Termine zu setzen.** Ein Tor, das niemand öffnen kann, würde den Betrieb anhalten.",
+      text: "Das ist kein Versehen, sondern eine bewusste Lücke mit einem Grund, der im Code steht: **es gibt keine Oberfläche, um System-Demo und Retrospektive einzutragen.** Ein Tor, das niemand öffnen kann, würde den Betrieb anhalten.",
     },
     {
       kind: "quote",
@@ -134,7 +133,7 @@ export const PI: Guide = {
             },
             {
               kind: "aside",
-              text: "Was ich dabei **nicht** bekomme, ist der Anspruch, den das Abschluss-Tor formuliert: nach System-Demo, Inspect & Adapt und Retrospektive fragt mich hier niemand. Wer diese Disziplin will, muss sie heute außerhalb von Pulse führen.",
+              text: "Was ich dabei **nicht** bekomme, ist der Anspruch, den das Abschluss-Tor formuliert: nach System-Demo und Retrospektive fragt mich hier niemand. Wer diese Disziplin will, muss sie heute außerhalb von Pulse führen.",
             },
           ],
         },
@@ -225,7 +224,7 @@ export const PI: Guide = {
 
   misconceptions: [
     {
-      claim: "Die Oberfläche prüft die vier Bedingungen des Abschlusses.",
+      claim: "Die Oberfläche prüft die drei Bedingungen des Abschlusses.",
       why: "Sie prüft eine davon, und die nur als Warnung. Das volle Tor gibt es nur über die Schnittstelle.",
     },
     {
@@ -260,15 +259,15 @@ export const PI: Guide = {
 
   who: [
     { step: "PI anlegen, ändern, löschen", who: "RTE", capability: "pi.create" },
-    { step: "PI starten", who: "RTE, Wertstrom-Owner", capability: "pi.start" },
+    { step: "PI starten", who: "RTE, Business Owner", capability: "pi.start" },
     {
       step: "Kadenz fortschreiben (der Weg in der Oberfläche)",
-      who: "RTE, Wertstrom-Owner",
+      who: "RTE, Business Owner",
       capability: "pi.advance",
     },
     {
       step: "PI abschließen (volles Tor, nur über die Schnittstelle)",
-      who: "RTE, Wertstrom-Owner",
+      who: "RTE, Business Owner",
       capability: "pi.complete",
     },
     {

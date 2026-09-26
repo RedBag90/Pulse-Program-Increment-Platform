@@ -176,7 +176,7 @@ WSJF =  ────────────────────────
             },
             {
               kind: "paragraph",
-              text: "Das Rollenmodell kennt keine Vererbung, deshalb steht „ab Epic Owner aufwärts“ ausgeschrieben: Portfolio Manager, RTE, Feature Owner und Epic Owner unskopiert, der Wertstrom-Owner auf seinen Wertstrom beschränkt — dieselbe Konstruktion wie beim Epic.",
+              text: "Das Rollenmodell kennt keine Vererbung, deshalb steht „ab Epic Owner aufwärts“ ausgeschrieben: Portfolio Manager, RTE, Feature Owner und Epic Owner unskopiert, der Business Owner auf seinen Wertstrom beschränkt — dieselbe Konstruktion wie beim Epic.",
             },
           ],
         },
@@ -286,7 +286,7 @@ WSJF =  ────────────────────────
     },
     {
       step: "Verantwortung zuweisen",
-      who: "dieselben **plus Epic Owner**; Wertstrom-Owner auf seinen Strom beschränkt",
+      who: "dieselben **plus Epic Owner**; Business Owner auf seinen Strom beschränkt",
       capability: "feature.owner.assign",
     },
     {

@@ -333,7 +333,7 @@ export const BUDGETING_EN: Guide = {
     },
     {
       step: "See a node's money tabs at all",
-      who: "Admin, portfolio manager, value stream owner; RTE on **their** ART; finance party",
+      who: "Admin, portfolio manager, business owner; RTE on **their** ART; finance party",
       capability: "budget.read",
     },
   ],
