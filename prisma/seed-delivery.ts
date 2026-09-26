@@ -316,3 +316,66 @@ export function assertPiQuotas(quotas: readonly PiQuota[], label: string): void 
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Kapazität — die Last eines PI gegen seine Job-Size-Kapazität
+// ---------------------------------------------------------------------------
+
+export interface PiCapacityRow {
+  id: string;
+  name: string;
+  status: PiStatus;
+  capacityJobSize: number | null;
+}
+
+/** Σ Job Size je PI — die Last, die unter dem PI-Titel steht. */
+export function piLoad(features: readonly DeliveredFeature[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const f of features) {
+    if (f.piId == null) continue;
+    out.set(f.piId, (out.get(f.piId) ?? 0) + f.jobSize);
+  }
+  return out;
+}
+
+/**
+ * **Die Kapazität eines geplanten PI aus seiner Last** — mit Luft.
+ *
+ * Bis September 2026 kam die Kapazität aus einer Index-Formel (`70 + i·3`) und
+ * die Last aus den Features, zwei Zahlen ohne gemeinsamen Ursprung. Auf einer
+ * Timeline mit nur einem geplanten PI stapelte die Verteilregel alles dort
+ * hinein: „158 / 79 JS", rot, im Demo-Datensatz. Die Anzeige hatte recht; die
+ * Saat nicht.
+ *
+ * 15 % Luft, aufgerundet — genug, dass ein Feature dazukommen kann, ohne dass
+ * die Demo sofort rot wird; wenig genug, dass „voll" nach voll aussieht.
+ */
+export function capacityFromLoad(load: number): number {
+  return Math.ceil(load * 1.15);
+}
+
+/**
+ * **Kein geplantes oder laufendes PI über seiner Kapazität.**
+ *
+ * `assertPiQuotas` prüft nur abgeschlossene PIs — ein geplantes PI mit dem
+ * Doppelten seiner Kapazität verletzte nichts. `PiQuota` kannte das Feld nicht
+ * einmal. Diese Invariante hält die Saat an dem fest, was sie vorführen soll:
+ * eine Planung, keine Überbuchung.
+ */
+export function assertPiCapacity(
+  features: readonly DeliveredFeature[],
+  pis: readonly PiCapacityRow[],
+  label: string,
+): void {
+  const last = piLoad(features);
+  const ueberbucht = pis
+    .filter((p) => p.status !== "completed" && p.capacityJobSize != null)
+    .filter((p) => (last.get(p.id) ?? 0) > p.capacityJobSize!)
+    .map((p) => `${p.name} (${last.get(p.id) ?? 0} / ${p.capacityJobSize})`);
+  if (ueberbucht.length > 0) {
+    throw new Error(
+      `Seed-Invariante verletzt (${label}): ueberbuchte PIs — ${ueberbucht.join(", ")}. ` +
+        `Die Kapazitaet entsteht aus der Last (\`capacityFromLoad\`), nicht aus einer Formel.`,
+    );
+  }
+}

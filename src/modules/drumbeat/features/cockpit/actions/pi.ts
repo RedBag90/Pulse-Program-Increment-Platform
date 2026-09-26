@@ -64,20 +64,30 @@ export const setPiCapacityAction = createServerAction({
   schema: z.object({
     id: z.string().uuid(),
     artId: z.string().uuid(),
-    capacityJobSize: z.number().nonnegative().nullable(),
-    capacityAmount: z.number().nonnegative().nullable(),
+    capacityJobSize: z.number().nonnegative().nullable().optional(),
+    capacityAmount: z.number().nonnegative().nullable().optional(),
   }),
   action: "pi.update",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  /**
+   * **Drei Zustände je Feld, nicht zwei.** Nicht gesendet = unverändert
+   * (`undefined`), gesendet und leer = bewusst gelöscht (`null`), gesendet
+   * mit Zahl = gesetzt. Der Dienst kennt alle drei; die Aktion warf bis
+   * September 2026 die ersten beiden zusammen — ein Formular, das nur die Job
+   * Size schickte, hätte damit das €-Budget stillschweigend gelöscht.
+   */
   parseFormData: (fd) => {
     const f = fields(fd);
-    const job = f.nonEmptyString("capacityJobSize");
-    const amount = f.nonEmptyString("capacityAmount");
+    const drei = (name: string): number | null | undefined => {
+      if (!fd.has(name)) return undefined;
+      const v = f.nonEmptyString(name);
+      return v === undefined ? null : Number(v);
+    };
     return {
       id: f.string("id"),
       artId: f.string("artId"),
-      capacityJobSize: job === undefined ? null : Number(job),
-      capacityAmount: amount === undefined ? null : Number(amount),
+      capacityJobSize: drei("capacityJobSize"),
+      capacityAmount: drei("capacityAmount"),
     };
   },
   service: (ctx, input) =>

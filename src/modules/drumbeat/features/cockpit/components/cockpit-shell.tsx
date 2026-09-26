@@ -94,6 +94,7 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
             canStart={permissions.canStart}
             canAdvance={permissions.canAdvance}
             canDelete={permissions.canDelete}
+            canEditPi={permissions.canEditPi}
           />
         )}
       </div>

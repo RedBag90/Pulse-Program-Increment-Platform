@@ -89,7 +89,7 @@ export const PI: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Sie hat **keine eigene Fläche mehr** — sie findet im Cockpit statt. Dort ordne ich Features den PIs zu und sehe die Kapazität dagegen: Job Size und €-Budget je PI, beides **pro PI überschreibbar**, wenn die abgeleitete Zahl nicht passt.",
+              text: "Sie hat **keine eigene Fläche mehr** — sie findet im Cockpit statt. Dort ordne ich Features den PIs zu und sehe die Last dagegen: unter jedem PI-Titel steht die eingeplante Job Size, und wenn ich in der PI-Leiste eine **Kapazität** gesetzt habe, steht sie daneben — überbucht wird rot. Die Kapazität ist eine gesetzte Zahl, keine abgeleitete; sie folgt keinem Filter, die Last auch nicht.",
             },
             {
               kind: "quote",

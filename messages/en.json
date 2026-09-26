@@ -2308,7 +2308,10 @@
       "unterL3Erklaerung": "Features whose epic has not reached L3 “budget allocated” cannot be scheduled yet and therefore do not appear in planning.",
       "jobSizeKurz": "{n} JS",
       "jobSizeVonKapazitaet": "{n} / {kapazitaet} JS",
-      "jobSizeErklaerung": "Job size scheduled into this PI"
+      "jobSizeErklaerung": "Job size scheduled into this PI",
+      "kapazitaetJs": "Capacity",
+      "kapazitaetGespeichert": "Capacity saved",
+      "kapazitaetJsErklaerung": "Capacity of this PI in job size — a set figure, not a derived one. Empty = no capacity."
     },
     "errors": {
       "endBeforeStart": "The end date must be after the start date.",

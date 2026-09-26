@@ -54,6 +54,9 @@ import { contentForGate, assertGateContent } from "./seed-gate-content.js";
 import {
   assertJobSizes,
   assertPiQuotas,
+  assertPiCapacity,
+  capacityFromLoad,
+  piLoad,
   jobSizeFor,
   piQuotas,
   planFeature,
@@ -1304,15 +1307,32 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
     completedAt: (f.completedAt as Date | null) ?? null,
   }));
   assertJobSizes(gelieferte, "seed-demo");
-  assertPiQuotas(
-    piQuotas(gelieferte, [
-      ...piSpecs.map((p) => ({ ...toDeliveryPi(p), name: p.name })),
-      ...piBSpecs.map((p) => ({ ...toDeliveryPi(p), name: p.name })),
-    ]),
-    "seed-demo",
-  );
+  const namedPis = [
+    ...piSpecs.map((p) => ({ ...toDeliveryPi(p), name: p.name })),
+    ...piBSpecs.map((p) => ({ ...toDeliveryPi(p), name: p.name })),
+  ];
+  assertPiQuotas(piQuotas(gelieferte, namedPis), "seed-demo");
 
   await prisma.initiative.createMany({ data: featureRows });
+
+  // Die Kapazität aus der Last, nicht aus einer Formel — siehe `seed-large.ts`.
+  const last = piLoad(gelieferte);
+  for (const p of namedPis.filter((p) => p.status !== "completed")) {
+    await prisma.programIncrement.update({
+      where: { id: p.id },
+      data: { capacityJobSize: capacityFromLoad(last.get(p.id) ?? 0) },
+    });
+  }
+  assertPiCapacity(
+    gelieferte,
+    namedPis.map((p) => ({
+      id: p.id,
+      name: p.name,
+      status: p.status,
+      capacityJobSize: p.status === "completed" ? null : capacityFromLoad(last.get(p.id) ?? 0),
+    })),
+    "seed-demo",
+  );
   console.log(
     `  ✓ ${epicIds.length} Epics + ${featureRows.length} Features ` +
       `(davon ${standaloneRows.length} eigenständig)`,

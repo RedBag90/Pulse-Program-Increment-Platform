@@ -47,6 +47,7 @@ const NO_PERMS = {
   canAdvance: false,
   canStart: false,
   canDelete: false,
+  canEditPi: false,
 };
 
 const EMPTY_FILTERS = { status: [], ownerIds: [], epicIds: [], hasBlocker: false, q: "" };
@@ -63,6 +64,7 @@ function rows(partial: Partial<CockpitRows>): CockpitRows {
     depRows: [],
     hiddenBelowL3: 0,
     graphPositions: {},
+    jobSizeByPi: {},
     permissions: NO_PERMS,
     view: "board",
     filters: EMPTY_FILTERS,
@@ -657,6 +659,52 @@ describe("buildCockpitModel — die Kachel-Zahl folgt den Filtern", () => {
       rows({ ...base, featureRows: [featureRow({ id: "a", piId: "q1" })] }),
     );
     expect(model.selectedPi?.featureCount).toBe(model.piStrip[0]?.featureCount);
+  });
+
+  /**
+   * **Der Nenner steht, der Zähler wandert — mit Absicht.**
+   *
+   * Die Job-Size-Summe ist der Zähler der Überbuchung. Bis September 2026
+   * lief sie über dieselbe Schleife wie die Kachelzahl: ein Status-Filter,
+   * und das rote „158 / 79" verschwand. Jetzt kommt sie aus dem Loader über
+   * die ungefilterte planbare Menge — und der Builder darf sie nicht aus den
+   * gefilterten Zeilen neu rechnen.
+   */
+  it("lässt die Job-Size-Summe stehen, wenn der Filter die Zeilen kürzt", () => {
+    const featureRows = [
+      featureRow({ id: "a", piId: "q1", status: "approved", wsjfJobSize: 8 }),
+      featureRow({ id: "b", piId: "q1", status: "completed", wsjfJobSize: 13 }),
+    ];
+    const jobSizeByPi = { q1: 21 };
+
+    const ohne = buildCockpitModel(rows({ ...base, featureRows, jobSizeByPi }));
+    const mit = buildCockpitModel(
+      rows({
+        ...base,
+        featureRows: featureRows.filter((f) => f.status === "approved"),
+        filters: { ...EMPTY_FILTERS, status: ["approved"] },
+        jobSizeByPi,
+      }),
+    );
+
+    expect(mit.piStrip[0]?.featureCount).toBe(1);
+    expect(ohne.piStrip[0]?.featureCount).toBe(2);
+    // Die Summe folgt dem Loader, nicht dem Filter.
+    expect(mit.piStrip[0]?.plannedJobSize).toBe(21);
+    expect(mit.piStrip[0]?.plannedJobSize).toBe(ohne.piStrip[0]?.plannedJobSize);
+  });
+
+  it("nimmt die Summe nicht aus den Zeilen — sonst wäre der Filter der Nenner", () => {
+    // Zeilen sagen 8, der Loader sagt 21: der Loader gilt.
+    const model = buildCockpitModel(
+      rows({
+        ...base,
+        featureRows: [featureRow({ id: "a", piId: "q1", wsjfJobSize: 8 })],
+        jobSizeByPi: { q1: 21 },
+      }),
+    );
+    expect(model.piStrip[0]?.plannedJobSize).toBe(21);
+    expect(model.selectedPi?.plannedJobSize).toBe(21);
   });
 });
 

@@ -63,6 +63,14 @@ export interface CockpitPermissions {
   canStart: boolean;
   /** `pi.delete` — geplantes PI löschen (PI-Kontext-Leiste). */
   canDelete: boolean;
+  /**
+   * `pi.update` — die Kapazität eines PI setzen (PI-Kontext-Leiste).
+   *
+   * Die Server-Aktion dafür (`setPiCapacityAction`) gab es seit jeher; sie
+   * hatte nur nie einen Aufrufer. Was auf dem Bildschirm als Kapazität stand,
+   * war Saat — kein Mensch hatte die Zahl je eingetragen.
+   */
+  canEditPi: boolean;
 }
 
 export interface CockpitFilters {
@@ -315,6 +323,11 @@ export interface CockpitRows {
   /** Gezogene Netzplan-Positionen dieser ART. */
   graphPositions: Record<string, { x: number; y: number }>;
   /**
+   * Σ Job Size je PI über die **ungefilterte** planbare Menge — der Nenner
+   * der Überbuchung darf nicht mit den Oberflächen-Filtern wandern.
+   */
+  jobSizeByPi: Record<string, number>;
+  /**
    * Wie viele Features das L3-Tor gerade ausblendet — Epic ohne Budget.
    *
    * Sie stehen nicht in `featureRows`; ohne diese Zahl verschwänden sie
@@ -476,15 +489,18 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
   // war, und niemand konnte sehen, warum.
   const scopeFeatures = buildScopeFeatures(featureRows, filters.hasBlocker, userLabels);
   const countByPi = new Map<string, number>();
-  // **Dieselbe Menge wie der Zähler.** Eine Summe, die eine andere Feature-Menge
-  // liest als die Zahl daneben, widerspricht ihr irgendwann — und niemand kann
-  // sehen, warum. Deshalb dieselbe Schleife.
-  const jobSizeByPi = new Map<string, number>();
   for (const f of scopeFeatures) {
-    if (!f.piId) continue;
-    countByPi.set(f.piId, (countByPi.get(f.piId) ?? 0) + 1);
-    jobSizeByPi.set(f.piId, (jobSizeByPi.get(f.piId) ?? 0) + (f.wsjfJobSize ?? 0));
+    if (f.piId) countByPi.set(f.piId, (countByPi.get(f.piId) ?? 0) + 1);
   }
+  /**
+   * **Zwei Zahlen, zwei Mengen — mit Absicht.** Der Zähler folgt den Filtern
+   * (das ist die Zahl der sichtbaren Zeilen). Die Job-Size-Summe kommt aus
+   * dem Loader über die **ungefilterte** planbare Menge: sie ist der Zähler
+   * der Überbuchung, und eine Überbuchung darf sich nicht wegfiltern lassen.
+   * Bis September 2026 liefen beide über dieselbe Schleife — ein Filter, und
+   * das rote „158 / 79" war weg.
+   */
+  const jobSizeByPi = new Map(Object.entries(rows.jobSizeByPi));
 
   const filterOptions = {
     owners: (ownerIdsInArt ?? [])
@@ -755,8 +771,9 @@ export async function loadCockpitModel(
       featureRows: CockpitFeatureRow[];
       depRows: CockpitDepRow[];
       unterL3: number;
+      jobSizeByPi: Record<string, number>;
     }> => {
-      if (!selectedArtRow) return { featureRows: [], depRows: [], unterL3: 0 };
+      if (!selectedArtRow) return { featureRows: [], depRows: [], unterL3: 0, jobSizeByPi: {} };
 
       const grundWhere = {
         tenantId,
@@ -794,7 +811,24 @@ export async function loadCockpitModel(
           }
         : {};
 
-      const [featureRows, unterL3] = await Promise.all([
+      /**
+       * **Der Nenner steht, der Zähler wandert.** `featureRows` folgt den
+       * Filtern (Status, Owner, Epic, Suche) — für „wie viele Zeilen sehe
+       * ich" ist das richtig. Für „ist dieses PI überbucht" nicht: ein
+       * Filter, und die rote Zahl verschwand. Die Job-Size-Summe je PI kommt
+       * deshalb aus der **ungefilterten** planbaren Menge des ARTs — das
+       * L3-Tor gilt weiter, die Oberflächen-Filter nicht.
+       */
+      const planbarWhere = {
+        tenantId,
+        level: InitiativeLevel.FEATURE,
+        deletedAt: null,
+        artId: selectedArtRow.id,
+        piId: { not: null },
+        ...torWhere,
+      };
+
+      const [featureRows, unterL3, lastJePi] = await Promise.all([
         db.initiative.findMany({
           where: { ...grundWhere, ...torWhere },
           select: {
@@ -836,7 +870,14 @@ export async function loadCockpitModel(
               },
             })
           : Promise.resolve(0),
+        db.initiative.groupBy({
+          by: ["piId"],
+          where: planbarWhere,
+          _sum: { wsjfJobSize: true },
+        }),
       ]);
+      const jobSizeByPi: Record<string, number> = {};
+      for (const r of lastJePi) if (r.piId) jobSizeByPi[r.piId] = r._sum.wsjfJobSize ?? 0;
       let depRows: CockpitDepRow[] = [];
       if (featureRows.length > 0) {
         const scopeIds = featureRows.map((f) => f.id);
@@ -855,7 +896,7 @@ export async function loadCockpitModel(
           },
         });
       }
-      return { featureRows, depRows, unterL3 };
+      return { featureRows, depRows, unterL3, jobSizeByPi };
     })(),
     // Picker-Universum: distinct Owner + Parent-Epic ueber ALLE Features des ARTs
     // (ungefiltert), damit die Filter-Optionen beim Filtern nicht kollabieren.
@@ -884,7 +925,7 @@ export async function loadCockpitModel(
   ]);
 
   const { allPis } = pisResult;
-  const { featureRows, depRows, unterL3 } = featuresResult;
+  const { featureRows, depRows, unterL3, jobSizeByPi } = featuresResult;
   const { ownerIdsInArt, epicRows } = optionsResult;
 
   // Permissions — aus dem zentralen Policies-Registry (ADR-0002). UI nutzt die
@@ -916,6 +957,7 @@ export async function loadCockpitModel(
     canAdvance: hasCapability(principal, "pi.advance", resource),
     canStart: hasCapability(principal, "pi.start", resource),
     canDelete: hasCapability(principal, "pi.delete", resource),
+    canEditPi: hasCapability(principal, "pi.update", resource),
   };
 
   return buildCockpitModel({
@@ -928,6 +970,7 @@ export async function loadCockpitModel(
     depRows,
     hiddenBelowL3: unterL3,
     graphPositions,
+    jobSizeByPi,
     permissions,
     view: input.view ?? "board",
     filters,

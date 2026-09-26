@@ -83,6 +83,9 @@ import { contentForGate, assertGateContent } from "./seed-gate-content.js";
 import {
   assertJobSizes,
   assertPiQuotas,
+  assertPiCapacity,
+  capacityFromLoad,
+  piLoad,
   jobSizeFor,
   piQuotas,
   planFeature,
@@ -380,7 +383,14 @@ export async function seedLarge(ctx: SeedContext): Promise<void> {
    * abgeschlossenes PI alle vier Bedingungen des Abschluss-Tors. Die große
    * Kadenz verfehlt es absichtlich.
    */
-  const piBSpecs = Array.from({ length: 4 }, (_, k) => {
+  /**
+   * **Fünf, nicht vier.** Mit nur einem geplanten PI hatte die Verteilregel
+   * (`plannedPis[n % plannedPis.length]`) nichts zu verteilen — jedes
+   * L3-Feature des ARTs landete in Werk-PI 4, doppelt so viel wie seine
+   * Kapazität. Der Kommentar in `seed-delivery.ts` verspricht „verteilt, nicht
+   * gestapelt"; auf dieser Timeline konnte er es nicht halten.
+   */
+  const piBSpecs = Array.from({ length: 5 }, (_, k) => {
     const key = `pib${k + 1}`;
     piIds[key] = uid(`large:pi:${key}`);
     const start = addDays(piBase, (k - 2) * 70 + 14);
@@ -1367,6 +1377,32 @@ export async function seedLarge(ctx: SeedContext): Promise<void> {
   assertPiQuotas(piQuotas(gelieferte, namedPis), "seed-large");
 
   await createManyChunked(featureRows, (data) => prisma.initiative.createMany({ data }));
+
+  /**
+   * **Die Kapazität aus der Last**, nicht aus einer Formel. Bis September 2026
+   * stand hier `70 + i·3` neben Features, die nach einer ganz anderen Regel
+   * verteilt wurden — „158 / 79 JS" im Demo-Datensatz, rot. Abgeschlossene
+   * PIs behalten ihre Zahl (dort ist die Quote die Aussage); laufende und
+   * geplante bekommen Last plus Luft.
+   */
+  const last = piLoad(gelieferte);
+  const offenePis = namedPis.filter((p) => p.status !== "completed");
+  for (const p of offenePis) {
+    await prisma.programIncrement.update({
+      where: { id: p.id },
+      data: { capacityJobSize: capacityFromLoad(last.get(p.id) ?? 0) },
+    });
+  }
+  assertPiCapacity(
+    gelieferte,
+    namedPis.map((p) => ({
+      id: p.id,
+      name: p.name,
+      status: p.status,
+      capacityJobSize: p.status === "completed" ? null : capacityFromLoad(last.get(p.id) ?? 0),
+    })),
+    "seed-large",
+  );
   console.log(
     `  ✓ ${epicIds.length} Epics + ${featureRows.length} Features ` +
       `(davon ${standaloneRows.length} eigenständig) + ${kpiRows.length} KPIs`,

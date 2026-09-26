@@ -89,7 +89,7 @@ export const PI_EN: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "It **no longer has a surface of its own** — it happens in the cockpit. There I assign features to PIs and see the capacity against them: job size and € budget per PI, both **overridable per PI** when the derived figure does not fit.",
+              text: "It **no longer has a surface of its own** — it happens in the cockpit. There I assign features to PIs and see the load against them: under each PI title stands the scheduled job size, and once I have set a **capacity** in the PI bar it stands beside it — overbooked turns red. The capacity is a set figure, not a derived one; it follows no filter, and neither does the load.",
             },
             {
               kind: "quote",

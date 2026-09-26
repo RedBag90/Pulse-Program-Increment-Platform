@@ -4,6 +4,8 @@ import { AdvanceCadenceButton } from "@/modules/drumbeat/features/cockpit/compon
 import { DeletePiButton } from "@/modules/drumbeat/features/cockpit/components/delete-pi-button";
 import type { CockpitPiSlot } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { PI_STATUS_KEYS } from "@/modules/drumbeat/domain/status";
+import { PiJobSize } from "@/modules/drumbeat/features/cockpit/components/pi-job-size";
+import { PiCapacityField } from "@/modules/drumbeat/features/cockpit/components/pi-capacity-field";
 
 /**
  * PI-Kontext-Leiste des Cockpits — ersetzt die frühere eigenständige
@@ -22,6 +24,8 @@ interface Props {
   canStart: boolean;
   canAdvance: boolean;
   canDelete: boolean;
+  /** `pi.update` — die Kapazität setzen. */
+  canEditPi: boolean;
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -48,7 +52,7 @@ function formatDate(d: Date) {
   return d.toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export function CockpitPiContext({ pi, artId, canStart, canAdvance, canDelete }: Props) {
+export function CockpitPiContext({ pi, artId, canStart, canAdvance, canDelete, canEditPi }: Props) {
   const badgeClass = STATUS_BADGE[pi.status] ?? "bg-muted text-muted-foreground";
   const totalDays = Math.round(
     (pi.endDate.getTime() - pi.startDate.getTime()) / (1000 * 60 * 60 * 24),
@@ -80,6 +84,18 @@ export function CockpitPiContext({ pi, artId, canStart, canAdvance, canDelete }:
       <span className="text-xs text-muted-foreground">
         {pi.featureCount} Feature{pi.featureCount === 1 ? "" : "s"} in diesem PI
       </span>
+
+      {/* Die Last steht gegen die Kapazität — und die Kapazität lässt sich
+          hier setzen. Vorher gab es die Zahl nur als Saat. */}
+      <PiJobSize pi={pi} className="text-xs" />
+      {canEditPi && (
+        <PiCapacityField
+          key={`${pi.id}:${pi.capacityJobSize ?? ""}`}
+          piId={pi.id}
+          artId={artId}
+          value={pi.capacityJobSize}
+        />
+      )}
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
         {pi.status === "planned" && canStart && (

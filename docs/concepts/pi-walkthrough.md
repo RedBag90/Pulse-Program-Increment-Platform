@@ -88,9 +88,11 @@ im Kalender. Ich muss sie nicht anlegen; ich muss entscheiden, wann eines
 
 Vor dem Start liegt die **PI-Planung**. Sie hat keine eigene Fläche mehr — sie
 findet im Cockpit statt (`/umsetzung`); die alte Route `/pi-planning` leitet
-dorthin um. Dort ordne ich Features den PIs zu und sehe die Kapazität dagegen:
-Job Size und €-Budget je PI, beides pro PI überschreibbar, wenn die abgeleitete
-Zahl nicht passt. Was hier
+dorthin um. Dort ordne ich Features den PIs zu und sehe die Last dagegen: unter
+jedem PI-Titel steht die eingeplante Job Size, und wenn in der PI-Leiste eine
+Kapazität gesetzt ist, steht sie daneben — überbucht wird rot. Die Kapazität ist
+eine gesetzte Zahl, keine abgeleitete (es gibt im System keinen Begriff, aus dem
+sie folgen könnte); sie folgt keinem Filter, die Last auch nicht. Was hier
 zugeordnet wird, ist der Inhalt, über den ich gleich sage: das schaffen wir.
 
 Dann **starte** ich das PI. Pulse prüft zweierlei: dass es auf `planned` steht —
