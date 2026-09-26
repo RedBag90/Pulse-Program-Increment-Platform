@@ -42,7 +42,7 @@ export function useDependencyEdgeEditing(
   const depById = (depId: string): EditableDependency | undefined =>
     dependencies.find((d) => d.id === depId);
 
-  function callLink(sourceId: string, targetId: string, type: DependencyEdgeType = "depends_on") {
+  function callLink(sourceId: string, targetId: string, type: DependencyEdgeType = "blocks") {
     if (sourceId === targetId) return;
     startTransition(async () => {
       const res = await linkDependency(linkDependencyAction, {

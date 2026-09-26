@@ -57,7 +57,6 @@ export function CreateDependencyDialog({ open, onOpenChange }: CreateDependencyD
             <Label htmlFor="dep-type">{t("drumbeat.ui.type")}</Label>
             <select id="dep-type" name="type" defaultValue="blocks" className={SELECT_CLASS}>
               <option value="blocks">{t("drumbeat.ui.blocks")}</option>
-              <option value="depends_on">{t("drumbeat.ui.dependsOn")}</option>
               <option value="relates_to">{t("drumbeat.ui.relatesTo")}</option>
             </select>
           </div>

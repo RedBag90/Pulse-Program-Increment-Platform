@@ -185,21 +185,22 @@ export interface CreateFeatureWithDependencyInput {
   predecessorId: FeatureId;
   title: string;
   featureType?: FeatureType | null | undefined;
-  edgeType?: "blocks" | "depends_on" | "relates_to" | undefined;
+  edgeType?: "blocks" | "relates_to" | undefined;
 }
 
 /**
  * Netzplan-Quick-Add (Roadmap-N3): legt ein neues Feature mit Default-WSJF
  * 3/3/3/3 an und verbindet es als Folge-Knoten an einen bestehenden
  * Predecessor — alles atomar in einer Transaktion. Default-Edge-Typ
- * `depends_on`.
+ * `blocks`: der Vorgänger (`from`) blockiert das neue Feature (`to`) — so,
+ * wie der Netzplan die Kante zeichnet.
  */
 export async function createFeatureWithDependency(
   ctx: RequestContext,
   input: CreateFeatureWithDependencyInput,
 ): Promise<Result<{ id: FeatureId; dependencyId: string }>> {
   const mctx = toMutationContext(ctx);
-  const { parentId, artId, predecessorId, title, featureType, edgeType = "depends_on" } = input;
+  const { parentId, artId, predecessorId, title, featureType, edgeType = "blocks" } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     const parentResult = await findValidatedParent(tx, mctx, InitiativeLevel.FEATURE, parentId);
@@ -283,7 +284,7 @@ export interface InsertFeatureBetweenInput {
   artId: ArtId;
   fromId: FeatureId;
   toId: FeatureId;
-  edgeType: "blocks" | "depends_on" | "relates_to";
+  edgeType: "blocks" | "relates_to";
   title: string;
   featureType?: FeatureType | null | undefined;
 }
@@ -665,10 +666,8 @@ export async function setFeaturePi(
       const blockerEdges = await tx.dependency.findMany({
         where: {
           tenantId: mctx.tenantId,
-          OR: [
-            { type: "blocks", toId: featureId },
-            { type: "depends_on", fromId: featureId },
-          ],
+          type: "blocks",
+          toId: featureId,
         },
         include: {
           from: { select: { id: true, title: true, pi: { select: { endDate: true } } } },

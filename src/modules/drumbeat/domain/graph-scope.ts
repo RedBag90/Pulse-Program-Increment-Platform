@@ -14,12 +14,16 @@
  * Pure: no React, no dagre, no I/O, no Date.
  */
 
-export const DEPENDENCY_TYPES = ["blocks", "depends_on", "relates_to"] as const;
-export type DependencyType = (typeof DEPENDENCY_TYPES)[number];
+import { DEPENDENCY_TYPES, type DependencyType } from "@/modules/core/kernel/domain/types";
 
-/** Type-guard: drops edges whose persisted `type` isn't a known dependency type. */
+export { DEPENDENCY_TYPES, type DependencyType };
+
+/**
+ * Type-guard: drops edges whose persisted `type` isn't a known dependency
+ * type — seit September 2026 auch ein übrig gebliebenes `depends_on`.
+ */
 export function isValidEdgeType(t: string): t is DependencyType {
-  return t === "blocks" || t === "depends_on" || t === "relates_to";
+  return (DEPENDENCY_TYPES as readonly string[]).includes(t);
 }
 
 /** Minimal edge shape the classifier reads. Callers may pass richer objects

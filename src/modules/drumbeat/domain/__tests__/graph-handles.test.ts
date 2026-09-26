@@ -54,7 +54,8 @@ describe("assignHandles", () => {
   const kante = (id: string, source: string, target: string) => ({ id, source, target });
 
   it("gibt drei Abhängigkeiten desselben Paares drei verschiedene Anschlüsse", () => {
-    // Genau der Fall aus der Datenbank: blocks + depends_on + relates_to
+    // Genau der Fall aus der Datenbank (vor dem Wegfall von depends_on):
+    // drei Kanten
     // zwischen denselben zwei Features.
     const out = assignHandles([
       kante("e1", "a", "b"),

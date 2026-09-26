@@ -44,8 +44,8 @@ describe("buildDependenciesOverviewModel", () => {
     const m = buildDependenciesOverviewModel({
       dependencies: [
         dep({ id: "a", type: "blocks" }),
-        dep({ id: "b", type: "depends_on" }),
-        dep({ id: "c", type: "depends_on" }),
+        dep({ id: "b", type: "blocks" }),
+        dep({ id: "c", type: "blocks" }),
         dep({ id: "d", type: "relates_to" }),
       ],
       features,
@@ -53,7 +53,7 @@ describe("buildDependenciesOverviewModel", () => {
       pis,
       now,
     });
-    expect(m.funnelCounts).toEqual({ blocks: 1, depends_on: 2, relates_to: 1 });
+    expect(m.funnelCounts).toEqual({ blocks: 3, relates_to: 1 });
   });
 
   it("flags isCrossArt when from + to land in different ARTs", () => {

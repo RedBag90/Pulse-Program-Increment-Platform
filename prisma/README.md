@@ -244,7 +244,8 @@ Predictive Maintenance — Pilot Werk Nord         2024-H1 eingereicht · L5
        └─ Predictive Maintenance — Skalierung Konzern  2025-H2 · wartet auf Budget
 ```
 
-Je Kante eine `Dependency` (`depends_on`) — 116 im ganzen Datensatz. Die Kette
+Je Kante eine `Dependency` (`blocks`, die frühere Stufe blockiert die spätere)
+— 116 im ganzen Datensatz. Die Kette
 läuft in der **Zeit**: die nächste Stufe ist ein Epic, das später eingereicht
 wurde. Dass der Reifegrad entlang der Kette sinkt, ist die Folge und nicht die
 Vorgabe — und deshalb stimmt sie auch dann, wenn eine Stufe in ihrer Runde kein

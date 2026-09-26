@@ -2529,7 +2529,6 @@
     },
     "dependencyType": {
       "blocks": "blockiert",
-      "dependsOn": "hängt ab von",
       "relatesTo": "bezieht sich auf"
     },
     "ui": {
@@ -2641,14 +2640,12 @@
       "bearbeiten": "Bearbeiten",
       "fruehestmoeglicherStart": "Frühestmöglicher Start:",
       "ausgehendeDependencies": "Ausgehende Dependencies",
-      "wasDiesesFeatureBlockiert": "Was dieses Feature blockiert oder wovon es abhängt.",
       "eingehendeDependencies": "Eingehende Dependencies",
       "wasAndereFeaturesAuf": "Was andere Features auf dieses richten — read-only auf dieser Seite.",
       "timelineLoeschen": "Timeline löschen",
       "fromInitiative": "Von-Vorhaben",
       "type": "Typ",
       "blocks": "blockiert",
-      "dependsOn": "hängt ab von",
       "relatesTo": "bezieht sich auf",
       "toInitiative": "Zu-Vorhaben",
       "piStandardAnwenden": "PI-Standard anwenden",
@@ -2755,7 +2752,6 @@
       "crossEpicEndpunkteMehrere": "{count} Cross-Epic-Endpunkte (gestrichelt) — Klick navigiert zum externen Feature.",
       "netzplanSichtbar": "{visible} von {total} sichtbar",
       "netzplanHinweisPlus": "„+\" am Node = Folge-Feature · „+\" an Edge = dazwischen.",
-      "netzplanHinweisDrag": "Drag von rechts auf links = neue Abhängigkeit · Edge-Label anklicken = Typ ändern oder löschen.",
       "plusWeitere": "+ {count} weitere",
       "bulkAusgewaehlt": "{count} ausgewaehlt",
       "piZeitraumTage": "{start} – {end} ({days} Tage)",
@@ -2807,7 +2803,9 @@
       "blockiert": "blockiert",
       "blockiertAndere": "Blockiert",
       "nachfolgerGrundErledigt": "diese Karte ist erledigt",
-      "nachfolgerGrundSpaeteresPi": "in späterem PI"
+      "nachfolgerGrundSpaeteresPi": "in späterem PI",
+      "wasDiesesFeatureBlockiertOderBeruehrt": "Was dieses Feature blockiert oder womit es zusammenhängt.",
+      "netzplanHinweisDragBlockiert": "Drag von rechts auf links = neue Abhängigkeit, Quelle blockiert Ziel · Edge-Label anklicken = Typ ändern oder löschen."
     },
     "errors": {
       "endBeforeStart": "Das Enddatum muss nach dem Startdatum liegen.",

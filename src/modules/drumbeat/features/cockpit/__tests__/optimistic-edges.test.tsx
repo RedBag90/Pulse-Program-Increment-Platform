@@ -25,7 +25,7 @@ describe("mergeOptimisticEdges", () => {
   it("hält eine tmp-Kante, die der Server noch nicht kennt", () => {
     const merged = mergeOptimisticEdges(
       [edge("d-1", "f1", "f2", "blocks")],
-      [edge("d-1", "f1", "f2", "blocks"), edge("tmp-f2-f3-17", "f2", "f3", "depends_on")],
+      [edge("d-1", "f1", "f2", "blocks"), edge("tmp-f2-f3-17", "f2", "f3", "relates_to")],
     );
 
     expect(merged.map((e) => e.id)).toEqual(["d-1", "tmp-f2-f3-17"]);
@@ -35,8 +35,8 @@ describe("mergeOptimisticEdges", () => {
     // Der Server vergibt eine eigene Kennung — erkannt wird sie am Paar und am
     // Typ, nicht an der Id.
     const merged = mergeOptimisticEdges(
-      [edge("d-1", "f1", "f2", "blocks"), edge("d-2", "f2", "f3", "depends_on")],
-      [edge("d-1", "f1", "f2", "blocks"), edge("tmp-f2-f3-17", "f2", "f3", "depends_on")],
+      [edge("d-1", "f1", "f2", "blocks"), edge("d-2", "f2", "f3", "relates_to")],
+      [edge("d-1", "f1", "f2", "blocks"), edge("tmp-f2-f3-17", "f2", "f3", "relates_to")],
     );
 
     expect(merged.map((e) => e.id)).toEqual(["d-1", "d-2"]);

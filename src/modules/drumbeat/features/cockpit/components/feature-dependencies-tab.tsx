@@ -65,7 +65,7 @@ export function FeatureDependenciesTab({
           <div>
             <h2 className="text-lg font-medium">{t("drumbeat.ui.ausgehendeDependencies")}</h2>
             <p className="text-sm text-muted-foreground">
-              {t("drumbeat.ui.wasDiesesFeatureBlockiert")}
+              {t("drumbeat.ui.wasDiesesFeatureBlockiertOderBeruehrt")}
             </p>
           </div>
           {canEdit && artId && (

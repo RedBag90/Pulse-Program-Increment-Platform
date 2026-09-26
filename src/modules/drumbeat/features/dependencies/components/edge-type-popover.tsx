@@ -54,7 +54,7 @@ export function EdgeTypeMenu({ currentType, onChange, onDelete, onClose }: MenuP
         {t("drumbeat.ui.abhaengigkeitstyp")}
       </p>
       <div className="flex flex-col gap-0.5">
-        {(["depends_on", "blocks", "relates_to"] as const).map((typ) => (
+        {(["blocks", "relates_to"] as const).map((typ) => (
           <button
             key={typ}
             type="button"

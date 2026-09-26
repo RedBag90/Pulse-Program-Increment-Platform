@@ -25,7 +25,7 @@ import type { TenantId } from "@/modules/core/kernel/domain/types";
 // atomically with the write). They do NOT open their own transaction.
 // ---------------------------------------------------------------------------
 
-export type DependencyType = "blocks" | "depends_on" | "relates_to";
+export type DependencyType = "blocks" | "relates_to";
 
 /** The minimal edge shape the delete/split primitives need. A Prisma
  *  `Dependency` row satisfies it structurally. */

@@ -15,11 +15,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { DEPENDENCY_TYPE_KEYS } from "@/modules/drumbeat/domain/status";
 
 const SELECT_CLASS =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
-type DependencyType = "blocks" | "depends_on" | "relates_to";
+type DependencyType = "blocks" | "relates_to";
 
 interface Candidate {
   id: string;
@@ -32,11 +33,13 @@ interface Props {
   candidates: Candidate[];
 }
 
-const TYPES: { value: DependencyType; label: string }[] = [
-  { value: "blocks", label: "blocks" },
-  { value: "depends_on", label: "depends on" },
-  { value: "relates_to", label: "relates to" },
-];
+/**
+ * Die wählbaren Typen. Bis September 2026 standen hier englische Literale
+ * („depends on") auch auf der deutschen Oberfläche — und `depends_on`, das es
+ * seitdem nicht mehr gibt: es hiess „hängt ab von", wurde im Netzplan aber als
+ * „zuerst" gezeichnet. Übrig ist `blocks` für die Reihenfolge.
+ */
+const TYPES: readonly DependencyType[] = ["blocks", "relates_to"];
 
 export function LinkDependencyDialog({ fromId, artId, candidates }: Props) {
   const t = useTranslations();
@@ -81,9 +84,9 @@ export function LinkDependencyDialog({ fromId, artId, candidates }: Props) {
                   onChange={(e) => setType(e.target.value as DependencyType)}
                   className={SELECT_CLASS}
                 >
-                  {TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
+                  {TYPES.map((typ) => (
+                    <option key={typ} value={typ}>
+                      {t(DEPENDENCY_TYPE_KEYS[typ])}
                     </option>
                   ))}
                 </select>

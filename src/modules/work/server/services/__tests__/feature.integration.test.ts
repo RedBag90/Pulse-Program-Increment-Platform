@@ -284,7 +284,7 @@ describe("createFeatureWithDependency (Netzplan Quick-Add)", () => {
     return result.value.id;
   }
 
-  it("legt feature + depends_on-edge in derselben transaktion an", async () => {
+  it("legt feature + blocks-edge (Vorgänger → neu) in derselben transaktion an", async () => {
     const predecessorId = await makePredecessor();
     const result = await createFeatureWithDependency(testRequestContext(db, seed), {
       parentId: epicId,
@@ -310,7 +310,7 @@ describe("createFeatureWithDependency (Netzplan Quick-Add)", () => {
       where: { fromId: predecessorId, toId: result.value.id },
     });
     expect(dep).not.toBeNull();
-    expect(dep!.type).toBe("depends_on");
+    expect(dep!.type).toBe("blocks");
   });
 
   it("akzeptiert featureType + custom edgeType", async () => {
@@ -321,7 +321,7 @@ describe("createFeatureWithDependency (Netzplan Quick-Add)", () => {
       predecessorId,
       title: "Enabler block",
       featureType: "enabler",
-      edgeType: "blocks",
+      edgeType: "relates_to",
     });
 
     expect(isOk(result)).toBe(true);
@@ -333,7 +333,7 @@ describe("createFeatureWithDependency (Netzplan Quick-Add)", () => {
     const dep = await db.dependency.findFirst({
       where: { fromId: predecessorId, toId: result.value.id },
     });
-    expect(dep!.type).toBe("blocks");
+    expect(dep!.type).toBe("relates_to");
   });
 
   it("emittiert zwei audit-events (initiative.created + dependency.linked)", async () => {
@@ -413,7 +413,7 @@ describe("insertFeatureBetween (Netzplan Edge-Insertion)", () => {
         tenantId: seed.tenantId,
         fromId: f1.value.id,
         toId: f2.value.id,
-        type: "depends_on",
+        type: "blocks",
         createdBy: seed.actorId,
       },
     });
@@ -427,7 +427,7 @@ describe("insertFeatureBetween (Netzplan Edge-Insertion)", () => {
       artId: seed.artId,
       fromId: from,
       toId: to,
-      edgeType: "depends_on",
+      edgeType: "blocks",
       title: "Middle",
     });
 
@@ -442,10 +442,10 @@ describe("insertFeatureBetween (Netzplan Edge-Insertion)", () => {
 
     // Zwei neue Edges existieren.
     const upstream = await db.dependency.findFirst({
-      where: { fromId: from, toId: middleId, type: "depends_on" },
+      where: { fromId: from, toId: middleId, type: "blocks" },
     });
     const downstream = await db.dependency.findFirst({
-      where: { fromId: middleId, toId: to, type: "depends_on" },
+      where: { fromId: middleId, toId: to, type: "blocks" },
     });
     expect(upstream).not.toBeNull();
     expect(downstream).not.toBeNull();
@@ -511,7 +511,7 @@ describe("insertFeatureBetween (Netzplan Edge-Insertion)", () => {
       artId: seed.artId,
       fromId: from,
       toId: to,
-      edgeType: "depends_on",
+      edgeType: "blocks",
       title: "Audited-middle",
     });
 
@@ -545,7 +545,7 @@ describe("insertFeatureBetween (Netzplan Edge-Insertion)", () => {
       artId: seed.artId,
       fromId: f1.value.id,
       toId: f2.value.id,
-      edgeType: "depends_on",
+      edgeType: "blocks",
       title: "Phantom-middle",
     });
     expect(isErr(result)).toBe(true);

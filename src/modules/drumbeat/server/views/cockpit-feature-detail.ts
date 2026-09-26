@@ -24,7 +24,7 @@ import { resolveInitiativeValueStreamId } from "@/modules/core/kernel/domain/ini
  */
 export interface DependencyEdge {
   id: string;
-  type: "blocks" | "depends_on" | "relates_to";
+  type: "blocks" | "relates_to";
   /** Das andere Ende der Kante (nicht das aktuelle Feature). */
   other: { id: string; title: string };
 }

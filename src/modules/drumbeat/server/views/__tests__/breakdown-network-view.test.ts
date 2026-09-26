@@ -37,12 +37,12 @@ describe("buildBreakdownGraph", () => {
     const m = buildBreakdownGraph({
       features: [feature({ id: "a" }), feature({ id: "b" })],
       dependencies: [
-        { id: "e1", fromId: "a", toId: "b", type: "depends_on" },
+        { id: "e1", fromId: "a", toId: "b", type: "blocks" },
         {
           id: "e2",
           fromId: "a",
           toId: "outside",
-          type: "depends_on",
+          type: "blocks",
           to: { id: "outside", title: "Outside-T", parent: { id: "ep2", title: "Other Epic" } },
         },
         {
@@ -89,7 +89,7 @@ describe("buildBreakdownGraph", () => {
           id: "e2",
           fromId: "a",
           toId: "beides",
-          type: "depends_on",
+          type: "blocks",
           to: { id: "beides", title: "Beides", parent: { id: "ep9", title: "Fremd" } },
         },
       ],
@@ -108,7 +108,7 @@ describe("buildBreakdownGraph", () => {
     const m = buildBreakdownGraph({
       features: [feature({ id: "a" }), feature({ id: "b" })],
       dependencies: [
-        { id: "e1", fromId: "a", toId: "b", type: "depends_on" },
+        { id: "e1", fromId: "a", toId: "b", type: "blocks" },
         { id: "e2", fromId: "a", toId: "b", type: "frobnicates" },
       ],
     });
@@ -116,7 +116,7 @@ describe("buildBreakdownGraph", () => {
     expect(m.droppedEdgeCount).toBe(1);
   });
 
-  it("akzeptiert die drei gueltigen dependency-types", () => {
+  it("akzeptiert die zwei gueltigen dependency-types — depends_on ist entfallen", () => {
     const m = buildBreakdownGraph({
       features: [feature({ id: "a" }), feature({ id: "b" })],
       dependencies: [
@@ -125,7 +125,8 @@ describe("buildBreakdownGraph", () => {
         { id: "e3", fromId: "a", toId: "b", type: "relates_to" },
       ],
     });
-    expect(m.edges.map((e) => e.type)).toEqual(["blocks", "depends_on", "relates_to"]);
+    expect(m.edges.map((e) => e.type)).toEqual(["blocks", "relates_to"]);
+    expect(m.droppedEdgeCount).toBe(1);
   });
 
   it("leeres scope → leere ausgabe", () => {

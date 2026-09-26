@@ -865,14 +865,15 @@ async function main() {
   console.log(`  ✓ ${featureRows.length} Features, keines einem PI zugeordnet`);
 
   // Eine Abhängigkeit, die man sofort versteht: wie groß der Raum ist,
-  // entscheidet darüber, welche Workshop-Formate überhaupt gehen.
+  // entscheidet darüber, welche Workshop-Formate überhaupt gehen — das Hotel
+  // blockiert die Agenda.
   await prisma.dependency.create({
     data: {
       id: uid("offsite:dep:agenda-hotel"),
       tenantId,
-      fromId: featureIds["agenda:0"]!,
-      toId: featureIds["hotel:1"]!,
-      type: "depends_on",
+      fromId: featureIds["hotel:1"]!,
+      toId: featureIds["agenda:0"]!,
+      type: "blocks",
       createdBy: rte,
     },
   });

@@ -339,7 +339,7 @@ Pulse consists of **9 feature modules**. Each is sized for delivery within 1-3 s
 
 **Scope:**
 
-- Link initiatives via dependency types (`blocks`, `depends_on`, `relates_to`)
+- Link initiatives via dependency types (`blocks`, `relates_to`; `depends_on` was removed in September 2026)
 - Dependency graph visualization
 - Cycle detection
 - Impediment creation and escalation
@@ -1046,7 +1046,7 @@ Module: <feature module>
 **Acceptance Criteria:**
 
 - API: `POST /api/v1/initiatives/:id/dependencies`
-- Types: `blocks`, `depends_on`, `relates_to`
+- Types: `blocks`, `relates_to`
 - Cycle detection rejects circular dependencies
 - Cross-tenant linking forbidden
 - Audit events emitted

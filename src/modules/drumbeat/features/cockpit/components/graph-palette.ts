@@ -12,7 +12,6 @@ import { FEATURE_STATUS_DOT } from "@/modules/drumbeat/features/lib/status-badge
 /** Edge stroke color by dependency type. Canonical map shared by all graphs. */
 export const EDGE_COLOR: Record<DependencyType, string> = {
   blocks: "#ef4444",
-  depends_on: "#d97706",
   relates_to: "#94a3b8",
 };
 

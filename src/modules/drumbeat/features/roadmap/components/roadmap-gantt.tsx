@@ -15,7 +15,7 @@ import { DEPENDENCY_TYPE_KEYS } from "@/modules/drumbeat/domain/status";
 // importers of the component keep working.
 export type { RoadmapRow } from "@/modules/work/domain/roadmap";
 
-export type GanttDependencyType = "blocks" | "depends_on" | "relates_to";
+export type GanttDependencyType = "blocks" | "relates_to";
 
 export interface GanttDependency {
   id: string;
@@ -60,13 +60,11 @@ const ROW_H = 28;
 
 const EDGE_COLOR: Record<GanttDependencyType, string> = {
   blocks: "#ef4444",
-  depends_on: "#d97706",
   relates_to: "#94a3b8",
 };
 
 const EDGE_DASH: Record<GanttDependencyType, string | undefined> = {
   blocks: undefined,
-  depends_on: undefined,
   relates_to: "4 4",
 };
 
@@ -434,7 +432,7 @@ export function RoadmapGantt({
               }}
             >
               <defs>
-                {(["blocks", "depends_on", "relates_to"] as GanttDependencyType[]).map((typ) => (
+                {(["blocks", "relates_to"] as GanttDependencyType[]).map((typ) => (
                   <marker
                     key={`marker-${typ}`}
                     id={`gantt-arrow-${typ}`}

@@ -167,7 +167,7 @@ export interface CockpitDependency {
   id: string;
   fromId: string;
   toId: string;
-  type: "blocks" | "depends_on" | "relates_to";
+  type: "blocks" | "relates_to";
   /** "from" wenn der Source-Knoten ausserhalb des Scopes liegt
    *  (Predecessor-Ghost); "to" wenn der Target-Knoten ausserhalb liegt
    *  (Successor-Ghost); `null` wenn beide Endpunkte im Scope sind. */
@@ -323,22 +323,16 @@ export interface CockpitFeatureRow {
   primarySolution: { name: string } | null;
   parent: { id: string; title: string; primarySolution: { name: string } | null } | null;
   /**
-   * Eingehende `blocks`- und `depends_on`-Kanten. `blocks` herein heisst
-   * „`from` blockiert dieses Feature" (ein Blocker), `depends_on` herein
-   * „`from` hängt von diesem ab" (ein Nachfolger). Beide in einer Relation,
-   * weil Prisma dieselbe Relation nicht zweimal mit verschiedenem Filter wählt;
-   * `type` trennt sie im Builder.
+   * Eingehende `blocks`-Kanten — „`from` blockiert dieses Feature" (ein
+   * Blocker). `type` bleibt im Lesemodell, damit der Builder nicht an der
+   * Abfrage hängt.
    */
   dependenciesIn: ReadonlyArray<{
     id: string;
     type: string;
     from: { id: string; title: string; status: string; pi: BlockerPi | null } | null;
   }>;
-  /**
-   * Ausgehende `depends_on`- und `blocks`-Kanten — spiegelbildlich:
-   * `depends_on` hinaus ist ein Blocker („hängt ab von `to`"), `blocks` hinaus
-   * ein Nachfolger („blockiert `to`").
-   */
+  /** Ausgehende `blocks`-Kanten — „dieses Feature blockiert `to`" (ein Nachfolger). */
   dependenciesOut: ReadonlyArray<{
     id: string;
     type: string;
@@ -447,15 +441,10 @@ function buildScopeFeatures(
         r.dependenciesIn.filter((d) => d.type === typ).map((d) => d.from);
       const hinaus = (typ: string) =>
         r.dependenciesOut.filter((d) => d.type === typ).map((d) => d.to);
-      const blockers = classifyBlockers({
-        pi: r.pi,
-        blocksIn: hinein("blocks"),
-        dependsOnOut: hinaus("depends_on"),
-      });
+      const blockers = classifyBlockers({ pi: r.pi, blocksIn: hinein("blocks") });
       const successors = classifySuccessors({
         self: { status: r.status, pi: r.pi },
         blocksOut: hinaus("blocks"),
-        dependsOnIn: hinein("depends_on"),
       });
       const blocking = blockingOnly(blockers);
       const f: CockpitFeature = {
@@ -680,10 +669,15 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
     // PI als Default — so zeigt die Kontext-Leiste beim Laden sofort den Abschluss
     // des laufenden PI. `selectedPi` wird aus `allPis` aufgelöst, damit auch ein
     // außerhalb des Strip-Fensters liegendes PI korrekt dargestellt wird.
+    //
+    // **Ohne aktives PI das „jetzt"-PI laut Datum** (`anchorPiId`, im Streifen
+    // „NOW"). Bis September 2026 blieb die Auswahl dann leer, und die
+    // Kontext-Leiste mit Kapazität und Ziel verschwand — gemeldet nach einem
+    // ART-Wechsel, der `?pi=` leert, weil das PI zur alten Taktung gehört.
     selectedPiId =
       rawSelectedPiId && allPis.some((p) => p.id === rawSelectedPiId)
         ? rawSelectedPiId
-        : activePiId;
+        : (activePiId ?? anchorPiId);
     const selRow = selectedPiId ? allPis.find((p) => p.id === selectedPiId) : null;
     selectedPi = selRow
       ? {
@@ -976,7 +970,7 @@ export async function loadCockpitModel(
               select: { id: true, title: true, primarySolution: { select: { name: true } } },
             },
             dependenciesIn: {
-              where: { type: { in: ["blocks", "depends_on"] } },
+              where: { type: "blocks" },
               select: {
                 id: true,
                 type: true,
@@ -991,7 +985,7 @@ export async function loadCockpitModel(
               },
             },
             dependenciesOut: {
-              where: { type: { in: ["blocks", "depends_on"] } },
+              where: { type: "blocks" },
               select: {
                 id: true,
                 type: true,

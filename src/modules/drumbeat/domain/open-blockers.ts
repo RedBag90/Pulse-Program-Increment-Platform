@@ -1,13 +1,15 @@
 /**
  * **Welche Abhängigkeiten blockieren dieses Feature gerade — und welche nicht?**
  *
- * Kandidaten sind zwei Kantenarten in zwei Richtungen — dieselbe Definition,
- * die die Prüfung beim PI-Wechsel benutzt (`work/server/services/feature.ts`):
+ * Kandidaten sind die **eingehenden `blocks`**-Kanten: „Y blockiert X" — der
+ * Blocker ist `from`. Dieselbe Definition benutzt die Prüfung beim PI-Wechsel
+ * (`work/server/services/feature.ts`) und die Blocker-Fenster
+ * (`work/domain/blocker-window.ts`).
  *
- *  - eine **eingehende `blocks`**-Kante: „Y blockiert X" — der Blocker ist
- *    `from`;
- *  - eine **ausgehende `depends_on`**-Kante: „X hängt ab von Y" — der Blocker
- *    ist `to`.
+ * Bis September 2026 zählte auch eine ausgehende `depends_on`-Kante („X hängt
+ * ab von Y"). Der Typ ist entfallen: der Netzplan zeichnete ihn als „X
+ * zuerst", die Regel las ihn als „Y zuerst" — gezogene Kanten standen im
+ * Blocker-Symbol verkehrt herum.
  *
  * Ob ein Kandidat **tatsächlich** blockiert, entscheidet zweierlei:
  *
@@ -68,11 +70,9 @@ export function classifyBlockers(input: {
   pi: BlockerPi | null;
   /** `from` der eingehenden `blocks`-Kanten. */
   blocksIn: ReadonlyArray<BlockerCandidate | null>;
-  /** `to` der ausgehenden `depends_on`-Kanten. */
-  dependsOnOut: ReadonlyArray<BlockerCandidate | null>;
 }): BlockerRef[] {
   const seen = new Map<string, BlockerRef>();
-  for (const b of [...input.blocksIn, ...input.dependsOnOut]) {
+  for (const b of input.blocksIn) {
     if (b == null || seen.has(b.id)) continue;
     seen.set(b.id, { id: b.id, title: b.title, state: stateOf(b, input.pi) });
   }
@@ -85,8 +85,8 @@ export function classifyBlockers(input: {
 /**
  * **Die Gegenrichtung: wen hält dieses Feature auf?**
  *
- * Nachfolger sind die Umkehrung der Blocker-Kanten — ausgehende `blocks`
- * („X blockiert Y") und eingehende `depends_on` („Y hängt ab von X"). Ihr
+ * Nachfolger sind die Umkehrung der Blocker-Kanten — die ausgehenden
+ * `blocks` („X blockiert Y"). Ihr
  * Zustand ist derselbe, den **ihre** Karte für X anzeigt: dieselbe Regel
  * (`stateOf`), nur mit vertauschten Rollen — X ist der Blocker, das PI des
  * Nachfolgers das Bezugs-PI. So sagen beide Karten dasselbe über dieselbe
@@ -103,11 +103,9 @@ export function classifySuccessors(input: {
   self: { status: string; pi: BlockerPi | null };
   /** `to` der ausgehenden `blocks`-Kanten. */
   blocksOut: ReadonlyArray<BlockerCandidate | null>;
-  /** `from` der eingehenden `depends_on`-Kanten. */
-  dependsOnIn: ReadonlyArray<BlockerCandidate | null>;
 }): BlockerRef[] {
   const seen = new Map<string, BlockerRef>();
-  for (const n of [...input.blocksOut, ...input.dependsOnIn]) {
+  for (const n of input.blocksOut) {
     if (n == null || seen.has(n.id)) continue;
     const state = stateOf(
       { id: "", title: "", status: input.self.status, pi: input.self.pi },

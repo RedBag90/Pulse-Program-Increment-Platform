@@ -913,7 +913,7 @@ model Dependency {
   tenantId  String   @map("tenant_id") @db.Uuid
   fromId    String   @map("from_id") @db.Uuid
   toId      String   @map("to_id") @db.Uuid
-  type      String   // 'blocks' | 'depends_on' | 'relates_to'
+  type      String   // 'blocks' | 'relates_to' ('depends_on' entfiel im September 2026)
   createdAt DateTime @default(now()) @map("created_at")
   createdBy String   @map("created_by") @db.Uuid
 

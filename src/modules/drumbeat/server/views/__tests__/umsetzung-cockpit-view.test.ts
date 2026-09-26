@@ -356,6 +356,29 @@ describe("buildCockpitModel — selected-PI governance scope", () => {
     expect(model.selectedPiId).toBe("q2");
   });
 
+  /**
+   * Gemeldet: nach einem ART-Wechsel fehlte die Kontext-Leiste (Kapazität,
+   * Ziel), bis man ein PI anklickte. Der Wechsel leert `?pi=`, und das ART
+   * hatte kein PI im Status `active` — nur eines, das nach Datum „jetzt" ist.
+   */
+  it("ohne aktives PI und ohne ?pi: das „jetzt“-PI laut Datum", () => {
+    const ohneAktives = allPis.map((p) =>
+      p.status === "active" ? { ...p, status: "planned" } : p,
+    );
+    const model = buildCockpitModel(rows({ ...base, allPis: ohneAktives, selectedPiId: null }));
+    // now = 2026-05-15 liegt in q2 (April–Juni).
+    expect(model.selectedPiId).toBe("q2");
+    expect(model.selectedPi?.id).toBe("q2");
+  });
+
+  it("ohne aktives PI: ein ?pi aus fremder Taktung fällt ebenso auf das „jetzt“-PI", () => {
+    const ohneAktives = allPis.map((p) =>
+      p.status === "active" ? { ...p, status: "planned" } : p,
+    );
+    const model = buildCockpitModel(rows({ ...base, allPis: ohneAktives, selectedPiId: "fremd" }));
+    expect(model.selectedPiId).toBe("q2");
+  });
+
   it("has no selected PI without a selected ART", () => {
     const model = buildCockpitModel(rows({ selectedArtId: null, allPis, selectedPiId: "q2" }));
     expect(model.selectedPi).toBeNull();
@@ -521,7 +544,7 @@ describe("buildCockpitModel — off-scope dependency classification", () => {
             id: "in-scope",
             fromId: "a",
             toId: "b",
-            type: "depends_on",
+            type: "blocks",
             from: { id: "a", title: "a" },
             to: { id: "b", title: "b" },
           },
@@ -618,18 +641,27 @@ describe("buildCockpitModel — der PI-Scope grenzt ein, außer im Board", () =>
     expect(model.features.map((f) => f.id)).not.toContain("weit-weg");
   });
 
-  it("ohne gewählte PI bleibt alles stehen", () => {
-    // Ohne aktives PI und ohne `?pi=` gibt es keinen Scope.
+  it("ohne jedes PI bleibt alles stehen", () => {
+    // Ohne PI gibt es keinen Scope. Ohne *aktives* PI dagegen gilt seit
+    // September 2026 das „jetzt"-PI laut Datum — siehe den Block zum
+    // gewählten PI.
+    const model = buildCockpitModel(
+      rows({ ...base, allPis: [], view: "table", selectedPiId: null }),
+    );
+    expect(model.selectedPiId).toBeNull();
+    expect(model.features).toHaveLength(3);
+  });
+
+  it("ohne aktives PI grenzt die Tabelle auf das „jetzt“-PI ein — wie mit aktivem", () => {
     const model = buildCockpitModel(
       rows({
         ...base,
-        allPis: [{ ...allPis[0]!, status: "completed" }],
+        allPis: allPis.map((p) => ({ ...p, status: "planned" })),
         view: "table",
         selectedPiId: null,
-        now: D("2020-01-01").getTime(),
       }),
     );
-    expect(model.features).toHaveLength(3);
+    expect(model.features.map((f) => f.id)).toEqual(["b"]);
   });
 });
 
@@ -845,12 +877,12 @@ describe("buildCockpitModel — Job-Size-Ziel aus der Formel", () => {
   });
 });
 
-describe("buildCockpitModel — Blocker aus blocks und depends_on", () => {
+describe("buildCockpitModel — Blocker aus eingehenden blocks-Kanten", () => {
   const arts = [
     { id: "art-1", name: "ART 1", valueStreamId: "vs-1", timelineId: null, valueStream: null },
   ];
 
-  it("eine ausgehende depends_on-Kante blockiert — mit Link-Ziel", () => {
+  it("eine eingehende blocks-Kante blockiert — mit Link-Ziel", () => {
     const model = buildCockpitModel(
       rows({
         selectedArtId: "art-1",
@@ -858,11 +890,11 @@ describe("buildCockpitModel — Blocker aus blocks und depends_on", () => {
         featureRows: [
           featureRow({
             id: "f1",
-            dependenciesOut: [
+            dependenciesIn: [
               {
                 id: "d1",
-                type: "depends_on",
-                to: { id: "vor", title: "Vorgänger", status: "approved", pi: null },
+                type: "blocks",
+                from: { id: "vor", title: "Vorgänger", status: "approved", pi: null },
               },
             ],
           }),
@@ -889,17 +921,15 @@ describe("buildCockpitModel — Blocker aus blocks und depends_on", () => {
                 type: "blocks",
                 from: { id: "b", title: "B", status: "blocked", pi: null },
               },
-            ],
-            dependenciesOut: [
               {
                 id: "d2",
-                type: "depends_on",
-                to: { id: "a", title: "A", status: "in_progress", pi: null },
+                type: "blocks",
+                from: { id: "a", title: "A", status: "in_progress", pi: null },
               },
               {
                 id: "d3",
-                type: "depends_on",
-                to: { id: "c", title: "C", status: "completed", pi: null },
+                type: "blocks",
+                from: { id: "c", title: "C", status: "completed", pi: null },
               },
             ],
           }),
@@ -913,7 +943,7 @@ describe("buildCockpitModel — Blocker aus blocks und depends_on", () => {
     ]);
   });
 
-  it("der Filter „hat Blocker“ greift auch bei depends_on", () => {
+  it("eine ausgehende blocks-Kante macht die Kachel nicht blockiert — sie blockiert andere", () => {
     const model = buildCockpitModel(
       rows({
         selectedArtId: "art-1",
@@ -925,16 +955,15 @@ describe("buildCockpitModel — Blocker aus blocks und depends_on", () => {
             dependenciesOut: [
               {
                 id: "d1",
-                type: "depends_on",
+                type: "blocks",
                 to: { id: "x", title: "X", status: "approved", pi: null },
               },
             ],
           }),
-          featureRow({ id: "f2" }),
         ],
       }),
     );
-    expect(model.features.map((f) => f.id)).toEqual(["f1"]);
+    expect(model.features).toEqual([]);
   });
 });
 
@@ -962,9 +991,9 @@ describe("buildCockpitModel — eingeplante Vorgänger blockieren nicht", () => 
             id: "f5",
             piId: "q2",
             pi: PI2,
-            dependenciesOut: [
-              { id: "d1", type: "depends_on", to: vor("f6", PI1) },
-              { id: "d2", type: "depends_on", to: vor("f8", PI1) },
+            dependenciesIn: [
+              { id: "d1", type: "blocks", from: vor("f6", PI1) },
+              { id: "d2", type: "blocks", from: vor("f8", PI1) },
             ],
           }),
         ],
@@ -985,10 +1014,10 @@ describe("buildCockpitModel — eingeplante Vorgänger blockieren nicht", () => 
             id: "f1",
             piId: "q2",
             pi: PI2,
-            dependenciesIn: [{ id: "d1", type: "blocks", from: vor("gleich", PI2) }],
-            dependenciesOut: [
-              { id: "d2", type: "depends_on", to: vor("spaeter", PI3) },
-              { id: "d3", type: "depends_on", to: vor("backlog", null) },
+            dependenciesIn: [
+              { id: "d1", type: "blocks", from: vor("gleich", PI2) },
+              { id: "d2", type: "blocks", from: vor("spaeter", PI3) },
+              { id: "d3", type: "blocks", from: vor("backlog", null) },
             ],
           }),
         ],
@@ -1014,8 +1043,10 @@ describe("buildCockpitModel — eingeplante Vorgänger blockieren nicht", () => 
             id: "f1",
             piId: "q2",
             pi: PI2,
-            dependenciesIn: [{ id: "d1", type: "blocks", from: vor("a", PI1) }],
-            dependenciesOut: [{ id: "d2", type: "depends_on", to: vor("b", PI2) }],
+            dependenciesIn: [
+              { id: "d1", type: "blocks", from: vor("a", PI1) },
+              { id: "d2", type: "blocks", from: vor("b", PI2) },
+            ],
           }),
         ],
       }),
@@ -1051,7 +1082,7 @@ describe("buildCockpitModel — wen die Kachel aufhält", () => {
   const PI1 = { id: "q1", startDate: D("2026-01-01") };
   const PI2 = { id: "q2", startDate: D("2026-04-01") };
 
-  it("ausgehende blocks und eingehende depends_on sind Nachfolger — keine Blocker", () => {
+  it("ausgehende blocks-Kanten sind Nachfolger — keine Blocker", () => {
     const model = buildCockpitModel(
       rows({
         selectedArtId: "art-1",
@@ -1067,12 +1098,10 @@ describe("buildCockpitModel — wen die Kachel aufhält", () => {
                 type: "blocks",
                 to: { id: "y", title: "Y", status: "approved", pi: PI2 },
               },
-            ],
-            dependenciesIn: [
               {
                 id: "d2",
-                type: "depends_on",
-                from: { id: "z", title: "Z", status: "approved", pi: null },
+                type: "blocks",
+                to: { id: "z", title: "Z", status: "approved", pi: null },
               },
             ],
           }),

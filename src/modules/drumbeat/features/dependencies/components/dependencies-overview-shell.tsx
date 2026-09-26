@@ -28,7 +28,6 @@ interface Props {
 }
 const TYPE_DOT: Record<DependencyType, string> = {
   blocks: "bg-red-500",
-  depends_on: "bg-amber-500",
   relates_to: "bg-muted-foreground/40",
 };
 type ScopeFilter = "all" | "crossArt" | "crossPi" | "inPi";
@@ -50,7 +49,7 @@ function parseScope(raw: string | null): ScopeFilter {
 }
 
 /**
- * Cross-PI Dependencies-Overview. Type-Funnel (blocks / depends_on /
+ * Cross-PI Dependencies-Overview. Type-Funnel (blocks /
  * relates_to) + Filter (From-ART · To-ART · From-PI · To-PI · Scope ·
  * Suche). Bulk-Unlink ART-scoped — alle Auswahlen müssen denselben
  * From-ART teilen, sonst blockt die Bar mit einem Hinweis.

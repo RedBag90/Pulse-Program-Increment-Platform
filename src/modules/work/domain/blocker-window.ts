@@ -1,10 +1,10 @@
 /**
  * Pure edge → blocker-window projection, in one place.
  *
- * A Feature F is "blocked by" X when either
- *   • an edge `X → F` of type `blocks` exists (X actively blocks F), or
- *   • an edge `F → X` of type `depends_on` exists (F waits on X).
- * `relates_to` edges are purely informational and produce no window.
+ * A Feature F is "blocked by" X when an edge `X → F` of type `blocks` exists.
+ * `relates_to` edges are purely informational and produce no window. (Until
+ * September 2026 a `depends_on` edge `F → X` also counted, read as "F waits on
+ * X" — while every view drew it as "F first". The type is gone.)
  *
  * Both consumers of this rule share the definition: Work's `setFeaturePi`
  * (earliest-start advisory) and Drumbeat's `getBlockerWindowsForFeatures`
@@ -29,8 +29,8 @@ export interface BlockerEdge {
 
 /**
  * Projects blocker edges onto one blocker-window list per in-scope Feature.
- * The blocker side is the `from` of a `blocks` edge and the `to` of a
- * `depends_on` edge; the opposite endpoint is the Feature. Edges whose Feature
+ * The blocker side is the `from` of a `blocks` edge, the Feature its `to`.
+ * Other edge types are skipped. Edges whose Feature
  * endpoint is not in `featureIds` (off-scope), or whose blocker endpoint is
  * missing, are skipped. Insertion order of the input is preserved per Feature.
  */
@@ -40,10 +40,9 @@ export function blockerWindowsFromEdges(
 ): Map<string, BlockerWindow[]> {
   const out = new Map<string, BlockerWindow[]>();
   for (const e of edges) {
-    // For 'blocks' the *from* side is the blocker; for 'depends_on' the *to* side is.
-    const isBlocks = e.type === "blocks";
-    const featureSide = isBlocks ? e.toId : e.fromId;
-    const blocker = isBlocks ? e.from : e.to;
+    if (e.type !== "blocks") continue;
+    const featureSide = e.toId;
+    const blocker = e.from;
     if (!blocker) continue;
     if (!featureIds.has(featureSide)) continue;
     const list = out.get(featureSide) ?? [];

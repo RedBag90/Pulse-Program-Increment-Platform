@@ -20,7 +20,9 @@ describe("blockerWindowsFromEdges", () => {
     ]);
   });
 
-  it("maps a 'depends_on' edge: the to side is the blocker of the from (feature) side", () => {
+  it("a former 'depends_on' edge no longer yields a window — the type is gone", () => {
+    // Until September 2026 `depends_on(F → Y)` was read as "F waits on Y",
+    // while every view drew it as "F first". The rule now reads `blocks` only.
     const edges: BlockerEdge[] = [
       {
         type: "depends_on",
@@ -30,10 +32,7 @@ describe("blockerWindowsFromEdges", () => {
         to: { id: "Y", title: "Blocker Y", pi: { endDate: utc("2026-06-30") } },
       },
     ];
-    const out = blockerWindowsFromEdges(edges, new Set(["F"]));
-    expect(out.get("F")).toEqual([
-      { blockerId: "Y", blockerTitle: "Blocker Y", blockerEndDate: utc("2026-06-30") },
-    ]);
+    expect(blockerWindowsFromEdges(edges, new Set(["F", "Y"])).size).toBe(0);
   });
 
   it("emits a null endDate when the blocker is itself unscheduled", () => {
@@ -66,11 +65,7 @@ describe("blockerWindowsFromEdges", () => {
     expect(out.size).toBe(0);
   });
 
-  it("ignores relates_to edges (no window) — the 'to' side is treated as blocker and off-scope", () => {
-    // A relates_to edge is neither blocks nor depends_on; the function treats
-    // non-'blocks' as depends_on-shaped, so the feature side is `fromId`. When
-    // that side is in scope it still yields a window, so relates_to edges must
-    // simply never be passed in. Here fromId is off-scope → skipped.
+  it("ignores relates_to edges (no window), even with both ends in scope", () => {
     const edges: BlockerEdge[] = [
       {
         type: "relates_to",
@@ -80,7 +75,7 @@ describe("blockerWindowsFromEdges", () => {
         to: { id: "Z", title: "Z", pi: { endDate: utc("2026-01-01") } },
       },
     ];
-    const out = blockerWindowsFromEdges(edges, new Set(["F"]));
+    const out = blockerWindowsFromEdges(edges, new Set(["OTHER", "Z"]));
     expect(out.size).toBe(0);
   });
 
@@ -94,11 +89,11 @@ describe("blockerWindowsFromEdges", () => {
         to: { id: "F", title: "Feature F", pi: null },
       },
       {
-        type: "depends_on",
-        fromId: "F",
-        toId: "X2",
-        from: { id: "F", title: "Feature F", pi: null },
-        to: { id: "X2", title: "Second", pi: { endDate: utc("2026-04-01") } },
+        type: "blocks",
+        fromId: "X2",
+        toId: "F",
+        from: { id: "X2", title: "Second", pi: { endDate: utc("2026-04-01") } },
+        to: { id: "F", title: "Feature F", pi: null },
       },
     ];
     const out = blockerWindowsFromEdges(edges, new Set(["F"]));

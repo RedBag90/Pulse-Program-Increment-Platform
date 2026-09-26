@@ -133,10 +133,26 @@ export interface StageGateAdvanced {
   comment?: string;
 }
 
+/**
+ * **Die Abhängigkeitstypen — eine Liste für alle Module.**
+ *
+ * `blocks`: `from` kommt zuerst und hält `to` auf. `relates_to`: ohne
+ * Reihenfolge. Bis September 2026 gab es dazu `depends_on` („hängt ab von"),
+ * das der Netzplan als „from zuerst" zeichnete und die Blocker-Regel als „to
+ * zuerst" las; es ist entfallen (Bestand: `prisma/scripts/
+ * 2026-09-27-depends-on-zu-blocks.ts`).
+ *
+ * Hier, nicht in Drumbeat, weil auch Work die Liste zum Validieren braucht
+ * (ADR-0013: Work importiert nicht aus Drumbeat). Validierungen bauen ihr
+ * `z.enum` aus dieser Liste, statt sie abzuschreiben.
+ */
+export const DEPENDENCY_TYPES = ["blocks", "relates_to"] as const;
+export type DependencyType = (typeof DEPENDENCY_TYPES)[number];
+
 export interface DependencyLinked {
   fromId: InitiativeId;
   toId: InitiativeId;
-  type: "blocks" | "depends_on" | "relates_to";
+  type: DependencyType;
   tenantId: TenantId;
   actorId: UserId;
 }

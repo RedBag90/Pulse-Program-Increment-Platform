@@ -2529,7 +2529,6 @@
     },
     "dependencyType": {
       "blocks": "blocks",
-      "dependsOn": "depends on",
       "relatesTo": "relates to"
     },
     "ui": {
@@ -2641,14 +2640,12 @@
       "bearbeiten": "Edit",
       "fruehestmoeglicherStart": "Earliest possible start:",
       "ausgehendeDependencies": "Outgoing dependencies",
-      "wasDiesesFeatureBlockiert": "What this feature blocks or depends on.",
       "eingehendeDependencies": "Incoming dependencies",
       "wasAndereFeaturesAuf": "What other features point at this one — read-only on this page.",
       "timelineLoeschen": "Delete timeline",
       "fromInitiative": "From initiative",
       "type": "Type",
       "blocks": "blocks",
-      "dependsOn": "depends on",
       "relatesTo": "relates to",
       "toInitiative": "To initiative",
       "piStandardAnwenden": "Apply PI standard",
@@ -2755,7 +2752,6 @@
       "crossEpicEndpunkteMehrere": "{count} cross-epic endpoints (dashed) — click to go to the external feature.",
       "netzplanSichtbar": "{visible} of {total} visible",
       "netzplanHinweisPlus": "\"+\" on a node = follow-up feature · \"+\" on an edge = in between.",
-      "netzplanHinweisDrag": "Drag from right to left = new dependency · click an edge label = change type or delete.",
       "plusWeitere": "+ {count} more",
       "bulkAusgewaehlt": "{count} selected",
       "piZeitraumTage": "{start} – {end} ({days} days)",
@@ -2807,7 +2803,9 @@
       "blockiert": "blocking",
       "blockiertAndere": "Is blocking",
       "nachfolgerGrundErledigt": "this card is done",
-      "nachfolgerGrundSpaeteresPi": "in a later PI"
+      "nachfolgerGrundSpaeteresPi": "in a later PI",
+      "wasDiesesFeatureBlockiertOderBeruehrt": "What this feature blocks or relates to.",
+      "netzplanHinweisDragBlockiert": "Drag from right to left = new dependency, source blocks target · Click the edge label = change type or delete."
     },
     "errors": {
       "endBeforeStart": "The end date must be after the start date.",

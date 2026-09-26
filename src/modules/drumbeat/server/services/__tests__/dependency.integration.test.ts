@@ -128,13 +128,13 @@ describe("unlinkDependency", () => {
     await linkDependency(testRequestContext(db, seed), {
       fromId: epicA,
       toId: epicB,
-      type: "depends_on",
+      type: "blocks",
     });
 
     const result = await unlinkDependency(testRequestContext(db, seed), {
       fromId: epicA,
       toId: epicB,
-      type: "depends_on",
+      type: "blocks",
     });
 
     expect(isOk(result)).toBe(true);
@@ -162,20 +162,20 @@ describe("changeDependencyType (Netzplan Edge-Type-Wechsel)", () => {
     await linkDependency(testRequestContext(db, seed), {
       fromId: epicA,
       toId: epicB,
-      type: "depends_on",
+      type: "relates_to",
     });
     const auditBefore = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
 
     const result = await changeDependencyType(testRequestContext(db, seed), {
       fromId: epicA,
       toId: epicB,
-      fromType: "depends_on",
+      fromType: "relates_to",
       toType: "blocks",
     });
     expect(isOk(result)).toBe(true);
 
     const oldEdge = await db.dependency.findFirst({
-      where: { fromId: epicA, toId: epicB, type: "depends_on" },
+      where: { fromId: epicA, toId: epicB, type: "relates_to" },
     });
     expect(oldEdge).toBeNull();
     const newEdge = await db.dependency.findFirst({
@@ -188,12 +188,12 @@ describe("changeDependencyType (Netzplan Edge-Type-Wechsel)", () => {
   });
 
   it("verhindert change wenn der zielzustand einen zyklus erzeugen wuerde", async () => {
-    // A → B als depends_on, B → A als relates_to. Wenn relates_to nach blocks,
+    // A → B als blocks, B → A als relates_to. Wenn relates_to nach blocks,
     // entsteht A → B + B → A im non-relates-Graph = Zyklus.
     await linkDependency(testRequestContext(db, seed), {
       fromId: epicA,
       toId: epicB,
-      type: "depends_on",
+      type: "blocks",
     });
     await linkDependency(testRequestContext(db, seed), {
       fromId: epicB,
@@ -216,7 +216,7 @@ describe("changeDependencyType (Netzplan Edge-Type-Wechsel)", () => {
     const result = await changeDependencyType(testRequestContext(db, seed), {
       fromId: epicA,
       toId: epicC,
-      fromType: "depends_on",
+      fromType: "relates_to",
       toType: "blocks",
     });
     expect(isErr(result)).toBe(true);

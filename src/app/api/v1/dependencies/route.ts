@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEPENDENCY_TYPES } from "@/modules/core/kernel/domain/types";
 import {
   linkDependency,
   unlinkDependency,
@@ -8,7 +9,7 @@ import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 import type { InitiativeId } from "@/modules/core/kernel/domain/types";
 
-const dependencyTypeSchema = z.enum(["blocks", "depends_on", "relates_to"]);
+const dependencyTypeSchema = z.enum(DEPENDENCY_TYPES);
 
 const linkSchema = z.object({
   fromId: z.string().uuid(),

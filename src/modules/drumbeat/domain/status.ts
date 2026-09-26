@@ -77,6 +77,5 @@ export const PI_STATUS_KEYS: Record<PiStatus, string> = {
 
 export const DEPENDENCY_TYPE_KEYS: Record<DependencyType, string> = {
   blocks: "drumbeat.dependencyType.blocks",
-  depends_on: "drumbeat.dependencyType.dependsOn",
   relates_to: "drumbeat.dependencyType.relatesTo",
 };

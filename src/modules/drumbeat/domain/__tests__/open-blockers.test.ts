@@ -17,7 +17,7 @@ const b = (id: string, pi: keyof typeof PI | null, status = "in_progress") => ({
   pi: pi ? PI[pi] : null,
 });
 const state = (own: keyof typeof PI | null, blocker: ReturnType<typeof b>) =>
-  classifyBlockers({ pi: own ? PI[own] : null, blocksIn: [blocker], dependsOnOut: [] })[0]!.state;
+  classifyBlockers({ pi: own ? PI[own] : null, blocksIn: [blocker] })[0]!.state;
 
 describe("classifyBlockers", () => {
   it("ein Vorgänger im früheren PI blockiert nicht — er ist vorher eingeplant", () => {
@@ -46,11 +46,10 @@ describe("classifyBlockers", () => {
     expect(state("p2", b("a", null, "cancelled"))).toBe("done");
   });
 
-  it("beide Kantenarten, blockierende zuerst, und nur die zählen", () => {
+  it("blockierende zuerst, und nur die zählen", () => {
     const r = classifyBlockers({
       pi: PI.p2,
-      blocksIn: [b("a", "p2"), b("d", "p1", "completed")],
-      dependsOnOut: [b("c", "p3"), b("e", "p1")],
+      blocksIn: [b("a", "p2"), b("d", "p1", "completed"), b("c", "p3"), b("e", "p1")],
     });
     expect(r.map((x) => [x.id, x.state])).toEqual([
       ["c", "blocking"],
@@ -61,11 +60,10 @@ describe("classifyBlockers", () => {
     expect(blockingOnly(r)).toHaveLength(1);
   });
 
-  it("derselbe Vorgänger über beide Kanten steht einmal da; fehlende Endpunkte fallen weg", () => {
+  it("derselbe Vorgänger steht einmal da; fehlende Endpunkte fallen weg", () => {
     const r = classifyBlockers({
       pi: PI.p2,
-      blocksIn: [b("a", "p3"), null],
-      dependsOnOut: [b("a", "p3")],
+      blocksIn: [b("a", "p3"), null, b("a", "p3")],
     });
     expect(r).toHaveLength(1);
   });
@@ -76,7 +74,6 @@ describe("classifySuccessors", () => {
     classifySuccessors({
       self: { status, pi: self ? PI[self] : null },
       blocksOut: [b("n", own)],
-      dependsOnIn: [],
     })[0]!.state;
 
   it("dieselbe Regel mit vertauschten Rollen — wie die Karte des Nachfolgers sie zeigt", () => {
@@ -96,12 +93,10 @@ describe("classifySuccessors", () => {
     const ausSichtY = classifyBlockers({
       pi: PI.p2,
       blocksIn: [{ id: "x", title: "X", status: "approved", pi: PI.p1 }],
-      dependsOnOut: [],
     })[0]!.state;
     const ausSichtX = classifySuccessors({
       self: { status: "approved", pi: PI.p1 },
-      blocksOut: [],
-      dependsOnIn: [{ id: "y", title: "Y", status: "approved", pi: PI.p2 }],
+      blocksOut: [{ id: "y", title: "Y", status: "approved", pi: PI.p2 }],
     })[0]!.state;
     expect(ausSichtX).toBe(ausSichtY);
   });

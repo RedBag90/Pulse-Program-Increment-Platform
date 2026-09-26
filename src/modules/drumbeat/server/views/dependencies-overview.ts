@@ -15,7 +15,7 @@ import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { diffInDays } from "@/modules/core/kernel/domain/calendar";
 import { buildFunnelCounts } from "@/server/views/lib/page-model-utils";
 
-export const DEPENDENCY_TYPES = ["blocks", "depends_on", "relates_to"] as const;
+export const DEPENDENCY_TYPES = ["blocks", "relates_to"] as const;
 export type DependencyType = (typeof DEPENDENCY_TYPES)[number];
 
 export interface DependencyEndpoint {
@@ -189,7 +189,7 @@ export function buildDependenciesOverviewModel(input: {
 function emptyOverviewModel(): DependenciesOverviewModel {
   return {
     rows: [],
-    funnelCounts: { blocks: 0, depends_on: 0, relates_to: 0 },
+    funnelCounts: { blocks: 0, relates_to: 0 },
     artOptions: [],
     piOptions: [],
     toStatusOptions: [],

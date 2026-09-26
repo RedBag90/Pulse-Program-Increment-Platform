@@ -52,7 +52,6 @@ export const FEATURE_STATUS_LANE: Record<FeatureStatus, string> = {
 /** Farb-Token je Dependency-Typ (SSOT). */
 export const DEPENDENCY_TYPE_CLASS: Record<DependencyType, string> = {
   blocks: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300",
-  depends_on: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
   relates_to: "bg-slate-100 text-slate-600 dark:bg-slate-800/50 dark:text-slate-300",
 };
 

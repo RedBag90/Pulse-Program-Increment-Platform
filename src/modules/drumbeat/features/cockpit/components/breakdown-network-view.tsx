@@ -507,7 +507,7 @@ const InsertableEdge = memo(function InsertableEdge(props: EdgeProps) {
     selected,
   } = props;
   const edgeData = data as unknown as InsertableEdgeData | undefined;
-  const type = edgeData?.type ?? "depends_on";
+  const type = edgeData?.type ?? "blocks";
   const sourceArtId = edgeData?.sourceArtId ?? "";
   const canChangeType = edgeData?.canChangeType ?? false;
   const canInsert = edgeData?.canInsert ?? false;
@@ -1088,7 +1088,7 @@ export function BreakdownNetworkView({
         return;
       }
       const typ = ((alteKante.data as { type?: DependencyEdgeType } | undefined)?.type ??
-        "depends_on") as DependencyEdgeType;
+        "blocks") as DependencyEdgeType;
       if (
         typ !== "relates_to" &&
         detectCycle(
@@ -1186,8 +1186,8 @@ export function BreakdownNetworkView({
   const edgePaths = useEdgePaths(nodes, liveEdges, { width: NODE_WIDTH, height: NODE_HEIGHT });
 
   // Connection-Typ steuert, mit welchem Edge-Type neue Drag-Connects
-  // angelegt werden. Default `depends_on`.
-  const [connectType, setConnectType] = useState<DependencyEdgeType>("depends_on");
+  // angelegt werden. Default `blocks` — der einzige Typ mit Reihenfolge.
+  const [connectType, setConnectType] = useState<DependencyEdgeType>("blocks");
 
   const onConnect = useCallback(
     (conn: Connection) => {
@@ -1263,7 +1263,7 @@ export function BreakdownNetworkView({
           continue;
         }
         const data = edge.data as InsertableEdgeData | undefined;
-        const type = data?.type ?? "depends_on";
+        const type = data?.type ?? "blocks";
         startTransition(async () => {
           const result = await unlinkDependency(unlinkDependencyAction, {
             fromId: edge.source,
@@ -1392,7 +1392,7 @@ export function BreakdownNetworkView({
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <p className="text-muted-foreground">
             {canCreateFeature && <>{t("drumbeat.ui.netzplanHinweisPlus")} </>}
-            {canLinkDependency && t("drumbeat.ui.netzplanHinweisDrag")}
+            {canLinkDependency && t("drumbeat.ui.netzplanHinweisDragBlockiert")}
           </p>
           {canLinkDependency && (
             <div className="inline-flex items-center gap-1.5">
@@ -1405,7 +1405,7 @@ export function BreakdownNetworkView({
                 className="bg-card text-xs"
                 value={connectType}
                 onChange={setConnectType}
-                options={(["depends_on", "blocks", "relates_to"] as const).map((typ) => ({
+                options={(["blocks", "relates_to"] as const).map((typ) => ({
                   id: typ,
                   label: (
                     <span className="inline-flex items-center gap-1.5">

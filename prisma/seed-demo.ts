@@ -1834,9 +1834,13 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
   console.log("\n── Programm-Inhalt (Deps, Issues, Demos)");
 
   // Cross-ART Feature-Dependencies (Typen rotieren, unique from/to/type).
+  // Zwei von drei Kanten sind `blocks` — dort, wo bis September 2026
+  // `depends_on` stand. Die Menge der gerichteten Kanten bleibt damit gleich,
+  // und der Zyklus-Trigger findet beim Einfügen nichts, was er vorher nicht
+  // gefunden hätte.
   const allFeatureIds = featureRows.map((f) => f.id as string);
   const featureArtById = new Map(featureRows.map((f) => [f.id as string, f.artId as string]));
-  const DEP_TYPES = ["blocks", "depends_on", "relates_to"];
+  const DEP_TYPES = ["blocks", "blocks", "relates_to"];
   const depRows: Prisma.DependencyCreateManyInput[] = [];
   for (let i = 0; i < 26 && i < allFeatureIds.length; i++) {
     const fromId = allFeatureIds[i]!;
@@ -1869,12 +1873,14 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
     (id) => featureArtById.get(id) !== featureArtById.get(standaloneFrom ?? ""),
   );
   if (standaloneFrom && crossTarget) {
+    // Das Vorhaben-Feature blockiert die eigenständige Arbeit: `blocks`, der
+    // Vorgänger als `from` — vorher `depends_on` in umgekehrter Richtung.
     depRows.push({
       id: uid("dep:standalone:0"),
       tenantId,
-      fromId: standaloneFrom,
-      toId: crossTarget,
-      type: "depends_on",
+      fromId: crossTarget,
+      toId: standaloneFrom,
+      type: "blocks",
       createdBy: ADMIN,
     });
   }

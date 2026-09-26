@@ -1011,12 +1011,16 @@ export async function seedLarge(ctx: SeedContext): Promise<void> {
     // zwei Vermutungen.
     if (!contentForGate(roundPlan.epics[i]!.finalStep).epicDependency) continue;
     if (!contentForGate(roundPlan.epics[pred]!.finalStep).epicDependency) continue;
+    // Die frühere Stufe blockiert die spätere: `blocks(pred → i)`. Bis
+    // September 2026 stand hier `depends_on(i → pred)` („i hängt ab von
+    // pred") — ein Typ, den der Netzplan als „from zuerst" zeichnete und der
+    // deshalb verkehrt herum erschien; er ist entfallen.
     arcDepRows.push({
       id: uid(`large:dep:${i}`),
       tenantId,
-      fromId: epicIds[i]!,
-      toId: epicIds[pred]!,
-      type: "depends_on",
+      fromId: epicIds[pred]!,
+      toId: epicIds[i]!,
+      type: "blocks",
       createdBy: ADMIN,
     });
   }

@@ -17,7 +17,7 @@ import type { ActionState } from "@/server/http/server-action";
  */
 
 /** Dependency edge types accepted by the link / unlink / change-type actions. */
-export type DependencyEdgeType = "blocks" | "depends_on" | "relates_to";
+export type DependencyEdgeType = "blocks" | "relates_to";
 
 /**
  * A server action or a `useActionState` dispatcher — anything invoked with
@@ -31,7 +31,7 @@ const EMPTY: ActionState = {};
 export interface LinkDependencyArgs {
   fromId: string;
   toId: string;
-  /** Defaults to `"depends_on"` — matches the network views' `callLink` default. */
+  /** Defaults to `"blocks"` — matches the network views' `callLink` default. */
   type?: DependencyEdgeType;
   artId: string;
 }
@@ -40,7 +40,7 @@ export function linkDependency<R>(action: ActionLike<R>, args: LinkDependencyArg
   const fd = new FormData();
   fd.set("fromId", args.fromId);
   fd.set("toId", args.toId);
-  fd.set("type", args.type ?? "depends_on");
+  fd.set("type", args.type ?? "blocks");
   fd.set("artId", args.artId);
   return action(EMPTY, fd);
 }

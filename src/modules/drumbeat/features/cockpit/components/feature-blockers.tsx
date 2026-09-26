@@ -12,7 +12,7 @@ import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
  *
  * Das Symbol erscheint, sobald die Karte blockierende Abhängigkeiten hat —
  * in eine der beiden Richtungen: Vorgänger, die sie aufhalten
- * (`classifyBlockers`: eingehende `blocks`, ausgehende `depends_on`), oder
+ * (`classifyBlockers`: eingehende `blocks`), oder
  * Nachfolger, die sie aufhält (`classifySuccessors`). Gezählt und gefärbt wird
  * nach den Vorgängern, und nur nach denen, die **tatsächlich** aufhalten:
  *

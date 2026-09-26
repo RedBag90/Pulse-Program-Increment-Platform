@@ -106,7 +106,7 @@ export interface ChangeDependencyTypeInput {
 /**
  * Netzplan Edge-Type-Wechsel (Roadmap-P2): tauscht den Typ eines
  * bestehenden Edges atomar aus (loescht + neu anlegt, ein Audit-Event
- * mit `before`/`after`). Cycle-Check fuer blocks/depends_on, weil eine
+ * mit `before`/`after`). Cycle-Check fuer blocks, weil eine
  * Typ-Erhebung von `relates_to` zu `blocks` einen latent vorhandenen
  * Zyklus exposen koennte (relates_to wurde im Cycle-Check ignoriert).
  */
@@ -308,10 +308,9 @@ export async function listDependencies(
  * One-hop blocker-windows per Feature — feeds the "earliest possible PI"
  * derivation in `dependency-graph` / the PI-Planning overlay.
  *
- * Semantics: a Feature F is "blocked by" X when either
- *   • an edge `X → F` of type `blocks` exists (X actively blocks F), or
- *   • an edge `F → X` of type `depends_on` exists (F waits on X).
- * `relates_to` edges are purely informational and ignored. Returns one entry
+ * Semantics: a Feature F is "blocked by" X when an edge `X → F` of type
+ * `blocks` exists. (`depends_on` was removed in September 2026 — it was
+ * drawn as "from first" but read as "from waits on to".) `relates_to` edges are purely informational and ignored. Returns one entry
  * per direct upstream constraint with the blocker's PI window (null when the
  * blocker is itself unscheduled).
  *
@@ -331,10 +330,8 @@ export async function getBlockerWindowsForFeatures(
   const rows = await db.dependency.findMany({
     where: {
       tenantId,
-      OR: [
-        { type: "blocks", toId: { in: featureIds as string[] } },
-        { type: "depends_on", fromId: { in: featureIds as string[] } },
-      ],
+      type: "blocks",
+      toId: { in: featureIds as string[] },
     },
     include: {
       from: { select: { id: true, title: true, pi: { select: { endDate: true } } } },

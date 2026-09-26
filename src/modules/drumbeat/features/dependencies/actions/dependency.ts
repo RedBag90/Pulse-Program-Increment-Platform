@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { DEPENDENCY_TYPES } from "@/modules/core/kernel/domain/types";
 import {
   linkDependency,
   unlinkDependency,
@@ -12,7 +13,7 @@ import { createServerAction } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import type { InitiativeId } from "@/modules/core/kernel/domain/types";
 
-const TYPE = z.enum(["blocks", "depends_on", "relates_to"]);
+const TYPE = z.enum(DEPENDENCY_TYPES);
 
 /**
  * FormData-based dependency creation for the global "+" menu — picks both

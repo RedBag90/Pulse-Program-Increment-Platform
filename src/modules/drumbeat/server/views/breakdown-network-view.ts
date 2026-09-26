@@ -14,7 +14,7 @@ import type { Initiative } from "@/generated/prisma";
 import { wsjfTier } from "@/modules/drumbeat/domain/wsjf";
 import { classifyScopedEdges } from "@/modules/drumbeat/domain/graph-scope";
 
-export type DependencyEdgeType = "blocks" | "depends_on" | "relates_to";
+export type DependencyEdgeType = "blocks" | "relates_to";
 
 export interface BreakdownGraphNode {
   id: string;

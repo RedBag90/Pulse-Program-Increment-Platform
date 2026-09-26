@@ -133,7 +133,7 @@ dasselbe:
 | -------------- | ------------------------------------------ | ------------------- |
 | **Anlegen**    | eine neue Abhängigkeit als eigenes Objekt  | `dependency.link`   |
 | **Verknüpfen** | eine bestehende an ein Arbeitspaket hängen | `dependency.link`   |
-| **Typ ändern** | `blocks` · `depends_on` · `relates_to`     | `dependency.link`   |
+| **Typ ändern** | `blocks` · `relates_to`                    | `dependency.link`   |
 | **Lösen**      | einzeln oder im Stapel                     | `dependency.unlink` |
 
 > **Warum Lösen ein eigenes Recht ist.** Eine Abhängigkeit zu knüpfen fügt Wissen

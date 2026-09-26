@@ -7,7 +7,7 @@ import { unlinkDependencyAction } from "@/modules/drumbeat/features/dependencies
 interface Props {
   fromId: string;
   toId: string;
-  type: "blocks" | "depends_on" | "relates_to";
+  type: "blocks" | "relates_to";
   artId: string;
 }
 

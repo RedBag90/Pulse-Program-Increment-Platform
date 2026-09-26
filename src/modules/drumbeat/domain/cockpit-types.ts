@@ -95,7 +95,7 @@ export interface CockpitFeature extends FeatureBreakdown {
   blockerHint: string | null;
   /**
    * **Alle** blockierenden Abhängigkeiten mit ihrem Zustand — eingehende
-   * `blocks` und ausgehende `depends_on` (`classifyBlockers`): `blocking`,
+   * `blocks` (`classifyBlockers`): `blocking`,
    * `samePi` (offen, aber im selben PI) oder `done`. `hasBlocker` zählt nur
    * `blocking`; die Karte zeigt alle.
    */
