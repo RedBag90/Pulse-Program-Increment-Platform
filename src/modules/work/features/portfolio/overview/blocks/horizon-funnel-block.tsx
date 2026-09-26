@@ -15,6 +15,7 @@ import {
 import {
   fitFunnel,
   halfAt,
+  stripRowOf,
   DEFAULT_GEOMETRY as G,
   type FunnelItem,
   type HorizonTargets,
@@ -120,8 +121,8 @@ const STRIP_TITLE_Y = 21;
 const STRIP_NOTE_Y = 38;
 /** Oberkante der Symbolzeile, relativ zum Streifen. */
 const STRIP_ROW_Y = 46;
+/** Mindesthöhe der Symbolzeile; größere Symbole machen sie höher (`stripRowOf`). */
 const STRIP_ROW_H = 44;
-const STRIP_H = STRIP_ROW_Y + STRIP_ROW_H + 6;
 /** Abstand zwischen Bandfuß und Streifen. */
 const STRIP_GAP = 34;
 
@@ -427,6 +428,9 @@ function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: Funne
   const cut = last.minimal ? last.x0 : last.x1;
   const FOOT = footOf(layout);
   const STRIP_Y = FOOT + STRIP_GAP;
+  // Die Zeile wächst mit dem größten Symbol darin, statt es hinausragen zu lassen.
+  const stripRow = stripRowOf(layout.homeless, STRIP_ROW_H);
+  const STRIP_H = STRIP_ROW_Y + stripRow.rowH + 6;
   const height = layout.homeless.length > 0 ? STRIP_Y + STRIP_H + 12 : FOOT + 34;
 
   return (
@@ -705,12 +709,12 @@ function FunnelCard({ items, cycleKey, horizonTargets, budgetingEnabled }: Funne
                     // Die Packung legt die Symbole ab `G.padding` ab; hier zählt
                     // der linke Rand des Streifens, nicht der der Zeichnung.
                     cx: i.cx - G.padding + first.x0 + STRIP_PAD,
-                    cy: STRIP_Y + STRIP_ROW_Y + 20,
+                    cy: STRIP_Y + STRIP_ROW_Y + stripRow.cyOffset,
                     box: {
                       ...i.box,
                       x: i.box.x - G.padding + first.x0 + STRIP_PAD,
                       y: STRIP_Y + STRIP_ROW_Y,
-                      h: STRIP_ROW_H,
+                      h: stripRow.rowH,
                     },
                   }}
                   withLabel={withLabels}

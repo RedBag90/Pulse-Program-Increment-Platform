@@ -213,6 +213,40 @@ export interface SteeringEpicRow {
   solution: SolutionRef | null;
 }
 
+/** Ein offener Antrag, wie der Loader ihn liefert — roh, je Epic höchstens einer. */
+export interface PendingDecisionInput {
+  epicId: string;
+  /** Der beantragte Schritt: Analyse-Auswahl oder Business-Case-Freigabe. */
+  step: "analysis" | "L2";
+  requestedAt: Date;
+  requestedBy: string;
+  approvalsDone: number;
+  approvalsTotal: number;
+}
+
+/**
+ * **Wo eine Entscheidung ansteht** — Epics mit offenem Antrag auf die
+ * Analyse-Auswahl oder die Business-Case-Freigabe.
+ *
+ * Bis September 2026 markierte der Reifegrad-Wechsel Epics automatisch fürs
+ * Steering; die Agenda füllte sich mit allem, was eine Stufe genommen hatte.
+ * Das Flag ist wieder menschlich, und was eine Entscheidung *braucht*, steht
+ * hier — als Tatsache (ein Antrag liegt vor), nicht als Markierung, die
+ * niemand zurücknimmt.
+ */
+export interface RequestedDecisionRow {
+  id: string;
+  title: string;
+  step: "analysis" | "L2";
+  requestedByName: string | null;
+  daysWaiting: number;
+  approvalsDone: number;
+  approvalsTotal: number;
+  valueStreamName: string | null;
+  epicClass: EpicClass | null;
+  solution: SolutionRef | null;
+}
+
 export interface OverviewGoal {
   id: string;
   title: string;
@@ -337,6 +371,8 @@ export interface PortfolioOverview {
   blockedEpics: OverviewEpicCard[];
   /** Epics mit `needsSteeringAttention` — die Steering-Agenda-Tabelle. */
   steeringEpics: SteeringEpicRow[];
+  /** Epics mit offenem Antrag auf Analyse oder Business Case. */
+  requestedDecisionEpics: RequestedDecisionRow[];
 
   /**
    * Der Horizont-Trichter über dem Kanban: welches Produkt steht in welchem
@@ -467,6 +503,8 @@ export interface PortfolioOverviewInputs {
   goalContributions: EpicGoalContribution[];
   /** ownerId → Anzeigename, für die Owner-Spalte der Steering-Tabelle. */
   ownerLabels: Record<string, string>;
+  /** Offene Anträge auf Analyse oder Business-Case-Freigabe; fehlt = keine. */
+  pendingDecisions?: PendingDecisionInput[];
   themes: PortfolioOverviewTheme[];
   /**
    * Die Soll-Verteilung des Budgets ueber die Horizonte (Guardrail), in Prozent
@@ -560,6 +598,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     risks: risksRaw,
     goalContributions: goalContributionsRaw,
     ownerLabels,
+    pendingDecisions = [],
     themes,
     board,
     vsBudgets,
@@ -741,6 +780,31 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
       solution: c.solution,
     }))
     .sort((a, b) => b.daysSinceUpdate - a.daysSinceUpdate);
+
+  // Offene Anträge — nur für Epics, die die Übersicht gerade zeigt, damit ihre
+  // Filter auch hier gelten. Am längsten wartend zuerst.
+  const cardById = new Map(cards.map((c) => [c.id, c]));
+  const TAG_MS = 24 * 60 * 60 * 1000;
+  const requestedDecisionEpics: RequestedDecisionRow[] = pendingDecisions
+    .flatMap((p) => {
+      const c = cardById.get(p.epicId);
+      if (!c) return [];
+      return [
+        {
+          id: c.id,
+          title: c.title,
+          step: p.step,
+          requestedByName: ownerLabels[p.requestedBy] ?? null,
+          daysWaiting: Math.max(0, Math.floor((nowMs - p.requestedAt.getTime()) / TAG_MS)),
+          approvalsDone: p.approvalsDone,
+          approvalsTotal: p.approvalsTotal,
+          valueStreamName: c.valueStream?.name ?? null,
+          epicClass: c.epicClass,
+          solution: c.solution,
+        },
+      ];
+    })
+    .sort((a, b) => b.daysWaiting - a.daysWaiting);
 
   // Risiken kommen fertig geformt vom Adapter (Exposure bereits berechnet).
   // Hier nur die Präsentations-Sortierung: kritischste zuerst (score desc),
@@ -946,6 +1010,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     staleEpics,
     blockedEpics,
     steeringEpics,
+    requestedDecisionEpics,
     funnelItems,
     budgetingEnabled,
     risksEnabled,
@@ -1060,6 +1125,7 @@ export async function loadPortfolioOverviewInputs(
     runBySolution,
     tenantRow,
     guardrailRows,
+    pendingTransitions,
   ] = await Promise.all([
     listEpicsForOverview(db, tenantId, {
       valueStreamIds: filter.valueStreamIds,
@@ -1092,7 +1158,32 @@ export async function loadPortfolioOverviewInputs(
     // Groesse wie die Oeffnung der Kurve.
     db.tenant.findUnique({ where: { id: tenantId }, select: { guardrailTargets: true } }),
     listValueStreamGuardrailTargets(db, tenantId),
+    // Offene Anträge auf Analyse-Auswahl und Business-Case-Freigabe — die
+    // Kachel „Beantragte Entscheidungen".
+    db.stageGateTransition.findMany({
+      where: {
+        tenantId,
+        status: "pending",
+        kind: "forward",
+        toGate: { in: ["analysis", "L2"] },
+      },
+      select: {
+        initiativeId: true,
+        toGate: true,
+        requestedAt: true,
+        requestedBy: true,
+        approvals: { select: { status: true } },
+      },
+    }),
   ]);
+  const pendingDecisions: PendingDecisionInput[] = pendingTransitions.map((p) => ({
+    epicId: p.initiativeId,
+    step: p.toGate === "analysis" ? "analysis" : "L2",
+    requestedAt: p.requestedAt,
+    requestedBy: p.requestedBy,
+    approvalsDone: p.approvals.filter((a) => a.status === "approved").length,
+    approvalsTotal: p.approvals.length,
+  }));
   const runCosts = runBySolution;
 
   // ThemeEpicLink-Bridge ist V2-schema-ready, hat aber noch keine UI-Pflege —
@@ -1165,6 +1256,7 @@ export async function loadPortfolioOverviewInputs(
     risks,
     goalContributions,
     ownerLabels,
+    pendingDecisions,
     themes,
     board,
     vsBudgets,

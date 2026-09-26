@@ -753,3 +753,28 @@ export function findCollisions(items: readonly PlacedItem[]): string[] {
   }
   return bad;
 }
+
+/**
+ * **Wie hoch die Symbolzeile im Streifen „Ohne Produktzuordnung" sein muss.**
+ *
+ * Die Zeile war fest 44 px hoch, und jedes Symbol stand auf fester Höhe
+ * darin — seine **Größe** (betragsabhängig, ein Würfel reicht `size` nach oben
+ * und nach unten) spielte keine Rolle. Ab `size > 20` ragte er über den
+ * Hinweistext und unten über die gestrichelte Linie; die Beschriftung lag
+ * mitten auf ihm.
+ *
+ * Jetzt richtet sich die Zeile nach dem **größten** Symbol darin: oben der
+ * Würfel, darunter seine Beschriftung — wie im Trichter selbst
+ * (`h = 2 * size + labelHeight`). Alle Symbole stehen auf gemeinsamer Mitte.
+ */
+export function stripRowOf(
+  homeless: readonly Pick<PlacedItem, "size">[],
+  minHeight: number,
+  g: Pick<FunnelGeometry, "labelHeight"> = DEFAULT_GEOMETRY,
+): { rowH: number; cyOffset: number } {
+  const groesstes = homeless.reduce((m, i) => Math.max(m, i.size), 0);
+  return {
+    rowH: Math.max(minHeight, 2 * groesstes + g.labelHeight),
+    cyOffset: groesstes,
+  };
+}

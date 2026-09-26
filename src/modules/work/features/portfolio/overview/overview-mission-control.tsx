@@ -9,6 +9,7 @@ import { HorizonFunnelBlock } from "@/modules/work/features/portfolio/overview/b
 import { DueSoonBlock } from "@/modules/work/features/portfolio/overview/blocks/due-soon-block";
 import { RisksBlock } from "@/modules/work/features/portfolio/overview/blocks/risks-block";
 import { SteeringTableBlock } from "@/modules/work/features/portfolio/overview/blocks/steering-table-block";
+import { RequestedDecisionsBlock } from "@/modules/work/features/portfolio/overview/blocks/requested-decisions-block";
 import { RecentActivityBlock } from "@/modules/work/features/portfolio/overview/blocks/recent-activity-block";
 
 /**
@@ -103,6 +104,8 @@ export function OverviewMissionControl({
       {data.risksEnabled && <RisksBlock data={data} />}
 
       <SteeringTableBlock data={data} />
+
+      <RequestedDecisionsBlock data={data} />
 
       <RecentActivityBlock data={data} />
     </div>

@@ -420,3 +420,13 @@ abgeleitet.
   kein neues — es hatte zuvor schon dazu geführt, dass
   `epic.integration.test.ts` Erfolg auf einem Aufruf behauptete, der mit den
   Test-Capabilities gar nicht hätte durchgehen dürfen.
+
+## Nachtrag September 2026: kein automatisches Steering-Flag mehr
+
+Die Abnahmen von L0 → L1 und → L2 (früher L3.1) setzen `needsSteeringAttention`
+**nicht mehr**. Die Agenda füllte sich sonst mit jedem Epic, das eine Stufe
+genommen hatte, und niemand nahm die Markierung zurück. Ob ein Epic ins
+Steering gehört, entscheidet ein Mensch. Was eine Entscheidung _braucht_ —
+ein offener Antrag auf Analyse oder Business-Case-Freigabe —, zeigt die
+Portfolio-Übersicht in einer eigenen Kachel „Beantragte Entscheidungen".
+Bereits gesetzte Markierungen blieben unangetastet.

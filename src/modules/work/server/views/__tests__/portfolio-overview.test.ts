@@ -630,3 +630,91 @@ describe("Der Horizont einer Epic-Karte", () => {
     expect(horizonOf({ id: "e4", title: "D" })).toBeNull();
   });
 });
+
+/**
+ * **Beantragte Entscheidungen.** Epics mit offenem Antrag auf Analyse-Auswahl
+ * oder Business-Case-Freigabe — die Kachel unter der Steering-Agenda. Sie
+ * ersetzt, was das automatische Steering-Flag grob versuchte.
+ */
+describe("buildPortfolioOverviewModel — requestedDecisionEpics", () => {
+  it("zeigt offene Anträge, am längsten wartend zuerst, mit Abnahmen und Antragsteller", () => {
+    const inputs = baseInputs();
+    inputs.ownerLabels = { "u-1": "alice@example.com" };
+    inputs.epics = [
+      epic({ id: "a", title: "Analyse", vsName: "Payments" }),
+      epic({ id: "b", title: "Business Case" }),
+    ];
+    inputs.pendingDecisions = [
+      {
+        epicId: "a",
+        step: "analysis",
+        requestedAt: daysAgo(2),
+        requestedBy: "u-1",
+        approvalsDone: 0,
+        approvalsTotal: 1,
+      },
+      {
+        epicId: "b",
+        step: "L2",
+        requestedAt: daysAgo(9),
+        requestedBy: "u-x",
+        approvalsDone: 2,
+        approvalsTotal: 5,
+      },
+    ];
+    const m = buildPortfolioOverviewModel(inputs);
+
+    expect(m.requestedDecisionEpics.map((r) => r.id)).toEqual(["b", "a"]);
+    expect(m.requestedDecisionEpics[0]).toMatchObject({
+      step: "L2",
+      approvalsDone: 2,
+      approvalsTotal: 5,
+      requestedByName: null,
+    });
+    expect(m.requestedDecisionEpics[1]).toMatchObject({
+      step: "analysis",
+      requestedByName: "alice@example.com",
+      valueStreamName: "Payments",
+    });
+    expect(m.requestedDecisionEpics[0]!.daysWaiting).toBeGreaterThanOrEqual(8);
+  });
+
+  it("lässt Anträge für Epics weg, die die Übersicht gerade nicht zeigt", () => {
+    // Die Filter der Übersicht gelten auch hier.
+    const inputs = baseInputs();
+    inputs.epics = [epic({ id: "a", title: "Sichtbar" })];
+    inputs.pendingDecisions = [
+      {
+        epicId: "weg",
+        step: "L2",
+        requestedAt: daysAgo(1),
+        requestedBy: "u",
+        approvalsDone: 0,
+        approvalsTotal: 1,
+      },
+    ];
+    expect(buildPortfolioOverviewModel(inputs).requestedDecisionEpics).toEqual([]);
+  });
+
+  it("ist leer, wenn nichts beantragt ist", () => {
+    expect(buildPortfolioOverviewModel(baseInputs()).requestedDecisionEpics).toEqual([]);
+  });
+
+  it("setzt das Steering-Flag nicht — ein offener Antrag ist keine Markierung", () => {
+    const inputs = baseInputs();
+    inputs.epics = [epic({ id: "a", title: "Beantragt", steering: false })];
+    inputs.pendingDecisions = [
+      {
+        epicId: "a",
+        step: "L2",
+        requestedAt: daysAgo(1),
+        requestedBy: "u",
+        approvalsDone: 0,
+        approvalsTotal: 1,
+      },
+    ];
+    const m = buildPortfolioOverviewModel(inputs);
+    expect(m.steeringEpics).toEqual([]);
+    expect(m.requestedDecisionEpics).toHaveLength(1);
+  });
+});

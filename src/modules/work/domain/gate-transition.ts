@@ -60,11 +60,9 @@ export interface GateStamps {
    * keinen eigenen Freigabelauf mehr davor. `null` räumt sie beim Revert ab.
    */
   hypothesisApprovedAt?: Date | null;
-  /** Eine inhaltliche Freigabe markiert das Epic fürs nächste Steering. */
-  needsSteeringAttention?: boolean;
   selectedForAnalyzingAt?: Date | null;
   /**
-   * Business-Case-Freigabe. Die Abnahme des Schritts L2 → L3.1 **ist** sie —
+   * Business-Case-Freigabe. Die Abnahme des Schritts analysis → L2 **ist** sie —
    * die fünf Parteien zeichnen dort. `null` räumt sie beim Revert ab.
    */
   businessCaseApprovedAt?: Date | null;
@@ -112,12 +110,17 @@ export function stampsForAdvance(
     // bleibt stehen, die Bestätigung materialisiert sich allein im Stempel.
     stageGate: gateOfStep(to),
     // L0 → L1 trägt die Hypothesen-Freigabe: die Abnahme *ist* sie. Deshalb
-    // stempelt sie hier mit und setzt das Steering-Flag (das hing an
-    // `decideHypothesis`).
+    // stempelt sie hier mit.
+    //
+    // **Kein Steering-Flag mehr.** Bis September 2026 markierte dieser Wechsel
+    // (und der auf L2) das Epic automatisch fürs Steering — die Agenda füllte
+    // sich mit allem, was eine Stufe genommen hatte, und niemand nahm die
+    // Markierung zurück. Ob ein Epic ins Steering gehört, entscheidet ein
+    // Mensch; was eine Entscheidung *braucht*, zeigt die Kachel der offenen
+    // Anträge.
     ...(to === "L1" && {
       ...(facts.selectedForDetailingAt == null && { selectedForDetailingAt: now }),
       ...(facts.hypothesisApprovedAt == null && { hypothesisApprovedAt: now }),
-      needsSteeringAttention: true,
     }),
     // Die Analyse-Entscheidung bewegt den Reifegrad nicht — sie hinterlaesst
     // genau diesen Stempel, und `currentGateStep` liest ihn zurueck.
@@ -133,7 +136,6 @@ export function stampsForAdvance(
       ...(facts.businessCaseApprovedAt == null && { businessCaseApprovedAt: now }),
       ...(facts.investmentHorizon == null &&
         facts.solutionHorizon != null && { investmentHorizon: facts.solutionHorizon }),
-      needsSteeringAttention: true,
     }),
     ...(to === "L4" && facts.implementationStartedAt == null && { implementationStartedAt: now }),
     ...(to === "L4.2" &&

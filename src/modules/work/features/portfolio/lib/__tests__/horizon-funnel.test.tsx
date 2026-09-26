@@ -9,6 +9,7 @@ import {
   DEFAULT_GEOMETRY,
   CODE_STEPS,
   type FunnelItem,
+  stripRowOf,
 } from "@/modules/work/features/portfolio/lib/horizon-funnel";
 import type { Horizon } from "@/modules/work/domain/portfolio-guardrails";
 
@@ -767,5 +768,36 @@ describe("layoutFunnel — Zählmodus (Budget-Modul aus)", () => {
     expect(layoutFunnel(money).items.map((i) => i.size)).toEqual(
       layoutFunnel(money, undefined, undefined, null, {}).items.map((i) => i.size),
     );
+  });
+});
+
+/**
+ * **Die Symbole im Streifen „Ohne Produktzuordnung" passen hinein.**
+ *
+ * Gemeldet: der Würfel „NH · Betrieb" ragte über den Hinweistext und unten
+ * über die gestrichelte Linie — die Zeile war fest 44 px hoch, egal wie groß
+ * das Symbol war.
+ */
+describe("stripRowOf", () => {
+  const MIN = 44;
+
+  it("bleibt bei kleinen Symbolen auf der Mindesthöhe", () => {
+    expect(stripRowOf([{ size: 8 }], MIN).rowH).toBe(MIN);
+    // Schon das kleinste Produkt (10) braucht mit Beschriftung 46 — die alte
+    // feste 44 war also nie ganz genug.
+    expect(stripRowOf([{ size: 10 }], MIN).rowH).toBe(46);
+  });
+
+  it("wächst mit dem größten Symbol: Würfel plus Beschriftung", () => {
+    const { rowH, cyOffset } = stripRowOf([{ size: 12 }, { size: 34 }], MIN);
+    expect(rowH).toBe(2 * 34 + DEFAULT_GEOMETRY.labelHeight);
+    // Oberkante des größten Würfels liegt genau an der Oberkante der Zeile.
+    expect(cyOffset - 34).toBe(0);
+    // Unterkante des Würfels liegt über der Beschriftung, innerhalb der Zeile.
+    expect(cyOffset + 34).toBeLessThanOrEqual(rowH - DEFAULT_GEOMETRY.labelHeight);
+  });
+
+  it("kommt mit einem leeren Streifen aus", () => {
+    expect(stripRowOf([], MIN)).toEqual({ rowH: MIN, cyOffset: 0 });
   });
 });

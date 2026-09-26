@@ -479,7 +479,7 @@ describe("planGateRevert", () => {
 });
 
 describe("Der Schritt auf L2 trägt die Business-Case-Freigabe", () => {
-  it("stempelt den Business Case und markiert fürs Steering", () => {
+  it("stempelt den Business Case — und markiert nicht mehr fürs Steering", () => {
     const s = stampsForAdvance(
       facts("L1", { selectedForAnalyzingAt: EARLIER, hasBusinessCaseContent: true }),
       "L2",
@@ -487,7 +487,7 @@ describe("Der Schritt auf L2 trägt die Business-Case-Freigabe", () => {
       NOW,
     );
     expect(s.businessCaseApprovedAt).toEqual(NOW);
-    expect(s.needsSteeringAttention).toBe(true);
+    expect("needsSteeringAttention" in s).toBe(false);
     expect(s.stageGate).toBe("L2");
   });
 
@@ -499,7 +499,7 @@ describe("Der Schritt auf L2 trägt die Business-Case-Freigabe", () => {
       NOW,
     );
     expect(s.businessCaseApprovedAt).toBeUndefined();
-    expect(s.needsSteeringAttention).toBe(true);
+    expect("needsSteeringAttention" in s).toBe(false);
   });
 
   it("friert den Horizont der Primär-Solution ein", () => {
@@ -572,7 +572,7 @@ describe("L0 → L1 trägt die Hypothesen-Freigabe", () => {
     const s = stampsForAdvance(readyFor("L1"), "L1", VMO, NOW);
     expect(s.hypothesisApprovedAt).toEqual(NOW);
     expect(s.selectedForDetailingAt).toEqual(NOW);
-    expect(s.needsSteeringAttention).toBe(true);
+    expect("needsSteeringAttention" in s).toBe(false);
     expect(s.stageGate).toBe("L1");
   });
 
@@ -585,8 +585,8 @@ describe("L0 → L1 trägt die Hypothesen-Freigabe", () => {
     );
     expect(s.hypothesisApprovedAt).toBeUndefined();
     expect(s.selectedForDetailingAt).toBeUndefined();
-    // Das Steering-Flag folgt der Abnahme, nicht dem Stempel.
-    expect(s.needsSteeringAttention).toBe(true);
+    // Das Steering entscheidet ein Mensch, nicht der Reifegrad-Wechsel.
+    expect("needsSteeringAttention" in s).toBe(false);
   });
 
   it("der Revert L1 → L0 räumt die Freigabe ab", () => {
