@@ -3,6 +3,10 @@ import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import {
+  deriveJobSizeTarget,
+  type PiDeliveryRecord,
+} from "@/modules/drumbeat/domain/pi-job-size-target";
 import { classifyScopedEdges } from "@/modules/drumbeat/domain/graph-scope";
 import type { PiWindow } from "@/modules/drumbeat/domain/timeline-grid";
 import type { PiStatus } from "@/modules/drumbeat/domain/pi-rules";
@@ -64,13 +68,15 @@ export interface CockpitPermissions {
   /** `pi.delete` — geplantes PI löschen (PI-Kontext-Leiste). */
   canDelete: boolean;
   /**
-   * `pi.update` — die Kapazität eines PI setzen (PI-Kontext-Leiste).
-   *
-   * Die Server-Aktion dafür (`setPiCapacityAction`) gab es seit jeher; sie
-   * hatte nur nie einen Aufrufer. Was auf dem Bildschirm als Kapazität stand,
-   * war Saat — kein Mensch hatte die Zahl je eingetragen.
+   * `pi.update` — die Kapazitätszahl des ARTs in einem PI setzen
+   * (PI-Kontext-Leiste); aus ihr errechnet sich das Job-Size-Ziel.
    */
   canEditPi: boolean;
+  /**
+   * `feature.wsjf.set` — der WSJF-Dialog auf der Karte. Dieselbe Capability,
+   * die `scoreFeatureAction` prüft; ohne sie bleibt das Badge eine Anzeige.
+   */
+  canScoreWsjf: boolean;
 }
 
 export interface CockpitFilters {
@@ -273,8 +279,13 @@ export interface CockpitAllPiRow {
   startDate: Date;
   endDate: Date;
   status: string;
-  /** Die gepflegte Kapazität; sie steht unter dem PI-Titel neben der Summe. */
-  capacityJobSize: number | null;
+  /** Kapazitätszahl des gewählten ARTs in diesem PI (`ArtPiCapacity`). */
+  capacity: number | null;
+  /**
+   * Σ Job Size der **abgeschlossenen** Features des gewählten ARTs in diesem
+   * PI — die Lieferung, aus der die Formel ihre Quote bildet.
+   */
+  delivered: number;
 }
 
 /** Raw feature row of the selected ART (query 6). */
@@ -289,6 +300,10 @@ export interface CockpitFeatureRow {
   wsjfComputed: unknown;
   /** Der Aufwand (WSJF Job Size) — er summiert sich unter dem PI-Titel. */
   wsjfJobSize: number | null;
+  /** Die drei Zähler — der WSJF-Dialog auf der Karte belegt sich damit vor. */
+  wsjfBusinessValue: number | null;
+  wsjfTimeCriticality: number | null;
+  wsjfRiskReduction: number | null;
   art: { id: string; name: string } | null;
   /** Eigene Solution des Features; `null` = die des Epics gilt. */
   primarySolution: { name: string } | null;
@@ -412,6 +427,9 @@ function buildScopeFeatures(
         ownerName: r.ownerId ? (userLabels[r.ownerId] ?? null) : null,
         wsjfComputed: r.wsjfComputed ? Number(r.wsjfComputed) : null,
         wsjfJobSize: r.wsjfJobSize ?? null,
+        wsjfBusinessValue: r.wsjfBusinessValue ?? null,
+        wsjfTimeCriticality: r.wsjfTimeCriticality ?? null,
+        wsjfRiskReduction: r.wsjfRiskReduction ?? null,
         hasBlocker: !!openBlocker,
         blockerHint: openBlocker?.from?.title ?? null,
         solutionName: resolveFeatureSolution({
@@ -502,6 +520,33 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
    */
   const jobSizeByPi = new Map(Object.entries(rows.jobSizeByPi));
 
+  /**
+   * **Das Ziel je PI aus der Formel** (`deriveJobSizeTarget`): Ø JS je
+   * Kapazität der letzten 4 abgeschlossenen PIs × Kapazität × 0,8. Die
+   * Vorgänger sind die PIs derselben Taktung, die die Rechnung selbst
+   * auswählt — hier wird nur die ganze Reihe übergeben.
+   */
+  const history: PiDeliveryRecord[] = rows.allPis.map((p) => ({
+    piId: p.id,
+    name: p.name,
+    startDate: p.startDate,
+    status: p.status,
+    capacity: p.capacity,
+    delivered: p.delivered,
+  }));
+  const targetFields = (p: CockpitAllPiRow) => ({
+    capacity: p.capacity,
+    jobSizeTarget: deriveJobSizeTarget({
+      startDate: p.startDate,
+      capacity: p.capacity,
+      history,
+    }),
+    deliveredPerCapacity:
+      p.status === "completed" && p.capacity != null && p.capacity > 0
+        ? p.delivered / p.capacity
+        : null,
+  });
+
   const filterOptions = {
     owners: (ownerIdsInArt ?? [])
       .map((id) => ({ value: id, label: userLabels[id] ?? id }))
@@ -580,7 +625,7 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
       status: p.status as PiStatus,
       featureCount: countByPi.get(p.id) ?? 0,
       plannedJobSize: jobSizeByPi.get(p.id) ?? 0,
-      capacityJobSize: p.capacityJobSize ?? null,
+      ...targetFields(p),
       isCurrent: p.id === anchorPiId,
     }));
 
@@ -602,7 +647,7 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
           status: selRow.status as PiStatus,
           featureCount: countByPi.get(selRow.id) ?? 0,
           plannedJobSize: jobSizeByPi.get(selRow.id) ?? 0,
-          capacityJobSize: selRow.capacityJobSize ?? null,
+          ...targetFields(selRow),
           isCurrent: selRow.id === anchorPiId,
         }
       : null;
@@ -743,7 +788,7 @@ export async function loadCockpitModel(
     //    können nicht mehr auseinanderlaufen.
     (async (): Promise<{ allPis: CockpitAllPiRow[] }> => {
       if (!selectedArtRow) return { allPis: [] };
-      const allPis = await db.programIncrement.findMany({
+      const piRows = await db.programIncrement.findMany({
         where: {
           tenantId,
           ...(selectedArtRow.timelineId
@@ -756,10 +801,40 @@ export async function loadCockpitModel(
           startDate: true,
           endDate: true,
           status: true,
-          capacityJobSize: true,
         },
         orderBy: { startDate: "asc" },
       });
+      // Die Eingänge der Ziel-Formel (`deriveJobSizeTarget`): Kapazität und
+      // Lieferung **dieses ARTs** je PI. Die Taktung teilen sich mehrere ARTs;
+      // Kapazität und Last gehören dem einzelnen.
+      const piIds = piRows.map((p) => p.id);
+      const [capacities, geliefert] = await Promise.all([
+        db.artPiCapacity.findMany({
+          where: { tenantId, artId: selectedArtRow.id, piId: { in: piIds } },
+          select: { piId: true, capacity: true },
+        }),
+        db.initiative.groupBy({
+          by: ["piId"],
+          where: {
+            tenantId,
+            level: InitiativeLevel.FEATURE,
+            deletedAt: null,
+            artId: selectedArtRow.id,
+            piId: { in: piIds },
+            status: "completed",
+          },
+          _sum: { wsjfJobSize: true },
+        }),
+      ]);
+      const capacityByPi = new Map(capacities.map((c) => [c.piId, Number(c.capacity)]));
+      const deliveredByPi = new Map(
+        geliefert.map((g) => [g.piId ?? "", g._sum.wsjfJobSize ?? 0] as const),
+      );
+      const allPis = piRows.map((p) => ({
+        ...p,
+        capacity: capacityByPi.get(p.id) ?? null,
+        delivered: deliveredByPi.get(p.id) ?? 0,
+      }));
       return { allPis };
     })(),
     // 6) Features im Scope (SQL-Filter fuer status/owner/epic; der `hasBlocker`-
@@ -841,6 +916,9 @@ export async function loadCockpitModel(
             ownerId: true,
             wsjfComputed: true,
             wsjfJobSize: true,
+            wsjfBusinessValue: true,
+            wsjfTimeCriticality: true,
+            wsjfRiskReduction: true,
             art: { select: { id: true, name: true } },
             // Die eigene Solution des Features — und die seines Epics als
             // Rückfall, über den ohnehin vorhandenen `parent`-Select.
@@ -958,6 +1036,7 @@ export async function loadCockpitModel(
     canStart: hasCapability(principal, "pi.start", resource),
     canDelete: hasCapability(principal, "pi.delete", resource),
     canEditPi: hasCapability(principal, "pi.update", resource),
+    canScoreWsjf: hasCapability(principal, "feature.wsjf.set", resource),
   };
 
   return buildCockpitModel({

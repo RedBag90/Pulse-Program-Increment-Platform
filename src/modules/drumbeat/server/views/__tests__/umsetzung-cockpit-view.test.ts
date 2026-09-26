@@ -48,6 +48,7 @@ const NO_PERMS = {
   canStart: false,
   canDelete: false,
   canEditPi: false,
+  canScoreWsjf: false,
 };
 
 const EMPTY_FILTERS = { status: [], ownerIds: [], epicIds: [], hasBlocker: false, q: "" };
@@ -87,6 +88,9 @@ function featureRow(partial: Partial<CockpitFeatureRow> & { id: string }): Cockp
     ownerId: null,
     wsjfComputed: null,
     wsjfJobSize: null,
+    wsjfBusinessValue: null,
+    wsjfTimeCriticality: null,
+    wsjfRiskReduction: null,
     art: { id: "art-1", name: "ART 1" },
     parent: null,
     dependenciesIn: [],
@@ -218,7 +222,8 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
       startDate: D("2026-01-01"),
       endDate: D("2026-03-31"),
       status: "completed",
-      capacityJobSize: null,
+      capacity: null,
+      delivered: 0,
     },
     {
       id: "q2",
@@ -226,7 +231,8 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
       startDate: D("2026-04-01"),
       endDate: D("2026-06-30"),
       status: "active",
-      capacityJobSize: null,
+      capacity: null,
+      delivered: 0,
     },
     {
       id: "q3",
@@ -234,7 +240,8 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
       startDate: D("2026-07-01"),
       endDate: D("2026-09-30"),
       status: "planning",
-      capacityJobSize: null,
+      capacity: null,
+      delivered: 0,
     },
     {
       id: "q4",
@@ -242,7 +249,8 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
       startDate: D("2026-10-01"),
       endDate: D("2026-12-31"),
       status: "planning",
-      capacityJobSize: null,
+      capacity: null,
+      delivered: 0,
     },
   ];
 
@@ -295,7 +303,8 @@ describe("buildCockpitModel — selected-PI governance scope", () => {
       startDate: D("2026-01-01"),
       endDate: D("2026-03-31"),
       status: "completed",
-      capacityJobSize: null,
+      capacity: null,
+      delivered: 0,
     },
     {
       id: "q2",
@@ -303,7 +312,8 @@ describe("buildCockpitModel — selected-PI governance scope", () => {
       startDate: D("2026-04-01"),
       endDate: D("2026-06-30"),
       status: "active",
-      capacityJobSize: null,
+      capacity: null,
+      delivered: 0,
     },
     {
       id: "q3",
@@ -311,7 +321,8 @@ describe("buildCockpitModel — selected-PI governance scope", () => {
       startDate: D("2026-07-01"),
       endDate: D("2026-09-30"),
       status: "planned",
-      capacityJobSize: null,
+      capacity: null,
+      delivered: 0,
     },
   ];
   const base = {
@@ -534,7 +545,8 @@ describe("buildCockpitModel — der PI-Scope grenzt ein, außer im Board", () =>
       startDate: D("2026-01-01"),
       endDate: D("2026-03-31"),
       status: "completed",
-      capacityJobSize: null,
+      capacity: null,
+      delivered: 0,
     },
     {
       id: "q2",
@@ -542,7 +554,8 @@ describe("buildCockpitModel — der PI-Scope grenzt ein, außer im Board", () =>
       startDate: D("2026-04-01"),
       endDate: D("2026-06-30"),
       status: "active",
-      capacityJobSize: null,
+      capacity: null,
+      delivered: 0,
     },
   ];
   const base = {
@@ -622,7 +635,8 @@ describe("buildCockpitModel — die Kachel-Zahl folgt den Filtern", () => {
       startDate: D("2026-01-01"),
       endDate: D("2026-03-31"),
       status: "active",
-      capacityJobSize: null,
+      capacity: null,
+      delivered: 0,
     },
   ];
   const base = {
@@ -758,5 +772,64 @@ describe("buildCockpitModel — die Solution des Epics", () => {
   it("liefert null, wenn das Feature gar kein Epic hat", () => {
     const model = buildCockpitModel(rows({ ...base, featureRows: [featureRow({ id: "f1" })] }));
     expect(model.features[0]?.solutionName).toBeNull();
+  });
+});
+
+describe("buildCockpitModel — Job-Size-Ziel aus der Formel", () => {
+  const pi = (
+    id: string,
+    start: string,
+    status: string,
+    capacity: number | null,
+    delivered: number,
+  ) => ({
+    id,
+    name: id,
+    startDate: D(start),
+    endDate: D(start),
+    status,
+    capacity,
+    delivered,
+  });
+  const base = {
+    arts: [
+      { id: "art-1", name: "ART 1", valueStreamId: "vs-1", timelineId: "tl-1", valueStream: null },
+    ],
+    selectedArtId: "art-1",
+    featureRows: [],
+    now: D("2026-08-15").getTime(),
+  };
+
+  it("rechnet das Ziel des gewählten PI aus Kapazität und Lieferung der Vorgänger", () => {
+    const allPis = [
+      pi("q1", "2026-01-01", "completed", 10, 100), // Quote 10
+      pi("q2", "2026-04-01", "completed", 10, 140), // Quote 14
+      pi("q3", "2026-07-01", "active", 20, 0),
+    ];
+    const model = buildCockpitModel(rows({ ...base, allPis, selectedPiId: "q3" }));
+    // Ø 12 × 20 × 0,8 = 192
+    expect(model.selectedPi?.jobSizeTarget).toMatchObject({ target: 192, reason: "ok" });
+    expect(model.selectedPi?.jobSizeTarget?.basis.map((b) => b.piId)).toEqual(["q2", "q1"]);
+    expect(model.selectedPi?.capacity).toBe(20);
+  });
+
+  it("ein abgeschlossenes PI trägt seine eigene Quote", () => {
+    const allPis = [
+      pi("q1", "2026-01-01", "completed", 8, 96),
+      pi("q2", "2026-07-01", "active", 8, 0),
+    ];
+    const model = buildCockpitModel(rows({ ...base, allPis, selectedPiId: "q1" }));
+    expect(model.selectedPi?.deliveredPerCapacity).toBe(12);
+    // Es selbst hat keinen Vorgänger — also kein Ziel, aber mit Grund.
+    expect(model.selectedPi?.jobSizeTarget?.reason).toBe("noHistory");
+  });
+
+  it("ohne Kapazität im gewählten PI: kein Ziel, Grund noCapacity", () => {
+    const allPis = [
+      pi("q1", "2026-01-01", "completed", 10, 100),
+      pi("q2", "2026-07-01", "active", null, 0),
+    ];
+    const model = buildCockpitModel(rows({ ...base, allPis, selectedPiId: "q2" }));
+    expect(model.selectedPi?.jobSizeTarget).toMatchObject({ target: null, reason: "noCapacity" });
   });
 });

@@ -63,6 +63,13 @@ CREATE POLICY tenant_isolation ON art_own_work_allocations FOR ALL
   USING (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid)
   WITH CHECK (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid);
 
+ALTER TABLE art_pi_capacities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE art_pi_capacities FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON art_pi_capacities;
+CREATE POLICY tenant_isolation ON art_pi_capacities FOR ALL
+  USING (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid)
+  WITH CHECK (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid);
+
 ALTER TABLE arts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE arts FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON arts;

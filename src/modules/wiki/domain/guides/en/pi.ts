@@ -89,7 +89,7 @@ export const PI_EN: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "It **no longer has a surface of its own** — it happens in the cockpit. There I assign features to PIs and see the load against them: under each PI title stands the scheduled job size, and once I have set a **capacity** in the PI bar it stands beside it — overbooked turns red. The capacity is a set figure, not a derived one; it follows no filter, and neither does the load.",
+              text: "It **no longer has a surface of its own** — it happens in the cockpit. There I assign features to PIs and see the load against them: under each PI title stands the scheduled job size, and beside it the **target** — overplanned turns red. I don't type the target; it is computed: in the PI bar I enter my ART's **capacity** (people, person-days — as long as it is counted the same way across PIs), and Pulse takes the average delivered job size per capacity unit over the last four completed PIs, times my capacity, times 0.8. The calculation stands beside it, with the predecessors and their ratios in the tooltip. The target follows no filter, and neither does the load.",
             },
             {
               kind: "quote",

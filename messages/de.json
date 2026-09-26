@@ -2723,11 +2723,9 @@
       "unterL3Ausgeblendet": "{n} ohne Budget ausgeblendet",
       "unterL3Erklaerung": "Features, deren Epic noch nicht auf L3 „Budget alloziert“ steht, lassen sich noch nicht einplanen und erscheinen deshalb nicht in der Planung.",
       "jobSizeKurz": "{n} JS",
-      "jobSizeVonKapazitaet": "{n} / {kapazitaet} JS",
       "jobSizeErklaerung": "Eingeplante Job Size in diesem PI",
       "kapazitaetJs": "Kapazität",
       "kapazitaetGespeichert": "Kapazität gespeichert",
-      "kapazitaetJsErklaerung": "Kapazität dieses PI in Job Size — eine gesetzte Zahl, keine abgeleitete. Leer = keine Kapazität.",
       "anlegen": "Anlegen",
       "anlegenLaeuft": "Anlegen…",
       "standardOptionLabel": "{name} ({weeks} Wo · {count} PIs)",
@@ -2784,7 +2782,20 @@
       "umsetzungStarten": "Umsetzung starten",
       "keineDeps": "keine Deps",
       "anzahlDeps": "{count} Deps",
-      "anzahlDepsMitOff": "{count} Deps · {off} off"
+      "anzahlDepsMitOff": "{count} Deps · {off} off",
+      "jobSizeVonZiel": "{n} / {ziel} JS",
+      "jobSizeErklaerungMitZiel": "Eingeplante Job Size in diesem PI gegen das errechnete Ziel",
+      "zielHerleitung": "Ziel {ziel} JS = Ø {quote} JS je Kapazität ({n} PIs) × {kapazitaet} × {faktor}",
+      "zielHerleitungEinPi": "Ziel {ziel} JS = Ø {quote} JS je Kapazität (1 PI) × {kapazitaet} × {faktor}",
+      "zielBasisZeile": "{name}: {geliefert} JS ÷ {kapazitaet} = {quote}",
+      "zielOhneKapazitaet": "Kapazität eintragen, um ein Ziel zu errechnen.",
+      "zielOhneHistorie": "Noch kein abgeschlossener PI mit Kapazität — kein Ziel.",
+      "gelieferteQuote": "{quote} JS je Kapazität geliefert",
+      "kapazitaetErklaerung": "Kapazitätszahl des ARTs in diesem PI, z. B. Personen oder Personentage — über die PIs gleich gezählt. Daraus errechnet sich das Job-Size-Ziel. Leer = keine Kapazität.",
+      "jobSizeFeature": "JS {n}",
+      "jobSizeFeatureLeer": "JS —",
+      "jobSizeFeatureErklaerung": "Job Size dieses Features — sie zählt gegen das Ziel des PI.",
+      "wsjfBearbeitenFuer": "WSJF bearbeiten: {title}"
     },
     "errors": {
       "endBeforeStart": "Das Enddatum muss nach dem Startdatum liegen.",
@@ -2796,7 +2807,6 @@
       "cannotReopen": "Ein abgeschlossenes PI lässt sich nicht wieder öffnen.",
       "useLifecycleAction": "Für den Wechsel nach „{status}“ gibt es eine eigene Aktion — bitte diese benutzen.",
       "piWithoutTimelineEdit": "Ein PI ohne Timeline lässt sich nicht über den Timeline-Pfad bearbeiten.",
-      "jobSizeNegative": "Die Job-Size-Kapazität darf nicht negativ sein.",
       "budgetOverrideNegative": "Der Budget-Override darf nicht negativ sein.",
       "onlyPlannedStarts": "Nur ein geplantes PI lässt sich starten — dieses steht auf „{status}“.",
       "noTimelineStart": "Das PI hat keine Timeline und lässt sich nicht starten.",
@@ -2809,7 +2819,8 @@
       "onlyPlannedDeletes": "Nur ein geplantes PI lässt sich löschen.",
       "timelineHasArts": "Dieser Timeline sind noch {count} ART(s) zugeordnet — bitte zuerst lösen.",
       "endpointsUnchanged": "Die Enden sind unverändert — es gibt nichts umzuhängen.",
-      "wuerdeZyklusErzeugen": "Diese Verbindung würde einen Zyklus erzeugen."
+      "wuerdeZyklusErzeugen": "Diese Verbindung würde einen Zyklus erzeugen.",
+      "kapazitaetNegativ": "Die Kapazität darf nicht negativ sein."
     },
     "closure": {
       "openUnroamedIssues": "{count} offene Anliegen ohne ROAM",

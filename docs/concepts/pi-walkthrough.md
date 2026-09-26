@@ -89,10 +89,18 @@ im Kalender. Ich muss sie nicht anlegen; ich muss entscheiden, wann eines
 Vor dem Start liegt die **PI-Planung**. Sie hat keine eigene Fläche mehr — sie
 findet im Cockpit statt (`/umsetzung`); die alte Route `/pi-planning` leitet
 dorthin um. Dort ordne ich Features den PIs zu und sehe die Last dagegen: unter
-jedem PI-Titel steht die eingeplante Job Size, und wenn in der PI-Leiste eine
-Kapazität gesetzt ist, steht sie daneben — überbucht wird rot. Die Kapazität ist
-eine gesetzte Zahl, keine abgeleitete (es gibt im System keinen Begriff, aus dem
-sie folgen könnte); sie folgt keinem Filter, die Last auch nicht. Was hier
+jedem PI-Titel steht die eingeplante Job Size gegen das **Ziel** — überplant
+wird rot. Das Ziel ist seit September 2026 keine Eingabe mehr, sondern eine
+Formel (`drumbeat/domain/pi-job-size-target.ts`): in der PI-Leiste steht die
+**Kapazitätszahl** des ARTs für dieses PI (`ArtPiCapacity`, Einheit frei), und
+
+    Ziel = Ø(geliefertes JS ÷ Kapazität der letzten 4 abgeschlossenen PIs)
+           × Kapazität dieses PI × 0,8
+
+Geliefert heisst: abgeschlossene Features des ARTs in dem PI. Gibt es weniger
+als vier geeignete Vorgänger, mittelt die Formel über die vorhandenen; gibt es
+keinen, gibt es kein Ziel. Die Rechnung steht im Cockpit neben der Zahl. Das
+Ziel folgt keinem Filter, die Last auch nicht. Was hier
 zugeordnet wird, ist der Inhalt, über den ich gleich sage: das schaffen wir.
 
 Dann **starte** ich das PI. Pulse prüft zweierlei: dass es auf `planned` steht —

@@ -3,7 +3,8 @@
 import { useTranslations } from "next-intl";
 import { memo, type RefObject } from "react";
 import type { CockpitFeature } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
-import { WsjfBadge, FEATURE_STATUS_DOT } from "@/modules/drumbeat/features/lib/status-badges";
+import { FEATURE_STATUS_DOT } from "@/modules/drumbeat/features/lib/status-badges";
+import { FeatureScore } from "@/modules/drumbeat/features/cockpit/components/feature-score";
 import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
 import { initials } from "@/components/detail/initiative-labels";
 
@@ -18,15 +19,18 @@ import { initials } from "@/components/detail/initiative-labels";
  * PI, die Bahn nur den Status. Die Karte wächst dadurch um eine Zeile — die
  * Seite wird trotzdem kürzer, weil die Bahnen gekappt sind (`splitCell`).
  *
- * Ein Klick öffnet den Slide-Over.
+ * Ein Klick öffnet den Slide-Over — ausser auf WSJF und Job Size: dort öffnet
+ * er den WSJF-Dialog, wenn man ihn setzen darf (`FeatureScore`).
  */
 interface Props {
   feature: CockpitFeature;
   canDrag: boolean;
+  /** `feature.wsjf.set` — WSJF und Job Size sind dann ein Knopf. */
+  canScore: boolean;
   draggingId: RefObject<string | null>;
 }
 
-function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
+function FeatureCardImpl({ feature, canDrag, canScore, draggingId }: Props) {
   const t = useTranslations();
   const { setParam } = useUrlState();
 
@@ -108,12 +112,11 @@ function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
             <span className="truncate text-muted-foreground/60">{t("drumbeat.ui.ohneOwner")}</span>
           )}
         </span>
-        {feature.wsjfComputed != null && (
-          <WsjfBadge
-            value={feature.wsjfComputed}
-            className="shrink-0 px-1 py-0 text-label font-medium"
-          />
-        )}
+        <FeatureScore
+          feature={feature}
+          canScore={canScore}
+          badgeClassName="px-1 py-0 text-label font-medium"
+        />
       </div>
 
       {feature.hasBlocker && feature.blockerHint && (
@@ -127,7 +130,7 @@ function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
 
 export const FeatureCard = memo(FeatureCardImpl, (a, b) => {
   // Nur Felder vergleichen, die Karte tatsaechlich rendert + Drag-Berechtigung.
-  if (a.canDrag !== b.canDrag) return false;
+  if (a.canDrag !== b.canDrag || a.canScore !== b.canScore) return false;
   const x = a.feature;
   const y = b.feature;
   return (
@@ -136,6 +139,10 @@ export const FeatureCard = memo(FeatureCardImpl, (a, b) => {
     x.status === y.status &&
     x.piId === y.piId &&
     x.wsjfComputed === y.wsjfComputed &&
+    x.wsjfJobSize === y.wsjfJobSize &&
+    x.wsjfBusinessValue === y.wsjfBusinessValue &&
+    x.wsjfTimeCriticality === y.wsjfTimeCriticality &&
+    x.wsjfRiskReduction === y.wsjfRiskReduction &&
     x.hasBlocker === y.hasBlocker &&
     x.blockerHint === y.blockerHint
   );

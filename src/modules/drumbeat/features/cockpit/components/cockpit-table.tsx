@@ -20,7 +20,8 @@ import type {
 } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { normalizePiKey, BACKLOG_COLUMN_ID } from "@/modules/drumbeat/domain/board-matrix";
 import { FEATURE_STATUS_KEYS, needsReasonForStatus } from "@/modules/drumbeat/domain/status";
-import { StatusBadge, WsjfBadge } from "@/modules/drumbeat/features/lib/status-badges";
+import { StatusBadge } from "@/modules/drumbeat/features/lib/status-badges";
+import { FeatureScore } from "@/modules/drumbeat/features/cockpit/components/feature-score";
 import { SearchSelect, type SearchSelectOption } from "@/components/ui/search-select";
 import { CockpitBulkBar } from "./cockpit-bulk-bar";
 import { StatusReasonDialog } from "./status-reason-dialog";
@@ -39,6 +40,8 @@ interface Props {
   artId: string;
   canUpdate: boolean;
   canSetDelivery: boolean;
+  /** `feature.wsjf.set` — WSJF und Job Size öffnen den Dialog. */
+  canScoreWsjf?: boolean;
 }
 
 /**
@@ -59,7 +62,14 @@ const STATUS_OPTION_KEYS: ReadonlyArray<{ value: FeatureStatus; labelKey: string
   { value: "cancelled", labelKey: FEATURE_STATUS_KEYS.cancelled },
 ];
 
-export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }: Props) {
+export function CockpitTable({
+  pis,
+  features,
+  artId,
+  canUpdate,
+  canSetDelivery,
+  canScoreWsjf = false,
+}: Props) {
   const t = useTranslations();
   // Einmal übersetzt, von beiden Verbrauchern benutzt: dem Auswahlfeld in der
   // Zeile und der Massenleiste darunter.
@@ -282,7 +292,12 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-right">
-                    <WsjfBadge value={f.wsjfComputed} className="px-1.5 py-0" />
+                    <FeatureScore
+                      feature={f}
+                      canScore={canScoreWsjf}
+                      className="justify-end"
+                      badgeClassName="px-1.5 py-0"
+                    />
                   </td>
                   <td className="px-2 py-1.5 text-xs">
                     {f.hasBlocker && f.blockerHint ? (

@@ -64,6 +64,8 @@ interface Props {
   artId: string;
   canUpdate: boolean;
   canSetDelivery: boolean;
+  /** `feature.wsjf.set` — WSJF und Job Size auf der Karte öffnen den Dialog. */
+  canScoreWsjf?: boolean;
 }
 
 type LaneDef = BoardLane;
@@ -102,7 +104,14 @@ const LANES: ReadonlyArray<LaneDef> = [
 
 const HIGHLIGHT_DROP = ["ring-2", "ring-primary/60"];
 
-export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }: Props) {
+export function CockpitBoard({
+  pis,
+  features,
+  artId,
+  canUpdate,
+  canSetDelivery,
+  canScoreWsjf = false,
+}: Props) {
   const draggingId = useRef<string | null>(null);
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -286,6 +295,7 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
             pis={columns}
             matrix={matrix}
             canDrag={canUpdate || canSetDelivery}
+            canScore={canScoreWsjf}
             onDrop={dropOnCell}
             onMove={moveFeature}
             draggingId={draggingId}
@@ -311,6 +321,7 @@ function LaneRow({
   pis,
   matrix,
   canDrag,
+  canScore,
   onDrop,
   onMove,
   draggingId,
@@ -319,6 +330,7 @@ function LaneRow({
   pis: CockpitPiSlot[];
   matrix: BoardMatrix;
   canDrag: boolean;
+  canScore: boolean;
   onDrop: (piId: string, status: FeatureStatus) => void;
   onMove: (id: string, target: { targetPiId?: string; targetStatus?: FeatureStatus }) => void;
   draggingId: React.RefObject<string | null>;
@@ -356,7 +368,12 @@ function LaneRow({
           >
             {shown.map((f) => (
               <div key={f.id} className="group/card relative">
-                <FeatureCard feature={f} canDrag={canDrag} draggingId={draggingId} />
+                <FeatureCard
+                  feature={f}
+                  canDrag={canDrag}
+                  canScore={canScore}
+                  draggingId={draggingId}
+                />
                 {canDrag && <FeatureMoveMenu feature={f} pis={pis} lanes={LANES} onMove={onMove} />}
               </div>
             ))}
@@ -376,7 +393,12 @@ function LaneRow({
                 <div className="mt-1.5 space-y-1.5">
                   {rest.map((f) => (
                     <div key={f.id} className="group/card relative">
-                      <FeatureCard feature={f} canDrag={canDrag} draggingId={draggingId} />
+                      <FeatureCard
+                        feature={f}
+                        canDrag={canDrag}
+                        canScore={canScore}
+                        draggingId={draggingId}
+                      />
                       {canDrag && (
                         <FeatureMoveMenu feature={f} pis={pis} lanes={LANES} onMove={onMove} />
                       )}

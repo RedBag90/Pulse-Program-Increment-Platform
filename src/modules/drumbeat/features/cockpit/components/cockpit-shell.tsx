@@ -127,6 +127,7 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
             artId={selectedArt.id}
             canUpdate={permissions.canUpdate}
             canSetDelivery={permissions.canSetDelivery}
+            canScoreWsjf={permissions.canScoreWsjf}
           />
         ) : view === "table" ? (
           <CockpitTable
@@ -135,6 +136,7 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
             artId={selectedArt.id}
             canUpdate={permissions.canUpdate}
             canSetDelivery={permissions.canSetDelivery}
+            canScoreWsjf={permissions.canScoreWsjf}
           />
         ) : view === "roadmap" ? (
           <CockpitRoadmap

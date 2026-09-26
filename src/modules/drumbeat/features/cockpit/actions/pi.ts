@@ -5,7 +5,7 @@ import {
   startPi,
   advanceCadence,
   deletePi,
-  setPiCapacity,
+  setArtPiCapacity,
 } from "@/modules/drumbeat/server/services/pi";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
@@ -56,45 +56,31 @@ export const advanceCadenceAction = createServerAction({
 });
 
 /**
- * Sets the per-PI capacity overrides used by the PI-Planning overlay
- * (Job Size + €-Budget). Empty values clear the respective override; the
- * service interprets `null` as a deliberate clear.
+ * Die Kapazitätszahl des ARTs in einem PI (`setArtPiCapacity`). Leer = löschen.
+ * Dieselbe Berechtigung wie jede PI-Pflege: `pi.update`, auf das ART begrenzt.
  */
-export const setPiCapacityAction = createServerAction({
+export const setArtPiCapacityAction = createServerAction({
   schema: z.object({
-    id: z.string().uuid(),
+    piId: z.string().uuid(),
     artId: z.string().uuid(),
-    capacityJobSize: z.number().nonnegative().nullable().optional(),
-    capacityAmount: z.number().nonnegative().nullable().optional(),
+    capacity: z.number().nonnegative().nullable(),
   }),
   action: "pi.update",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  /**
-   * **Drei Zustände je Feld, nicht zwei.** Nicht gesendet = unverändert
-   * (`undefined`), gesendet und leer = bewusst gelöscht (`null`), gesendet
-   * mit Zahl = gesetzt. Der Dienst kennt alle drei; die Aktion warf bis
-   * September 2026 die ersten beiden zusammen — ein Formular, das nur die Job
-   * Size schickte, hätte damit das €-Budget stillschweigend gelöscht.
-   */
   parseFormData: (fd) => {
     const f = fields(fd);
-    const drei = (name: string): number | null | undefined => {
-      if (!fd.has(name)) return undefined;
-      const v = f.nonEmptyString(name);
-      return v === undefined ? null : Number(v);
-    };
+    const v = f.nonEmptyString("capacity");
     return {
-      id: f.string("id"),
+      piId: f.string("piId"),
       artId: f.string("artId"),
-      capacityJobSize: drei("capacityJobSize"),
-      capacityAmount: drei("capacityAmount"),
+      capacity: v === undefined ? null : Number(v),
     };
   },
   service: (ctx, input) =>
-    setPiCapacity(ctx, {
-      id: input.id as PiId,
-      capacityJobSize: input.capacityJobSize,
-      capacityAmount: input.capacityAmount,
+    setArtPiCapacity(ctx, {
+      piId: input.piId as PiId,
+      artId: input.artId,
+      capacity: input.capacity,
     }),
   revalidate: "pi",
   mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.saveCapacity" }, t),

@@ -13,6 +13,7 @@
 export type { FeatureStatus } from "@/modules/drumbeat/domain/status";
 import type { PiStatus } from "@/modules/drumbeat/domain/pi-rules";
 import type { FeatureBreakdown } from "@/modules/work/domain/feature-breakdown";
+import type { JobSizeTarget } from "@/modules/drumbeat/domain/pi-job-size-target";
 
 /**
  * Status einer Board-Spalte: PI-Status oder eine der beiden synthetischen
@@ -42,8 +43,22 @@ export interface CockpitPiSlot {
    * gepflegt und wurde gegen nichts gestellt.
    */
   plannedJobSize: number;
-  /** Die hinterlegte Kapazität (`setPiCapacity`); `null` = keine gesetzt. */
-  capacityJobSize: number | null;
+  /**
+   * Die Kapazitätszahl des ARTs in diesem PI (`ArtPiCapacity`); `null` =
+   * keine eingetragen. Eingang der Formel, kein Ziel.
+   */
+  capacity: number | null;
+  /**
+   * Das **errechnete** Job-Size-Ziel samt Herleitung
+   * (`deriveJobSizeTarget`). `null` nur für Spalten, die kein PI sind
+   * (Backlog, außerhalb des Fensters).
+   */
+  jobSizeTarget: JobSizeTarget | null;
+  /**
+   * JS je Kapazität **dieses** PI — nur für abgeschlossene PIs mit Kapazität.
+   * So stehen die Eingangswerte der Formel dort, wo sie entstanden sind.
+   */
+  deliveredPerCapacity: number | null;
   /** True wenn dieser PI das aktuelle „jetzt"-PI ist (laut Datum). */
   isCurrent: boolean;
 }
@@ -59,6 +74,10 @@ export interface CockpitFeature extends FeatureBreakdown {
   piId: string | null;
   /** Der Aufwand; er summiert sich unter dem PI-Titel. `null` = unbewertet. */
   wsjfJobSize: number | null;
+  /** Die drei WSJF-Zähler — Vorbelegung des Dialogs auf der Karte. */
+  wsjfBusinessValue: number | null;
+  wsjfTimeCriticality: number | null;
+  wsjfRiskReduction: number | null;
   /** UI loest Owner-Namen separat auf (Auth-Provider) — fuer Avatare /
    *  Inline-Anzeige. Null wenn unbekannt. */
   ownerName: string | null;

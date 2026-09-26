@@ -89,7 +89,7 @@ export const PI: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Sie hat **keine eigene Fläche mehr** — sie findet im Cockpit statt. Dort ordne ich Features den PIs zu und sehe die Last dagegen: unter jedem PI-Titel steht die eingeplante Job Size, und wenn ich in der PI-Leiste eine **Kapazität** gesetzt habe, steht sie daneben — überbucht wird rot. Die Kapazität ist eine gesetzte Zahl, keine abgeleitete; sie folgt keinem Filter, die Last auch nicht.",
+              text: "Sie hat **keine eigene Fläche mehr** — sie findet im Cockpit statt. Dort ordne ich Features den PIs zu und sehe die Last dagegen: unter jedem PI-Titel steht die eingeplante Job Size, und daneben das **Ziel** — überplant wird rot. Das Ziel tippe ich nicht ein, es errechnet sich: in der PI-Leiste trage ich die **Kapazität** meines ARTs ein (Personen, Personentage — Hauptsache, über die PIs gleich gezählt), und Pulse nimmt den Durchschnitt der gelieferten Job Size je Kapazität aus den letzten vier abgeschlossenen PIs, mal meine Kapazität, mal 0,8. Die Rechnung steht daneben, die Vorgänger mit ihrer Quote im Tooltip. Das Ziel folgt keinem Filter, die Last auch nicht.",
             },
             {
               kind: "quote",

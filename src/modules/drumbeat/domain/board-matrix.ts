@@ -151,7 +151,9 @@ export function buildBoardMatrix(
     plannedJobSize: backlogJobSize,
     // Der Backlog hat keine Kapazität — er ist kein Zeitraum, sondern das,
     // was noch keinen hat.
-    capacityJobSize: null,
+    capacity: null,
+    jobSizeTarget: null,
+    deliveredPerCapacity: null,
     isCurrent: false,
   };
   const columns: CockpitPiSlot[] = [backlogColumn, ...pis];
@@ -164,7 +166,9 @@ export function buildBoardMatrix(
       status: "overflow",
       featureCount: overflowCount,
       plannedJobSize: overflowJobSize,
-      capacityJobSize: null,
+      capacity: null,
+      jobSizeTarget: null,
+      deliveredPerCapacity: null,
       isCurrent: false,
     });
   }

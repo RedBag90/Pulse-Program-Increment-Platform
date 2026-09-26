@@ -83,6 +83,7 @@ model Tenant {
   guardrailTargetRows   ValueStreamGuardrailTargets[]
   artEpicAllocations    ArtEpicAllocation[]
   artOwnWorkAllocations ArtOwnWorkAllocation[]
+  artPiCapacities       ArtPiCapacity[]
 
   @@index([status])
   @@map("tenants")
@@ -693,6 +694,7 @@ model Art {
   rtbItems           RunTheBusinessItem[]
   epicAllocations    ArtEpicAllocation[]
   ownWorkAllocations ArtOwnWorkAllocation[]
+  piCapacities       ArtPiCapacity[]
 
   // Active-row uniqueness via a partial unique index (see prisma/manual-indexes.sql).
   @@index([timelineId])
@@ -794,11 +796,12 @@ model ProgramIncrement {
   retrospectiveNotes String?   @map("retrospective_notes") @db.Text
   retrospectiveAt    DateTime? @map("retrospective_at")
 
-  art         Art?         @relation(fields: [artId], references: [id])
-  timeline    Timeline?    @relation(fields: [timelineId], references: [id], onDelete: Cascade)
-  initiatives Initiative[]
-  issues      Issue[]
-  systemDemo  SystemDemo?
+  art           Art?            @relation(fields: [artId], references: [id])
+  timeline      Timeline?       @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  initiatives   Initiative[]
+  issues        Issue[]
+  systemDemo    SystemDemo?
+  artCapacities ArtPiCapacity[]
 
   @@unique([timelineId, name])
   @@index([timelineId])
@@ -1968,4 +1971,32 @@ model ArtOwnWorkAllocation {
   @@unique([artId, cycleKey])
   @@index([tenantId, cycleKey])
   @@map("art_own_work_allocations")
+}
+
+/// **Die Kapazitätszahl eines ARTs in einem PI** — Eingang der Formel für das
+/// Job-Size-Ziel (`drumbeat/domain/pi-job-size-target.ts`):
+/// Ziel = Ø(geliefertes JS ÷ Kapazität der letzten 4 PIs) × Kapazität × 0,8.
+///
+/// Je ART und PI, nicht am PI: ein PI hängt an einer Taktung, die mehrere ARTs
+/// teilen, und die Last wird je ART gezählt. Die Einheit ist frei (Personen,
+/// Personentage) — sie muss nur über die PIs eines ARTs gleich bleiben.
+model ArtPiCapacity {
+  id       String  @id @default(uuid()) @db.Uuid
+  tenantId String  @map("tenant_id") @db.Uuid
+  artId    String  @map("art_id") @db.Uuid
+  piId     String  @map("pi_id") @db.Uuid
+  capacity Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String   @map("updated_by") @db.Uuid
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id])
+  art    Art              @relation(fields: [artId], references: [id], onDelete: Cascade)
+  pi     ProgramIncrement @relation(fields: [piId], references: [id], onDelete: Cascade)
+
+  @@unique([artId, piId])
+  @@index([tenantId, piId])
+  @@map("art_pi_capacities")
 }

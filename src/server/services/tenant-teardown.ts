@@ -91,6 +91,7 @@ export const TENANT_TEARDOWN_ORDER: readonly TeardownStep[] = [
   // ── PI-scoped
   { model: "systemDemoItem" },
   { model: "systemDemo" },
+  { model: "artPiCapacity", why: "kaskadiert von PI und ART — trotzdem ausdruecklich" },
   { model: "programIncrement" },
 
   // ── Org-Struktur

@@ -5,7 +5,10 @@ import { AdvanceCadenceButton } from "@/modules/drumbeat/features/cockpit/compon
 import { DeletePiButton } from "@/modules/drumbeat/features/cockpit/components/delete-pi-button";
 import type { CockpitPiSlot } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { PI_STATUS_KEYS } from "@/modules/drumbeat/domain/status";
-import { PiJobSize } from "@/modules/drumbeat/features/cockpit/components/pi-job-size";
+import {
+  PiJobSize,
+  PiTargetDerivation,
+} from "@/modules/drumbeat/features/cockpit/components/pi-job-size";
 import { PiCapacityField } from "@/modules/drumbeat/features/cockpit/components/pi-capacity-field";
 
 /**
@@ -98,17 +101,18 @@ export function CockpitPiContext({ pi, artId, canStart, canAdvance, canDelete, c
           : t("drumbeat.ui.featuresInDiesemPiMehrere", { count: pi.featureCount })}
       </span>
 
-      {/* Die Last steht gegen die Kapazität — und die Kapazität lässt sich
-          hier setzen. Vorher gab es die Zahl nur als Saat. */}
+      {/* Die Last steht gegen das Ziel — und das Ziel entsteht aus der
+          Kapazität, die sich hier eintragen lässt. Die Rechnung steht daneben. */}
       <PiJobSize pi={pi} className="text-xs" />
       {canEditPi && (
         <PiCapacityField
-          key={`${pi.id}:${pi.capacityJobSize ?? ""}`}
+          key={`${pi.id}:${pi.capacity ?? ""}`}
           piId={pi.id}
           artId={artId}
-          value={pi.capacityJobSize}
+          value={pi.capacity}
         />
       )}
+      <PiTargetDerivation pi={pi} />
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
         {pi.status === "planned" && canStart && (

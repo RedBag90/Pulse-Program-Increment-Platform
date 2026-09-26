@@ -34,6 +34,9 @@ function feature(id: string, piId: string | null, status: FeatureStatus): Cockpi
     ownerName: null,
     wsjfComputed: null,
     wsjfJobSize: null,
+    wsjfBusinessValue: null,
+    wsjfTimeCriticality: null,
+    wsjfRiskReduction: null,
     hasBlocker: false,
     blockerHint: null,
     solutionName: null,
@@ -49,7 +52,9 @@ function pi(id: string, name: string): CockpitPiSlot {
     status: "active",
     featureCount: 0,
     plannedJobSize: 0,
-    capacityJobSize: null,
+    capacity: null,
+    jobSizeTarget: null,
+    deliveredPerCapacity: null,
     isCurrent: false,
   };
 }
@@ -141,7 +146,9 @@ describe("buildBoardMatrix — die Überlauf-Spalte", () => {
     status: "planned",
     featureCount: 0,
     plannedJobSize: 0,
-    capacityJobSize: null,
+    capacity: null,
+    jobSizeTarget: null,
+    deliveredPerCapacity: null,
     isCurrent: false,
   });
   const feat = (id: string, piId: string | null): CockpitFeature =>

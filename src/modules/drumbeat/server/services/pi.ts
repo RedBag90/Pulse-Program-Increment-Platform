@@ -166,57 +166,70 @@ export async function updatePi(ctx: RequestContext, input: UpdatePiInput): Promi
 }
 
 /**
- * Sets the PI's capacity overrides used by the PI-Planning column overlay
- * (Job Size + €). Either field can be cleared individually by passing `null`;
- * `undefined` leaves the existing column untouched. Non-negative numbers only.
+ * **Die Kapazitätszahl eines ARTs in einem PI** — Eingang der Formel für das
+ * Job-Size-Ziel (`drumbeat/domain/pi-job-size-target.ts`).
+ *
+ * Ersetzt `setPiCapacity`: bis September 2026 wurde dort das Ziel selbst als
+ * Zahl gesetzt (`ProgramIncrement.capacityJobSize`), eine Setzung ohne
+ * Herleitung, und am PI statt am ART — zwei ARTs auf einer Taktung stellten
+ * ihre eigene Last gegen dieselbe Zahl. Die Spalte bleibt vorerst stehen und
+ * wird nicht mehr gelesen.
+ *
+ * `null` löscht die Kapazität; ein Wert ≥ 0 wird geschrieben (Upsert).
  */
-export async function setPiCapacity(
+export async function setArtPiCapacity(
   ctx: RequestContext,
-  input: {
-    id: PiId;
-    capacityJobSize?: number | null | undefined;
-    capacityAmount?: number | null | undefined;
-  },
+  input: { piId: PiId; artId: string; capacity: number | null },
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id, capacityJobSize, capacityAmount } = input;
+  const { piId, artId, capacity } = input;
 
-  if (capacityJobSize !== undefined && capacityJobSize !== null && capacityJobSize < 0) {
-    return err({ kind: "conflict" as const, reason: "drumbeat.errors.jobSizeNegative" });
-  }
-  if (capacityAmount !== undefined && capacityAmount !== null && capacityAmount < 0) {
-    return err({ kind: "conflict" as const, reason: "drumbeat.errors.budgetOverrideNegative" });
+  if (capacity != null && (!Number.isFinite(capacity) || capacity < 0)) {
+    return err({ kind: "conflict" as const, reason: "drumbeat.errors.kapazitaetNegativ" });
   }
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.programIncrement.findFirst({
-      where: { id, tenantId: mctx.tenantId },
+    const [pi, art] = await Promise.all([
+      tx.programIncrement.findFirst({
+        where: { id: piId, tenantId: mctx.tenantId },
+        select: { id: true },
+      }),
+      tx.art.findFirst({ where: { id: artId, tenantId: mctx.tenantId }, select: { id: true } }),
+    ]);
+    if (!pi) return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id: piId });
+    if (!art) return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
+
+    const existing = await tx.artPiCapacity.findUnique({
+      where: { artId_piId: { artId, piId } },
+      select: { capacity: true },
     });
-    if (!existing) {
-      return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
+    const before = existing == null ? null : Number(existing.capacity);
+
+    if (capacity == null) {
+      if (existing != null)
+        await tx.artPiCapacity.delete({ where: { artId_piId: { artId, piId } } });
+    } else {
+      await tx.artPiCapacity.upsert({
+        where: { artId_piId: { artId, piId } },
+        create: {
+          tenantId: mctx.tenantId,
+          artId,
+          piId,
+          capacity,
+          createdBy: mctx.actorId,
+          updatedBy: mctx.actorId,
+        },
+        update: { capacity, updatedBy: mctx.actorId },
+      });
     }
-
-    // Normalise the existing row's Decimal to a JS number before snapshotting,
-    // so the audit reads numeric (not "Decimal(…)").
-    const existingProjected = {
-      capacityJobSize: existing.capacityJobSize,
-      capacityAmount: existing.capacityAmount != null ? Number(existing.capacityAmount) : null,
-    };
-    const { changes, data } = recordedUpdate({
-      existing: existingProjected,
-      updates: { capacityJobSize, capacityAmount },
-      fields: ["capacityJobSize", "capacityAmount"] as const,
-    });
-
-    await tx.programIncrement.update({ where: { id }, data });
 
     return ok({
       result: undefined,
       audit: {
         action: "pi.capacity.updated",
         resourceType: "program_increment",
-        resourceId: id,
-        changes,
+        resourceId: piId,
+        changes: { capacity: { before, after: capacity }, artId: { before: artId, after: artId } },
       },
     });
   });
