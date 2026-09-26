@@ -80,6 +80,12 @@ export interface SwimlanePosition {
   y: number;
 }
 
+export interface SwimlaneColumn {
+  col: number;
+  x0: number;
+  x1: number;
+}
+
 export interface SwimlaneLayout {
   headers: SwimlaneHeader[];
   features: SwimlanePosition[];
@@ -97,6 +103,15 @@ export interface SwimlaneLayout {
   bands: number[];
   /** Die Breite eines Knotens — `columnAt` braucht sie, um Lücken zu erkennen. */
   nodeWidth: number;
+  /**
+   * **Die Ausdehnung jeder Spalte** — linke und rechte Kante, über alle ihre
+   * Nebenkolonnen. Damit lassen sich die Spalten sichtbar voneinander trennen
+   * (ein Band je Spalte) und der Mauszeiger beim Ziehen einer Spalte zuordnen
+   * (`columnAtPointer`).
+   */
+  columns: SwimlaneColumn[];
+  /** Unterkante der untersten Knotenreihe — bis dorthin reichen die Bänder. */
+  contentBottom: number;
   /**
    * Bahn und Reihe je Feature. Damit lässt sich sagen, ob zwei Enden einer
    * Kante in derselben Bahn liegen — und wie weit auseinander. Die Klammer
@@ -226,11 +241,14 @@ export function swimlaneLayout(
   const lanesOf = (col: number) =>
     Math.max(1, Math.ceil((buckets.get(col)?.length ?? 0) / maxRows));
   const bandX: number[] = [];
+  const columns: SwimlaneColumn[] = [];
   let cursor = 0;
   for (let col = 0; col <= externCol; col++) {
     bandX.push(cursor);
     const lanes = lanesOf(col);
-    cursor += lanes * nodeWidth + (lanes - 1) * SWIMLANE_LANE_GAP + SWIMLANE_COL_GAP;
+    const breite = lanes * nodeWidth + (lanes - 1) * SWIMLANE_LANE_GAP;
+    columns.push({ col, x0: cursor, x1: cursor + breite });
+    cursor += breite + SWIMLANE_COL_GAP;
   }
 
   const headers: SwimlaneHeader[] = [];
@@ -264,7 +282,26 @@ export function swimlaneLayout(
     });
   }
 
-  return { headers, features, ghosts, bands: bandX, nodeWidth, colOf, rowOf };
+  const tiefsteReihe = Math.max(
+    0,
+    ...[...buckets.values()].map((items) => Math.min(items.length, maxRows)),
+  );
+  const contentBottom =
+    SWIMLANE_FIRST_ROW_Y +
+    Math.max(0, tiefsteReihe) * (nodeHeight + SWIMLANE_ROW_GAP) -
+    (tiefsteReihe > 0 ? SWIMLANE_ROW_GAP : 0);
+
+  return {
+    headers,
+    features,
+    ghosts,
+    bands: bandX,
+    nodeWidth,
+    columns,
+    contentBottom,
+    colOf,
+    rowOf,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -299,6 +336,59 @@ export function columnAt(x: number, bands: readonly number[]): number | null {
     else break;
   }
   return treffer;
+}
+
+/**
+ * **Über welcher Spalte ist der Mauszeiger?** — beim Ziehen eines Features.
+ *
+ * Anders als {@link columnAt}, das die linke obere Ecke eines abgelegten
+ * Knotens einordnet, fragt diese Funktion nach dem **Mauszeiger**: dorthin
+ * schaut, wer zieht. Die Lücke zwischen zwei Spalten gehört zur
+ * **nächstgelegenen** — der Wechsel passiert in der Mitte der Lücke, dort, wo
+ * das Auge ihn erwartet. Links der ersten und rechts der letzten Spalte gilt
+ * die jeweils äusserste.
+ *
+ * `null` nur ohne Spalten.
+ */
+export function columnAtPointer(x: number, columns: readonly SwimlaneColumn[]): number | null {
+  if (columns.length === 0) return null;
+  let best = columns[0]!;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const c of columns) {
+    if (x >= c.x0 && x <= c.x1) return c.col;
+    const dist = x < c.x0 ? c.x0 - x : x - c.x1;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = c;
+    }
+  }
+  return best.col;
+}
+
+/** Wie eine Spalte beim Ziehen aussieht. */
+export type ColumnDropState = "idle" | "candidate" | "target" | "own" | "disabled";
+
+/**
+ * **Der Zustand einer Spalte während eines Zugs** — rein, damit er testbar
+ * ist, ohne React Flow ziehen zu lassen.
+ *
+ *  - `idle` — es wird nicht gezogen;
+ *  - `disabled` — die Spalte nimmt nichts an („Außerhalb des Fensters");
+ *  - `own` — die Spalte, aus der das Feature kommt;
+ *  - `target` — die Spalte unter dem Mauszeiger, **vor** dem Loslassen;
+ *  - `candidate` — jede andere gültige Spalte: sie leuchtet schwach auf,
+ *    sobald das Feature angehoben ist.
+ */
+export function columnDropState(
+  col: number,
+  drag: { fromCol: number; overCol: number | null } | null,
+  pis: readonly { id: string }[],
+): ColumnDropState {
+  if (drag == null) return "idle";
+  if (piOfColumn(col, pis) === undefined) return "disabled";
+  if (col === drag.fromCol) return "own";
+  if (col === drag.overCol) return "target";
+  return "candidate";
 }
 
 /**

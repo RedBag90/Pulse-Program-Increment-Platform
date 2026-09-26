@@ -112,3 +112,24 @@ describe("CockpitNetwork — mehrere PIs nebeneinander", () => {
     expect(screen.getByText("Keine Features im Zeitfenster")).toBeTruthy();
   });
 });
+
+describe("CockpitNetwork — Spalten sichtbar getrennt", () => {
+  const pis = [pi("p1", "Werk-PI 1"), pi("p2", "Werk-PI 2")];
+
+  /**
+   * Gewünscht: beim Ziehen in ein anderes PI müssen die Spalten sichtbar
+   * voneinander getrennt sein. Je Spalte — Backlog, jedes PI, „Außerhalb" —
+   * ein Band hinter den Knoten.
+   */
+  it("zeichnet ein Band je Spalte", () => {
+    const { container } = net([feat("a", "p1"), feat("b", null)], pis);
+    const baender = container.querySelectorAll('[data-id^="piband:"]');
+    expect(baender).toHaveLength(pis.length + 2);
+  });
+
+  it("die Bänder schlucken keine Zeigerereignisse — die Leinwand bleibt verschiebbar", () => {
+    const { container } = net([feat("a", "p1")], pis);
+    const band = container.querySelector<HTMLElement>('[data-id="piband:1"]');
+    expect(band?.style.pointerEvents).toBe("none");
+  });
+});

@@ -19,6 +19,7 @@ import {
   Controls,
   MiniMap,
   useNodesState,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useTheme } from "next-themes";
@@ -50,8 +51,11 @@ import { NODE_W_COCKPIT } from "@/modules/drumbeat/domain/graph-constants";
 import {
   swimlaneLayout,
   pointsBackwards,
-  columnAt,
   piOfColumn,
+  columnAtPointer,
+  columnDropState,
+  type ColumnDropState,
+  type SwimlaneColumn,
 } from "@/modules/drumbeat/domain/graph-layout";
 import { toast } from "sonner";
 import { setFeaturePiAction } from "@/modules/work/features/feature/actions/feature";
@@ -122,6 +126,16 @@ interface PiHeaderData {
   selected: boolean;
   /** Das PI hinter dieser Bahn; `null` für Backlog und die Geisterspalte. */
   pi: CockpitPiSlot | null;
+  /** So breit wie die Spalte — der Titel ist damit ein breites Ablageziel. */
+  width: number;
+  /** Zustand während eines Zugs (`columnDropState`); ruhend `idle`. */
+  dropState: ColumnDropState;
+}
+
+interface PiBandData {
+  width: number;
+  height: number;
+  dropState: ColumnDropState;
 }
 
 const LAYOUT_TABS = [
@@ -235,14 +249,24 @@ const GhostNode = memo(function GhostNode({ data }: { data: GhostNodeData }) {
  * hervorgehoben, damit „wo bin ich" über Board und Netz gleich aussieht.
  */
 const PiHeaderNode = memo(function PiHeaderNode({ data }: { data: PiHeaderData }) {
+  /**
+   * **Beim Anheben leuchten die Titel auf, der unter dem Mauszeiger am
+   * stärksten** — vor dem Loslassen, damit man weiss, wohin das Feature geht.
+   */
+  const klasse =
+    data.dropState === "target"
+      ? "bg-primary text-primary-foreground ring-3 ring-primary/40"
+      : data.dropState === "candidate"
+        ? "bg-primary/10 text-foreground ring-1 ring-primary/40"
+        : data.dropState === "disabled"
+          ? "bg-muted/40 text-muted-foreground opacity-40"
+          : data.selected
+            ? "bg-primary/10 text-foreground ring-1 ring-primary"
+            : "bg-muted/60 text-muted-foreground";
   return (
     <div
-      className={`rounded-md px-3 py-1 text-center text-meta font-medium uppercase tracking-[0.1em] ${
-        data.selected
-          ? "bg-primary/10 text-foreground ring-1 ring-primary"
-          : "bg-muted/60 text-muted-foreground"
-      }`}
-      style={{ width: NODE_W }}
+      className={`rounded-md px-3 py-1 text-center text-meta font-medium uppercase tracking-[0.1em] transition-colors ${klasse}`}
+      style={{ width: data.width }}
     >
       {data.label}
       {/* Die Bahn trägt jetzt auch, wie viel Arbeit in ihr liegt. */}
@@ -255,7 +279,35 @@ const PiHeaderNode = memo(function PiHeaderNode({ data }: { data: PiHeaderData }
   );
 });
 
+/**
+ * **Das Band einer Spalte** — die Fläche hinter ihren Knoten, vom Titel bis
+ * unter die tiefste Reihe. Es trennt die Spalten sichtbar voneinander, auch
+ * ohne Zug; beim Ziehen trägt es denselben Zustand wie sein Titel.
+ *
+ * `pointerEvents: none` am Knoten: die Bänder bedecken die ganze Leinwand
+ * und dürften sonst weder das Verschieben noch einen Klick auf den Grund
+ * schlucken.
+ */
+const PiBandNode = memo(function PiBandNode({ data }: { data: PiBandData }) {
+  const klasse =
+    data.dropState === "target"
+      ? "bg-primary/10 ring-2 ring-primary/50"
+      : data.dropState === "candidate"
+        ? "bg-primary/[0.04] ring-1 ring-primary/15"
+        : data.dropState === "disabled"
+          ? "bg-muted/10"
+          : "bg-muted/30";
+  return (
+    <div
+      aria-hidden
+      className={`rounded-lg transition-colors ${klasse}`}
+      style={{ width: data.width, height: data.height }}
+    />
+  );
+});
+
 const NODE_TYPES = {
+  "pi-band": PiBandNode,
   "pi-header": PiHeaderNode,
   feature: FeatureNode,
   ghost: GhostNode,
@@ -319,7 +371,7 @@ export function CockpitNetwork({
   const {
     nodes: baseNodes,
     edges,
-    bands,
+    columns,
   } = useMemo(
     () =>
       buildLayoutedGraph(
@@ -359,6 +411,19 @@ export function CockpitNetwork({
    * sind keine Features und haben keine Nachbarn.
    */
   const [hoverId, setHoverId] = useState<string | null>(null);
+
+  /**
+   * **Der laufende Zug in der Zeitachse** — aus welcher Spalte das Feature
+   * kommt und über welcher der Mauszeiger gerade ist. Daraus leuchten Titel
+   * und Bänder (`columnDropState`), und beim Loslassen ist `overCol` das Ziel.
+   */
+  const [drag, setDrag] = useState<{
+    featureId: string;
+    fromCol: number;
+    overCol: number | null;
+  } | null>(null);
+  /** Für `screenToFlowPosition`: der Mauszeiger, nicht die Knotenecke, zählt. */
+  const [flow, setFlow] = useState<ReactFlowInstance | null>(null);
   // Anschlüsse nach der **Live**-Lage — nach dem Ziehen stimmt die Reihenfolge weiter.
   const liveEdges = useLiveHandles(nodes, edges);
   const sicht = useFocusDimming(nodes, liveEdges, hoverId);
@@ -424,14 +489,22 @@ export function CockpitNetwork({
       if (layout !== "pi" || !canUpdate) return;
       if (!node.id || node.id.startsWith("pihead:") || node.id.startsWith("ghost:")) return;
 
-      const col = columnAt(node.position.x, bands);
-      if (col == null) return;
-      const zielPi = piOfColumn(col, pis);
-      // Die Geisterspalte ist kein Ziel — dorthin zu ziehen sagt nichts.
-      if (zielPi === undefined) return;
-
+      /**
+       * **Das Ziel ist die Spalte unter dem Mauszeiger** (`drag.overCol`),
+       * dieselbe, die vor dem Loslassen aufgeleuchtet hat — nicht die, in der
+       * die linke obere Ecke des Knotens landet. Bis September 2026 war es
+       * die Ecke, und ein Knoten, der in derselben Spalte oder rechts in
+       * „Außerhalb" landete, blieb liegen, wo er losgelassen wurde.
+       */
+      const ziel = drag?.featureId === node.id ? drag.overCol : null;
+      setDrag(null);
+      const zielPi = ziel == null ? undefined : piOfColumn(ziel, pis);
       const jetzt = features.find((f) => f.id === node.id)?.piId ?? null;
-      if (zielPi === jetzt) return;
+      // Kein Ziel, die Geisterspalte oder die eigene Spalte: zurück an den Platz.
+      if (zielPi === undefined || zielPi === jetzt) {
+        setNodes(baseNodes);
+        return;
+      }
 
       startTransition(async () => {
         const res = await setFeaturePi(setFeaturePiAction, {
@@ -451,7 +524,64 @@ export function CockpitNetwork({
         router.refresh();
       });
     },
-    [layout, canUpdate, bands, pis, features, artId, baseNodes, setNodes, router, dragSaveTimers],
+    [layout, canUpdate, drag, pis, features, artId, baseNodes, setNodes, router, dragSaveTimers],
+  );
+
+  /** Die Spalte eines Features: Backlog 0, die PIs in Reihenfolge ab 1. */
+  const spalteVon = useCallback(
+    (featureId: string): number | null => {
+      const f = features.find((x) => x.id === featureId);
+      if (!f) return null;
+      if (f.piId === null) return 0;
+      const i = pis.findIndex((p) => p.id === f.piId);
+      return i < 0 ? null : i + 1;
+    },
+    [features, pis],
+  );
+
+  const onNodeDragStart = useCallback(
+    (_e: unknown, node: Node) => {
+      if (layout !== "pi" || !canUpdate || node.type !== "feature") return;
+      const von = spalteVon(node.id);
+      if (von == null) return;
+      setHoverId(null);
+      setDrag({ featureId: node.id, fromCol: von, overCol: von });
+    },
+    [layout, canUpdate, spalteVon],
+  );
+
+  const onNodeDrag = useCallback(
+    (e: MouseEvent | TouchEvent, node: Node) => {
+      if (!flow || drag?.featureId !== node.id) return;
+      const punkt = "touches" in e ? e.touches[0] : e;
+      if (!punkt) return;
+      const { x } = flow.screenToFlowPosition({ x: punkt.clientX, y: punkt.clientY });
+      const ueber = columnAtPointer(x, columns);
+      // Nur bei Spaltenwechsel neu zeichnen — der Zug feuert je Pixel.
+      if (ueber !== drag.overCol) setDrag({ ...drag, overCol: ueber });
+    },
+    [flow, drag, columns],
+  );
+
+  /**
+   * Titel und Bänder mit ihrem Zustand während des Zugs — über die
+   * gerenderten Knoten gelegt, ohne das Layout neu zu rechnen.
+   */
+  const withDropState = useCallback(
+    (list: Node[]): Node[] =>
+      drag == null
+        ? list
+        : list.map((n) => {
+            if (n.type !== "pi-header" && n.type !== "pi-band") return n;
+            const col = Number(n.id.slice(n.id.indexOf(":") + 1));
+            const dropState = columnDropState(col, drag, pis);
+            return {
+              ...n,
+              style: { ...(n.style ?? {}), opacity: 1 },
+              data: { ...n.data, dropState },
+            };
+          }),
+    [drag, pis],
   );
   useEffect(() => setNodes(baseNodes), [baseNodes, setNodes]);
 
@@ -513,10 +643,13 @@ export function CockpitNetwork({
       )}
       <EdgePathContext.Provider value={edgePaths}>
         <ReactFlow
-          nodes={sicht.nodes}
+          nodes={withDropState(sicht.nodes)}
+          onInit={setFlow}
           edges={sicht.edges}
           onNodesChange={onNodesChange}
-          onNodeMouseEnter={(_e, n) => setHoverId(n.id.startsWith("pihead:") ? null : n.id)}
+          onNodeMouseEnter={(_e, n) =>
+            setHoverId(n.type === "feature" || n.type === "ghost" ? n.id : null)
+          }
           onNodeMouseLeave={() => setHoverId(null)}
           nodeTypes={NODE_TYPES}
           edgeTypes={EDGE_TYPES}
@@ -546,6 +679,8 @@ export function CockpitNetwork({
             // Ghost-Knoten werden bewusst nicht connectable gemacht.
             callLink(c.source, c.target);
           }}
+          onNodeDragStart={onNodeDragStart}
+          onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
           /**
            * **Ein Kantenende aufnehmen und woanders ablegen.**
@@ -649,7 +784,7 @@ function buildLayoutedGraph(
   selectedPiId: string | null,
   layout: NetworkLayout,
   savedPositions: Record<string, { x: number; y: number }>,
-): { nodes: Node[]; edges: Edge[]; bands: number[] } {
+): { nodes: Node[]; edges: Edge[]; columns: SwimlaneColumn[] } {
   const featureIds = new Set(features.map((f) => f.id));
 
   /**
@@ -682,7 +817,7 @@ function buildLayoutedGraph(
    * Spaltenbreite hängt davon ab, wie voll die Spalte ist, eine feste
    * Schrittweite wäre geraten.
    */
-  let bands: number[] = [];
+  let columns: SwimlaneColumn[] = [];
   /** Bahn und Reihe je Feature — nur in der Zeitachse belegt; die Klammer braucht sie. */
   let colOf = new Map<string, number>();
   let rowOf = new Map<string, number>();
@@ -731,11 +866,32 @@ function buildLayoutedGraph(
       // Die Kanten ordnen die Knoten **innerhalb** einer Bahn: Vorgänger oben.
       dependencies.map((d) => ({ source: d.fromId, target: d.toId })),
     );
-    bands = lay.bands;
+    columns = lay.columns;
     colOf = lay.colOf;
     rowOf = lay.rowOf;
     const featureById = new Map(features.map((f) => [f.id, f]));
 
+    // Die Bänder zuerst und ganz hinten: sie trennen die Spalten sichtbar.
+    const RAND = 12;
+    for (const c of lay.columns) {
+      nodes.push({
+        id: `piband:${c.col}`,
+        type: "pi-band",
+        position: { x: c.x0 - RAND, y: -RAND },
+        draggable: false,
+        selectable: false,
+        connectable: false,
+        focusable: false,
+        zIndex: -1,
+        style: { pointerEvents: "none" },
+        data: {
+          width: c.x1 - c.x0 + 2 * RAND,
+          height: lay.contentBottom + 3 * RAND,
+          dropState: "idle",
+        } satisfies PiBandData,
+      });
+    }
+    const breiteVon = new Map(lay.columns.map((c) => [c.col, c.x1 - c.x0]));
     for (const h of lay.headers) {
       // Backlog (Spalte 0) und die Geisterspalte (rechts) sind keine PIs.
       const pi = h.col === 0 || h.col > pis.length ? null : (pis[h.col - 1] ?? null);
@@ -745,7 +901,13 @@ function buildLayoutedGraph(
         position: { x: h.x, y: h.y },
         draggable: false,
         selectable: false,
-        data: { label: h.label, selected: pi != null && pi.id === selectedPiId, pi },
+        data: {
+          label: h.label,
+          selected: pi != null && pi.id === selectedPiId,
+          pi,
+          width: breiteVon.get(h.col) ?? NODE_W,
+          dropState: "idle",
+        } satisfies PiHeaderData,
       });
     }
     for (const p of lay.features) {
@@ -899,7 +1061,7 @@ function buildLayoutedGraph(
     }
   }
 
-  return { nodes, edges, bands };
+  return { nodes, edges, columns };
 }
 
 /**

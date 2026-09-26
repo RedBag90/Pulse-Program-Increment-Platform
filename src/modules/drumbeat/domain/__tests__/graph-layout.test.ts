@@ -5,6 +5,8 @@ import {
   columnAt,
   piOfColumn,
   orderWithinColumn,
+  columnAtPointer,
+  columnDropState,
 } from "@/modules/drumbeat/domain/graph-layout";
 
 describe("swimlaneLayout", () => {
@@ -319,5 +321,60 @@ describe("orderWithinColumn", () => {
     );
     const y = Object.fromEntries(lay.features.map((f) => [f.id, f.y]));
     expect(y["a"]).toBeLessThan(y["b"]!);
+  });
+});
+
+describe("Spaltenausdehnung, columnAtPointer und columnDropState", () => {
+  const pis = [
+    { id: "p1", name: "PI 1", startDate: "2026-01-01" },
+    { id: "p2", name: "PI 2", startDate: "2026-04-01" },
+  ];
+  const many = (n: number, piId: string | null) =>
+    Array.from({ length: n }, (_, i) => ({ id: `${piId ?? "bl"}-${i}`, piId }));
+  // nodeWidth 200, Bahnabstand 40, Spaltenabstand 160.
+  const lay = swimlaneLayout(many(3, "p1"), [], pis, {
+    nodeWidth: 200,
+    nodeHeight: 64,
+    maxRows: 2,
+  });
+
+  it("jede Spalte kennt ihre linke und rechte Kante — über alle Nebenkolonnen", () => {
+    expect(lay.columns).toEqual([
+      { col: 0, x0: 0, x1: 200 }, // Backlog, eine Bahn
+      { col: 1, x0: 360, x1: 800 }, // PI 1: drei Knoten, maxRows 2 → zwei Bahnen
+      { col: 2, x0: 960, x1: 1160 }, // PI 2
+      { col: 3, x0: 1320, x1: 1520 }, // Außerhalb
+    ]);
+  });
+
+  it("die Bänder reichen bis unter die tiefste Reihe", () => {
+    // zwei Reihen: 56 + 2 × (64 + 60) − 60
+    expect(lay.contentBottom).toBe(56 + 2 * 124 - 60);
+  });
+
+  it("columnAtPointer: innerhalb der Spalte", () => {
+    expect(columnAtPointer(500, lay.columns)).toBe(1);
+    expect(columnAtPointer(0, lay.columns)).toBe(0);
+  });
+
+  it("columnAtPointer: in der Lücke gilt die nächstgelegene Spalte", () => {
+    expect(columnAtPointer(250, lay.columns)).toBe(0); // 50 hinter Backlog, 110 vor PI 1
+    expect(columnAtPointer(320, lay.columns)).toBe(1); // 120 hinter Backlog, 40 vor PI 1
+  });
+
+  it("columnAtPointer: vor der ersten und hinter der letzten Spalte die äusserste", () => {
+    expect(columnAtPointer(-500, lay.columns)).toBe(0);
+    expect(columnAtPointer(9999, lay.columns)).toBe(3);
+    expect(columnAtPointer(10, [])).toBeNull();
+  });
+
+  it("columnDropState: ruhend, eigene, Ziel, Kandidat, gesperrt", () => {
+    const drag = { fromCol: 1, overCol: 2 };
+    expect(columnDropState(1, null, pis)).toBe("idle");
+    expect(columnDropState(1, drag, pis)).toBe("own");
+    expect(columnDropState(2, drag, pis)).toBe("target");
+    expect(columnDropState(0, drag, pis)).toBe("candidate"); // Backlog ist ein Ziel
+    expect(columnDropState(3, drag, pis)).toBe("disabled"); // Außerhalb nicht
+    expect(columnDropState(3, { fromCol: 1, overCol: 3 }, pis)).toBe("disabled");
   });
 });
