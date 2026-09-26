@@ -64,9 +64,11 @@ import { saveBreakdownLayoutAction } from "@/modules/work/features/portfolio/act
 import { useBreakdownRealtime } from "@/modules/work/features/portfolio/hooks/use-breakdown-realtime";
 
 import {
+  BracketTargetRow,
   EdgePathContext,
   HandleRow,
   useEdgePaths,
+  useFocusDimming,
 } from "@/modules/drumbeat/features/cockpit/components/network-shared";
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { clearBreakdownLayoutAction } from "@/modules/work/features/portfolio/actions/breakdown-layout";
@@ -320,7 +322,7 @@ function QuickAddPopover({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger render={children as React.ReactElement} />
-      <PopoverContent side="bottom" align="center" className="w-64">
+      <PopoverContent side="bottom" align="center" className="w-80">
         <QuickAddForm
           onSubmit={(input) => {
             onSubmit(input);
@@ -366,7 +368,12 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
           </button>
         }
       />
-      <PopoverContent side="bottom" align="end" className="w-64">
+      {/*
+        `w-80`, nicht `w-64`: drei Knöpfe („WSJF verfeinern" · „Abbrechen" ·
+        „Speichern") passten auf Deutsch nicht in 236 px, und die Zeile brach
+        nicht um — der letzte Knopf ragte rechts aus dem Kasten.
+      */}
+      <PopoverContent side="bottom" align="end" className="w-80">
         <form
           className="space-y-2"
           onSubmit={(e) => {
@@ -386,6 +393,13 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               autoFocus
+              // `focus()` setzt die Marke ans **Ende** — bei 200 Zeichen zeigt
+              // das Feld dann nur den Schluss („…Standort A — Pilot"). Wer
+              // bearbeitet, will vorn anfangen.
+              onFocus={(e) => {
+                e.currentTarget.setSelectionRange(0, 0);
+                e.currentTarget.scrollLeft = 0;
+              }}
               required
               maxLength={200}
               className="h-8"
@@ -409,7 +423,7 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
               ))}
             </select>
           </div>
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             <WsjfScoreDialog
               featureId={node.id}
               artId={node.artId}
@@ -477,6 +491,7 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
         </div>
       </button>
       <HandleRow type="source" position={Position.Right} connectable={node.connectable} visible />
+      <BracketTargetRow />
       {node.showPlus && <NodeAddPlusButton node={node} />}
       {node.showEdit && <QuickEditPopover node={node} />}
     </div>
@@ -1175,6 +1190,13 @@ export function BreakdownNetworkView({
   }, [edges, matchedIds]);
 
   /**
+   * **Unbeteiligtes abblenden** — oben auf das Filter-Abblenden gelegt. Der
+   * überfahrene Knoten und seine Nachbarn bleiben satt, der Rest wird blass.
+   */
+  const [hoverId, setHoverId] = useState<string | null>(null);
+  const sicht = useFocusDimming(displayNodes, displayEdges, hoverId);
+
+  /**
    * **Die Linien aller Kanten, einmal berechnet — samt Brücken.**
    *
    * Über die **Live**-Positionen (`nodes`), nicht über das Layout-Ergebnis:
@@ -1430,9 +1452,11 @@ export function BreakdownNetworkView({
         <BreakdownInteractionContext.Provider value={interactionCtx}>
           <EdgePathContext.Provider value={edgePaths}>
             <ReactFlow
-              nodes={displayNodes}
-              edges={displayEdges}
+              nodes={sicht.nodes}
+              edges={sicht.edges}
               onNodesChange={onNodesChange}
+              onNodeMouseEnter={(_e, n) => setHoverId(n.id.startsWith("pi-header-") ? null : n.id)}
+              onNodeMouseLeave={() => setHoverId(null)}
               {...(layoutMode === "topology" ? { onNodeDragStop } : {})}
               nodeTypes={NODE_TYPES}
               edgeTypes={EDGE_TYPES}

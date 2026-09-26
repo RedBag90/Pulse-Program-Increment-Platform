@@ -21,6 +21,22 @@ export const HANDLE_SLOTS = 5;
 
 export const sourceHandleId = (slot: number): string => `s${slot}`;
 export const targetHandleId = (slot: number): string => `t${slot}`;
+/**
+ * Ein **Ziel auf der rechten Seite** — für die Klammer.
+ *
+ * Zwei Knoten derselben Bahn liegen übereinander. Eine Kante, die rechts
+ * heraus- und links wieder hineinläuft, muss um den Knoten herum: 264 px
+ * Umweg für 124 px Höhe, und alle solchen Kanten auf denselben zwei
+ * Korridoren. Läuft sie stattdessen rechts hinein, wird sie zur Klammer neben
+ * der Bahn — sie quert nichts und läuft durch keinen Knoten dazwischen.
+ *
+ * Versteckt und nicht verbindbar: sie dient der Führung, nicht der Geste.
+ */
+export const targetRightHandleId = (slot: number): string => `tr${slot}`;
+
+/** Läuft diese Kante von rechts ins Ziel — ist sie also eine Klammer? */
+export const isBracketTarget = (handle: string | null | undefined): boolean =>
+  typeof handle === "string" && handle.startsWith("tr");
 
 /** Die senkrechte Lage eines Anschlusses in Prozent der Knotenhöhe. */
 export function handleOffsetPercent(slot: number, slots = HANDLE_SLOTS): number {
@@ -43,12 +59,22 @@ export function slotFor(index: number, count: number, slots = HANDLE_SLOTS): num
 export interface HandleAssignment {
   sourceHandle: string;
   targetHandle: string;
+  /**
+   * Wie weit die Klammer in die Gasse greift, 0 = innerste. Nur bei
+   * Klammern gesetzt. Längere Klammern liegen aussen, damit sich kurze und
+   * lange nicht überlagern.
+   */
+  bracketDepth?: number;
 }
 
 interface EdgeRef {
   id: string;
   source: string;
   target: string;
+  /** Beide Enden in derselben Bahn — dann wird die Kante eine Klammer. */
+  sameColumn?: boolean;
+  /** Wie viele Reihen die Kante überspannt (nur bei `sameColumn`). */
+  span?: number;
 }
 
 /**
@@ -83,9 +109,15 @@ export function assignHandles(edges: readonly EdgeRef[]): Map<string, HandleAssi
   for (const [, liste] of eingehend) {
     liste.forEach((e, i) => {
       const vorhanden = out.get(e.id);
+      const slot = slotFor(i, liste.length);
       out.set(e.id, {
         sourceHandle: vorhanden?.sourceHandle ?? sourceHandleId(slotFor(0, 1)),
-        targetHandle: targetHandleId(slotFor(i, liste.length)),
+        targetHandle: e.sameColumn ? targetRightHandleId(slot) : targetHandleId(slot),
+        // Eine Reihe Abstand = innerste Klammer; jede weitere Reihe eine
+        // Stufe weiter aussen, gedeckelt auf die Zahl der Anschlüsse.
+        ...(e.sameColumn
+          ? { bracketDepth: Math.min(HANDLE_SLOTS - 1, Math.max(0, (e.span ?? 1) - 1)) }
+          : {}),
       });
     });
   }

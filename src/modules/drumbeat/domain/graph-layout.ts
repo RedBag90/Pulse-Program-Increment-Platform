@@ -97,6 +97,74 @@ export interface SwimlaneLayout {
   bands: number[];
   /** Die Breite eines Knotens — `columnAt` braucht sie, um Lücken zu erkennen. */
   nodeWidth: number;
+  /**
+   * Bahn und Reihe je Feature. Damit lässt sich sagen, ob zwei Enden einer
+   * Kante in derselben Bahn liegen — und wie weit auseinander. Die Klammer
+   * (`targetRightHandleId`) braucht beides.
+   */
+  colOf: Map<string, number>;
+  rowOf: Map<string, number>;
+}
+
+/** Eine gerichtete Kante zwischen zwei Knoten-Ids. */
+export interface LayoutEdge {
+  source: string;
+  target: string;
+}
+
+/**
+ * **Vorgänger oben, Nachfolger unten — innerhalb einer Bahn.**
+ *
+ * Die Reihenfolge in einer Bahn war die Eingabereihenfolge, und die ist
+ * WSJF-absteigend — eine Ordnung, die mit der Abhängigkeitsrichtung nichts zu
+ * tun hat. Ein Vorgänger stand so oft *unter* seinem Nachfolger wie darüber,
+ * die Kanten liefen in beide Richtungen, und jede davon war ein Umweg um die
+ * halbe Bahnbreite.
+ *
+ * Kahn-Sortierung über die Kanten, deren **beide** Enden in dieser Bahn liegen.
+ * Kanten in andere Bahnen ändern die Reihenfolge nicht — sie laufen ohnehin
+ * quer, und quer ist in der Zeitachse richtig.
+ *
+ * **Gleichstand behält die Eingabereihenfolge.** Wer keinen Vorgänger in der
+ * Bahn hat, steht so, wie er kam — also weiterhin nach WSJF. Die Sortierung
+ * ist stabil: unter den jeweils freien Knoten wird immer der genommen, der in
+ * der Eingabe zuerst stand.
+ *
+ * Ein Zyklus kann nicht vorkommen (der Server verbietet ihn). Kommt trotzdem
+ * einer, bricht die Funktion nicht: die verbleibenden Knoten hängen in
+ * Eingabereihenfolge hinten an.
+ */
+export function orderWithinColumn(ids: readonly string[], edges: readonly LayoutEdge[]): string[] {
+  const drin = new Set(ids);
+  const rang = new Map(ids.map((id, i) => [id, i]));
+  const eingang = new Map<string, number>(ids.map((id) => [id, 0]));
+  const nach = new Map<string, string[]>(ids.map((id) => [id, []]));
+
+  for (const e of edges) {
+    if (!drin.has(e.source) || !drin.has(e.target) || e.source === e.target) continue;
+    nach.get(e.source)!.push(e.target);
+    eingang.set(e.target, (eingang.get(e.target) ?? 0) + 1);
+  }
+
+  // Frei = kein offener Vorgänger. Immer der mit dem kleinsten Eingangsrang
+  // zuerst — das ist die Stabilität.
+  const frei = ids.filter((id) => eingang.get(id) === 0);
+  const out: string[] = [];
+  const fertig = new Set<string>();
+  while (frei.length > 0) {
+    frei.sort((a, b) => rang.get(a)! - rang.get(b)!);
+    const id = frei.shift()!;
+    out.push(id);
+    fertig.add(id);
+    for (const t of nach.get(id)!) {
+      const rest = (eingang.get(t) ?? 1) - 1;
+      eingang.set(t, rest);
+      if (rest === 0) frei.push(t);
+    }
+  }
+  // Zyklus-Rest, falls es ihn je gibt.
+  for (const id of ids) if (!fertig.has(id)) out.push(id);
+  return out;
 }
 
 /**
@@ -112,6 +180,8 @@ export function swimlaneLayout(
   ghostNodes: readonly { id: string }[],
   pis: readonly SwimlanePi[],
   geometry: SwimlaneGeometry = {},
+  /** Die Kanten — sie ordnen die Knoten **innerhalb** einer Bahn, sonst nichts. */
+  edges: readonly LayoutEdge[] = [],
 ): SwimlaneLayout {
   const nodeWidth = geometry.nodeWidth ?? NODE_W_BREAKDOWN;
   const nodeHeight = geometry.nodeHeight ?? BREAKDOWN_NODE_H;
@@ -129,6 +199,17 @@ export function swimlaneLayout(
   for (const n of nodes) {
     const col = n.piId == null ? 0 : (colByPi.get(n.piId) ?? 0);
     buckets.get(col)!.push({ featureId: n.id });
+  }
+  // Je Bahn: Vorgänger nach oben. Ohne Kanten bleibt alles, wie es kam.
+  if (edges.length > 0) {
+    for (const [col, items] of buckets) {
+      const ids = items.flatMap((it) => (it.featureId != null ? [it.featureId] : []));
+      if (ids.length < 2) continue;
+      buckets.set(
+        col,
+        orderWithinColumn(ids, edges).map((featureId) => ({ featureId })),
+      );
+    }
   }
   for (const gn of ghostNodes) {
     buckets.get(externCol)!.push({ ghostId: gn.id });
@@ -164,8 +245,14 @@ export function swimlaneLayout(
 
   const features: SwimlanePosition[] = [];
   const ghosts: SwimlanePosition[] = [];
+  const colOf = new Map<string, number>();
+  const rowOf = new Map<string, number>();
   for (const [col, items] of buckets) {
     items.forEach((item, idx) => {
+      if (item.featureId != null) {
+        colOf.set(item.featureId, col);
+        rowOf.set(item.featureId, idx);
+      }
       // `idx % Infinity === idx` und `floor(idx / Infinity) === 0`: ohne Umbruch
       // fällt das hier von selbst auf die alte Kolonne zurück.
       const lane = Math.floor(idx / maxRows);
@@ -177,7 +264,7 @@ export function swimlaneLayout(
     });
   }
 
-  return { headers, features, ghosts, bands: bandX, nodeWidth };
+  return { headers, features, ghosts, bands: bandX, nodeWidth, colOf, rowOf };
 }
 
 // ---------------------------------------------------------------------------

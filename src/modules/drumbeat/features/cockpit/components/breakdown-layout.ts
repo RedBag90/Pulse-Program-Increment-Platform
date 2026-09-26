@@ -245,7 +245,16 @@ export function layoutByPi(
 ): { nodes: Node[]; edges: Edge[] } {
   // Reine Swimlane-Positionierung (graph-layout); dieses Component mappt die
   // Positionen nur noch in ReactFlow-Nodes.
-  const { headers, features, ghosts } = swimlaneLayout(nodes, ghostNodes, pis);
+  // Mit **Maßen** und **Kanten**. Ohne Maße galt die Vorgabe 96 bei einer
+  // Knotenhöhe von 80 — der Reihenabstand war 16 px zu weit, und `useEdgePaths`
+  // rechnete mit 80. Mit Kanten stehen Vorgänger über ihren Nachfolgern.
+  const { headers, features, ghosts, colOf, rowOf } = swimlaneLayout(
+    nodes,
+    ghostNodes,
+    pis,
+    { nodeWidth: NODE_WIDTH, nodeHeight: NODE_HEIGHT },
+    edges,
+  );
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
   const ghostById = new Map(ghostNodes.map((g) => [g.id, g]));
 
@@ -297,17 +306,34 @@ export function layoutByPi(
     });
   }
 
-  const handles = assignHandles(edges);
+  // **Klammern**: beide Enden in derselben Bahn → von rechts wieder herein.
+  const handles = assignHandles(
+    edges.map((e) => {
+      const cs = colOf.get(e.source);
+      const ct = colOf.get(e.target);
+      const sameColumn = cs != null && ct != null && cs === ct;
+      return {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sameColumn,
+        ...(sameColumn
+          ? { span: Math.abs((rowOf.get(e.source) ?? 0) - (rowOf.get(e.target) ?? 0)) }
+          : {}),
+      };
+    }),
+  );
   const rfEdges: Edge[] = edges.map((e) => {
     const s = edgeStyle(e.type);
     const anschluss = handles.get(e.id);
     const sourceArtId = artById.get(e.source) ?? "";
-    const data: InsertableEdgeData = {
+    const data: InsertableEdgeData & { bracketDepth?: number } = {
       type: e.type,
       showPlus: ctx.canCreateFeature && sourceArtId !== "",
       sourceArtId,
       canChangeType: ctx.canLinkDependency && sourceArtId !== "",
       canInsert: sourceArtId !== "",
+      ...(anschluss?.bracketDepth != null ? { bracketDepth: anschluss.bracketDepth } : {}),
     };
     return {
       id: e.id,
@@ -315,7 +341,11 @@ export function layoutByPi(
       target: e.target,
       // Ohne eigene Anschlüsse liefen alle Kanten eines Knotens durch denselben
       // Punkt — und zwei mit gleichen Endpunkten erzeugten dasselbe `d`.
-      ...(anschluss ?? {}),
+      // Nur die beiden Anschlüsse — `bracketDepth` gehört in `data`, und ein
+      // Spread liesse den Compiler nicht sehen, dass `Edge` es nicht kennt.
+      ...(anschluss
+        ? { sourceHandle: anschluss.sourceHandle, targetHandle: anschluss.targetHandle }
+        : {}),
       type: "insertable",
       label: ctx.t(EDGE_LABEL[e.type]),
       animated: s.animated,

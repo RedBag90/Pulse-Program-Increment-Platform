@@ -3,6 +3,7 @@ import {
   HANDLE_SLOTS,
   assignHandles,
   handleOffsetPercent,
+  isBracketTarget,
   slotFor,
 } from "@/modules/drumbeat/domain/graph-handles";
 
@@ -101,5 +102,62 @@ describe("assignHandles", () => {
       expect(out.get(id)?.sourceHandle).toMatch(/^s\d$/);
       expect(out.get(id)?.targetHandle).toMatch(/^t\d$/);
     }
+  });
+});
+
+/**
+ * **Die Klammer: eine Kante in derselben Bahn kommt von rechts wieder herein.**
+ *
+ * Zwei Knoten derselben Bahn liegen übereinander. Rechts heraus und links
+ * hinein hiess: um den Knoten herum, 264 px Umweg für 124 px Höhe, alle auf
+ * denselben zwei Korridoren. Von rechts hinein wird die Kante zur Klammer
+ * neben der Bahn.
+ */
+describe("assignHandles — Klammern", () => {
+  it("gibt einer Kante derselben Bahn ein Ziel auf der rechten Seite", () => {
+    const out = assignHandles([{ id: "e1", source: "a", target: "b", sameColumn: true, span: 1 }]);
+
+    expect(isBracketTarget(out.get("e1")!.targetHandle)).toBe(true);
+    expect(out.get("e1")!.targetHandle).toMatch(/^tr\d$/);
+    // Die Quelle bleibt rechts — die Klammer beginnt, wo jede Kante beginnt.
+    expect(out.get("e1")!.sourceHandle).toMatch(/^s\d$/);
+  });
+
+  it("lässt eine Kante in eine andere Bahn, wie sie war", () => {
+    const out = assignHandles([{ id: "e1", source: "a", target: "b", sameColumn: false }]);
+
+    expect(out.get("e1")!.targetHandle).toMatch(/^t\d$/);
+    expect(out.get("e1")!.bracketDepth).toBeUndefined();
+  });
+
+  it("greift mit der Spannweite weiter aus — lange Klammern aussen, kurze innen", () => {
+    const out = assignHandles([
+      { id: "kurz", source: "a", target: "b", sameColumn: true, span: 1 },
+      { id: "lang", source: "a", target: "d", sameColumn: true, span: 3 },
+    ]);
+
+    expect(out.get("kurz")!.bracketDepth).toBe(0);
+    expect(out.get("lang")!.bracketDepth).toBe(2);
+    expect(out.get("lang")!.bracketDepth!).toBeGreaterThan(out.get("kurz")!.bracketDepth!);
+  });
+
+  it("deckelt die Tiefe auf die Zahl der Anschlüsse", () => {
+    const out = assignHandles([{ id: "e", source: "a", target: "z", sameColumn: true, span: 40 }]);
+    expect(out.get("e")!.bracketDepth).toBe(HANDLE_SLOTS - 1);
+  });
+
+  it("nimmt ohne Spannweite die innerste Klammer", () => {
+    const out = assignHandles([{ id: "e", source: "a", target: "b", sameColumn: true }]);
+    expect(out.get("e")!.bracketDepth).toBe(0);
+  });
+});
+
+describe("isBracketTarget", () => {
+  it("erkennt nur die rechte Zielreihe", () => {
+    expect(isBracketTarget("tr2")).toBe(true);
+    expect(isBracketTarget("t2")).toBe(false);
+    expect(isBracketTarget("s2")).toBe(false);
+    expect(isBracketTarget(null)).toBe(false);
+    expect(isBracketTarget(undefined)).toBe(false);
   });
 });

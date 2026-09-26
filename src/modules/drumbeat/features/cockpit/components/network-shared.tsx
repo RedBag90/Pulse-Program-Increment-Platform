@@ -5,8 +5,10 @@ import { Handle, Position, getSmoothStepPath, type Edge, type Node } from "@xyfl
 import {
   HANDLE_SLOTS,
   handleOffsetPercent,
+  isBracketTarget,
   sourceHandleId,
   targetHandleId,
+  targetRightHandleId,
 } from "@/modules/drumbeat/domain/graph-handles";
 import { hopsFor, polylineOf, withHops, type Point } from "@/modules/drumbeat/domain/edge-hops";
 
@@ -67,6 +69,32 @@ export function HandleRow({
 }
 
 /**
+ * **Die Zielreihe für Klammern — rechts, unsichtbar.**
+ *
+ * Eine Kante zwischen zwei Knoten derselben Bahn kommt von rechts wieder
+ * herein statt links; siehe `targetRightHandleId`. Die Anschlüsse hier sind
+ * nie verbindbar und nie sichtbar — sie geben der Kante nur einen Punkt, an
+ * dem sie enden kann.
+ */
+export function BracketTargetRow() {
+  return (
+    <>
+      {Array.from({ length: HANDLE_SLOTS }, (_, slot) => (
+        <Handle
+          key={slot}
+          id={targetRightHandleId(slot)}
+          type="target"
+          position={Position.Right}
+          isConnectable={false}
+          style={{ top: `${handleOffsetPercent(slot)}%` }}
+          className="!size-0 !border-none !opacity-0"
+        />
+      ))}
+    </>
+  );
+}
+
+/**
  * **Die fertigen Linien, je Kante.**
  *
  * Eine Kante, die ihren Pfad selbst rechnet, kann nicht wissen, ob sie eine
@@ -92,10 +120,20 @@ export interface NetworkGeometry {
 
 const SLOT_MITTE = Math.floor(HANDLE_SLOTS / 2);
 
-/** `"s3"` → `3`; alles Unbekannte landet in der Mitte. */
-function slotOf(handle: string | null | undefined): number {
-  const n = Number(String(handle ?? "").slice(1));
-  return Number.isFinite(n) ? n : SLOT_MITTE;
+/** Wie weit die innerste Klammer in die Gasse greift, und je Stufe mehr. */
+const BRACKET_OFFSET = 24;
+const BRACKET_STEP = 12;
+
+/**
+ * `"s3"` → `3`, `"tr2"` → `2`; alles Unbekannte landet in der Mitte.
+ *
+ * Die erste Fassung hielt diese Zusage nicht: `Number("")` ist `0`, und
+ * `isFinite(0)` ist wahr — eine Kante **ohne** Anschluss (die optimistische
+ * `tmp-`-Kante) landete auf Slot 0, also bei 10 % der Höhe statt bei 50 %.
+ */
+export function slotOf(handle: string | null | undefined): number {
+  const m = /^[a-z]+(\d+)$/.exec(handle ?? "");
+  return m ? Number(m[1]) : SLOT_MITTE;
 }
 
 /**
@@ -122,14 +160,24 @@ export function useEdgePaths(
       const q = posOf.get(e.source);
       const ziel = posOf.get(e.target);
       if (q == null || ziel == null) continue;
+
+      /**
+       * **Klammer oder Bogen.** Läuft die Kante von rechts ins Ziel
+       * (`tr…`), liegen beide Enden in derselben Bahn: Quelle **und** Ziel
+       * auf `Right`, und `getSmoothStepPath` zeichnet von selbst die Klammer
+       * neben der Bahn — `offset` breit. Längere Klammern greifen weiter
+       * aus, damit sie sich nicht mit kürzeren überlagern.
+       */
+      const klammer = isBracketTarget(e.targetHandle);
+      const tiefe = (e.data as { bracketDepth?: number } | undefined)?.bracketDepth ?? 0;
       const [d] = getSmoothStepPath({
         sourceX: q.x + width,
         sourceY: q.y + (height * handleOffsetPercent(slotOf(e.sourceHandle))) / 100,
-        targetX: ziel.x,
+        targetX: klammer ? ziel.x + width : ziel.x,
         targetY: ziel.y + (height * handleOffsetPercent(slotOf(e.targetHandle))) / 100,
         sourcePosition: Position.Right,
-        targetPosition: Position.Left,
-        offset,
+        targetPosition: klammer ? Position.Right : Position.Left,
+        offset: klammer ? BRACKET_OFFSET + BRACKET_STEP * tiefe : offset,
         borderRadius,
       });
       roh.push({ id: e.id, d, points: polylineOf(d) });
@@ -142,4 +190,44 @@ export function useEdgePaths(
     }
     return out;
   }, [nodes, edges, width, height, offset, borderRadius]);
+}
+
+/**
+ * **Unbeteiligtes abblenden.**
+ *
+ * Ein Abhängigkeitsgraph mit dreissig Kanten ist als Ganzes nicht lesbar —
+ * lesbar ist die Frage „woran hängt *dieses* Feature". Beim Überfahren oder
+ * Wählen eines Knotens treten seine Kanten und Nachbarn hervor, alles andere
+ * wird blass. Die Geometrie bleibt; nur die Aufmerksamkeit wird gelenkt.
+ *
+ * Das ist der dritte Hebel gegen das Kantenchaos, und der einzige, der auch
+ * in der Topologie wirkt: dort ordnet dagre schon nach Abhängigkeit, und die
+ * beiden anderen Hebel (Reihenfolge in der Bahn, Klammer) greifen nicht.
+ *
+ * Ohne Fokus kommen die Eingaben unverändert zurück — dieselben Referenzen,
+ * kein Neuzeichnen.
+ */
+export function useFocusDimming(
+  nodes: readonly Node[],
+  edges: readonly Edge[],
+  focusId: string | null,
+): { nodes: Node[]; edges: Edge[] } {
+  return useMemo(() => {
+    if (focusId == null) return { nodes: nodes as Node[], edges: edges as Edge[] };
+    const nah = new Set<string>([focusId]);
+    for (const e of edges) {
+      if (e.source === focusId) nah.add(e.target);
+      if (e.target === focusId) nah.add(e.source);
+    }
+    return {
+      nodes: nodes.map((n) =>
+        nah.has(n.id) ? n : { ...n, style: { ...(n.style ?? {}), opacity: 0.35 } },
+      ),
+      edges: edges.map((e) =>
+        e.source === focusId || e.target === focusId
+          ? e
+          : { ...e, style: { ...(e.style ?? {}), opacity: 0.12 } },
+      ),
+    };
+  }, [nodes, edges, focusId]);
 }

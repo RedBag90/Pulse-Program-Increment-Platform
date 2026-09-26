@@ -4,6 +4,7 @@ import {
   pointsBackwards,
   columnAt,
   piOfColumn,
+  orderWithinColumn,
 } from "@/modules/drumbeat/domain/graph-layout";
 
 describe("swimlaneLayout", () => {
@@ -260,5 +261,63 @@ describe("piOfColumn", () => {
     // beiden dürfen nicht gleich aussehen.
     expect(piOfColumn(3, pis)).toBeUndefined();
     expect(piOfColumn(99, pis)).toBeUndefined();
+  });
+});
+
+/**
+ * **Vorgänger oben, Nachfolger unten — innerhalb einer Bahn.**
+ *
+ * Die Reihenfolge in einer Bahn war WSJF-absteigend, eine Ordnung ohne Bezug
+ * zur Abhängigkeit. Vorgänger standen so oft unter ihren Nachfolgern wie
+ * darüber, und jede Kante nach oben war ein Umweg um die halbe Bahnbreite.
+ */
+describe("orderWithinColumn", () => {
+  const k = (source: string, target: string) => ({ source, target });
+
+  it("stellt den Vorgänger über den Nachfolger", () => {
+    // Eingabe: b vor a (höheres WSJF). Kante: a → b. Also a nach oben.
+    expect(orderWithinColumn(["b", "a"], [k("a", "b")])).toEqual(["a", "b"]);
+  });
+
+  it("behält bei Gleichstand die Eingabereihenfolge", () => {
+    // Keine Kante: alles bleibt, wie es kam — also weiterhin nach WSJF.
+    expect(orderWithinColumn(["c", "a", "b"], [])).toEqual(["c", "a", "b"]);
+    // Nur a → b: c hat keinen Bezug und behält seinen Platz vor a.
+    expect(orderWithinColumn(["c", "b", "a"], [k("a", "b")])).toEqual(["c", "a", "b"]);
+  });
+
+  it("ist stabil — unter den freien Knoten kommt der zuerst, der zuerst kam", () => {
+    // x und y sind beide frei; x stand vorn.
+    expect(orderWithinColumn(["x", "y", "z"], [k("x", "z"), k("y", "z")])).toEqual(["x", "y", "z"]);
+  });
+
+  it("ignoriert Kanten in andere Bahnen", () => {
+    // `fremd` steht nicht in der Bahn; die Kante darf nichts bewegen.
+    expect(orderWithinColumn(["b", "a"], [k("fremd", "a"), k("b", "fremd")])).toEqual(["b", "a"]);
+  });
+
+  it("folgt einer Kette über mehrere Stufen", () => {
+    expect(orderWithinColumn(["c", "b", "a"], [k("a", "b"), k("b", "c")])).toEqual(["a", "b", "c"]);
+  });
+
+  it("bricht bei einem Zyklus nicht, sondern hängt den Rest hinten an", () => {
+    // Kann nicht vorkommen — der Server verbietet Zyklen. Wenn doch, darf das
+    // Layout nicht einfrieren.
+    expect(orderWithinColumn(["a", "b", "c"], [k("a", "b"), k("b", "a")])).toEqual(["c", "a", "b"]);
+  });
+
+  it("wirkt im Layout: der Vorgänger bekommt das kleinere y", () => {
+    const lay = swimlaneLayout(
+      [
+        { id: "b", piId: null },
+        { id: "a", piId: null },
+      ],
+      [],
+      [],
+      {},
+      [k("a", "b")],
+    );
+    const y = Object.fromEntries(lay.features.map((f) => [f.id, f.y]));
+    expect(y["a"]).toBeLessThan(y["b"]!);
   });
 });

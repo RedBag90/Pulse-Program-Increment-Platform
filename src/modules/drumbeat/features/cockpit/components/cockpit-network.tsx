@@ -32,10 +32,12 @@ import { formatWsjf } from "@/modules/core/kernel/domain/wsjf";
 import { FEATURE_STATUS_KEYS as STATUS_LABEL } from "@/modules/drumbeat/domain/status";
 import { EdgeTypeMenu } from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";
 import {
+  BracketTargetRow,
   EdgePathContext,
   HandleRow,
   useEdgePath,
   useEdgePaths,
+  useFocusDimming,
 } from "@/modules/drumbeat/features/cockpit/components/network-shared";
 import { assignHandles } from "@/modules/drumbeat/domain/graph-handles";
 import { resolveCollisions } from "@/modules/drumbeat/domain/graph-collision";
@@ -201,6 +203,7 @@ const FeatureNode = memo(function FeatureNode({ data }: { data: FeatureNodeData 
         connectable={data.connectable}
         visible={data.connectable}
       />
+      <BracketTargetRow />
     </div>
   );
 });
@@ -346,6 +349,14 @@ export function CockpitNetwork({
    * sie zurück, sobald sich Daten oder Anordnung ändern.
    */
   const [nodes, setNodes, onNodesChange] = useNodesState(baseNodes);
+
+  /**
+   * **Unbeteiligtes abblenden.** Der überfahrene Knoten und seine Nachbarn
+   * bleiben satt, der Rest wird blass. Nur echte Knoten — die Bahnköpfe
+   * sind keine Features und haben keine Nachbarn.
+   */
+  const [hoverId, setHoverId] = useState<string | null>(null);
+  const sicht = useFocusDimming(nodes, edges, hoverId);
 
   /** Speicher-Entprellung je Knoten — wie im Epic-Breakdown. */
   const dragSaveTimers = useMemo<Map<string, ReturnType<typeof setTimeout>>>(() => new Map(), []);
@@ -497,9 +508,11 @@ export function CockpitNetwork({
       )}
       <EdgePathContext.Provider value={edgePaths}>
         <ReactFlow
-          nodes={nodes}
-          edges={edges}
+          nodes={sicht.nodes}
+          edges={sicht.edges}
           onNodesChange={onNodesChange}
+          onNodeMouseEnter={(_e, n) => setHoverId(n.id.startsWith("pihead:") ? null : n.id)}
+          onNodeMouseLeave={() => setHoverId(null)}
           nodeTypes={NODE_TYPES}
           edgeTypes={EDGE_TYPES}
           /**
@@ -645,13 +658,13 @@ function buildLayoutedGraph(
     if (!f) return null;
     return f.piId === null ? 0 : (colByPi.get(f.piId) ?? null);
   };
-  const g = new dagre.graphlib.Graph();
-  g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: "LR", nodesep: 28, ranksep: 80 });
-
-  for (const f of features) {
-    g.setNode(f.id, { width: NODE_W, height: NODE_H });
-  }
+  /**
+   * Die Kanten, die dagre bekommt — gesammelt, nicht gesetzt. dagre wird erst
+   * in der Topologie gebaut; in der Zeitachse wurde der Graph bis September
+   * 2026 vollständig aufgebaut und nie gelegt — tote Arbeit bei jedem
+   * Memo-Lauf.
+   */
+  const dagreKanten: [string, string][] = [];
 
   // Ghost-Knoten fuer Off-Scope-Endpunkte. Ein Ghost je
   // (richtung × off-scope-feature-id) — kein Duplikat wenn mehrere
@@ -665,6 +678,9 @@ function buildLayoutedGraph(
    * Schrittweite wäre geraten.
    */
   let bands: number[] = [];
+  /** Bahn und Reihe je Feature — nur in der Zeitachse belegt; die Klammer braucht sie. */
+  let colOf = new Map<string, number>();
+  let rowOf = new Map<string, number>();
   const ghostIds = new Map<string, { title: string; hint: string }>();
 
   for (const d of dependencies) {
@@ -675,9 +691,8 @@ function buildLayoutedGraph(
           title: d.offScopeLabel ?? "Externer Knoten",
           hint: "Predecessor (off-scope)",
         });
-        g.setNode(ghostId, { width: NODE_W, height: NODE_H });
       }
-      if (featureIds.has(d.toId)) g.setEdge(ghostId, d.toId);
+      if (featureIds.has(d.toId)) dagreKanten.push([ghostId, d.toId]);
     } else if (d.offScopeRole === "to") {
       const ghostId = `ghost:to:${d.toId}`;
       if (!ghostIds.has(ghostId)) {
@@ -685,11 +700,10 @@ function buildLayoutedGraph(
           title: d.offScopeLabel ?? "Externer Knoten",
           hint: "Successor (off-scope)",
         });
-        g.setNode(ghostId, { width: NODE_W, height: NODE_H });
       }
-      if (featureIds.has(d.fromId)) g.setEdge(d.fromId, ghostId);
+      if (featureIds.has(d.fromId)) dagreKanten.push([d.fromId, ghostId]);
     } else if (featureIds.has(d.fromId) && featureIds.has(d.toId)) {
-      g.setEdge(d.fromId, d.toId);
+      dagreKanten.push([d.fromId, d.toId]);
     }
   }
 
@@ -709,8 +723,12 @@ function buildLayoutedGraph(
         externLabel: "Außerhalb des Fensters",
         maxRows: COLUMN_MAX_ROWS,
       },
+      // Die Kanten ordnen die Knoten **innerhalb** einer Bahn: Vorgänger oben.
+      dependencies.map((d) => ({ source: d.fromId, target: d.toId })),
     );
     bands = lay.bands;
+    colOf = lay.colOf;
+    rowOf = lay.rowOf;
     const featureById = new Map(features.map((f) => [f.id, f]));
 
     for (const h of lay.headers) {
@@ -741,6 +759,12 @@ function buildLayoutedGraph(
       nodes.push({ id: gp.id, type: "ghost", position: { x: gp.x, y: gp.y }, data: info });
     }
   } else {
+    const g = new dagre.graphlib.Graph();
+    g.setDefaultEdgeLabel(() => ({}));
+    g.setGraph({ rankdir: "LR", nodesep: 28, ranksep: 80 });
+    for (const f of features) g.setNode(f.id, { width: NODE_W, height: NODE_H });
+    for (const ghostId of ghostIds.keys()) g.setNode(ghostId, { width: NODE_W, height: NODE_H });
+    for (const [von, nach] of dagreKanten) g.setEdge(von, nach);
     dagre.layout(g);
 
     /**
@@ -837,14 +861,33 @@ function buildLayoutedGraph(
    * ihrer Endpunkte: zwei Kanten mit denselben Enden zeichneten ein
    * byte-gleiches `d` — deckungsgleich, und anklickbar war nur die oberste.
    */
+  //
+  // **Klammern in der Zeitachse.** Liegen beide Enden in derselben Bahn, kommt
+  // die Kante von rechts wieder herein statt links — sie wird zur Klammer
+  // neben der Bahn und läuft durch keinen Knoten dazwischen. `span` sagt, wie
+  // viele Reihen sie überspannt; längere Klammern greifen weiter aus.
   const anschluesse = assignHandles(
-    edges.map((e) => ({ id: e.id, source: e.source, target: e.target })),
+    edges.map((e) => {
+      const cs = colOf.get(e.source);
+      const ct = colOf.get(e.target);
+      const sameColumn = cs != null && ct != null && cs === ct;
+      return {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sameColumn,
+        ...(sameColumn
+          ? { span: Math.abs((rowOf.get(e.source) ?? 0) - (rowOf.get(e.target) ?? 0)) }
+          : {}),
+      };
+    }),
   );
   for (const e of edges) {
     const a = anschluesse.get(e.id);
     if (a) {
       e.sourceHandle = a.sourceHandle;
       e.targetHandle = a.targetHandle;
+      if (a.bracketDepth != null) e.data = { ...(e.data ?? {}), bracketDepth: a.bracketDepth };
     }
   }
 
