@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import React from "react";
 import { render, screen, within } from "@testing-library/react";
-import { PiVelocityTable } from "@/modules/drumbeat/features/cockpit/components/pi-velocity-table";
+import {
+  PiVelocityRows,
+  PiVelocityTable,
+} from "@/modules/drumbeat/features/cockpit/components/pi-velocity-table";
 import type { VelocityRow } from "@/modules/drumbeat/domain/pi-velocity";
 
 /**
@@ -75,5 +78,54 @@ describe("PiVelocityTable", () => {
     render(<PiVelocityTable rows={[]} summary={null} kind="art" window={FENSTER} />);
     expect(screen.getByText(/^Keine PIs mit Ende in H2 2025 · H1 2026 · H2 2026/)).toBeTruthy();
     expect(screen.queryByRole("table")).toBeNull();
+  });
+});
+
+/**
+ * **Die Velocity-Karte** — eine Zeile je ART, „n von m PIs gezählt", die
+ * PI-Tabelle eingeklappt.
+ */
+describe("PiVelocityRows", () => {
+  const arts = [
+    {
+      artId: "a1",
+      name: "Materials & Energy",
+      rows: [
+        row({ piId: "p1", skip: "noCapacity", capacity: null, ratio: null }),
+        row({ piId: "p2", ratio: 5.5 }),
+      ],
+      mean: 5.5,
+      countedCount: 1,
+    },
+    {
+      artId: "a2",
+      name: "Plant Efficiency (OEE)",
+      rows: [row({ piId: "p3", skip: "noCapacity", capacity: null, ratio: null })],
+      mean: null,
+      countedCount: 0,
+    },
+  ];
+
+  it("je ART Zahl und gezählte PIs; ohne Kapazität kein Wert", () => {
+    const { container } = render(<PiVelocityRows arts={arts} stream={null} window={FENSTER} />);
+    const m = container.querySelector('[data-row="a1"] summary') as HTMLElement;
+    expect(within(m).getByText("5,5")).toBeInTheDocument();
+    expect(within(m).getByText(/^1 von 2 PIs gezählt/)).toBeInTheDocument();
+    const o = container.querySelector('[data-row="a2"] summary') as HTMLElement;
+    expect(within(o).getByText("—")).toBeInTheDocument();
+    expect(within(o).getByText(/^0 von 1 PIs gezählt/)).toBeInTheDocument();
+    expect(container.querySelector('[data-row="summe"]')).toBeNull();
+  });
+
+  it("Σ nur mit Wertstrom-Recht; die PI-Tabelle eingeklappt", () => {
+    const { container } = render(
+      <PiVelocityRows
+        arts={arts}
+        stream={{ rows: [...arts[0]!.rows, ...arts[1]!.rows], ratio: 5.5, countedCount: 1 }}
+        window={FENSTER}
+      />,
+    );
+    expect(container.querySelector('[data-row="summe"]')).not.toBeNull();
+    expect(container.querySelector("details[open]")).toBeNull();
   });
 });

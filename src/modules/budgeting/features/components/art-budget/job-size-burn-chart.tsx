@@ -29,7 +29,18 @@ const PAD = { left: 34, right: 10, top: 20, bottom: 22 };
  * Ohne geltende Budget-Kachel gibt es kein Fenster — dann steht das da, statt
  * eines Diagramms über einen erfundenen Zeitraum.
  */
-export function JobSizeBurnChart({ burn }: { burn: JobSizeBurn | null }) {
+export function JobSizeBurnChart({
+  burn,
+  bare = false,
+}: {
+  burn: JobSizeBurn | null;
+  /**
+   * Ohne eigenen Rahmen, Titel und Kachel-Zeile, auf voller Breite — für die
+   * Karte „Lieferung" der Budget-KPIs, deren Kopf Titel und Zeitraum schon
+   * trägt. Der Portfolio Sync nutzt die gerahmte Form.
+   */
+  bare?: boolean;
+}) {
   const t = useTranslations();
   if (burn == null) {
     return (
@@ -39,10 +50,10 @@ export function JobSizeBurnChart({ burn }: { burn: JobSizeBurn | null }) {
       </section>
     );
   }
-  return <BurnChart burn={burn} />;
+  return <BurnChart burn={burn} bare={bare} />;
 }
 
-function BurnChart({ burn }: { burn: JobSizeBurn }) {
+function BurnChart({ burn, bare }: { burn: JobSizeBurn; bare: boolean }) {
   const t = useTranslations();
   const locale = useLocale() as Locale;
   const js = (n: number) => formatDecimal(n, 0, locale);
@@ -104,8 +115,15 @@ function BurnChart({ burn }: { burn: JobSizeBurn }) {
   })();
 
   return (
-    <section className="space-y-2 rounded-md border p-3" aria-label={t("budgeting.burn.titel")}>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+    <section
+      className={bare ? "space-y-2" : "space-y-2 rounded-md border p-3"}
+      aria-label={t("budgeting.burn.titel")}
+    >
+      <div
+        className={
+          bare ? "hidden" : "flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1"
+        }
+      >
         <div>
           <h3 className="text-sm font-medium">{t("budgeting.burn.titel")}</h3>
           {/* Die Kachel, nicht das Halbjahr des Umschalters: das Diagramm folgt
@@ -135,7 +153,7 @@ function BurnChart({ burn }: { burn: JobSizeBurn }) {
 
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="h-auto w-full max-w-md"
+        className={bare ? "h-auto w-full max-w-lg" : "h-auto w-full max-w-md"}
         role="img"
         aria-label={kopf}
       >

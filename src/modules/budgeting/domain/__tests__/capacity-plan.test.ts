@@ -30,7 +30,7 @@ const rate = (r: number | null, source?: JobSizeRate["source"]): JobSizeRate => 
   featureCount: 0,
   standaloneJobSizeSum: 0,
   standaloneFeatureCount: 0,
-  caveats: r == null ? ["Kein abgeschlossener Zyklus."] : [],
+  caveats: r == null ? [{ code: "noCompletions" as const, values: {} }] : [],
 });
 
 const cell = (jobSize: number, count = 1): PointCell => ({ count, jobSize });

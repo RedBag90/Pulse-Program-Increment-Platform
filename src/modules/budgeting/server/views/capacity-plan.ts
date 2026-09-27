@@ -75,7 +75,9 @@ function planForArt(
   return {
     id: art.id,
     name: art.name,
-    rateReason: capacity == null ? (coverage.rate.caveats[0] ?? "Kein €-Satz ableitbar.") : null,
+    // Der Code des ersten Vorbehalts (`budgeting.rateCaveat.<code>`) — die
+    // Fläche zeigt heute nur die Namen der ARTs ohne Satz.
+    rateReason: capacity == null ? (coverage.rate.caveats[0]?.code ?? "none") : null,
     plan: buildCapacityPlan({
       budget,
       capacity,

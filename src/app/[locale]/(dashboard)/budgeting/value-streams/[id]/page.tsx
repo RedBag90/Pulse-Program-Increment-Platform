@@ -100,14 +100,14 @@ export default async function BudgetingValueStreamPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; cycle?: string; art?: string }>;
+  searchParams: Promise<{ tab?: string; cycle?: string; art?: string; kpiArt?: string }>;
 }) {
   const t = await getTranslations();
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
   const { id } = await params;
-  const { tab, cycle, art } = await searchParams;
+  const { tab, cycle, art, kpiArt } = await searchParams;
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
   const vs = await db.valueStream.findFirst({
@@ -262,8 +262,9 @@ export default async function BudgetingValueStreamPage({
           principal={principal}
           arts={sichtbareArts}
           cycleKey={cycleKey}
-          vsName={vs.name}
           showTotals={access.showTotals}
+          basePath={basePath}
+          burnArtId={kpiArt ?? null}
         />
       ) : (
         <ReviewTab
@@ -493,7 +494,7 @@ async function ArtTab({
         detail={detail}
         // Man ist schon da: der Reiter dieses ARTs **ist** die Verteilfläche.
         distributeHref={`${basePath}?tab=${ART_TAB(artId)}&cycle=${detail.cycleKey}`}
-        kpiHref={`${basePath}?tab=kpi&cycle=${detail.cycleKey}`}
+        kpiHref={`${basePath}?tab=kpi&cycle=${detail.cycleKey}#deckung`}
         canDistribute={canDistribute}
       />
     </div>

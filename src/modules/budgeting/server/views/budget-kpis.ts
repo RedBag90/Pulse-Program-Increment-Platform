@@ -100,6 +100,62 @@ export function buildStreamKpi(
   };
 }
 
+/**
+ * **Wie der Job-Size-Verlauf gerade steht** — als Wort, für Kachel und Tabelle.
+ * `none`: kein Plan (kein Satz, kein Budget, keine Kachel) oder die Kachel hat
+ * noch nicht begonnen.
+ */
+export type BurnStatus = "inBand" | "over" | "under" | "none";
+
+export function burnStatus(burn: JobSizeBurn | null): BurnStatus {
+  if (burn == null || burn.reason !== "ok" || burn.deviation == null || burn.withinBand == null) {
+    return "none";
+  }
+  if (burn.withinBand) return "inBand";
+  return burn.deviation > 0 ? "over" : "under";
+}
+
+/** Last ÷ Budget. `null` ohne Last oder ohne Budget. */
+export function coverageRatio(loadEuro: number | null, allocated: number): number | null {
+  return loadEuro == null || allocated <= 0 ? null : loadEuro / allocated;
+}
+
+/** Ab welcher Abweichung — in beide Richtungen — der Satz verdächtig ist. */
+export const RATE_SUSPICION_THRESHOLD = 0.5;
+
+export interface RateSuspicion {
+  artId: string;
+  name: string;
+  /** `high`: überbucht **und** über Plan; `low`: viel frei **und** unter Plan. */
+  direction: "high" | "low";
+}
+
+/**
+ * **Welche ARTs haben vermutlich einen falschen €-Satz?**
+ *
+ * Derselbe Satz treibt beide Kennzahlen, aber gegenläufig: die Last ist
+ * Job Size × Satz, der Plan im Verlauf ist Budget ÷ Satz. Ist der Satz zu hoch,
+ * wird die Last zu gross **und** der Plan zu klein — die Fläche meldet
+ * „stark überbucht" und „weit über Plan" zugleich. Im Wertstrom „Produktion"
+ * stand im September 2026 genau das: +846 % und +545 %, zwei Alarme, eine
+ * Ursache. Ist er zu niedrig, kippt beides ins Gegenteil.
+ *
+ * Markiert wird nur, wenn **beide** Abweichungen die Schwelle überschreiten und
+ * in diese Richtung zeigen. Rein.
+ */
+export function rateSuspicion(arts: readonly ArtKpiRow[]): RateSuspicion[] {
+  const t = RATE_SUSPICION_THRESHOLD;
+  return arts.flatMap((a): RateSuspicion[] => {
+    const { gap, allocated, burn } = a.coverage;
+    const dev = burn?.reason === "ok" ? burn.deviation : null;
+    if (gap == null || dev == null || allocated <= 0) return [];
+    const share = gap / allocated;
+    if (share > t && dev > t) return [{ artId: a.artId, name: a.name, direction: "high" }];
+    if (share < -t && dev < -t) return [{ artId: a.artId, name: a.name, direction: "low" }];
+    return [];
+  });
+}
+
 export async function loadBudgetKpis(
   db: PrismaClient,
   tenantId: TenantId,

@@ -74,7 +74,27 @@ export interface JobSizeRate {
    * Warum der Satz mit Vorsicht zu lesen ist. Leer heißt nicht „belastbar",
    * sondern nur „keine der bekannten Verzerrungen".
    */
-  caveats: string[];
+  caveats: RateCaveat[];
+}
+
+/**
+ * **Ein Vorbehalt als Code, nicht als Satz.** Die Fläche übersetzt ihn
+ * (`budgeting.rateCaveat.<code>`). Bis September 2026 standen hier fertige
+ * deutsche Sätze — die englische Oberfläche zeigte sie deutsch.
+ */
+export type RateCaveatCode =
+  | "undated"
+  | "placeholder"
+  | "noCycle"
+  | "noCompletions"
+  | "emptyCycles"
+  | "fewCycles"
+  | "thinJobSize";
+
+export interface RateCaveat {
+  code: RateCaveatCode;
+  /** Die Zahlen im Satz (`count`, `empty`, `total`, `jobSize`). */
+  values: Record<string, number>;
 }
 
 /** Unterhalb dieser Punktzahl schwankt der Satz bei jedem einzelnen Feature erheblich. */
@@ -115,16 +135,12 @@ export function deriveJobSizeRate(input: RateInput): JobSizeRate {
   const standaloneJobSizeSum = cycles.reduce((s, c) => s + c.standaloneJobSize, 0);
   const standaloneFeatureCount = cycles.reduce((s, c) => s + c.standaloneFeatureCount, 0);
 
-  const caveats: string[] = [];
+  const caveats: RateCaveat[] = [];
   if (input.undatedFeatures > 0) {
-    caveats.push(
-      `${input.undatedFeatures} abgeschlossene Features ohne Abschlussdatum und ohne PI-Ende fallen aus der Rechnung.`,
-    );
+    caveats.push({ code: "undated", values: { count: input.undatedFeatures } });
   }
   if (input.placeholderJobSize > 0) {
-    caveats.push(
-      `${input.placeholderJobSize} Features tragen Job Size 3 aus der Schnellanlage — einen Platzhalter, keine Schätzung.`,
-    );
+    caveats.push({ code: "placeholder", values: { count: input.placeholderJobSize } });
   }
 
   const artEstimate = input.artEstimate != null && input.artEstimate > 0 ? input.artEstimate : null;
@@ -147,8 +163,8 @@ export function deriveJobSizeRate(input: RateInput): JobSizeRate {
       standaloneFeatureCount: 0,
       caveats: [
         cycles.length === 0
-          ? "Kein vorangegangenes Halbjahr — der Satz lässt sich nicht aus der Historie ableiten."
-          : "In den letzten Halbjahren wurde nichts fertiggestellt — der Satz lässt sich nicht ableiten.",
+          ? { code: "noCycle", values: {} }
+          : { code: "noCompletions", values: {} },
         ...caveats,
       ],
     };
@@ -159,17 +175,13 @@ export function deriveJobSizeRate(input: RateInput): JobSizeRate {
     // Ohne diesen Satz sieht ein hoher €-Satz willkuerlich aus. Er ist die
     // haeufigste Erklaerung dafuer — und zugleich die interessanteste Auskunft
     // ueber das ART.
-    caveats.push(
-      `In ${leere} von ${cycles.length} Halbjahren des Fensters wurde nichts fertiggestellt — ihr Budget zählt trotzdem.`,
-    );
+    caveats.push({ code: "emptyCycles", values: { empty: leere, total: cycles.length } });
   }
   if (cycles.length < RATE_WINDOW) {
-    caveats.push(`Nur ${cycles.length} Halbjahr im Fenster — der Satz ist vorläufig.`);
+    caveats.push({ code: "fewCycles", values: { count: cycles.length } });
   }
   if (jobSizeSum < THIN_JOB_SIZE) {
-    caveats.push(
-      `Nur ${jobSizeSum} Job-Size-Punkte im Fenster — der Satz schwankt bei jedem einzelnen Feature erheblich.`,
-    );
+    caveats.push({ code: "thinJobSize", values: { jobSize: jobSizeSum } });
   }
 
   return {

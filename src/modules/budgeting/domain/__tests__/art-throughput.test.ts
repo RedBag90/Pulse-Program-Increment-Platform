@@ -60,7 +60,7 @@ describe("deriveJobSizeRate — leere Halbjahre im Fenster", () => {
     const r = deriveJobSizeRate(
       input({ cycles: [cycle("2026-H1", 130_000, 0, 0), cycle("2025-H2", 125_000, 13, 1)] }),
     );
-    expect(r.caveats.some((c) => c.includes("In 1 von 2 Halbjahren"))).toBe(true);
+    expect(r.caveats).toContainEqual({ code: "emptyCycles", values: { empty: 1, total: 2 } });
   });
 
   it("ein Fenster ganz ohne Abschluss ergibt keinen gemessenen Satz", () => {
@@ -118,13 +118,13 @@ describe("deriveJobSizeRate", () => {
     );
     expect(r.source).toBe("tenantDefault");
     expect(r.rate).toBe(1_800);
-    expect(r.caveats[0]).toContain("nichts fertiggestellt");
+    expect(r.caveats[0]?.code).toBe("noCompletions");
   });
 
   it("fällt ohne Zyklen auf den Tenant-Wert zurück und sagt warum", () => {
     const r = deriveJobSizeRate(input({ tenantDefault: 600 }));
     expect(r.source).toBe("tenantDefault");
-    expect(r.caveats[0]).toContain("Kein vorangegangenes Halbjahr");
+    expect(r.caveats[0]?.code).toBe("noCycle");
   });
 
   // Lieber keine Zahl als eine erfundene.
@@ -140,12 +140,12 @@ describe("deriveJobSizeRate", () => {
     );
     expect(r.source).toBe("empirical");
     expect(r.jobSizeSum).toBeLessThan(THIN_JOB_SIZE);
-    expect(r.caveats.join(" ")).toContain("schwankt");
+    expect(r.caveats.map((c) => c.code)).toContain("thinJobSize");
   });
 
   it("kennzeichnet einen einzelnen Zyklus als vorläufig", () => {
     const r = deriveJobSizeRate(input({ cycles: [cycle("2026-H1", 1_000_000, 200)] }));
-    expect(r.caveats.join(" ")).toContain("vorläufig");
+    expect(r.caveats.map((c) => c.code)).toContain("fewCycles");
   });
 
   it("nennt fehlende Abschlussdaten und Platzhalter-Punkte", () => {
@@ -156,8 +156,8 @@ describe("deriveJobSizeRate", () => {
         placeholderJobSize: 18,
       }),
     );
-    expect(r.caveats.join(" ")).toContain("11 abgeschlossene Features ohne Abschlussdatum");
-    expect(r.caveats.join(" ")).toContain("18 Features tragen Job Size 3");
+    expect(r.caveats).toContainEqual({ code: "undated", values: { count: 11 } });
+    expect(r.caveats).toContainEqual({ code: "placeholder", values: { count: 18 } });
   });
 });
 
@@ -237,8 +237,8 @@ describe("deriveJobSizeRate — Schätzung je ART", () => {
         placeholderJobSize: 36,
       }),
     );
-    expect(r.caveats.some((c) => c.includes("nichts fertiggestellt"))).toBe(true);
-    expect(r.caveats.some((c) => c.includes("Job Size 3"))).toBe(true);
+    expect(r.caveats.map((c) => c.code)).toContain("noCompletions");
+    expect(r.caveats.map((c) => c.code)).toContain("placeholder");
   });
 
   it("eine Schätzung von 0 zählt nicht — dann der Mandanten-Satz oder keiner", () => {

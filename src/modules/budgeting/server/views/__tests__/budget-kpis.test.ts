@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { jobSizeBurn, halfYearWindow } from "@/modules/budgeting/domain/job-size-burn";
-import { buildStreamKpi, type ArtKpiRow } from "@/modules/budgeting/server/views/budget-kpis";
+import {
+  buildStreamKpi,
+  burnStatus,
+  rateSuspicion,
+  RATE_SUSPICION_THRESHOLD,
+  type ArtKpiRow,
+} from "@/modules/budgeting/server/views/budget-kpis";
+import type { JobSizeBurn } from "@/modules/budgeting/domain/job-size-burn";
 import type { ArtCoverage } from "@/modules/budgeting/domain/art-budget-model";
 import type { JobSizeRate } from "@/modules/budgeting/domain/art-throughput";
 
@@ -136,5 +143,59 @@ describe("buildStreamKpi — der Job-Size-Verlauf des Wertstroms", () => {
     expect(s.burn!.expected).toBe(200);
     expect(s.burn!.actualToday).toBe(70);
     expect(s.withoutRate).toEqual(["C"]);
+  });
+});
+
+/**
+ * **„Satz prüfen"** — derselbe Satz treibt Deckung und Lieferung gegenläufig.
+ * Im Wertstrom „Produktion" (September 2026): Materials & Energy überbucht um
+ * 1458 % und +2024 % über Plan, beides aus einem Satz von 21.490 € je JS.
+ */
+describe("rateSuspicion", () => {
+  const verlauf = (deviation: number | null, reason: JobSizeBurn["reason"] = "ok") =>
+    ({ reason, deviation }) as JobSizeBurn;
+  const mit = (gap: number, deviation: number | null, reason?: JobSizeBurn["reason"]) =>
+    art("A", { allocated: 100_000, gap, burn: verlauf(deviation, reason) });
+
+  it("überbucht und über Plan: Satz vermutlich zu hoch", () => {
+    expect(rateSuspicion([mit(1_458_000, 20.2)])).toEqual([
+      { artId: "A", name: "A", direction: "high" },
+    ]);
+  });
+
+  it("viel frei und unter Plan: Satz vermutlich zu niedrig", () => {
+    expect(rateSuspicion([mit(-80_000, -0.7)])[0]?.direction).toBe("low");
+  });
+
+  it("gleichläufig ist kein Satzproblem", () => {
+    expect(rateSuspicion([mit(200_000, -0.8)])).toEqual([]);
+    expect(rateSuspicion([mit(-80_000, 0.9)])).toEqual([]);
+  });
+
+  it("erst über der Schwelle, in beiden Grössen", () => {
+    const t = RATE_SUSPICION_THRESHOLD;
+    expect(rateSuspicion([mit(t * 100_000, 5)])).toEqual([]);
+    expect(rateSuspicion([mit(300_000, t)])).toEqual([]);
+    expect(rateSuspicion([mit(t * 100_000 + 1, t + 0.01)])).toHaveLength(1);
+  });
+
+  it("ohne Satz, ohne Plan oder ohne Budget kein Verdacht", () => {
+    expect(rateSuspicion([art("A", { allocated: 100_000, gap: null, burn: verlauf(5) })])).toEqual(
+      [],
+    );
+    expect(rateSuspicion([mit(300_000, null, "noRate")])).toEqual([]);
+    expect(rateSuspicion([art("A", { allocated: 0, gap: 300_000, burn: verlauf(5) })])).toEqual([]);
+  });
+});
+
+describe("burnStatus", () => {
+  const b = (over: Partial<JobSizeBurn>) =>
+    ({ reason: "ok", deviation: 0, withinBand: true, ...over }) as JobSizeBurn;
+  it("im Band, über, unter, kein Plan", () => {
+    expect(burnStatus(b({}))).toBe("inBand");
+    expect(burnStatus(b({ deviation: 0.4, withinBand: false }))).toBe("over");
+    expect(burnStatus(b({ deviation: -0.4, withinBand: false }))).toBe("under");
+    expect(burnStatus(b({ reason: "noRate" }))).toBe("none");
+    expect(burnStatus(null)).toBe("none");
   });
 });

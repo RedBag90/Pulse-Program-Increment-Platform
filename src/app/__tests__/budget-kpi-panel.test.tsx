@@ -30,13 +30,23 @@ vi.mock("@/modules/budgeting/server/views/budget-kpis", () => ({
       ],
     };
   },
+  rateSuspicion: () => [],
 }));
 vi.mock("@/modules/drumbeat/server/views/pi-velocity-view", () => ({
   loadPiVelocity: async () => null,
 }));
-vi.mock("@/modules/budgeting/features/components/art-budget/coverage-card", () => ({
-  StreamCoverageCard: ({ name }: { name: string }) => <div>Karte {name}</div>,
-  ArtCoverageCard: ({ name }: { name: string }) => <div>Karte {name}</div>,
+vi.mock("@/modules/budgeting/features/components/art-budget/budget-kpi-overview", () => ({
+  KpiTiles: ({ isTotal }: { isTotal: boolean }) => <div>Kacheln {isTotal ? "Σ" : "eigene"}</div>,
+  RateCheckBanner: () => null,
+  CoverageTable: ({ rows, stream }: { rows: { name: string }[]; stream: unknown }) => (
+    <div>
+      Karte Deckung {rows.map((r) => r.name).join(", ")}
+      {stream ? " mit Σ" : " ohne Σ"}
+    </div>
+  ),
+  DeliveryCard: ({ selected }: { selected: { name: string } }) => (
+    <div>Karte Lieferung {selected.name}</div>
+  ),
 }));
 vi.mock("@/modules/budgeting/features/components/art-budget/job-size-burn-chart", () => ({
   JobSizeBurnChart: ({ burn }: { burn: { name: string } | null }) => (
@@ -58,32 +68,39 @@ const arts = [
 ];
 
 describe("BudgetKpiPanel — die Budgetseite", () => {
-  it("Wertstrom und alle ARTs, wie der KPI-Reiter", async () => {
-    render(
-      await BudgetKpiPanel({
-        db: {} as never,
-        principal,
-        arts,
-        cycleKey: "2026-H2",
-        vsName: "Hamburg",
-        showTotals: true,
-      }),
-    );
-    expect(screen.getByText("Karte Hamburg · gesamt")).toBeInTheDocument();
-    expect(screen.getByText("Karte ART 1")).toBeInTheDocument();
-    expect(screen.getByText("Karte ART 2")).toBeInTheDocument();
-  });
-
-  it("der Verlauf folgt der geltenden Kachel, nicht dem Umschalter", async () => {
-    loadBudgetKpis.mockClear();
-    await BudgetKpiPanel({
+  const panel = (over: { showTotals?: boolean; burnArtId?: string | null } = {}) =>
+    BudgetKpiPanel({
       db: {} as never,
       principal,
       arts,
       cycleKey: "2026-H2",
-      vsName: "Hamburg",
-      showTotals: true,
+      showTotals: over.showTotals ?? true,
+      basePath: "/budgeting/value-streams/vs1",
+      burnArtId: over.burnArtId ?? null,
     });
+
+  it("eine Karte je Kennzahl: Kacheln, Deckung mit allen ARTs und Σ, Lieferung für Σ", async () => {
+    render(await panel());
+    expect(screen.getByText("Kacheln Σ")).toBeInTheDocument();
+    expect(screen.getByText("Karte Deckung ART 1, ART 2 mit Σ")).toBeInTheDocument();
+    expect(screen.getByText("Karte Lieferung Σ Wertstrom")).toBeInTheDocument();
+  });
+
+  it("?kpiArt= wählt den Verlauf eines ARTs", async () => {
+    render(await panel({ burnArtId: "a2" }));
+    expect(screen.getByText("Karte Lieferung ART 2")).toBeInTheDocument();
+  });
+
+  it("ohne Wertstrom-Recht keine Σ — die Lieferung zeigt das erste ART", async () => {
+    render(await panel({ showTotals: false }));
+    expect(screen.getByText("Kacheln eigene")).toBeInTheDocument();
+    expect(screen.getByText("Karte Deckung ART 1, ART 2 ohne Σ")).toBeInTheDocument();
+    expect(screen.getByText("Karte Lieferung ART 1")).toBeInTheDocument();
+  });
+
+  it("der Verlauf folgt der geltenden Kachel, nicht dem Umschalter", async () => {
+    loadBudgetKpis.mockClear();
+    await panel();
     const [, , , opts] = loadBudgetKpis.mock.calls[0]!;
     expect(opts.cycleKey).toBe("2026-H2");
     expect(opts.stichtag.applied).toBe(APPLIED);

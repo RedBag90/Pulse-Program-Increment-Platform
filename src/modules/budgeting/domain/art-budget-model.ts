@@ -193,7 +193,9 @@ export interface ArtCoverage {
  */
 export type CoverageVerdict = "empty" | "unknown" | "over" | "covered";
 
-export function coverageVerdict(coverage: ArtCoverage): CoverageVerdict {
+export function coverageVerdict(
+  coverage: Pick<ArtCoverage, "plannedJobSize" | "allocated" | "gap">,
+): CoverageVerdict {
   if (coverage.plannedJobSize === 0 && coverage.allocated === 0) return "empty";
   if (coverage.gap == null) return "unknown";
   return coverage.gap > 0 ? "over" : "covered";
