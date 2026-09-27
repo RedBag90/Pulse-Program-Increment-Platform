@@ -2897,7 +2897,9 @@
       "ohneKapazitaetAnzahl": "{count} without capacity",
       "verlaufAbZwei": "Trend from 2 PIs",
       "summeWertstrom": "Σ value stream",
-      "karteTitel": "PI velocity"
+      "karteTitel": "PI velocity",
+      "businessValue": "Business value (Σ)",
+      "wsjf": "WSJF (Σ)"
     }
   },
   "risks": {

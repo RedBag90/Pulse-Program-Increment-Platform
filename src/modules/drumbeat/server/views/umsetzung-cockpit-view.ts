@@ -298,6 +298,10 @@ export interface CockpitAllPiRow {
    * PI — die Lieferung, aus der die Formel ihre Quote bildet.
    */
   delivered: number;
+  /** Σ Business Value derselben abgeschlossenen Features. */
+  businessValue: number;
+  /** Σ WSJF-Score (`wsjfComputed`) derselben abgeschlossenen Features. */
+  wsjf: number;
 }
 
 /** Raw feature row of the selected ART (query 6). */
@@ -881,17 +885,17 @@ export async function loadArtPiRows(
         piId: { in: piIds },
         status: "completed",
       },
-      _sum: { wsjfJobSize: true },
+      _sum: { wsjfJobSize: true, wsjfBusinessValue: true, wsjfComputed: true },
     }),
   ]);
   const capacityByPi = new Map(capacities.map((c) => [c.piId, Number(c.capacity)]));
-  const deliveredByPi = new Map(
-    geliefert.map((g) => [g.piId ?? "", g._sum.wsjfJobSize ?? 0] as const),
-  );
+  const deliveredByPi = new Map(geliefert.map((g) => [g.piId ?? "", g._sum] as const));
   return piRows.map((p) => ({
     ...p,
     capacity: capacityByPi.get(p.id) ?? null,
-    delivered: deliveredByPi.get(p.id) ?? 0,
+    delivered: deliveredByPi.get(p.id)?.wsjfJobSize ?? 0,
+    businessValue: deliveredByPi.get(p.id)?.wsjfBusinessValue ?? 0,
+    wsjf: Number(deliveredByPi.get(p.id)?.wsjfComputed ?? 0),
   }));
 }
 

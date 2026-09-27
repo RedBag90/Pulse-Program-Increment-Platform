@@ -227,6 +227,8 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
       status: "completed",
       capacity: null,
       delivered: 0,
+      businessValue: 0,
+      wsjf: 0,
     },
     {
       id: "q2",
@@ -236,6 +238,8 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
       status: "active",
       capacity: null,
       delivered: 0,
+      businessValue: 0,
+      wsjf: 0,
     },
     {
       id: "q3",
@@ -245,6 +249,8 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
       status: "planning",
       capacity: null,
       delivered: 0,
+      businessValue: 0,
+      wsjf: 0,
     },
     {
       id: "q4",
@@ -254,6 +260,8 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
       status: "planning",
       capacity: null,
       delivered: 0,
+      businessValue: 0,
+      wsjf: 0,
     },
   ];
 
@@ -308,6 +316,8 @@ describe("buildCockpitModel — selected-PI governance scope", () => {
       status: "completed",
       capacity: null,
       delivered: 0,
+      businessValue: 0,
+      wsjf: 0,
     },
     {
       id: "q2",
@@ -317,6 +327,8 @@ describe("buildCockpitModel — selected-PI governance scope", () => {
       status: "active",
       capacity: null,
       delivered: 0,
+      businessValue: 0,
+      wsjf: 0,
     },
     {
       id: "q3",
@@ -326,6 +338,8 @@ describe("buildCockpitModel — selected-PI governance scope", () => {
       status: "planned",
       capacity: null,
       delivered: 0,
+      businessValue: 0,
+      wsjf: 0,
     },
   ];
   const base = {
@@ -581,6 +595,8 @@ describe("buildCockpitModel — der PI-Scope grenzt ein, außer im Board", () =>
       status: "completed",
       capacity: null,
       delivered: 0,
+      businessValue: 0,
+      wsjf: 0,
     },
     {
       id: "q2",
@@ -590,6 +606,8 @@ describe("buildCockpitModel — der PI-Scope grenzt ein, außer im Board", () =>
       status: "active",
       capacity: null,
       delivered: 0,
+      businessValue: 0,
+      wsjf: 0,
     },
   ];
   const base = {
@@ -680,6 +698,8 @@ describe("buildCockpitModel — die Kachel-Zahl folgt den Filtern", () => {
       status: "active",
       capacity: null,
       delivered: 0,
+      businessValue: 0,
+      wsjf: 0,
     },
   ];
   const base = {
@@ -833,6 +853,8 @@ describe("buildCockpitModel — Job-Size-Ziel aus der Formel", () => {
     status,
     capacity,
     delivered,
+    businessValue: 0,
+    wsjf: 0,
   });
   const base = {
     arts: [

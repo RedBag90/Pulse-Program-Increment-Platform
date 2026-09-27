@@ -18,6 +18,8 @@ const row = (over: Partial<VelocityRow>): VelocityRow => ({
   endDate: new Date("2025-12-12"),
   status: "completed",
   delivered: 30,
+  businessValue: 0,
+  wsjf: 0,
   capacity: 20,
   ratio: 1.5,
   skip: null,
@@ -27,6 +29,22 @@ const row = (over: Partial<VelocityRow>): VelocityRow => ({
 const FENSTER = { closedKeys: ["2026-H1", "2025-H2"], runningKey: "2026-H2" };
 
 describe("PiVelocityTable", () => {
+  it("zeigt je PI Σ Business Value und Σ WSJF", () => {
+    render(
+      <PiVelocityTable
+        rows={[row({ businessValue: 42, wsjf: 17.25 })]}
+        summary={1.5}
+        kind="art"
+        window={FENSTER}
+      />,
+    );
+    expect(screen.getByRole("columnheader", { name: /Business Value/ })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /WSJF/ })).toBeInTheDocument();
+    const zeile = screen.getByRole("row", { name: /PI 25\.4/ });
+    expect(within(zeile).getByText("42")).toBeInTheDocument();
+    expect(within(zeile).getByText(/17[,.]3/)).toBeInTheDocument();
+  });
+
   it("zeigt je PI geliefert, Kapazität und die Quote — und den Ø im Kopf", () => {
     render(
       <PiVelocityTable

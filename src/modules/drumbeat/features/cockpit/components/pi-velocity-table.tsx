@@ -22,6 +22,9 @@ import {
  * Die Kopfzahl ist beim ART der **Ø der PI-Quoten** (wie das Cockpit-Ziel),
  * beim Wertstrom **Σ geliefert ÷ Σ Kapazität**. Das Wort daneben sagt, welche
  * — dieselbe Zahl mit zwei Rechenwegen darf nicht gleich heissen.
+ *
+ * Σ Business Value und Σ WSJF stehen auf derselben Menge wie „Geliefert":
+ * den abgeschlossenen Features des PIs. Sie sind Auskunft, keine Quote.
  */
 export function PiVelocityTable({
   rows,
@@ -86,6 +89,12 @@ export function PiVelocityTable({
                   {t("drumbeat.velocity.geliefert")}
                 </th>
                 <th className="py-1.5 pr-3 text-right font-medium">
+                  {t("drumbeat.velocity.businessValue")}
+                </th>
+                <th className="py-1.5 pr-3 text-right font-medium">
+                  {t("drumbeat.velocity.wsjf")}
+                </th>
+                <th className="py-1.5 pr-3 text-right font-medium">
                   {t("drumbeat.velocity.kapazitaet")}
                 </th>
                 <th className="py-1.5 text-right font-medium">
@@ -108,6 +117,8 @@ export function PiVelocityTable({
                   </td>
                   <td className="py-1.5 pr-3">{formatDate(r.endDate, "date", locale)}</td>
                   <td className="py-1.5 pr-3 text-right">{r.delivered}</td>
+                  <td className="py-1.5 pr-3 text-right">{r.businessValue}</td>
+                  <td className="py-1.5 pr-3 text-right">{zahl(r.wsjf)}</td>
                   <td className="py-1.5 pr-3 text-right">{zahl(r.capacity)}</td>
                   <td className="py-1.5 text-right">{zahl(r.ratio)}</td>
                 </tr>

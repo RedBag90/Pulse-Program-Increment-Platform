@@ -11,6 +11,7 @@ const pi = (
   delivered: number,
   capacity: number | null,
   status = "completed",
+  extra: Partial<VelocityInput> = {},
 ): VelocityInput => ({
   id,
   name: id.toUpperCase(),
@@ -18,6 +19,9 @@ const pi = (
   status,
   capacity,
   delivered,
+  businessValue: 0,
+  wsjf: 0,
+  ...extra,
 });
 
 /** Gewählt H2 2026, und es läuft: die zwei Halbjahre davor plus das laufende. */
@@ -87,6 +91,24 @@ describe("artVelocity", () => {
 });
 
 describe("streamVelocity — Σ geliefert ÷ Σ Kapazität", () => {
+  it("Σ Business Value und Σ WSJF: je ART durchgereicht, im Wertstrom nur über zählende ARTs", () => {
+    const a = artVelocity(
+      [pi("p1", "2025-12-01", 30, 10, "completed", { businessValue: 40, wsjf: 12.5 })],
+      FENSTER,
+    );
+    const b = artVelocity(
+      [pi("p1", "2025-12-01", 10, 30, "completed", { businessValue: 8, wsjf: 3 })],
+      FENSTER,
+    );
+    const ohne = artVelocity(
+      [pi("p1", "2025-12-01", 50, null, "completed", { businessValue: 99, wsjf: 99 })],
+      FENSTER,
+    );
+    expect(a.rows[0]).toMatchObject({ businessValue: 40, wsjf: 12.5 });
+    const s = streamVelocity([a, b, ohne]);
+    expect(s.rows[0]).toMatchObject({ businessValue: 48, wsjf: 15.5 });
+  });
+
   it("gemeinsame Taktung: ein PI, die Summen beider ARTs", () => {
     const a = artVelocity([pi("p1", "2025-12-01", 30, 10)], FENSTER);
     const b = artVelocity([pi("p1", "2025-12-01", 10, 30)], FENSTER);

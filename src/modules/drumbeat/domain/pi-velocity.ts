@@ -41,6 +41,10 @@ export interface VelocityInput {
   status: string;
   capacity: number | null;
   delivered: number;
+  /** Σ Business Value der abgeschlossenen Features — nur Auskunft. */
+  businessValue: number;
+  /** Σ WSJF-Score der abgeschlossenen Features — nur Auskunft. */
+  wsjf: number;
 }
 
 /** Warum ein PI im Fenster nicht in den Mittelwert eingeht. */
@@ -52,6 +56,8 @@ export interface VelocityRow {
   endDate: Date;
   status: string;
   delivered: number;
+  businessValue: number;
+  wsjf: number;
   capacity: number | null;
   /** delivered ÷ capacity; `null` ohne Kapazität. */
   ratio: number | null;
@@ -96,6 +102,8 @@ export function artVelocity(pis: readonly VelocityInput[], window: VelocityWindo
       endDate: p.endDate,
       status: p.status,
       delivered: p.delivered,
+      businessValue: p.businessValue,
+      wsjf: p.wsjf,
       capacity: p.capacity,
       ratio: p.capacity != null && p.capacity > 0 ? p.delivered / p.capacity : null,
       skip: skipOf(p),
@@ -130,6 +138,8 @@ export function streamVelocity(perArt: readonly ArtVelocity[]): StreamVelocity {
         byPi.set(r.piId, { ...r, counted: true });
       } else if (zaehlt) {
         cur.delivered += r.delivered;
+        cur.businessValue += r.businessValue;
+        cur.wsjf += r.wsjf;
         cur.capacity = (cur.capacity ?? 0) + (r.capacity ?? 0);
       }
     }
