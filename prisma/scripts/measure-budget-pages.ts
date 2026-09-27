@@ -138,13 +138,13 @@ const PROBES: Probe[] = [
     run: async (db, c) => {
       const { loadFundingPhases } =
         await import("../../src/modules/budgeting/server/views/art-funding");
-      const { getValueStreamBudget } =
+      const { getValueStreamBudgets } =
         await import("../../src/modules/budgeting/server/services/budgeting");
       const { loadArtGridModel } =
-        await import("../../src/modules/budgeting/server/views/art-budget-breakdown");
+        await import("../../src/modules/budgeting/server/services/art-budget");
       await loadFundingPhases(db, c.tenantId as never, c.valueStreamId, c.cycleKey);
       return Promise.all([
-        getValueStreamBudget(db, c.tenantId as never, c.valueStreamId as never),
+        getValueStreamBudgets(db, c.tenantId as never),
         loadArtGridModel(db, c.tenantId as never, c.valueStreamId as never),
       ]);
     },

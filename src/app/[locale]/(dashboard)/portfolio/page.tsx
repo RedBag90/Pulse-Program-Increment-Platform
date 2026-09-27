@@ -40,7 +40,6 @@ import { OverviewSync } from "@/modules/work/features/portfolio/overview/overvie
 import { OverviewBudgeting } from "@/modules/work/features/portfolio/overview/overview-budgeting";
 import { Page, PageHeader } from "@/components/layout";
 import { loadValueStreamBudgetAccess } from "@/modules/budgeting/server/services/value-stream-budget-access";
-import { resolveCycle } from "@/modules/budgeting/domain/cycle";
 import { BudgetBurnPanel } from "@/app/[locale]/(dashboard)/budgeting/_components/budget-burn-panel";
 import {
   resolveKpiSelection,
@@ -336,14 +335,7 @@ export default async function PortfolioPage({ searchParams }: Props) {
       selectedArt: wahl?.artId ?? null,
       chart:
         wahl && gewaehlt ? (
-          <BudgetBurnPanel
-            db={db}
-            principal={principal}
-            arts={gewaehlt.arts}
-            // Wie die Vorgabe des KPI-Reiters: das laufende Kalender-Halbjahr.
-            cycleKey={resolveCycle(undefined, new Date()).cycleKey}
-            artId={wahl.artId}
-          />
+          <BudgetBurnPanel db={db} principal={principal} arts={gewaehlt.arts} artId={wahl.artId} />
         ) : null,
     };
   }

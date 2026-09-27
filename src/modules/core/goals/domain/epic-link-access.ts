@@ -32,7 +32,7 @@ const NO_BIND =
   "Einen bezifferten Wertbeitrag an ein Ziel zu binden ist dem Portfolio-Management vorbehalten (Capability `kpi.bind`).";
 
 /**
- * `null` = erlaubt. Sonst der Grund — wie `potWindowClosedReason` und
+ * `null` = erlaubt. Sonst der Grund — wie `distributionClosedReason` und
  * `rtbManageDeniedReason`: sagen, **warum** nicht, statt nur „nein".
  *
  * `withKpiContribution` beschreibt die Handlung, nicht die Absicht: beim

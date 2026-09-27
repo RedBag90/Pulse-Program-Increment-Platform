@@ -8,12 +8,9 @@
  * Rein, kein I/O.
  */
 
-import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, ValueStreamId } from "@/modules/core/kernel/domain/types";
 import { unassignedToArts, type ArtFeatureLoad } from "@/modules/budgeting/domain/art-budget";
 import type { PeriodAmounts } from "@/modules/budgeting/domain/period-map";
 import type { Period } from "@/modules/budgeting/domain/period-window";
-import { getArtBudgetBreakdown } from "@/modules/budgeting/server/services/art-budget";
 
 /** Eine ART-Zeile: Name, verteiltes Budget je Halbjahr, Feature-Last. */
 export interface ArtGridRow {
@@ -96,22 +93,4 @@ export function buildArtGridModel(inputs: BuildArtGridInputs): ArtGridModel {
     operatingBasis: inputs.operatingBasis ?? "planned",
     operatingUnresolved: inputs.operatingUnresolved ?? 0,
   };
-}
-
-/** Lädt den Breakdown eines Wertstroms und faltet ihn. */
-export async function loadArtGridModel(
-  db: PrismaClient,
-  tenantId: TenantId,
-  valueStreamId: ValueStreamId,
-  /** Das gewählte Halbjahr — nur die Betriebsspalte braucht es (REQ-8). */
-  cycleKey?: string,
-): Promise<ArtGridModel> {
-  const breakdown = await getArtBudgetBreakdown(db, tenantId, valueStreamId, cycleKey);
-  return buildArtGridModel({
-    periods: breakdown.periods,
-    vsByPeriod: breakdown.vsByPeriod,
-    rows: breakdown.arts,
-    operatingBasis: breakdown.operatingBasis,
-    operatingUnresolved: breakdown.operatingUnresolved,
-  });
 }

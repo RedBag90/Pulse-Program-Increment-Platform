@@ -20,8 +20,8 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 import type { ArtCoverage } from "@/modules/budgeting/domain/art-budget-model";
-import { loadArtCoverage } from "@/modules/budgeting/server/services/art-coverage";
-import { loadArtChangeBudgetByCycle } from "@/modules/budgeting/server/services/art-epic-budget";
+import { loadArtCoverages } from "@/modules/budgeting/server/services/art-coverage";
+import type { BudgetStichtag } from "@/modules/budgeting/domain/budget-stichtag";
 import {
   streamBurn,
   type BurnWindow,
@@ -67,7 +67,7 @@ export interface BudgetKpis {
 /** Faltet die ART-Rechnungen zur Wertstrom-Zeile. Rein. */
 export function buildStreamKpi(
   arts: readonly ArtKpiRow[],
-  /** Die laufende Budget-Kachel; ohne sie kein Verlauf. */
+  /** Die geltende Budget-Kachel; ohne sie kein Verlauf. */
   burnWindow: BurnWindow | null = null,
   today: Date = new Date(),
 ): StreamKpi {
@@ -104,38 +104,28 @@ export async function loadBudgetKpis(
   db: PrismaClient,
   tenantId: TenantId,
   arts: readonly { id: string; name: string }[],
-  cycleKey: string,
-  today: Date = new Date(),
-  /** Die laufende Budget-Kachel (`loadRunningPeriod`) — das Fenster des Verlaufs. */
-  burnWindow: BurnWindow | null = null,
+  opts: {
+    /** Das gewählte Halbjahr — Last, Deckung, Lücke. */
+    cycleKey: string;
+    /** Der Budget-Stichtag: seine geltende Kachel ist das Fenster des Verlaufs. */
+    stichtag: Pick<BudgetStichtag, "applied" | "now">;
+  },
 ): Promise<BudgetKpis> {
-  /**
-   * Das Veränderungsgeld **je ART und Halbjahr** — Bezugsgröße der Lücke im
-   * gewählten Halbjahr und zugleich Zähler des Satzes in den vergangenen.
-   * Dieselbe Rechnung steht in `loadArtBudgetDetail`; beide holen sie aus
-   * `loadArtChangeBudgetByCycle`, damit sie nicht auseinanderlaufen können.
-   */
-  const zuteilung = await loadArtChangeBudgetByCycle(
+  const { cycleKey, stichtag } = opts;
+  const source = await loadArtCoverages(
     db,
     tenantId,
     arts.map((a) => a.id),
   );
-
-  const rows = await Promise.all(
-    arts.map(async (a) => ({
-      artId: a.id,
-      name: a.name,
-      coverage: await loadArtCoverage(
-        db,
-        tenantId,
-        a.id,
-        cycleKey,
-        zuteilung.get(a.id) ?? {},
-        today,
-        burnWindow,
-      ),
-    })),
-  );
-
-  return { cycleKey, stream: buildStreamKpi(rows, burnWindow, today), arts: rows };
+  const burn = stichtag.applied ? { tile: stichtag.applied, today: stichtag.now } : null;
+  const rows = arts.map((a) => ({
+    artId: a.id,
+    name: a.name,
+    coverage: source.coverage(a.id, cycleKey, burn),
+  }));
+  return {
+    cycleKey,
+    stream: buildStreamKpi(rows, stichtag.applied, stichtag.now),
+    arts: rows,
+  };
 }

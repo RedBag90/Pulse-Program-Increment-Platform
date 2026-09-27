@@ -2,7 +2,10 @@ import type { Prisma, PrismaClient } from "@/generated/prisma";
 import type { TenantId, EpicId } from "@/modules/core/kernel/domain/types";
 import { parsePeriodAmountMap } from "@/modules/budgeting/domain/budgeting";
 import { sumPeriods } from "@/modules/budgeting/domain/period-map";
-import { appliedPeriod } from "@/modules/budgeting/domain/period-validity";
+import {
+  loadBudgetStichtag,
+  readBudgetPeriods,
+} from "@/modules/budgeting/server/services/budget-stichtag";
 import {
   chooseAllocations,
   type EpicClassLike,
@@ -49,17 +52,14 @@ export interface AppliedCycleAllocations {
 
 /**
  * Pro Epic der Allokationsbetrag des **angewandten** Budget-Zyklus — der
- * Kachel, deren Zeitraum den heutigen Tag abdeckt und die finalisiert ist
- * (`appliedPeriod`).
+ * Kachel, die laut Budget-Stichtag gilt (`loadBudgetStichtag`).
  *
- * **Nicht** die Kachel, an der gerade gearbeitet wird.** Genau diese
- * Verwechslung stand hier bis September 2026: `activeCycleFromRounds` liefert
- * die Kachel mit `status === "running"`, also die in Phase 5 „Verteilen". In
- * Large Test Corp war das eine Kachel, deren Zeitraum erst vier Monate später
- * beginnt und die kein Geld trägt — der Horizont-Trichter der
- * Portfolio-Übersicht blieb deshalb leer, während die geltende Kachel 1,00 Mio €
- * führte. Wer wissen will, *woran gearbeitet wird*, fragt weiterhin
- * `activeCycleFromRounds`; wer Geld **misst**, fragt hier.
+ * **Nicht** die Kachel, an der gerade gearbeitet wird. Genau diese
+ * Verwechslung stand hier einmal: die Kachel mit `status === "running"`, also
+ * die in Phase 5 „Verteilen". In Large Test Corp war das eine Kachel, deren
+ * Zeitraum erst vier Monate später beginnt und die kein Geld trägt — der
+ * Horizont-Trichter der Portfolio-Übersicht blieb deshalb leer, während die
+ * geltende Kachel 1,00 Mio € führte.
  *
  * Speist die Horizont-Budget-Zeilen des Portfolio-Kanbans über den
  * `BudgetingDataPort` (ADR-0013: Work liest die `budgetAllocation`-Tabelle nie
@@ -70,20 +70,17 @@ export async function getEpicCycleAllocations(
   tenantId: TenantId,
   now: Date,
 ): Promise<AppliedCycleAllocations> {
-  const [rounds, rows] = await Promise.all([
-    db.budgetRound.findMany({
-      where: { tenantId },
-      select: { id: true, cycleKey: true, status: true, startDate: true, endDate: true },
-    }),
+  const [stichtag, rows] = await Promise.all([
+    loadBudgetStichtag(db, tenantId, now),
     db.budgetAllocation.findMany({
       where: { tenantId },
       select: { epicId: true, allocations: true },
     }),
   ]);
-  const applied = appliedPeriod(rounds, now);
+  const applied = stichtag.applied;
   if (!applied) return { cycleKey: null, byEpic: {}, extended: false };
 
-  const cycleKey = rounds.find((r) => r.id === applied.period.id)!.cycleKey;
+  const cycleKey = applied.cycleKey;
   const byEpic: Record<string, number> = {};
   for (const row of rows) {
     const amount = parsePeriodAmountMap(row.allocations)[cycleKey] ?? 0;
@@ -227,10 +224,7 @@ export async function getEpicBudgetStanding(
       where: { epicId, tenantId },
       select: { cycleKey: true, amount: true },
     }),
-    db.budgetRound.findMany({
-      where: { tenantId },
-      select: { id: true, cycleKey: true, status: true, startDate: true, endDate: true },
-    }),
+    readBudgetPeriods(db, tenantId),
   ]);
 
   // Tenant-scope defensiv — `findUnique` geht über die global eindeutige epicId.

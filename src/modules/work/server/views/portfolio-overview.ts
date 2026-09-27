@@ -68,7 +68,7 @@ const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 export { STAGE_GATES, HORIZON_LANES };
 export type { StageGate, HorizonLane };
 
-/** Budget-Kennzahlen einer Horizont-Zeile (laufender Zyklus). */
+/** Budget-Kennzahlen einer Horizont-Zeile (geltende Kachel). */
 export interface HorizonBudgetFigures {
   /** Σ Zyklus-Allokation aller Epics des Horizonts. */
   budgetiert: number;
@@ -445,9 +445,9 @@ export interface PortfolioOverview {
    */
   horizonTargets: HorizonTargets | null;
   /**
-   * Der Budgettopf des laufenden Budget-Halbjahres (Σ `poolTotal` seiner
-   * Runden) — die Basis, gegen die der Trichter die Zielbeträge rechnet.
-   * `null` ohne laufendes Halbjahr oder ohne Budget-Modul.
+   * Der Budgettopf der geltenden Budget-Kachel (Σ `poolTotal` der Runden ihres
+   * Halbjahrs) — die Basis, gegen die der Trichter die Zielbeträge rechnet.
+   * `null` ohne geltende Kachel oder ohne Budget-Modul.
    *
    * Derselbe Schlüssel wie bei den Allokationen (`budgetCycleKey`), nicht der
    * Kalender-Schlüssel von `funding.currentPeriod` — beide können auseinander
@@ -492,10 +492,10 @@ export interface PortfolioOverview {
   valueStreamCount: number;
   funding: OverviewFunding;
 
-  /** Budget des laufenden Zyklus je Horizont-Swimlane (Kanban-Zeilenkopf):
+  /** Budget der geltenden Kachel je Horizont-Swimlane (Kanban-Zeilenkopf):
    *  budgetiert gesamt, davon in Umsetzung (L4) und umgesetzt (L5). */
   horizonBudgets: Record<HorizonLane, HorizonBudgetFigures>;
-  /** Halbjahres-Key des laufenden Budget-Zyklus (Bezug der Horizont-Budgets). */
+  /** Halbjahres-Key der geltenden Budget-Kachel (Bezug der Horizont-Budgets). */
   /** `null` = es gilt gerade kein Budget-Rahmen (`appliedPeriod`). */
   budgetCycleKey: string | null;
   /**
@@ -573,9 +573,9 @@ export interface PortfolioOverviewInputs {
   horizonOnOverview: boolean;
   board: PortfolioBudgetingBoard;
   vsBudgets: PortfolioVsBudgets;
-  /** Zyklus-Allokation je Epic (laufender Zyklus) — Budgeting-Adapter, ADR-0013. */
+  /** Zyklus-Allokation je Epic (geltende Kachel) — Budgeting-Adapter, ADR-0013. */
   cycleAllocations: Record<string, number>;
-  /** Halbjahres-Key des laufenden Budget-Zyklus. */
+  /** Halbjahres-Key der geltenden Budget-Kachel (Budget-Stichtag). */
   /** `null` = es gilt gerade kein Budget-Rahmen (`appliedPeriod`). */
   budgetCycleKey: string | null;
   /** Veränderungsgeld je Wertstrom in dieser Kachel; fehlt = keins. */
@@ -1022,10 +1022,13 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     })
     .sort((a, b) => a.dateIso.localeCompare(b.dateIso));
 
-  // Funding — derive pool vs allocated per half-year. Pool lives on the
-  // tenant (`budgetPoolByPeriod`); allocations come from per-Epic budget rows
-  // rolled up by Value Stream.
-  const currentPeriodKey = halfYearKey(now);
+  // Funding — Topf gegen Zugeteiltes je Halbjahr. Der Topf lebt in den
+  // Kacheln (`board.pool`), das Zugeteilte kommt aus den Epic-Zeilen je
+  // Wertstrom. „Aktuell" ist das Halbjahr der geltenden Kachel
+  // (Budget-Stichtag, über den Port) — dasselbe wie Topf und Trichter. Bis
+  // September 2026 war es das Kalender-Halbjahr; ohne geltende Kachel steht
+  // es weiterhin ein.
+  const currentPeriodKey = budgetCycleKey ?? halfYearKey(now);
   const fundingPeriods: OverviewFundingPeriod[] = board.periods.map((p) => {
     const pool = board.pool[p.key] ?? 0;
     const allocated = vsBudgets.valueStreams.reduce((s, vs) => s + (vs.byPeriod[p.key] ?? 0), 0);
@@ -1157,7 +1160,7 @@ export interface PortfolioVsBudgets {
 export type BudgetingDataPort = () => Promise<{
   board: PortfolioBudgetingBoard;
   vsBudgets: PortfolioVsBudgets;
-  /** Zyklus-Allokation je Epic (laufender Zyklus) + dessen Halbjahres-Key. */
+  /** Zyklus-Allokation je Epic (geltende Kachel) + deren Halbjahres-Key. */
   cycleAllocations: Record<string, number>;
   /** `null` = es gilt gerade kein Budget-Rahmen (`appliedPeriod`). */
   budgetCycleKey: string | null;

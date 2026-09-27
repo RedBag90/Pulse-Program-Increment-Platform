@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
-import { loadArtEpicBudgets } from "@/modules/budgeting/server/services/art-epic-budget";
+import { loadChangeMoney } from "@/modules/budgeting/server/services/change-money";
+import { readArts } from "@/modules/budgeting/server/services/budget-reads";
 
 /**
  * **Das Veränderungsgeld eines Wertstroms in einer Budget-Kachel** — die
@@ -15,6 +16,9 @@ import { loadArtEpicBudgets } from "@/modules/budgeting/server/services/art-epic
  *    **ungekappt**: ein negativer Rest zeigt einen nachträglich gekürzten
  *    Rahmen, statt ihn zu verstecken.
  *
+ * Die Zahlen kommen aus der Faltung des Veränderungsgeldes
+ * (`domain/change-money.ts`), dieselbe Quelle wie ART-Reiter und Verteil-Matrix.
+ *
  * Betrieb gehört nicht hinein — Veränderung und Betrieb stehen nie in einer
  * Summe (REQ-10).
  */
@@ -27,78 +31,24 @@ export interface ValueStreamChangeBudget {
   open: number;
 }
 
-/** Faltet die gelesenen Zeilen je Wertstrom. Rein — der Test setzt hier an. */
-export function foldValueStreamChange(input: {
-  streams: readonly { id: string; name: string }[];
-  arts: readonly { id: string; valueStreamId: string }[];
-  portfolioFinals: readonly { valueStreamId: string; amount: number }[];
-  frames: readonly {
-    artId: string;
-    distributedToEpics: number;
-    distributedToOwnWork: number;
-    remaining: number;
-  }[];
-}): ValueStreamChangeBudget[] {
-  const vsOfArt = new Map(input.arts.map((a) => [a.id, a.valueStreamId]));
-  const rows = new Map<string, ValueStreamChangeBudget>(
-    input.streams.map((s) => [
-      s.id,
-      { valueStreamId: s.id, name: s.name, portfolio: 0, toEpics: 0, toOwnWork: 0, open: 0 },
-    ]),
-  );
-  for (const f of input.portfolioFinals) {
-    const row = rows.get(f.valueStreamId);
-    if (row) row.portfolio += f.amount;
-  }
-  for (const f of input.frames) {
-    const vs = vsOfArt.get(f.artId);
-    const row = vs ? rows.get(vs) : undefined;
-    if (!row) continue;
-    row.toEpics += f.distributedToEpics;
-    row.toOwnWork += f.distributedToOwnWork;
-    row.open += f.remaining;
-  }
-  // Nur Wertströme mit Geld in dieser Kachel — auch solche nur mit Rahmen.
-  return [...rows.values()].filter(
-    (r) => r.portfolio !== 0 || r.toEpics !== 0 || r.toOwnWork !== 0 || r.open !== 0,
-  );
-}
-
 export async function getValueStreamChangeBudgets(
   db: PrismaClient,
   tenantId: TenantId,
   cycleKey: string,
 ): Promise<ValueStreamChangeBudget[]> {
-  const [streams, arts, finals] = await Promise.all([
+  const [streams, arts, money] = await Promise.all([
     db.valueStream.findMany({ where: { tenantId }, select: { id: true, name: true } }),
-    db.art.findMany({
-      where: { tenantId, deletedAt: null },
-      select: { id: true, valueStreamId: true },
-    }),
-    db.budgetCandidate.findMany({
-      where: {
-        tenantId,
-        kind: "epic",
-        valueStreamId: { not: null },
-        finalAmount: { not: null },
-        round: { cycleKey },
-      },
-      select: { valueStreamId: true, finalAmount: true },
-    }),
+    readArts(db, tenantId).then((all) => all.filter((a) => a.deletedAt == null)),
+    loadChangeMoney(db, tenantId),
   ]);
-  const frames = await loadArtEpicBudgets(
-    db,
-    tenantId,
-    arts.map((a) => a.id),
-    cycleKey,
+  return (
+    streams
+      .map((s) => {
+        const artIds = arts.filter((a) => a.valueStreamId === s.id).map((a) => a.id);
+        const { portfolio, toEpics, toOwnWork, open } = money.valueStream(s.id, artIds, cycleKey);
+        return { valueStreamId: s.id, name: s.name, portfolio, toEpics, toOwnWork, open };
+      })
+      // Nur Wertströme mit Geld in dieser Kachel — auch solche nur mit Rahmen.
+      .filter((r) => r.portfolio !== 0 || r.toEpics !== 0 || r.toOwnWork !== 0 || r.open !== 0)
   );
-  return foldValueStreamChange({
-    streams,
-    arts,
-    portfolioFinals: finals.map((f) => ({
-      valueStreamId: f.valueStreamId!,
-      amount: Number(f.finalAmount),
-    })),
-    frames: [...frames.values()],
-  });
 }

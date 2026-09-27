@@ -190,39 +190,3 @@ export function timeframeEditDeniedReason(input: {
   }
   return null;
 }
-
-export interface RunningPeriod {
-  period: PeriodFacts;
-  /** `true` = heute liegt in einer Lücke; die zuletzt geendete Kachel gilt fort. */
-  extended: boolean;
-}
-
-/**
- * **Welche Kachel läuft gerade — zeitlich?**
- *
- * Anders als `appliedPeriod` zählt hier der **Zeitraum**, nicht der Status: die
- * Frage ist „wie weit sind wir in dieser Kachel", nicht „welches Budget gilt".
- * Eine Kachel, die heute abdeckt, läuft, auch wenn ihre Verteilung noch nicht
- * abgeschlossen ist. Das beantwortet der Job-Size-Verlauf der Budget-KPIs.
- *
- *  1. Deckt eine Kachel den heutigen Tag ab, läuft sie; bei Überlappung die mit
- *     dem **späteren Start** (dieselbe Regel wie `appliedPeriod`).
- *  2. Lücke zwischen zwei Kacheln: die zuletzt geendete gilt fort,
- *     `extended: true`.
- *  3. Keine Kachel mit Daten, oder alle liegen in der Zukunft: `null`.
- */
-export function currentRunningPeriod(
-  periods: readonly PeriodFacts[],
-  now: Date,
-): RunningPeriod | null {
-  const datiert = periods.filter((p) => p.startDate != null && p.endDate != null);
-  const deckend = datiert
-    .filter((p) => covers(p, now))
-    .sort((a, b) => b.startDate!.getTime() - a.startDate!.getTime() || b.id.localeCompare(a.id));
-  if (deckend[0]) return { period: deckend[0], extended: false };
-
-  const vorbei = datiert
-    .filter((p) => p.endDate!.getTime() + DAY <= now.getTime())
-    .sort((a, b) => b.endDate!.getTime() - a.endDate!.getTime() || b.id.localeCompare(a.id));
-  return vorbei[0] ? { period: vorbei[0], extended: true } : null;
-}

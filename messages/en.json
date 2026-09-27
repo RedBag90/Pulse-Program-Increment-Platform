@@ -2520,10 +2520,10 @@
       "legendePlan": "Plan (budget ÷ rate, linear)",
       "legendeBand": "±20 % around the plan",
       "legendeIst": "Actual (features reported done)",
-      "kachel": "Running budget tile {kachel} · {von} – {bis}",
       "giltFort": "ended, applies until the next tile",
-      "keineKachel": "No running budget tile — without one there is no period for plan and actual.",
-      "ohneBudgetKachel": "Nothing is allocated to the ARTs for this tile — no expected job size. Actual so far {actual} JS."
+      "ohneBudgetKachel": "Nothing is allocated to the ARTs for this tile — no expected job size. Actual so far {actual} JS.",
+      "kachel": "Applicable budget tile {kachel} · {von} – {bis}",
+      "keineKachel": "No applicable budget tile — until one is finalised there is no period for plan and actual."
     }
   },
   "drumbeat": {

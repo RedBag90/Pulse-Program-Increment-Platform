@@ -21,7 +21,10 @@ import {
 import { summarizeAllocations } from "@/modules/budgeting/domain/allocation-state";
 import { loadArtEpicAllocations } from "@/modules/budgeting/server/services/art-pot";
 import { loadArtEpicBudget } from "@/modules/budgeting/server/services/art-epic-budget";
-import { readBudgetCandidates } from "@/modules/budgeting/server/services/budget-reads";
+import {
+  readArtOwnWork,
+  readBudgetCandidates,
+} from "@/modules/budgeting/server/services/budget-reads";
 import type { ArtPotView } from "@/modules/budgeting/domain/art-budget-model";
 
 /**
@@ -57,10 +60,10 @@ export async function loadArtEpicBudgetView(
   const [pot, allocations, ownWork, candidates, onPbList] = await Promise.all([
     loadArtEpicBudget(db, tenantId, art.id, cycleKey, now),
     loadArtEpicAllocations(db, tenantId, art.id, cycleKey),
-    db.artOwnWorkAllocation.findFirst({
-      where: { tenantId, artId: art.id, cycleKey },
-      select: { amount: true, ask: true },
-    }),
+    // Über den geteilten Lader — dieselbe Tabelle liest die Faltung des Rahmens.
+    readArtOwnWork(db, tenantId).then(
+      (rows) => rows.find((r) => r.artId === art.id && r.cycleKey === cycleKey) ?? null,
+    ),
     db.initiative.findMany({
       where: {
         tenantId,

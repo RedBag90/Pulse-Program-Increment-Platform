@@ -50,7 +50,7 @@ describe("epicLinkDeniedReason — bezifferter Beitrag", () => {
   });
 
   it("nennt einen Grund, keinen leeren Fehlschlag", () => {
-    // Wie `potWindowClosedReason`: sagen, warum nicht.
+    // Wie `distributionClosedReason`: sagen, warum nicht.
     for (const facts of [epicOwner, viewer]) {
       expect(epicLinkDeniedReason(facts, true)!.length).toBeGreaterThan(20);
     }

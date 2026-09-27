@@ -12,7 +12,7 @@
 
 import { cache } from "react";
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, ValueStreamId } from "@/modules/core/kernel/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { deriveEpicEconomics } from "@/modules/work/domain/epic-economics";
 import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
@@ -23,7 +23,9 @@ import {
   type HalfYearAxis,
 } from "@/modules/budgeting/domain/budgeting";
 import { rollingWindow } from "@/modules/budgeting/domain/period-window";
-import { activeCycleFromRounds, resolveWindowSize } from "@/modules/budgeting/domain/budget-cycle";
+import { resolveWindowSize } from "@/modules/budgeting/domain/budget-cycle";
+import { loadBudgetStichtag } from "@/modules/budgeting/server/services/budget-stichtag";
+import { loadChangeMoney } from "@/modules/budgeting/server/services/change-money";
 
 export interface BudgetingBoardData {
   epics: BudgetEpicView[];
@@ -66,13 +68,8 @@ const loadBudgetingModel = cache(async function loadBudgetingModel(
   epics: BudgetEpicView[];
   axis: HalfYearAxis;
   pool: Record<string, number>;
-  /** Editierbare Halbjahre (das Rolling-Window ab Anker). */
-  editableKeys: string[];
-  /** Der aktive Zyklus (Anker) als Halbjahres-Key. */
-  activeCycle: string;
-  windowSize: number;
 }> {
-  const [rows, tenant, rounds] = await Promise.all([
+  const [rows, tenant, rounds, stichtag] = await Promise.all([
     db.initiative.findMany({
       where: {
         tenantId,
@@ -115,8 +112,9 @@ const loadBudgetingModel = cache(async function loadBudgetingModel(
     // Zuteilungen auseinander, die die Finalisierung schreibt.
     db.budgetRound.findMany({
       where: { tenantId },
-      select: { cycleKey: true, status: true, startDate: true, poolTotal: true },
+      select: { cycleKey: true, poolTotal: true },
     }),
+    loadBudgetStichtag(db, tenantId),
   ]);
 
   const epics: BudgetEpicView[] = rows.map((row) => {
@@ -149,15 +147,18 @@ const loadBudgetingModel = cache(async function loadBudgetingModel(
 
   // Rolling-Window: der Board-Horizont sind die `windowSize` Halbjahre ab dem
   // Anker (editierbar), plus alle Perioden mit Daten (Topf/Allokation) als
-  // read-only Kontext. Ersetzt die frühere datenabgeleitete `forecastAxis`.
-  const activeCycle = activeCycleFromRounds(rounds, new Date());
+  // read-only Kontext. Der Anker ist das Halbjahr der geltenden Kachel, ohne
+  // sie das Kalender-Halbjahr — dieselbe Antwort wie überall (Budget-Stichtag).
+  // Bis September 2026 war es die Kachel mit Status „running", also die, an der
+  // gearbeitet wird; die Liste stand damit neben dem Topf auf einem anderen Halbjahr.
+  const activeCycle = stichtag.focusKey;
   const windowSize = resolveWindowSize({ budgetWindowSize: tenant?.budgetWindowSize ?? null });
   const dataKeys = [
     ...new Set([...Object.keys(pool), ...epics.flatMap((e) => Object.keys(e.allocations))]),
   ];
   const win = rollingWindow(activeCycle, windowSize, dataKeys);
 
-  return { epics, axis: win.axis, pool, editableKeys: win.windowKeys, activeCycle, windowSize };
+  return { epics, axis: win.axis, pool };
 });
 
 /** Ein Epic, das für die Runde in Frage kommt, aber noch nicht vorgemerkt ist. */
@@ -242,79 +243,31 @@ interface FinalizedValueStream {
   byPeriod: Record<string, number>;
 }
 
-/** Faltet die finalen Epic-Zuteilungen je Wertstrom und Halbjahr. */
+/**
+ * Die finalen Epic-Zuteilungen je Wertstrom und Halbjahr — aus der Faltung des
+ * Veränderungsgeldes (`domain/change-money.ts`). Hier stand bis September 2026
+ * eine eigene Kandidaten-Abfrage mit eigener Summe; der Funding-Snapshot und
+ * die Verteil-Matrix rechneten dieselbe Zahl noch einmal.
+ */
 async function loadFinalizedByValueStream(
   db: PrismaClient,
   tenantId: TenantId,
 ): Promise<Map<string, FinalizedValueStream>> {
-  const [finals, streams] = await Promise.all([
-    db.budgetCandidate.findMany({
-      where: {
-        tenantId,
-        kind: "epic",
-        valueStreamId: { not: null },
-        finalAmount: { not: null },
-      },
-      select: {
-        valueStreamId: true,
-        finalAmount: true,
-        round: { select: { cycleKey: true } },
-      },
-    }),
+  const [money, streams] = await Promise.all([
+    loadChangeMoney(db, tenantId),
     db.valueStream.findMany({ where: { tenantId }, select: { id: true, name: true } }),
   ]);
   const nameOf = new Map(streams.map((v) => [v.id, v.name]));
-
-  const out = new Map<string, FinalizedValueStream>();
-  for (const f of finals) {
-    if (!f.valueStreamId) continue;
-    let row = out.get(f.valueStreamId);
-    if (!row) {
-      row = {
-        valueStreamId: f.valueStreamId,
-        name: nameOf.get(f.valueStreamId) ?? "",
-        byPeriod: {},
-      };
-      out.set(f.valueStreamId, row);
-    }
-    const key = f.round.cycleKey;
-    row.byPeriod[key] = (row.byPeriod[key] ?? 0) + Number(f.finalAmount);
-  }
-  return out;
-}
-
-/**
- * One Value Stream's budget (+ the forecast periods), for consumers that need a
- * single VS and would otherwise pull the whole board and discard the rest.
- *
- * Scoped `.find` inside the seam, not a narrower Prisma query: the forecast axis
- * (and thus the `periods` columns) is derived tenant-wide from every staged
- * Epic's start + the pool, so scoping the query to one VS's Epics would shift
- * the horizon and change the output. The seam owns the "pick one VS" logic; the
- * output stays identical to `getValueStreamBudgets(...).valueStreams.find(...)`.
- */
-export async function getValueStreamBudget(
-  db: PrismaClient,
-  tenantId: TenantId,
-  valueStreamId: ValueStreamId,
-): Promise<{ periods: { key: string; label: string }[]; budget: ValueStreamBudget | null }> {
-  const { periods, valueStreams } = await getValueStreamBudgets(db, tenantId);
-  return { periods, budget: valueStreams.find((v) => v.valueStreamId === valueStreamId) ?? null };
-}
-
-/**
- * Nur die Σ-Budgets je Wertstrom, als `valueStreamId → total`. Genau die Form,
- * die die Struktur-, Timeline- und Reporting-Sichten brauchen — vorher baute
- * jede von ihnen diese Map selbst aus `getValueStreamBudgets(...).valueStreams`
- * (dreimal dieselbe Zeile). Der Port bleibt damit schmal: die Aufrufer sehen
- * keine Perioden-Struktur, die sie ohnehin verwerfen.
- */
-export async function getValueStreamBudgetTotals(
-  db: PrismaClient,
-  tenantId: TenantId,
-): Promise<Record<string, number>> {
-  const { valueStreams } = await getValueStreamBudgets(db, tenantId);
-  return Object.fromEntries(valueStreams.map((b) => [b.valueStreamId, b.total]));
+  return new Map(
+    money.valueStreamIds().map((id) => [
+      id,
+      {
+        valueStreamId: id,
+        name: nameOf.get(id) ?? "",
+        byPeriod: money.valueStreamPortfolioByCycle(id),
+      },
+    ]),
+  );
 }
 
 // Die Tenant-Einstellung „Standard-Aufwand für Hypothesen-Epics" ist entfallen.

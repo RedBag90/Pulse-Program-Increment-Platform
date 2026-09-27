@@ -79,13 +79,14 @@ export default async function StructurePage({ searchParams }: Props) {
   const solutionIds = tree.flatMap((vs) => vs.solutions.map((s) => s.id));
 
   /**
-   * **Beide Beträge stehen auf derselben Periode: dem angewandten Zyklus.**
+   * **Die Investition steht auf der geltenden Kachel** (Budget-Stichtag) —
+   * `getEpicCycleAllocations` gibt ihren Schlüssel zurück. Dieselbe Quelle liest
+   * der Horizont-Trichter der Portfolio-Übersicht; zwei Flächen über dasselbe
+   * Geld dürfen nicht zwei Halbjahre meinen.
    *
-   * Nicht `currentCycle(now)`, sondern der Zyklus, dessen Kachel heute gilt —
-   * `getEpicCycleAllocations` leitet ihn aus den finalisierten Runden ab und
-   * gibt ihn zurück. Dieselbe Quelle liest der Horizont-Trichter der
-   * Portfolio-Übersicht; zwei Flächen über dasselbe Geld dürfen nicht zwei
-   * Halbjahre meinen.
+   * **Der Betrieb hat keinen Schlüssel:** `cycleRunCosts` nimmt den geplanten
+   * Halbjahresbetrag der aktiven Positionen, der in jedem Halbjahr gleich
+   * anfällt. Zusprüche fliessen hier nicht ein.
    */
   const cycle = budgetingEnabled
     ? await getEpicCycleAllocations(db, principal.tenantId, new Date())

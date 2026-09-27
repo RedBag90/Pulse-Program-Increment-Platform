@@ -3,7 +3,6 @@ import {
   submissionDeadlinePassed,
   periodValidity,
   appliedPeriod,
-  currentRunningPeriod,
   timeframeEditability,
   timeframeEditDeniedReason,
   PERIOD_VALIDITY_KEYS,
@@ -232,63 +231,5 @@ describe("submissionDeadlinePassed", () => {
 
   it("ohne Frist verstreicht nichts", () => {
     expect(submissionDeadlinePassed(null, D("2099-01-01"))).toBe(false);
-  });
-});
-
-describe("currentRunningPeriod — welche Kachel läuft, zeitlich", () => {
-  const k = (id: string, status: string, von: string, bis: string): PeriodFacts => ({
-    id,
-    status,
-    startDate: D(von),
-    endDate: D(bis),
-  });
-
-  it("läuft nach Datum — auch wenn die Verteilung noch nicht abgeschlossen ist", () => {
-    const r = currentRunningPeriod(
-      [k("a", "running", "2026-07-06", "2026-12-31")],
-      D("2026-09-26"),
-    );
-    expect(r).toEqual({ period: expect.objectContaining({ id: "a" }), extended: false });
-    // appliedPeriod sagt hier ausdrücklich „kein Budget gilt".
-    expect(
-      appliedPeriod([k("a", "running", "2026-07-06", "2026-12-31")], D("2026-09-26")),
-    ).toBeNull();
-  });
-
-  it("der Endtag gehört dazu", () => {
-    const r = currentRunningPeriod([k("a", "closed", "2026-01-06", "2026-07-03")], D("2026-07-03"));
-    expect(r?.extended).toBe(false);
-  });
-
-  it("Überlappung: die mit dem späteren Start", () => {
-    const r = currentRunningPeriod(
-      [
-        k("alt", "closed", "2026-01-01", "2026-09-30"),
-        k("neu", "running", "2026-07-06", "2026-12-31"),
-      ],
-      D("2026-09-01"),
-    );
-    expect(r?.period.id).toBe("neu");
-  });
-
-  it("Lücke: die zuletzt geendete gilt fort", () => {
-    const r = currentRunningPeriod(
-      [k("h1", "closed", "2026-01-06", "2026-07-03"), k("h2", "draft", "2026-07-10", "2026-12-31")],
-      D("2026-07-06"),
-    );
-    expect(r).toEqual({ period: expect.objectContaining({ id: "h1" }), extended: true });
-  });
-
-  it("keine Kachel mit Daten, oder nur künftige: null", () => {
-    expect(currentRunningPeriod([], D("2026-09-01"))).toBeNull();
-    expect(
-      currentRunningPeriod(
-        [
-          { id: "x", status: "closed", startDate: null, endDate: null },
-          k("z", "draft", "2027-01-06", "2027-07-03"),
-        ],
-        D("2026-09-01"),
-      ),
-    ).toBeNull();
   });
 });

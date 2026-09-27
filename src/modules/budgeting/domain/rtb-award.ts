@@ -61,7 +61,7 @@ export function proportionalAwards(
 
 /**
  * `null` = die Aufteilung passt. Sonst der Grund — wie
- * `potWindowClosedReason`: sagen, warum nicht, statt nur „nein".
+ * `distributionClosedReason`: sagen, warum nicht, statt nur „nein".
  */
 export function awardSplitDeniedReason(sum: number, awarded: number): string | null {
   if (sum < 0) return "Beträge müssen ≥ 0 sein.";

@@ -90,8 +90,8 @@ export function previousCycles(cycleKey: string, n: number): string[] {
  * **nächste**.
  *
  * Vorausschauend, damit ein Vorhaben vorbereitet werden kann, bevor sein
- * Halbjahr beginnt. Warum darüber hinaus nichts geht, sagt
- * `potWindowClosedReason` — das ist die Regel; dies hier ist die Achse.
+ * Halbjahr beginnt. Was tatsächlich offen ist, sagt der Budget-Stichtag
+ * (`budget-stichtag.ts`: dazu die geltende Kachel) — dies hier ist die Achse.
  */
 export function openCycles(now: Date): [string, string] {
   return [halfYearKey(now), halfYearKey(addHalfYears(now, 1))];
@@ -100,27 +100,4 @@ export function openCycles(now: Date): [string, string] {
 /** Der laufende Zyklus — die Antwort auf „jetzt". */
 export function currentCycle(now: Date): string {
   return halfYearKey(now);
-}
-
-/**
- * Welches Halbjahr meint diese Anfrage?
- *
- * Nimmt den rohen `?cycle=`-Parameter und gibt den gültigen Zyklus samt der
- * Auswahl für den Umschalter. Ein unbekannter, abgelaufener oder fehlender Wert
- * fällt auf das laufende Halbjahr zurück — **stumm**, weil ein Halbjahr aus
- * einer URL keine Fehlermeldung wert ist.
- *
- * Diese fünf Zeilen standen wortgleich auf drei Seiten; die offenen Aufgaben
- * hatten sich davon unbemerkt entkoppelt und nahmen immer das laufende.
- */
-export function resolveCycle(
-  raw: string | null | undefined,
-  now: Date,
-): { cycleKey: string; options: CycleOption[] } {
-  const open = openCycles(now);
-  const cycleKey = raw != null && open.includes(raw) ? raw : open[0];
-  return {
-    cycleKey,
-    options: open.map((key) => ({ key, label: cycleLabel(key) })),
-  };
 }

@@ -2,8 +2,8 @@
  * Die **Zustandsstaffel** einer Zuteilung: nicht begonnen · gebunden · verbraucht.
  *
  * Warum es sie braucht: Das ART-Budget *ist* bereits die Summe der Zuteilungen
- * seiner Epics (`getArtBudgetBreakdown` gruppiert `BudgetCandidate.finalAmount`
- * nach `artId`). Zugeteilt und „verbraucht" wären damit dieselbe Zahl, und ein
+ * seiner Epics (die Faltung des Veränderungsgeldes, `change-money.ts`, gruppiert
+ * `BudgetCandidate.finalAmount` nach `artId`). Zugeteilt und „verbraucht" wären damit dieselbe Zahl, und ein
  * Restbudget gäbe es strukturell nicht. Erst die Staffelung nach dem Zustand des
  * Epics macht aus einer Summe eine Aussage.
  *

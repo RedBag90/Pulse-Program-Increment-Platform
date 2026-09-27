@@ -17,7 +17,7 @@
 import type { PrismaClient } from "@/generated/prisma";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
-import { currentCycle } from "@/modules/budgeting/domain/cycle";
+import { loadBudgetStichtag } from "@/modules/budgeting/server/services/budget-stichtag";
 import { loadArtEpicBudgets } from "@/modules/budgeting/server/services/art-epic-budget";
 
 export interface MyArtFundingTask {
@@ -87,10 +87,10 @@ export async function listMyArtFundingTasks(
   now: Date = new Date(),
 ): Promise<MyArtFundingTask[]> {
   if (artIds.length === 0) return [];
-  // Dieselbe Auslegung wie die Flächen: das laufende Halbjahr. Stand hier
-  // vorher als eigener `halfYearKey(now)`-Aufruf — die vierte Antwort auf „welches
-  // Halbjahr gilt", die sich unbemerkt von den anderen dreien hätte lösen können.
-  const cycleKey = currentCycle(now);
+  // Dieselbe Auslegung wie die Flächen: das Halbjahr des Budget-Stichtags
+  // (geltende Kachel, sonst Kalender). Stand hier vorher als eigener
+  // `halfYearKey(now)`-Aufruf — eine weitere Antwort auf „welches Halbjahr gilt".
+  const cycleKey = (await loadBudgetStichtag(db, principal.tenantId as TenantId, now)).focusKey;
 
   const items = await db.runTheBusinessItem.findMany({
     where: {

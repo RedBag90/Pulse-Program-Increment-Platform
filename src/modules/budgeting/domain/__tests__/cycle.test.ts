@@ -5,7 +5,6 @@ import {
   sortCycles,
   openCycles,
   currentCycle,
-  resolveCycle,
   previousCycles,
 } from "@/modules/budgeting/domain/cycle";
 
@@ -58,25 +57,6 @@ describe("openCycles", () => {
 
   it("beginnt beim laufenden — dasselbe wie currentCycle", () => {
     expect(openCycles(H2)[0]).toBe(currentCycle(H2));
-  });
-});
-
-describe("resolveCycle", () => {
-  it("nimmt einen gültigen, offenen Wert an", () => {
-    expect(resolveCycle("2027-H1", H2).cycleKey).toBe("2027-H1");
-  });
-
-  it("fällt stumm auf das laufende zurück", () => {
-    // Ein Halbjahr aus einer URL ist keine Fehlermeldung wert.
-    for (const raw of [undefined, null, "", "Unsinn", "2020-H1", "2030-H2"]) {
-      expect(resolveCycle(raw, H2).cycleKey).toBe("2026-H2");
-    }
-  });
-
-  it("liefert die Auswahl für den Umschalter mit", () => {
-    const { options } = resolveCycle(undefined, H2);
-    expect(options.map((o) => o.key)).toEqual(["2026-H2", "2027-H1"]);
-    expect(options[0]?.label).toBeTruthy();
   });
 });
 

@@ -138,33 +138,3 @@ describe("buildStreamKpi — der Job-Size-Verlauf des Wertstroms", () => {
     expect(s.withoutRate).toEqual(["C"]);
   });
 });
-
-describe("loadBudgetKpis — der Verlauf nimmt das Geld der Kachel", () => {
-  it("der ART-Verlauf rechnet mit allocatedByCycle[kachel.cycleKey], nicht mit dem Umschalter", async () => {
-    // loadArtCoverage liest nur zwei Dinge aus der DB: Features und Tenant-Einstellungen.
-    const db = {
-      initiative: { findMany: async () => [] },
-      tenant: { findUnique: async () => ({ costPerJobSizePoint: 1_000 }) },
-      // Die Schätzung des ARTs — hier keine; der Mandanten-Satz greift.
-      art: { findFirst: async () => ({ jobSizeRateEstimate: null }) },
-      tenantBudgetSettings: { findUnique: async () => null },
-    };
-    const { loadArtCoverage } = await import("@/modules/budgeting/server/services/art-coverage");
-    const c = await loadArtCoverage(
-      db as never,
-      "t1" as never,
-      "a1",
-      "2027-H1", // der Umschalter steht auf dem nächsten Halbjahr
-      { "2026-H2": 100_000, "2027-H1": 900_000 },
-      new Date("2026-10-01T00:00:00Z"),
-      {
-        cycleKey: "2026-H2",
-        start: new Date("2026-07-06T00:00:00Z"),
-        end: new Date("2027-01-01T00:00:00Z"),
-        extended: false,
-      },
-    );
-    expect(c.allocated).toBe(900_000); // die Karte folgt dem Umschalter
-    expect(c.burn?.expected).toBe(100); // der Verlauf der Kachel: 100.000 € ÷ 1.000 €/JS
-  });
-});

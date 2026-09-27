@@ -462,16 +462,6 @@ export function getRound(db: PrismaClient, tenantId: string, id: string) {
   });
 }
 
-export function getRoundForCycle(db: PrismaClient, tenantId: string, cycleKey: string) {
-  // Kachel-Modell: mehrere Runden je Cycle möglich → findFirst (deterministisch
-  // die zuletzt angelegte), kein Unique mehr.
-  return db.budgetRound.findFirst({
-    where: { tenantId, cycleKey },
-    orderBy: { createdAt: "desc" },
-    include: { groups: { include: { members: true }, orderBy: { name: "asc" } } },
-  });
-}
-
 export interface UpdatePeriodTimeframeInput {
   id: string;
   startDate: Date;

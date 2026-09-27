@@ -39,7 +39,8 @@ export interface BurnPoint {
 export type BurnReason = "ok" | "noRate" | "noBudget";
 
 /**
- * **Das Fenster des Verlaufs: die laufende Budget-Kachel.** Budget wird je
+ * **Das Fenster des Verlaufs: die geltende Budget-Kachel** (Budget-Stichtag;
+ * `AppliedTile` erfüllt diese Form). Budget wird je
  * Kachel zugeteilt, nicht je Kalender-Halbjahr, und eine Kachel hat eigene
  * Daten (im Bestand etwa 06.01.–03.07., mit Lücken dazwischen).
  */

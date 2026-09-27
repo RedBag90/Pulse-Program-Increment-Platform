@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 /**
  * Die Verdrahtung des Verteilens — Deckel, Fenster, Rechte, Löschzweig.
  *
- * Die reinen Regeln (`art-pot-window`, `art-pot-access`) sind einzeln geprüft;
+ * Die reinen Regeln (`budget-stichtag`, `art-pot-access`) sind einzeln geprüft;
  * ungeprüft war bisher, dass der Service sie richtig zusammensteckt. Genau dort
  * saßen der fehlende `active`-Filter und die zweite, wortgleiche Topfrechnung.
  */
@@ -46,6 +46,8 @@ function ctxWith(
     db: {
       $transaction: async (cb: (t: unknown) => Promise<unknown>) => cb(tx),
       auditEvent: { create: vi.fn(async () => ({})) },
+      // Keine Kacheln: offen sind das laufende und das nächste Halbjahr (Budget-Stichtag).
+      budgetRound: { findMany: vi.fn(async () => []) },
     },
   } as unknown as Parameters<typeof setArtEpicAllocation>[0];
 }
@@ -105,6 +107,9 @@ function txWith(over: Partial<Tx> = {}, awardAmounts: number[] = [100_000]): Tx 
       upsert: vi.fn(async () => ({})),
     },
     auditEvent: { create: vi.fn(async () => ({})) },
+    budgetRound: { findMany: vi.fn(async () => []) },
+    // Keine Portfolio-Kandidaten — der Deckel ist der ART-Rahmen allein.
+    budgetCandidate: { findMany: vi.fn(async () => []) },
     ...over,
   } as Tx;
 }

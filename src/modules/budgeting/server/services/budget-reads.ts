@@ -220,3 +220,92 @@ export const readSolutions = cache(async function readSolutions(
     select: { id: true, name: true, artId: true, valueStreamId: true },
   });
 });
+
+// ---------------------------------------------------------------------------
+// ArtEpicAllocation · ArtOwnWorkAllocation
+// ---------------------------------------------------------------------------
+
+/**
+ * Was ein ART aus seinem Rahmen weitergegeben hat — an ein Epic oder an
+ * ART-eigene Arbeit —, je Halbjahr.
+ *
+ * Beide Tabellen wurden auf dem ART-Reiter bis zu sechsmal gelesen, jede
+ * Lesung mit eigenem `where` (ein ART, ein Halbjahr, ein Epic). Mandantenweit
+ * sind es wenige Hundert Zeilen; einmal reicht.
+ */
+export interface ArtAllocationRead {
+  artId: string;
+  cycleKey: string;
+  amount: number;
+  /** Richtwert, eingefroren beim ersten Zuteilen. */
+  ask: number;
+  /** Nur bei Epic-Zuteilungen gesetzt. */
+  epicId: string | null;
+}
+
+/** **Alle** Zuteilungen an ART-Epics, über alle Halbjahre. */
+export const readArtEpicAllocations = cache(async function readArtEpicAllocations(
+  db: Pick<PrismaClient, "artEpicAllocation">,
+  tenantId: TenantId,
+): Promise<ArtAllocationRead[]> {
+  const rows = await db.artEpicAllocation.findMany({
+    where: { tenantId },
+    select: { artId: true, cycleKey: true, amount: true, ask: true, epicId: true },
+  });
+  return rows.map((r) => ({ ...r, amount: Number(r.amount), ask: Number(r.ask) }));
+});
+
+/** **Alle** Reservierungen für ART-eigene Arbeit, über alle Halbjahre. */
+export const readArtOwnWork = cache(async function readArtOwnWork(
+  db: Pick<PrismaClient, "artOwnWorkAllocation">,
+  tenantId: TenantId,
+): Promise<ArtAllocationRead[]> {
+  const rows = await db.artOwnWorkAllocation.findMany({
+    where: { tenantId },
+    select: { artId: true, cycleKey: true, amount: true, ask: true },
+  });
+  return rows.map((r) => ({ ...r, amount: Number(r.amount), ask: Number(r.ask), epicId: null }));
+});
+
+// ---------------------------------------------------------------------------
+// Art
+// ---------------------------------------------------------------------------
+
+/**
+ * Ein ART, soweit das Geld ihn braucht — **auch die gelöschten**: wer nur Namen
+ * auflöst, soll den eines seither gelöschten ARTs zeigen; wer zählt, filtert
+ * `deletedAt` selbst.
+ *
+ * Der ART-Reiter las die ARTs seines Wertstroms bis September 2026 dreimal
+ * (Finanzierungskette, Business Case, Deckung) und dazu alle ARTs des
+ * Mandanten für die Namen.
+ */
+export interface ArtRead {
+  id: string;
+  name: string;
+  valueStreamId: string;
+  deletedAt: Date | null;
+}
+
+/** **Alle** ARTs des Mandanten, nach Namen. */
+export const readArts = cache(async function readArts(
+  db: Pick<PrismaClient, "art">,
+  tenantId: TenantId,
+): Promise<ArtRead[]> {
+  return db.art.findMany({
+    where: { tenantId },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, valueStreamId: true, deletedAt: true },
+  });
+});
+
+/** Die lebenden ARTs eines Wertstroms, nach Namen. */
+export async function readValueStreamArts(
+  db: Pick<PrismaClient, "art">,
+  tenantId: TenantId,
+  valueStreamId: string,
+): Promise<ArtRead[]> {
+  return (await readArts(db, tenantId)).filter(
+    (a) => a.valueStreamId === valueStreamId && a.deletedAt == null,
+  );
+}

@@ -4,7 +4,7 @@ import { Link } from "@/i18n/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
-import { getEpicCycleAllocations } from "@/modules/budgeting/server/services/epic-allocation";
+import { loadBudgetStichtag } from "@/modules/budgeting/server/services/budget-stichtag";
 import { getValueStreamChangeBudgets } from "@/modules/budgeting/server/services/value-stream-change-budget";
 import {
   FundingBar,
@@ -31,12 +31,8 @@ import { Landmark } from "lucide-react";
  * `/structure` seine Tabelle und sein Werkzeugband von Hand rollt. Das
  * Zielbild war `/structure`; die saubere Vorlage ist die Schwesterseite.
  *
- * **Was die Seite bisher wegwarf**, obwohl sie es geladen hatte: die ARTs
- * jedes Wertstroms (`listValueStreams` lädt sie mit) und die
- * Halbjahres-Aufteilung. `getValueStreamBudgetTotals` ist wörtlich ein
- * `Object.fromEntries(…b.total)` über `getValueStreamBudgets` — dieselbe
- * `cache()`-Arbeit, nur ohne die Achse. Jetzt wird die vollständige Form
- * gelesen; eine zusätzliche Abfrage kostet das nicht.
+ * **Die ARTs** jedes Wertstroms lädt `listValueStreams` mit; die Seite zählt
+ * sie, statt sie wegzuwerfen.
  *
  * **Und die Schranke, die fehlte:** ohne das Budgeting-Modul steht **kein**
  * Betrag da, nicht `0 €`. `/structure` unterscheidet das seit jeher
@@ -60,14 +56,12 @@ export default async function BudgetingValueStreamsPage() {
   const budgetingEnabled = principal.enabledModules.includes("budgeting");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const [valueStreams, cycle] = await Promise.all([
+  const [valueStreams, stichtag] = await Promise.all([
     listValueStreams(db, principal.tenantId),
-    budgetingEnabled
-      ? getEpicCycleAllocations(db, principal.tenantId, new Date())
-      : Promise.resolve({ cycleKey: null }),
+    budgetingEnabled ? loadBudgetStichtag(db, principal.tenantId) : Promise.resolve(null),
   ]);
   // Ohne geltende Kachel gibt es kein Veränderungsgeld — und keinen Betrag.
-  const cycleKey = cycle.cycleKey;
+  const cycleKey = stichtag?.applied?.cycleKey ?? null;
   const change = cycleKey
     ? await getValueStreamChangeBudgets(db, principal.tenantId, cycleKey)
     : [];

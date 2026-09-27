@@ -10,14 +10,18 @@
 
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
-import { loadArtCoverage } from "@/modules/budgeting/server/services/art-coverage";
+import { loadArtCoverages } from "@/modules/budgeting/server/services/art-coverage";
 import {
   loadArtEpicBudgetView,
   type ArtPotViewer,
 } from "@/modules/budgeting/server/services/art-pot-view";
 import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
-import { readBudgetCandidates } from "@/modules/budgeting/server/services/budget-reads";
+import {
+  readArtEpicAllocations,
+  readArts,
+  readBudgetCandidates,
+} from "@/modules/budgeting/server/services/budget-reads";
 import { sortCycles, currentCycle, cycleLabel } from "@/modules/budgeting/domain/cycle";
 import {
   loadEpicRows,
@@ -36,7 +40,6 @@ import {
   summarizeAllocations,
   type AllocatedEpic,
 } from "@/modules/budgeting/domain/allocation-state";
-import { loadArtChangeBudgetByCycle } from "@/modules/budgeting/server/services/art-epic-budget";
 
 /**
  * Faltet Kandidaten und Epics in das Seitenmodell. Rein — der Server reicht
@@ -183,14 +186,12 @@ export async function loadArtBudgetDetail(
     // **Ohne `deletedAt`-Filter, und das ist richtig:** hier werden nur Namen
     // aufgelöst. Ein Epic, das in einem seither gelöschten ART sass, soll
     // dessen Namen zeigen und nicht „—".
-    db.art.findMany({ where: { tenantId }, select: { id: true, name: true } }),
+    readArts(db, tenantId),
     // Die Halbjahre, in denen dieser ART aus seinem Rahmen verteilt hat — zweite
-    // Quelle der Achse (siehe `artCycleKeys`).
-    db.artEpicAllocation.findMany({
-      where: { tenantId, artId: art.id },
-      select: { cycleKey: true },
-      distinct: ["cycleKey"],
-    }),
+    // Quelle der Achse (siehe `artCycleKeys`). Aus dem geteilten Lader.
+    readArtEpicAllocations(db, tenantId).then((rows) => [
+      ...new Set(rows.filter((r) => r.artId === art.id).map((r) => r.cycleKey)),
+    ]),
   ]);
 
   const finals = allCandidates.filter((c) => c.kind === "epic" && c.artId === art.id);
@@ -226,19 +227,14 @@ export async function loadArtBudgetDetail(
       count: vsFinals.length,
       amount: vsFinals.reduce((s, f) => s + (f.finalAmount ?? 0), 0),
     },
-    artCycleKeys: artCycles.map((c) => c.cycleKey),
+    artCycleKeys: artCycles,
     ...(opts.cycleKey != null ? { cycleKey: opts.cycleKey } : {}),
   });
 
-  // Veränderungsgeld je Zyklus — Zähler des Satzes und Bezugsgröße der Lücke.
-  // Aus dem geteilten Lader, nicht aus den Kandidaten dieser Seite: der
-  // ART-Rahmen finanziert dieselben Features und stand hier bis September 2026
-  // nicht drin (`loadArtChangeBudgetByCycle`).
-  const allocatedByCycle =
-    (await loadArtChangeBudgetByCycle(db, tenantId, [art.id])).get(art.id) ?? {};
-
-  const [coverage, pot, rtbItems] = await Promise.all([
-    loadArtCoverage(db, tenantId, art.id, detail.cycleKey, allocatedByCycle),
+  // Last gegen Deckung — das Veränderungsgeld (Portfolio plus Rahmen) lädt der
+  // Lader selbst, aus derselben Faltung wie jede andere Fläche.
+  const [coverages, pot, rtbItems] = await Promise.all([
+    loadArtCoverages(db, tenantId, [art.id]),
     opts.artEpics
       ? loadArtEpicBudgetView(
           db,
@@ -262,7 +258,7 @@ export async function loadArtBudgetDetail(
 
   return {
     ...detail,
-    coverage,
+    coverage: coverages.coverage(art.id, detail.cycleKey),
     pot,
     // Betrieb und ART-Epic-Budget getrennt: das eine ist Run, das andere
     // Grow — in einer Summe wären beide falsch dargestellt.

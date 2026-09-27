@@ -107,13 +107,13 @@ describe("JobSizeBurnChart — die Kachel", () => {
       />,
     );
     expect(
-      screen.getByText(/Laufende Budget-Kachel H2 2026 · 06\.07\.2026 – 31\.12\.2026/),
+      screen.getByText(/Geltende Budget-Kachel H2 2026 · 06\.07\.2026 – 31\.12\.2026/),
     ).toBeInTheDocument();
   });
 
   it("ohne laufende Kachel: der Satz statt eines Diagramms", () => {
     const { container } = render(<JobSizeBurnChart burn={null} />);
-    expect(screen.getByText(/^Keine laufende Budget-Kachel/)).toBeInTheDocument();
+    expect(screen.getByText(/^Keine geltende Budget-Kachel/)).toBeInTheDocument();
     expect(container.querySelector("svg")).toBeNull();
   });
 });

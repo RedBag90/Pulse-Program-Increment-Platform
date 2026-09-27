@@ -16,7 +16,8 @@ import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 import { authorizeResource } from "@/server/auth/authorize";
-import { potWindowClosedReason } from "@/modules/budgeting/domain/art-pot-window";
+import { loadBudgetStichtag } from "@/modules/budgeting/server/services/budget-stichtag";
+import { readArtEpicAllocations } from "@/modules/budgeting/server/services/budget-reads";
 import { loadArtEpicBudget } from "@/modules/budgeting/server/services/art-epic-budget";
 import { artPotAccessDeniedReason } from "@/modules/budgeting/domain/budget-access";
 import { mergeEpicAllocation } from "@/modules/budgeting/server/services/epic-allocation";
@@ -28,22 +29,20 @@ export interface ArtEpicAllocationRow {
   ask: number;
 }
 
-/** Die Zuteilungen eines ARTs im Halbjahr. */
+/**
+ * Die Zuteilungen eines ARTs im Halbjahr — aus dem geteilten Lader
+ * (`readArtEpicAllocations`), den die Faltung des Veränderungsgeldes auf
+ * derselben Seite ohnehin füllt.
+ */
 export async function loadArtEpicAllocations(
-  db: PrismaClient,
+  db: Pick<PrismaClient, "artEpicAllocation">,
   tenantId: TenantId,
   artId: string,
   cycleKey: string,
 ): Promise<ArtEpicAllocationRow[]> {
-  const rows = await db.artEpicAllocation.findMany({
-    where: { tenantId, artId, cycleKey },
-    select: { epicId: true, amount: true, ask: true },
-  });
-  return rows.map((r) => ({
-    epicId: r.epicId,
-    amount: Number(r.amount),
-    ask: Number(r.ask),
-  }));
+  return (await readArtEpicAllocations(db, tenantId))
+    .filter((r) => r.artId === artId && r.cycleKey === cycleKey && r.epicId != null)
+    .map((r) => ({ epicId: r.epicId!, amount: r.amount, ask: r.ask }));
 }
 
 export interface SetArtEpicAllocationInput {
@@ -80,7 +79,8 @@ export async function setArtEpicAllocation(
     return err({ kind: "conflict" as const, reason: "budgeting.errors.amountNotANumber" });
   }
 
-  const closed = potWindowClosedReason(input.cycleKey, now);
+  const stichtag = await loadBudgetStichtag(ctx.db, mctx.tenantId, now);
+  const closed = stichtag.distributionClosedReason(input.cycleKey);
   if (closed) return err({ kind: "conflict" as const, reason: closed });
 
   return withAuditedTransaction(mctx, async (tx) => {
@@ -266,10 +266,11 @@ export async function saveArtEpicAllocations(
   input: SaveArtEpicAllocationsInput,
   now: Date = new Date(),
 ): Promise<Result<{ remaining: number }>> {
-  const closed = potWindowClosedReason(input.cycleKey, now);
+  const mctx = toMutationContext(ctx);
+  const stichtag = await loadBudgetStichtag(ctx.db, mctx.tenantId, now);
+  const closed = stichtag.distributionClosedReason(input.cycleKey);
   if (closed) return err({ kind: "conflict" as const, reason: closed });
 
-  const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
     const art = await tx.art.findFirst({
       where: { id: input.artId, tenantId: mctx.tenantId },

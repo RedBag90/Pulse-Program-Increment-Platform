@@ -174,10 +174,10 @@ export interface ArtCoverage {
   /** `loadEuro − allocated`; positiv = überbucht. `null` ohne Satz. */
   gap: number | null;
   /**
-   * Plan gegen Ist in Job Size über die **laufende Budget-Kachel**: erwartet =
+   * Plan gegen Ist in Job Size über die **geltende Budget-Kachel**: erwartet =
    * Geld der Kachel ÷ Satz, Ist = fertige Features bis heute
    * (`job-size-burn.ts`). `null`, wenn der Aufrufer kein Fenster reicht oder
-   * es keine laufende Kachel gibt.
+   * keine Kachel gilt.
    */
   burn: JobSizeBurn | null;
   /** Die Abschlüsse in der Kachel — der Wertstrom summiert sie. */

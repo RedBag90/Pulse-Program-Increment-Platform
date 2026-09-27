@@ -36,7 +36,7 @@ Alles rechnet auf einer **Halbjahres-Achse** (`"YYYY-H1"` / `"YYYY-H2"`), weil d
 | `domain/period-window.ts`                                 | **Welche** Halbjahre eine Sicht zeigt: `forecastAxis`, `budgetPlusLoadPeriods`, `occupiedWindow`, `computeDisplayPeriods` |
 | `domain/budgeting.ts`                                     | Bedarf je Periode, Wertstrom-Roll-up, Chart-Pivot, `poolRemaining`                                                        |
 | `domain/art-budget.ts`                                    | Feature-Last je ART (PI-Halbjahr + Backlog), `unassignedToArts`                                                           |
-| `domain/art-pot-window.ts`                                | Welches Halbjahr beschreibbar ist: das laufende und das nächste                                                           |
+| `domain/budget-stichtag.ts`                               | Budget-Stichtag: welche Kachel gilt, Halbjahr ohne Wahl, was verteilbar ist                                               |
 | `domain/art-pot-access.ts`                                | Die vier Wege zum Verteilen eines ART-Epic-Budgets                                                                        |
 | `domain/art-throughput.ts`                                | €-Satz je Job-Size-Punkt aus der Historie, samt seiner Vorbehalte                                                         |
 | `domain/rtb-kind.ts` / `rtb-interval.ts` / `rtb-award.ts` | Art, Periode und anteilige Vorbelegung der Run-the-Business-Positionen                                                    |

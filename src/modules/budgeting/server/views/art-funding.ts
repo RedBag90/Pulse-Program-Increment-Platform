@@ -21,6 +21,7 @@ import {
   readBudgetCandidates,
   readRtbItems,
   readRtbAwards,
+  readValueStreamArts,
 } from "@/modules/budgeting/server/services/budget-reads";
 
 export async function loadFundingPhases(
@@ -37,9 +38,8 @@ export async function loadFundingPhases(
       orderBy: { createdAt: "desc" },
       select: { id: true, status: true },
     }),
-    // `deletedAt: null` — ein gelöschtes ART zählte sonst in „X von Y" mit
-    // (REQ-11).
-    db.art.findMany({ where: { tenantId, valueStreamId, deletedAt: null }, select: { id: true } }),
+    // Nur lebende ARTs — ein gelöschtes zählte sonst in „X von Y" mit (REQ-11).
+    readValueStreamArts(db, tenantId, valueStreamId),
   ]);
 
   // Die Positionen, die den ART-Rahmen bilden.

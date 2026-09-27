@@ -16,13 +16,13 @@
 
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
+import { loadChangeMoney } from "@/modules/budgeting/server/services/change-money";
 import {
-  readBudgetCandidates,
   readRtbItems,
   readRtbAwards,
   readSolutions,
+  readValueStreamArts,
 } from "@/modules/budgeting/server/services/budget-reads";
-import { loadArtEpicBudget } from "@/modules/budgeting/server/services/art-epic-budget";
 import { isChangeKind } from "@/modules/budgeting/domain/rtb-kind";
 import { rtbAnnualAmount, rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 import {
@@ -43,29 +43,23 @@ export async function loadArtBusinessCase(
   tenantId: TenantId,
   art: { id: string; valueStreamId: string },
   cycleKey: string,
-  now: Date = new Date(),
 ): Promise<ArtBudgetOrigin> {
-  const [candidates, items, awards, solutions, streamArts, frame] = await Promise.all([
-    readBudgetCandidates(db, tenantId),
+  const [money, items, awards, solutions, streamArts] = await Promise.all([
+    // Portfolio-Geld und ART-Rahmen aus der Faltung des Veränderungsgeldes.
+    loadChangeMoney(db, tenantId),
     readRtbItems(db, tenantId),
     readRtbAwards(db, tenantId),
     readSolutions(db, tenantId),
     // Die Nenner des Schlüssels. **Gelöschte ARTs zählen nicht mit** — sonst
     // verschwände ein Sechstel des übergreifenden Betriebsgeldes in einem ART,
     // den es nicht mehr gibt.
-    db.art.findMany({
-      where: { tenantId, valueStreamId: art.valueStreamId, deletedAt: null },
-      select: { id: true },
-      orderBy: { id: "asc" },
-    }),
-    loadArtEpicBudget(db, tenantId, art.id, cycleKey, now),
+    readValueStreamArts(db, tenantId, art.valueStreamId).then((arts) =>
+      [...arts].sort((a, b) => a.id.localeCompare(b.id)),
+    ),
   ]);
 
-  const portfolio = candidates
-    .filter(
-      (c) => c.kind === "epic" && c.artId === art.id && c.cycleKey === cycleKey && c.finalAmount,
-    )
-    .reduce((s, c) => s + (c.finalAmount ?? 0), 0);
+  const change = money.art(art.id, cycleKey);
+  const portfolio = change.portfolio;
 
   // **Nur Betrieb.** Die `art_change`-Positionen sind der ART-Rahmen; sie
   // stehen bereits als zwei eigene Zeilen in der Gruppe „Veränderung". Hier
@@ -126,9 +120,9 @@ export async function loadArtBusinessCase(
     cycleKey,
     portfolio,
     frame: {
-      total: frame.total,
-      toEpics: frame.distributedToEpics,
-      toOwnWork: frame.distributedToOwnWork,
+      total: change.frame,
+      toEpics: change.toEpics,
+      toOwnWork: change.toOwnWork,
     },
     operating: imHalbjahr.byPath[art.id] ?? KEIN_WEG,
     operatingAnnual: imJahr.byPath[art.id] ?? KEIN_WEG,

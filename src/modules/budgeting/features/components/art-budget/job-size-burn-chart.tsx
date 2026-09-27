@@ -26,7 +26,7 @@ const H = 160;
 const PAD = { left: 34, right: 10, top: 20, bottom: 22 };
 
 /**
- * Ohne laufende Budget-Kachel gibt es kein Fenster — dann steht das da, statt
+ * Ohne geltende Budget-Kachel gibt es kein Fenster — dann steht das da, statt
  * eines Diagramms über einen erfundenen Zeitraum.
  */
 export function JobSizeBurnChart({ burn }: { burn: JobSizeBurn | null }) {

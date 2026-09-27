@@ -29,6 +29,14 @@ function dbWith(
   allocations: { artId: string; amount: number }[],
   /** Reservierungen für ART-eigene Arbeit — sie zehren denselben Rahmen auf. */
   ownWork: { artId: string; amount: number }[] = [],
+  /** Die Kacheln des Mandanten — für den Budget-Stichtag. */
+  periods: {
+    id: string;
+    cycleKey: string;
+    status: string;
+    startDate: Date | null;
+    endDate: Date | null;
+  }[] = [],
 ) {
   const items = awards.map((a, i) => ({
     id: `p${i}`,
@@ -45,14 +53,21 @@ function dbWith(
   const awardQuery = vi.fn(async (_args: { where: unknown }) =>
     awards.map((a, i) => ({ rtbItemId: `p${i}`, cycleKey: "2026-H2", amount: a.amount })),
   );
-  const allocQuery = vi.fn(async (_args: { where: unknown }) => allocations);
-  const ownWorkQuery = vi.fn(async (_args: { where: unknown }) => ownWork);
+  // Die Lader lesen mandantenweit über alle Halbjahre; die Zeilen tragen ihr Halbjahr.
+  const allocQuery = vi.fn(async (_args: { where: unknown }) =>
+    allocations.map((a) => ({ ...a, cycleKey: "2026-H2", epicId: "e1" })),
+  );
+  const ownWorkQuery = vi.fn(async (_args: { where: unknown }) =>
+    ownWork.map((a) => ({ ...a, cycleKey: "2026-H2" })),
+  );
   return {
     db: {
       runTheBusinessItem: { findMany: itemQuery },
       rtbItemAward: { findMany: awardQuery },
       artEpicAllocation: { findMany: allocQuery },
       artOwnWorkAllocation: { findMany: ownWorkQuery },
+      budgetRound: { findMany: vi.fn(async () => periods) },
+      budgetCandidate: { findMany: vi.fn(async () => []) },
     } as unknown as Parameters<typeof loadArtEpicBudgets>[0],
     itemQuery,
     awardQuery,
@@ -190,6 +205,31 @@ describe("loadArtEpicBudgets", () => {
     expect(offen.get(A1)?.closedReason).toBeNull();
     const zu = await loadArtEpicBudgets(db, T, [A1], "2020-H1", NOW);
     expect(zu.get(A1)?.closedReason).not.toBeNull();
+  });
+
+  /*
+   * Die fortgeltende Kachel: ihr Zeitraum ist vorbei, sie gilt in der Lücke
+   * weiter. Bis September 2026 stand sie hier als „Vergangene Halbjahre sind
+   * gesperrt" — das Geld galt, verteilen durfte man es nicht.
+   */
+  it("eine fortgeltende Kachel aus dem Vorhalbjahr bleibt verteilbar", async () => {
+    const juli = new Date("2026-07-06T12:00:00Z");
+    const { db } = dbWith(
+      [],
+      [],
+      [],
+      [
+        {
+          id: "k1",
+          cycleKey: "2026-H1",
+          status: "closed",
+          startDate: new Date("2026-01-06"),
+          endDate: new Date("2026-06-30"),
+        },
+      ],
+    );
+    const m = await loadArtEpicBudgets(db, T, [A1], "2026-H1", juli);
+    expect(m.get(A1)?.closedReason).toBeNull();
   });
 
   it("ordnet Awards ohne ART niemandem zu", async () => {

@@ -20,8 +20,8 @@ import { chooseAllocation } from "@/modules/work/domain/epic-allocation-choice";
  *
  * **Beide Zahlen stehen auf derselben Periode: dem laufenden Zyklus.** Der
  * Invest kommt als `cycleAllocations` herein — dieselbe Karte, die die
- * Fördertopf-Kacheln daneben zeigen, aufgelöst über die *laufende Budget-Runde*
- * (`activeCycleFromRounds`), nicht über den Kalender. Der Betrieb kommt als Ask
+ * Fördertopf-Kacheln daneben zeigen, aufgelöst über die *geltende* Kachel
+ * (Budget-Stichtag), nicht über den Kalender. Der Betrieb kommt als Ask
  * **einer** Halbjahres-Kachel. Damit ist „Invest + Betrieb" eine Rechnung und
  * keine Vereinbarung; vorher summierte diese Datei die Allokationen über *alle*
  * Halbjahre und addierte eine Jahresrate dazu.

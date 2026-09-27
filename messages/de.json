@@ -2520,10 +2520,10 @@
       "legendePlan": "Plan (Budget ÷ Satz, linear)",
       "legendeBand": "±20 % um den Plan",
       "legendeIst": "Ist (fertig gemeldete Features)",
-      "kachel": "Laufende Budget-Kachel {kachel} · {von} – {bis}",
       "giltFort": "abgelaufen, gilt bis zur nächsten Kachel fort",
-      "keineKachel": "Keine laufende Budget-Kachel — ohne sie gibt es keinen Zeitraum für Plan und Ist.",
-      "ohneBudgetKachel": "Für diese Kachel ist den ARTs nichts zugeteilt — keine erwartete Job Size. Ist bisher {actual} JS."
+      "ohneBudgetKachel": "Für diese Kachel ist den ARTs nichts zugeteilt — keine erwartete Job Size. Ist bisher {actual} JS.",
+      "kachel": "Geltende Budget-Kachel {kachel} · {von} – {bis}",
+      "keineKachel": "Keine geltende Budget-Kachel — solange keine finalisiert ist, gibt es keinen Zeitraum für Plan und Ist."
     }
   },
   "drumbeat": {

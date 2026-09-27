@@ -7,7 +7,6 @@ import type { EpicId, TenantId } from "@/modules/core/kernel/domain/types";
 import {
   getBudgetingBoard,
   getValueStreamBudgets,
-  getValueStreamBudgetTotals,
 } from "@/modules/budgeting/server/services/budgeting";
 import { randomUUID } from "crypto";
 
@@ -105,15 +104,6 @@ describe("Wertstrom-Budgets sind abgeleitet (REQ-V1)", () => {
     expect(valueStreams).toHaveLength(1);
     expect(valueStreams[0]!.byPeriod).toEqual({ "2026-H1": 150, "2026-H2": 25 });
     expect(valueStreams[0]!.total).toBe(175);
-  });
-
-  it("`getValueStreamBudgetTotals` liefert dieselbe Summe als schmale Map", async () => {
-    const epicId = await makeEpic();
-    await allocate(epicId, { "2026-H1": 700 });
-
-    expect(await getValueStreamBudgetTotals(db, seed.tenantId)).toEqual({
-      [seed.valueStreamId]: 700,
-    });
   });
 
   it("ein Epic ohne Wertstrom faellt aus der Wertstrom-Sicht heraus (REQ-V2)", async () => {

@@ -18,7 +18,8 @@
 import type { PrismaClient } from "@/generated/prisma";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
-import { currentCycle, compareCycles } from "@/modules/budgeting/domain/cycle";
+import { compareCycles } from "@/modules/budgeting/domain/cycle";
+import { loadBudgetStichtag } from "@/modules/budgeting/server/services/budget-stichtag";
 import {
   buildCapacityPlan,
   capacityInPoints,
@@ -28,7 +29,11 @@ import {
   type PointCell,
 } from "@/modules/budgeting/domain/capacity-plan";
 import { loadArtChangeBudgetByCycle } from "@/modules/budgeting/server/services/art-epic-budget";
-import { loadArtCoverage } from "@/modules/budgeting/server/services/art-coverage";
+import { readValueStreamArts } from "@/modules/budgeting/server/services/budget-reads";
+import {
+  loadArtCoverages,
+  type ArtCoverageSource,
+} from "@/modules/budgeting/server/services/art-coverage";
 import {
   CAPACITY_BUCKETS,
   type GuardrailTargets,
@@ -57,14 +62,13 @@ interface ArtPlan {
  * und seine Herkunft. Sie wird hier nicht nachgebaut, sondern benutzt — sonst
  * gäbe es zwei Stellen, an denen „eingeplant in diesem Halbjahr" definiert ist.
  */
-async function planForArt(
-  db: PrismaClient,
-  tenantId: TenantId,
+function planForArt(
+  coverages: ArtCoverageSource,
   art: { id: string; name: string },
   cycleKey: string,
   budgetByCycle: Record<string, number>,
-): Promise<ArtPlan> {
-  const coverage = await loadArtCoverage(db, tenantId, art.id, cycleKey, budgetByCycle);
+): ArtPlan {
+  const coverage = coverages.coverage(art.id, cycleKey);
   const budget = budgetByCycle[cycleKey] ?? 0;
   const capacity = capacityInPoints(budget, coverage.rate);
 
@@ -102,13 +106,10 @@ export async function loadValueStreamCapacityPlan(
   opts: { cycleKey?: string | undefined; now?: Date | undefined } = {},
 ): Promise<ValueStreamCapacityPlan> {
   const now = opts.now ?? new Date();
-  const cycleKey = opts.cycleKey ?? currentCycle(now);
+  // Ohne Wahl das Halbjahr des Budget-Stichtags (geltende Kachel, sonst Kalender).
+  const cycleKey = opts.cycleKey ?? (await loadBudgetStichtag(db, tenantId, now)).focusKey;
 
-  const arts = await db.art.findMany({
-    where: { tenantId, valueStreamId, deletedAt: null },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
+  const arts = await readValueStreamArts(db, tenantId, valueStreamId);
 
   const budgets = await loadArtChangeBudgetByCycle(
     db,
@@ -118,16 +119,20 @@ export async function loadValueStreamCapacityPlan(
 
   const cycles = historyCycles(cycleKey, budgets);
 
-  // Je ART und je gezeigtem Halbjahr eine Rechnung. Die Zyklen liegen
-  // hintereinander, die ARTs nebeneinander — der teure Teil ist die Abfrage je
-  // ART, und die passiert ohnehin einmal je Zyklus.
-  const byCycleArtPlans = new Map<string, ArtPlan[]>();
-  for (const key of cycles) {
-    byCycleArtPlans.set(
+  // Je ART und je gezeigtem Halbjahr eine Rechnung — über **einer** Lesung:
+  // bis September 2026 las jede Rechnung die Features ihres ARTs neu, also
+  // ARTs × Halbjahre Abfragen für dieselben Zeilen.
+  const coverages = await loadArtCoverages(
+    db,
+    tenantId,
+    arts.map((a) => a.id),
+  );
+  const byCycleArtPlans = new Map<string, ArtPlan[]>(
+    cycles.map((key) => [
       key,
-      await Promise.all(arts.map((a) => planForArt(db, tenantId, a, key, budgets.get(a.id) ?? {}))),
-    );
-  }
+      arts.map((a) => planForArt(coverages, a, key, budgets.get(a.id) ?? {})),
+    ]),
+  );
 
   const current = byCycleArtPlans.get(cycleKey) ?? [];
   return buildValueStreamPlan({
@@ -256,7 +261,10 @@ export async function loadPortfolioCapacityPlan(
   const plans = await Promise.all(
     streams.map((vs) => loadValueStreamCapacityPlan(db, tenantId, vs.id, targetsFor(vs.id), opts)),
   );
-  return mergePlans(plans, opts.cycleKey ?? currentCycle(opts.now ?? new Date()));
+  return mergePlans(
+    plans,
+    opts.cycleKey ?? (await loadBudgetStichtag(db, tenantId, opts.now)).focusKey,
+  );
 }
 
 /**

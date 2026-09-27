@@ -26,13 +26,14 @@ export function OverviewBudgeting({ data }: { data: PortfolioOverview }) {
   // Das Format des Horizont-Trichters darunter („2,1 Mio €") — dieselben
   // Beträge sollen gleich aussehen.
   const eur = (n: number) => formatScaledEUR(n, locale);
-  // **Der Topf des Budget-Halbjahrs**, nicht die Summe aller Perioden
-  // (`poolTotal`): verteilt wird in diesem Termin das eine Halbjahr. Und zwar
-  // das des Budgets (`budgetCycleKey`), wie im Trichter darunter — der
-  // Kalender-Schlüssel (`funding.currentPeriod`) kann davon abweichen und
-  // dient nur als Rückfall.
+  // **Der Topf der geltenden Kachel**, nicht die Summe aller Perioden
+  // (`poolTotal`): verteilt wird in diesem Termin das eine Halbjahr, wie im
+  // Trichter darunter. Gilt keine Kachel, steht kein Topf da — für einen
+  // halbfertigen Rahmen gilt kein Geld (Budget-Stichtag).
   const topf =
-    data.funding.periods.find((p) => p.key === data.budgetCycleKey) ?? data.funding.currentPeriod;
+    data.budgetCycleKey == null
+      ? null
+      : (data.funding.periods.find((p) => p.key === data.budgetCycleKey) ?? null);
   return (
     <div className="space-y-6">
       <MeetingHeader meeting="participatory-budgeting" />

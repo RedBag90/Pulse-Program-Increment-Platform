@@ -1,11 +1,11 @@
 import { useTranslations } from "next-intl";
 import type { createPrismaClient } from "@/server/db/prisma";
 import type { requirePrincipal } from "@/server/auth/principal";
-import { currentCycle, previousCycles } from "@/modules/budgeting/domain/cycle";
+import { previousCycles } from "@/modules/budgeting/domain/cycle";
 import { RATE_WINDOW } from "@/modules/budgeting/domain/art-throughput";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import { loadBudgetKpis } from "@/modules/budgeting/server/views/budget-kpis";
-import { loadRunningPeriod } from "@/modules/budgeting/server/services/running-period";
+import { loadBudgetStichtag } from "@/modules/budgeting/server/services/budget-stichtag";
 import {
   ArtCoverageCard,
   StreamCoverageCard,
@@ -64,25 +64,24 @@ export async function BudgetKpiPanel({
   /**
    * **PI-Velocity: dasselbe Fenster wie der €-Satz** — die Halbjahre vor dem
    * gewählten (`RATE_WINDOW`), gezählt nach dem Ende der PIs — plus die schon
-   * abgeschlossenen PIs des laufenden Halbjahrs. Sie kommt aus Drumbeat;
+   * abgeschlossenen PIs des Halbjahrs der geltenden Kachel (Budget-Stichtag). Sie kommt aus Drumbeat;
    * Budgeting darf es nicht importieren (ADR-0013), deshalb wird sie hier
    * geladen und als Slot in die Karten gereicht. Ohne Drumbeat gibt es keine
    * PIs und keinen Slot.
    */
+  const stichtag = await loadBudgetStichtag(db, principal.tenantId as never);
   const velocityWindow = {
     closedKeys: previousCycles(cycleKey, RATE_WINDOW),
-    runningKey: currentCycle(new Date()),
+    runningKey: stichtag.focusKey,
   };
   /**
-   * **Der Job-Size-Verlauf folgt der laufenden Budget-Kachel**, nicht dem
-   * Halbjahr des Umschalters: Budget wird je Kachel zugeteilt, und eine
-   * Kachel hat eigene Daten. Die übrigen Zahlen der Karten rechnen weiter nach
-   * dem Halbjahr.
+   * **Der Job-Size-Verlauf folgt der geltenden Budget-Kachel** (Budget-Stichtag),
+   * nicht dem Halbjahr des Umschalters: Budget wird je Kachel zugeteilt, und
+   * eine Kachel hat eigene Daten. Ohne geltende Kachel gibt es keinen Verlauf.
+   * Die übrigen Zahlen der Karten rechnen nach dem gewählten Halbjahr.
    */
-  const heute = new Date();
-  const burnWindow = await loadRunningPeriod(db, principal.tenantId as never, heute);
   const [kpis, velocity] = await Promise.all([
-    loadBudgetKpis(db, principal.tenantId as never, arts, cycleKey, heute, burnWindow),
+    loadBudgetKpis(db, principal.tenantId as never, arts, { cycleKey, stichtag }),
     principal.enabledModules.includes("drumbeat")
       ? loadPiVelocity(db, principal.tenantId, arts, velocityWindow)
       : Promise.resolve(null),

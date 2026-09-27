@@ -1,8 +1,8 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ValueStreamId } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import { loadChangeMoney } from "@/modules/budgeting/server/services/change-money";
 import {
-  readBudgetCandidates,
   readRtbItems,
   readRtbAwards,
   readSolutions,
@@ -11,84 +11,29 @@ import { resolveRtbToArts } from "@/modules/budgeting/domain/rtb-art-resolution"
 import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 import { isChangeKind } from "@/modules/budgeting/domain/rtb-kind";
 import { budgetPlusLoadPeriods } from "@/modules/budgeting/domain/period-window";
+import { aggregateArtFeatureLoad } from "@/modules/budgeting/domain/art-budget";
+import { getValueStreamBudgets } from "@/modules/budgeting/server/services/budgeting";
 import {
-  aggregateArtFeatureLoad,
-  type ArtFeatureLoad,
-} from "@/modules/budgeting/domain/art-budget";
-import { getValueStreamBudget } from "@/modules/budgeting/server/services/budgeting";
-
-export interface ArtBudgetByPeriod {
-  artId: string;
-  name: string;
-  /**
-   * **Das Veränderungsgeld dieses ARTs je Halbjahr** — Portfolio-Zuteilung
-   * **plus** zugesprochener ART-Rahmen.
-   *
-   * Bis 2026-09-19 standen hier nur die Portfolio-Zuteilungen. Der Rahmen ist
-   * aber dasselbe Geld für denselben Zweck: er finanziert ART-Epics und
-   * ART-eigene Arbeit. Er fehlte in der Matrix vollständig — bei Materials &
-   * Energy waren das 100.500 €, die in der Reiterschiene danebenstanden und in
-   * der Übersicht nicht vorkamen.
-   */
-  budgetByPeriod: Record<string, number>;
-  /** Der Rahmenanteil daraus — für die Aufschlüsselung an der Zelle. */
-  frameByPeriod: Record<string, number>;
-  /** Feature count + Σ Job Size per half-year + backlog. */
-  load: ArtFeatureLoad;
-  /**
-   * **Betriebsgeld dieses ARTs im gewählten Halbjahr** (REQ-9) — aufgelöst über
-   * die Position, ihre Solution oder gleichmässig geschlüsselt.
-   *
-   * **Zugesprochen schlägt beantragt** (REQ-8), wie im Business Case: liegen für
-   * das Halbjahr Zusprüche vor, gelten sie. Bis 2026-09-19 rechnete diese
-   * Spalte mit dem geplanten Betrag und zeigte deshalb 24.500 €, wo der
-   * Business Case desselben ARTs 28.824 € auswies.
-   *
-   * **Zählt nirgends in die Deckung.** `allocated`, die Lücke und der €-Satz je
-   * Job-Size-Punkt bleiben Veränderungsgeld (REQ-10). Flösse Betriebsgeld dort
-   * hinein, spränge die Ampel auf „gedeckt", obwohl kein Euro davon ein Feature
-   * bezahlt — und der Satz stiege, weil sein Zähler wüchse und sein Nenner
-   * (Job Size) nicht.
-   */
-  operatingPerCycle: number;
-}
-
-export interface ArtBudgetBreakdown {
-  /** Half-year columns: the VS budget-plan periods ∪ the periods features' PIs fall in. */
-  periods: { key: string; label: string }[];
-  /**
-   * **Das Veränderungsgeld des Wertstroms je Halbjahr** — die Bezugsgröße, gegen
-   * die die ARTs ziehen: Σ der finalen Epic-Zuteilungen **plus** Σ der
-   * zugesprochenen ART-Rahmen.
-   *
-   * **Lokal gerechnet, nicht aus `getValueStreamBudgets`.** Dessen „Budget" sind
-   * allein die Epic-Zuteilungen, und es hat Nutzer in Struktur-, Timeline- und
-   * Reporting-Sichten. Zwei Zahlen unter einem Namen wäre genau der Fehler, den
-   * §2.5 der Konsolidierungs-Spec abstellt — deshalb heißt die Zeile auf der
-   * Fläche „Wertstrom · Veränderung" und nicht „Wertstrom-Budget".
-   */
-  vsByPeriod: Record<string, number>;
-  arts: ArtBudgetByPeriod[];
-  /** Woher die Betriebsbeträge stammen — die Spalte beschriftet sich danach. */
-  operatingBasis: "awarded" | "planned";
-  /**
-   * Betriebsgeld, das **keinem** ART zuzuordnen war — heute genau die
-   * Positionen an einer Solution ohne ART. Die Fläche weist es aus, statt es
-   * verschwinden zu lassen; es ist zugleich die Begründung dafür, dass
-   * `solutions.art_id` zur Pflicht wird.
-   */
-  operatingUnresolved: number;
-}
+  buildArtGridModel,
+  type ArtGridModel,
+  type ArtGridRow,
+} from "@/modules/budgeting/server/views/art-budget-breakdown";
 
 /**
- * ART-Budgets eines Wertstroms + die Feature-Last, je Halbjahr.
+ * **Die Verteil-Matrix eines Wertstroms** — ART-Budgets und Feature-Last je
+ * Halbjahr, fertig gefaltet (`buildArtGridModel`).
+ *
+ * Bis September 2026 waren das zwei Funktionen, jede der einzige Aufrufer der
+ * anderen: `getArtBudgetBreakdown` lud, `loadArtGridModel` benannte `arts` in
+ * `rows` um und reichte weiter — aus einer Datei, die sich „rein, kein I/O"
+ * nannte.
  *
  * **Vollständig abgeleitet.** Das Budget eines ART ist die Summe der final
  * zugeteilten Beträge seiner Epics, gruppiert nach dem Halbjahr der Kachel, aus
  * der die Zuteilung stammt. Früher stand daneben eine handgepflegte
  * `ArtBudget`-Tabelle — zwei Zahlen für dieselbe Sache, die auseinanderliefen.
  */
-export async function getArtBudgetBreakdown(
+export async function loadArtGridModel(
   db: PrismaClient,
   tenantId: TenantId,
   valueStreamId: ValueStreamId,
@@ -98,19 +43,17 @@ export async function getArtBudgetBreakdown(
    * überhaupt beantworten zu können. Fehlt es, bleibt es beim geplanten Betrag.
    */
   cycleKey?: string,
-): Promise<ArtBudgetBreakdown> {
-  const [vsBudget, arts, candidates, rtbItems, rtbAwards, solutions] = await Promise.all([
-    getValueStreamBudget(db, tenantId, valueStreamId),
+): Promise<ArtGridModel> {
+  const [vsBudgets, arts, money, rtbItems, rtbAwards, solutions] = await Promise.all([
+    getValueStreamBudgets(db, tenantId),
     db.art.findMany({
       where: { tenantId, valueStreamId, deletedAt: null },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    // Die geteilten Lader (REQ-5). Die Kandidaten standen hier als eigene,
-    // eingeengte Abfrage **nach** dem `Promise.all` — also eine dritte
-    // Rundreise, die auf die ersten beiden wartete, obwohl sie von ihnen nichts
-    // braucht. Positionen und Solutions liest die Seite ohnehin.
-    readBudgetCandidates(db, tenantId),
+    // Portfolio-Geld und ART-Rahmen je ART und Halbjahr: die Faltung des
+    // Veränderungsgeldes, dieselbe Quelle wie Funding-Snapshot und ART-Reiter.
+    loadChangeMoney(db, tenantId),
     readRtbItems(db, tenantId),
     // Über alle Halbjahre — genau dafür ist der Lader gebaut. Der Rahmen je
     // Spalte kommt daraus, die Betriebsspalte schneidet ihr Halbjahr heraus.
@@ -118,23 +61,28 @@ export async function getArtBudgetBreakdown(
     readSolutions(db, tenantId),
   ]);
 
-  const epicByPeriod = vsBudget.budget?.byPeriod ?? {};
+  const epicByPeriod =
+    vsBudgets.valueStreams.find((v) => v.valueStreamId === valueStreamId)?.byPeriod ?? {};
   const artIds = arts.map((a) => a.id);
-  const ofThisStream = new Set(artIds);
 
-  // Das ART-Budget je Halbjahr: die finalen Beträge der Epic-Kandidaten dieses
-  // ART, gruppiert nach dem Zyklus der Kachel, die sie zugeteilt hat.
-  const finals = candidates.filter(
-    (c) =>
-      c.kind === "epic" && c.finalAmount != null && c.artId != null && ofThisStream.has(c.artId),
-  );
-  const budgetByArt = new Map<string, Record<string, number>>();
-  for (const f of finals) {
-    if (!f.artId) continue;
-    const byPeriod = budgetByArt.get(f.artId) ?? {};
-    byPeriod[f.cycleKey] = (byPeriod[f.cycleKey] ?? 0) + (f.finalAmount ?? 0);
-    budgetByArt.set(f.artId, byPeriod);
+  // Das Veränderungsgeld je ART und Halbjahr: Portfolio-Zuteilung und
+  // ART-Rahmen getrennt, aus einer Faltung (`domain/change-money.ts`).
+  const cellsByArt = new Map(artIds.map((id) => [id, money.artByCycle(id)]));
+  const pick = (id: string, field: "portfolio" | "frame") =>
+    Object.fromEntries(
+      Object.entries(cellsByArt.get(id) ?? {})
+        .filter(([, c]) => c[field] !== 0)
+        .map(([k, c]) => [k, c[field]]),
+    );
+  const budgetByArt = new Map(artIds.map((id) => [id, pick(id, "portfolio")]));
+  const frameByArt = new Map(artIds.map((id) => [id, pick(id, "frame")]));
+  const frameByPeriodTotal: Record<string, number> = {};
+  for (const frame of frameByArt.values()) {
+    for (const [k, v] of Object.entries(frame)) {
+      frameByPeriodTotal[k] = (frameByPeriodTotal[k] ?? 0) + v;
+    }
   }
+  const portfolioKeys = [...budgetByArt.values()].flatMap((b) => Object.keys(b));
 
   const features = await db.initiative.findMany({
     where: {
@@ -157,38 +105,14 @@ export async function getArtBudgetBreakdown(
     ).map((l) => [l.artId, l]),
   );
 
-  /**
-   * **Der ART-Rahmen je ART und Halbjahr.** Dieselbe Regel wie in
-   * `loadArtEpicBudgets` — Σ der Zusprüche auf den aktiven
-   * `art_change`-Positionen eines ARTs —, nur über **alle** Halbjahre statt
-   * eines. Die Position sagt, auf welches ART ein Zuspruch einzahlt.
-   */
-  const artOfFrameItem = new Map(
-    rtbItems
-      .filter(
-        (i) => isChangeKind(i.kind) && i.active && i.artId != null && ofThisStream.has(i.artId),
-      )
-      .map((i) => [i.id, i.artId!]),
-  );
-  const frameByArt = new Map<string, Record<string, number>>();
-  const frameByPeriodTotal: Record<string, number> = {};
-  for (const a of rtbAwards) {
-    const artId = artOfFrameItem.get(a.rtbItemId);
-    if (artId == null) continue;
-    const byPeriod = frameByArt.get(artId) ?? {};
-    byPeriod[a.cycleKey] = (byPeriod[a.cycleKey] ?? 0) + a.amount;
-    frameByArt.set(artId, byPeriod);
-    frameByPeriodTotal[a.cycleKey] = (frameByPeriodTotal[a.cycleKey] ?? 0) + a.amount;
-  }
-
   // Columns: the budget-plan periods ∪ any half-year a feature's PI sits in ∪
   // die Halbjahre, in denen ein ART-Rahmen zugesprochen wurde — sonst fehlte
   // eine Spalte, in der nur ein Rahmen liegt.
   const periods = budgetPlusLoadPeriods(
     [
       ...new Set([
-        ...vsBudget.periods.map((p) => p.key),
-        ...finals.map((f) => f.cycleKey),
+        ...vsBudgets.periods.map((p) => p.key),
+        ...portfolioKeys,
         ...Object.keys(frameByPeriodTotal),
       ]),
     ],
@@ -240,7 +164,7 @@ export async function getArtBudgetBreakdown(
     artIds,
   );
 
-  const rows: ArtBudgetByPeriod[] = arts.map((a) => {
+  const rows: ArtGridRow[] = arts.map((a) => {
     const portfolio = budgetByArt.get(a.id) ?? {};
     const frame = frameByArt.get(a.id) ?? {};
     return {
@@ -260,7 +184,7 @@ export async function getArtBudgetBreakdown(
     };
   });
 
-  return {
+  return buildArtGridModel({
     periods,
     // Die Bezugsgröße wächst mit den Zeilen. Stünde hier nur die Epic-Summe,
     // stiege die Auslastung über 100 % und „Nicht zugeordnet" würde negativ,
@@ -271,8 +195,8 @@ export async function getArtBudgetBreakdown(
         (epicByPeriod[k] ?? 0) + (frameByPeriodTotal[k] ?? 0),
       ]),
     ),
-    arts: rows,
+    rows,
     operatingBasis,
     operatingUnresolved: operating.unresolved.reduce((sum, u) => sum + u.amount, 0),
-  };
+  });
 }

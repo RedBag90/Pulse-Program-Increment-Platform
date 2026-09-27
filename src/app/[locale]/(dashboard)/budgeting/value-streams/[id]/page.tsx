@@ -8,10 +8,10 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { hasCapability } from "@/server/auth/authorize";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import { loadValueStreamBudgetAccess } from "@/modules/budgeting/server/services/value-stream-budget-access";
-import { resolveCycle } from "@/modules/budgeting/domain/cycle";
+import { loadBudgetStichtag } from "@/modules/budgeting/server/services/budget-stichtag";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
 import { loadRtbAwards } from "@/modules/budgeting/server/services/rtb-award-service";
-import { loadArtGridModel } from "@/modules/budgeting/server/views/art-budget-breakdown";
+import { loadArtGridModel } from "@/modules/budgeting/server/services/art-budget";
 import { loadArtBudgetDetail } from "@/modules/budgeting/server/views/art-budget-detail";
 import { loadArtBusinessCase } from "@/modules/budgeting/server/views/art-business-case";
 import { loadValueStreamRoundResult } from "@/modules/budgeting/server/views/value-stream-round-result";
@@ -145,7 +145,10 @@ export default async function BudgetingValueStreamPage({
       valueStreamId: vs.id,
     });
 
-  const { cycleKey, options: cycles } = resolveCycle(cycle, new Date());
+  // Ohne Wahl steht die Seite auf der geltenden Kachel — wie die Wertstrom-Liste,
+  // von der man hierher klickt. Wählbar sind die offenen Halbjahre.
+  const stichtag = await loadBudgetStichtag(db, principal.tenantId as never);
+  const { cycleKey, options: cycles } = stichtag.resolveCycle(cycle);
   const basePath = `/budgeting/value-streams/${vs.id}`;
 
   /**

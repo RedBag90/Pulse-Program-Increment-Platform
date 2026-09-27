@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma";
+import { loadChangeMoney } from "@/modules/budgeting/server/services/change-money";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
@@ -243,40 +244,31 @@ export async function listBudgetPlanRevisionCycles(
 // ---------------------------------------------------------------------------
 
 /**
- * ART-Budgets für den Snapshot — **abgeleitet** aus den finalen Zuteilungen der
- * Kacheln, je Halbjahr. Vorher las diese Stelle die handgepflegte
- * `ArtBudget`-Tabelle: das Endartefakt des Prozesses stammte damit aus einer
- * anderen Quelle als der Prozess.
+ * ART-Budgets für den Snapshot — **abgeleitet** aus den Kacheln, je Halbjahr:
+ * Portfolio-Zuteilung **plus** zugesprochener ART-Rahmen, dieselbe Zahl wie der
+ * ART-Reiter und die Verteil-Matrix (`domain/change-money.ts`).
+ *
+ * Bis September 2026 fror der Snapshot nur das Portfolio-Geld ein, während
+ * jede andere Fläche den Rahmen mitzählte. Bereits eingefrorene Snapshots
+ * bleiben, wie sie sind.
  */
 async function loadArtSnapshotInputs(
   db: PrismaClient,
   tenantId: TenantId,
 ): Promise<ArtSnapshotInput[]> {
-  const [arts, finals] = await Promise.all([
+  const [arts, money] = await Promise.all([
     db.art.findMany({
       where: { tenantId, deletedAt: null },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    db.budgetCandidate.findMany({
-      where: { tenantId, kind: "epic", artId: { not: null }, finalAmount: { not: null } },
-      select: { artId: true, finalAmount: true, round: { select: { cycleKey: true } } },
-    }),
+    loadChangeMoney(db, tenantId),
   ]);
-
-  const byArt = new Map<string, Record<string, number>>();
-  for (const f of finals) {
-    if (!f.artId) continue;
-    const byPeriod = byArt.get(f.artId) ?? {};
-    const key = f.round.cycleKey;
-    byPeriod[key] = (byPeriod[key] ?? 0) + Number(f.finalAmount);
-    byArt.set(f.artId, byPeriod);
-  }
 
   return arts.map((a) => ({
     artId: a.id,
     name: a.name,
-    budgetByPeriod: byArt.get(a.id) ?? {},
+    budgetByPeriod: money.artTotalByCycle(a.id),
   }));
 }
 

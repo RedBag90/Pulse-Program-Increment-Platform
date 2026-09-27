@@ -73,15 +73,32 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
 - **Half-year axis** (`HalfYearAxis`) — the inclusive `{ start, count, periods[] }`
   span used by participatory budgeting.
 - **Zyklus** (`budgeting/domain/cycle.ts`) — das Halbjahr **als Begriff des
-  Budget-Moduls**, nicht als Zeichenkette. Besitzt die vier Fragen, die vorher
-  verstreut beantwortet wurden: ist das ein gültiger Schlüssel
-  (`CYCLE_KEY_PATTERN`), wie ordnen sich zwei Zyklen (`compareCycles` — die
-  lexikographische Ordnung, benannt statt unterstellt), welche zwei Halbjahre
-  sind offen (`openCycles`: das laufende und das nächste), und welches Halbjahr
-  meint diese Anfrage (`resolveCycle`, mit stummem Rückfall auf das laufende).
-  Die Datums-Primitiven bleiben im **Calendar**; hier wohnt, was Budgeting
-  daraus macht. Ob ein offenes Halbjahr auch **beschreibbar** ist, sagt
-  `potWindowClosedReason` — das ist die Regel, `openCycles` nur die Achse.
+  Budget-Moduls**, nicht als Zeichenkette. Besitzt die Fragen an den Schlüssel
+  selbst: ist er gültig (`CYCLE_KEY_PATTERN`), wie ordnen sich zwei Zyklen
+  (`compareCycles` — die lexikographische Ordnung, benannt statt unterstellt),
+  welche Halbjahre liegen davor (`previousCycles`), und die Kalender-Achse der
+  zwei vorausschauenden Halbjahre (`openCycles`). Die Datums-Primitiven bleiben
+  im **Calendar**. **Welches** Halbjahr gilt, sagt nicht der Zyklus, sondern
+  der Budget-Stichtag.
+- **Budget-Stichtag** (`budgeting/domain/budget-stichtag.ts`, geladen über
+  `server/services/budget-stichtag.ts`) — das Budget **an einem Tag**, die eine
+  Antwort auf „welche Kachel gilt jetzt". Vorher gab es fünf Regeln
+  (Kalender-Halbjahr, `appliedPeriod`, zeitlich laufende Kachel, Status
+  „running", neueste mit Daten), und auf dem Portfolio Sync standen drei davon
+  nebeneinander. Der Stichtag beantwortet:
+  - **applied** — die geltende Kachel: nur eine finalisierte gilt, in einer
+    Lücke die zuletzt abgelaufene fort (`extended`). Liegt der Tag in einer
+    unfertigen Kachel, gilt **keine**, und Geldflächen bleiben leer.
+  - **focusKey** — worauf eine Fläche ohne eigene Wahl steht: das Halbjahr der
+    geltenden Kachel, sonst das Kalender-Halbjahr.
+  - **openKeys / distributionClosedReason / resolveCycle** — offen (verteilbar,
+    wählbar) sind das laufende, das nächste Halbjahr und das der geltenden
+    Kachel, auch wenn sie fortgilt.
+
+  Geld, Job-Size-Verlauf, Topf, „aktuelles" Halbjahr der Funding-Liste, der
+  Umschalter der Wertstrom-Seite und die PI-Velocity richten sich danach. Die
+  Kacheln werden **einmal je Request** gelesen (`readBudgetPeriods`, `cache()`).
+
 - **PB-Liste** — was in einer Budgeting-Runde um Geld konkurriert: die
   vorgemerkten Epics plus die aktiven Run-the-Business-Positionen. Hieß bis
   September 2026 „Ballot", ein Wort, das zugleich die gedruckten
@@ -94,6 +111,18 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
   fragt nach einer **Menge** von ARTs; der Einzelfall ist ihr Sonderfall.
   Abzugrenzen vom **Portfolio-Budget**, der Zuteilung über die PB-Liste — ein
   Epic wird aus genau einer der beiden Quellen finanziert.
+- **Veränderungsgeld** (`budgeting/domain/change-money.ts`, geladen über
+  `server/services/change-money.ts`) — das Geld, das Vorhaben finanziert, je
+  ART und Halbjahr: **Portfolio** (finale Epic-Zuteilung der Kachel) plus
+  **ART-Rahmen** (Zusprüche auf aktive `art_change`-Positionen), der Rahmen
+  aufgeteilt in _an ART-Epics_, _für ART-eigene Arbeit_ und _noch nicht
+  vergeben_. Für einen Wertstrom zählt das Portfolio über den Wertstrom des
+  Kandidaten (auch Epics ohne ART), der Rahmen als Summe seiner ARTs. „ART-Budget"
+  heisst auf jeder Fläche Portfolio **plus** Rahmen — ART-Reiter,
+  Verteil-Matrix, Deckung, Funding-Snapshot und Budget-Plan lesen dieselbe
+  Faltung. Betrieb gehört nie hinein (REQ-10). Nicht dazu gehört
+  `cycle-money.ts`: es zählt, was eine gelöschte Kachel mitnimmt, also **alle**
+  Zusprüche, auch die inaktiver Positionen.
 - **Epic Schedule** — `src/domain/epic-schedule.ts`, the pure read/derivation
   model of an Epic's delivery timeline. Resolves the two anchors —
   **costStart** (the Backlog milestone, where cost begins) and **goLive** (the

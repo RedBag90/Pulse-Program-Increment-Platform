@@ -23,7 +23,11 @@ import {
   readRtbAwards,
   readSolutions,
 } from "@/modules/budgeting/server/services/budget-reads";
-import { potWindowClosedReason } from "@/modules/budgeting/domain/art-pot-window";
+import { budgetStichtag } from "@/modules/budgeting/domain/budget-stichtag";
+import {
+  loadBudgetStichtag,
+  readBudgetPeriods,
+} from "@/modules/budgeting/server/services/budget-stichtag";
 import { proportionalAwards, awardSplitDeniedReason } from "@/modules/budgeting/domain/rtb-award";
 import { assertRtbManage } from "@/modules/budgeting/server/services/rtb-authz";
 
@@ -89,12 +93,13 @@ export async function loadRtbAwards(
   cycleKey: string,
   now: Date = new Date(),
 ): Promise<RtbAwardView> {
-  const [allItems, allCandidates, allAwards, solutions, arts] = await Promise.all([
+  const [allItems, allCandidates, allAwards, periods, solutions, arts] = await Promise.all([
     readRtbItems(db, tenantId),
     // Über den geteilten Lader (REQ-5): dieselbe Zeile sucht die Finanzierungs-
     // kette eine Ebene höher noch einmal, nur über `roundId` statt `cycleKey`.
     readBudgetCandidates(db, tenantId),
     readRtbAwards(db, tenantId),
+    readBudgetPeriods(db, tenantId),
     // Beide über die geteilten Lader; `readSolutions` liegt auf dieser Seite
     // ohnehin. Die ARTs kosten eine Abfrage, die der Reiter „Einrichten" für
     // dieselbe Seite bereits macht.
@@ -144,7 +149,7 @@ export async function loadRtbAwards(
     awarded,
     requested,
     saved,
-    closedReason: potWindowClosedReason(cycleKey, now),
+    closedReason: budgetStichtag(periods, now).distributionClosedReason(cycleKey),
     rows: items.map((i, n) => {
       const so = i.solutionId == null ? null : (solution.get(i.solutionId) ?? null);
       return {
@@ -182,7 +187,8 @@ export async function saveRtbAwards(
 ): Promise<Result<{ assigned: number; remaining: number }>> {
   const mctx = toMutationContext(ctx);
 
-  const closed = potWindowClosedReason(input.cycleKey, new Date());
+  const stichtag = await loadBudgetStichtag(ctx.db, mctx.tenantId);
+  const closed = stichtag.distributionClosedReason(input.cycleKey);
   if (closed) return err({ kind: "conflict" as const, reason: closed });
 
   return withAuditedTransaction(mctx, async (tx) => {
