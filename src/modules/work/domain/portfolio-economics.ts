@@ -22,7 +22,6 @@ import {
   buildMonthAxis,
   type MonthAxis,
 } from "@/modules/core/kernel/domain/calendar";
-import { distributeAmountAcrossHalfYearMonths } from "@/modules/core/kernel/domain/period-axis";
 import { saturatedFulfillment } from "@/modules/core/kpi/domain/kpi-direction";
 import { benefitKindOrDefault } from "@/modules/core/kpi/domain/kpi-benefit-kind";
 import { recurringIntervalOrDefault } from "@/modules/core/kpi/domain/kpi-recurring-interval";
@@ -50,6 +49,14 @@ export interface EpicEconomicsInput {
    */
   implementationStart?: Date;
   implementationEndExclusive?: Date;
+  /**
+   * Ab wann Nutzen zählt — L5 „Nutzen erkannt" (`resolveBenefitStart`). Fehlt
+   * es, gilt der Go-Live wie bisher. `benefitConfirmed`: L5 als Ist (zählt auch
+   * rückwirkend); sonst nur als Prognose in der Zukunft. Fehlt es, gilt der
+   * L4.2-Stempel (`quantityFrozenAt`) wie bisher.
+   */
+  benefitStart?: Date;
+  benefitConfirmed?: boolean;
   /**
    * Kumulierter realisierter Wert der **one-time**-KPIs je Monat (length ===
    * monthCount). Vorhanden ⇒ der Einmal-Benefit folgt dem €-Zuwachs dieser Reihe
@@ -565,21 +572,84 @@ export function kpiRecurringAtFullTotal(kpis: BenefitKpiInput[]): number {
   return sum;
 }
 
+/** The window in which allocated budget becomes cost (`resolveAllocationWindow`). */
+export interface AllocationWindow {
+  start: Date;
+  /** Day after L4.2; `null` = unknown, the allocation runs to its half-year's end. */
+  endExclusive: Date | null;
+}
+
+/** One half-year's allocation, placed day-precisely: `[start, endExclusive)`. */
+export interface AllocationSegment {
+  start: Date;
+  endExclusive: Date;
+  amount: number;
+}
+
+const DAY_MS = 86_400_000;
+const daysIn = (start: Date, endExclusive: Date) =>
+  Math.round((endExclusive.getTime() - start.getTime()) / DAY_MS);
+
+/**
+ * **Where each half-year's allocated money lands.**
+ *
+ * Within its half-year, from L4.1 on (and up to L4.2 if known) — costs belong
+ * to implementation, not to L0–L3. Until September 2026 the whole amount was
+ * spread across all six months, so an Epic created in late September showed
+ * costs on its L0 and L2 days.
+ *
+ * If implementation does not touch the half-year at all (it lies before or
+ * after), the money still stays whole: it falls back to the full half-year.
+ * **Allocated money never disappears.** Pure.
+ */
+export function allocationSegments(
+  allocatedByPeriod: Record<string, number>,
+  window: AllocationWindow,
+): AllocationSegment[] {
+  const out: AllocationSegment[] = [];
+  for (const [key, amount] of Object.entries(allocatedByPeriod)) {
+    const hs = parseHalfYearKey(key);
+    if (!hs || !amount) continue;
+    const he = addMonths(hs, 6);
+    const s = window.start.getTime() > hs.getTime() ? window.start : hs;
+    const wEnd = window.endExclusive ?? he;
+    const e = wEnd.getTime() < he.getTime() ? wEnd : he;
+    out.push(
+      s.getTime() < e.getTime()
+        ? { start: s, endExclusive: e, amount }
+        : { start: hs, endExclusive: he, amount },
+    );
+  }
+  return out.sort((a, b) => a.start.getTime() - b.start.getTime());
+}
+
 /**
  * Per-month cost from a participatory-budgeting allocation map (half-year key
- * "YYYY-H1|H2" → amount). Each half-year's amount is spread evenly across its
- * six months, placed on the axis. Months outside the axis are dropped.
+ * "YYYY-H1|H2" → amount), placed by `allocationSegments` and summed into the
+ * months **by days**: a segment from 27 Sept puts 4 of its days into
+ * September. Months outside the axis are dropped.
  */
 export function allocatedCostByMonth(
   allocatedByPeriod: Record<string, number>,
   axis: MonthAxis,
+  window: AllocationWindow,
 ): number[] {
   const out = zeros(axis.monthCount);
-  for (const [key, amount] of Object.entries(allocatedByPeriod)) {
-    const periodStart = parseHalfYearKey(key);
-    if (!periodStart) continue;
-    const startIdx = monthDiff(axis.start, periodStart);
-    distributeAmountAcrossHalfYearMonths(amount, startIdx, axis.monthCount, out);
+  for (const seg of allocationSegments(allocatedByPeriod, window)) {
+    const total = daysIn(seg.start, seg.endExclusive);
+    for (
+      let m = monthStart(seg.start);
+      m.getTime() < seg.endExclusive.getTime();
+      m = addMonths(m, 1)
+    ) {
+      const from = m.getTime() > seg.start.getTime() ? m : seg.start;
+      const next = addMonths(m, 1);
+      const to = next.getTime() < seg.endExclusive.getTime() ? next : seg.endExclusive;
+      const idx = monthDiff(axis.start, m);
+      if (idx >= 0 && idx < axis.monthCount) {
+        out[idx] = (out[idx] ?? 0) + (seg.amount * daysIn(from, to)) / total;
+      }
+    }
   }
   return out;
 }
@@ -723,6 +793,12 @@ export interface EpicEconomicsDTO {
   /** Taggenaues Umsetzungsfenster L4.1 → L4.2, `[start, endExclusive)` (ISO-Tage). */
   implementationStartIso: string;
   implementationEndExclusiveIso: string;
+  /** Ab wann Nutzen zählt (L5, sonst Go-Live) und ob als Ist bestätigt. */
+  benefitStartIso: string;
+  benefitConfirmed: boolean;
+  /** Ab wann zugeteiltes Budget Kosten wird (L4.1) und bis wann (L4.2, sonst null). */
+  allocationStartIso: string;
+  allocationEndExclusiveIso: string | null;
   /**
    * Tag der L4.2-Abnahme (`implementationCompletedAt`), ISO — oder null, solange
    * die Umsetzung nicht bestätigt fertig ist. Friert die Mengen-Seite ein.
@@ -774,7 +850,12 @@ function dtoToInput(e: EpicEconomicsDTO, axis: MonthAxis): EpicEconomicsInput {
   const recurring = kpiRecurringByMonth(e.benefitKpis, axis, frozenAt);
   const recurringAtFull = kpiRecurringAtFullTotal(e.benefitKpis);
   // A participatory-budgeting allocation drives the cost over the forecast slices.
-  const costByMonth = e.hasAllocation ? allocatedCostByMonth(e.allocatedByPeriod, axis) : null;
+  const costByMonth = e.hasAllocation
+    ? allocatedCostByMonth(e.allocatedByPeriod, axis, {
+        start: isoToDate(e.allocationStartIso),
+        endExclusive: e.allocationEndExclusiveIso ? isoToDate(e.allocationEndExclusiveIso) : null,
+      })
+    : null;
   return {
     id: e.id,
     title: e.title,
@@ -785,6 +866,8 @@ function dtoToInput(e: EpicEconomicsDTO, axis: MonthAxis): EpicEconomicsInput {
     goLive: isoToDate(e.goLiveIso),
     implementationStart: isoToDate(e.implementationStartIso),
     implementationEndExclusive: isoToDate(e.implementationEndExclusiveIso),
+    benefitStart: isoToDate(e.benefitStartIso),
+    benefitConfirmed: e.benefitConfirmed,
     hasAllocation: e.hasAllocation,
     ...(realized ? { kpiRealizedValueByMonth: realized } : {}),
     ...(recurring ? { kpiRecurringByMonth: recurring } : {}),

@@ -60,6 +60,10 @@ export function epicFlows(
   const benefit = zeros(axis.monthCount);
   const benefitUplift = zeros(axis.monthCount);
   const goLiveIdx = monthDiff(axis.start, monthStart(input.goLive));
+  // Nutzen beginnt bei L5 „Nutzen erkannt" (`benefitStart`), ohne L5-Angabe
+  // beim Go-Live — bis September 2026 immer beim Go-Live (L4.2).
+  const benefitIdx =
+    input.benefitStart != null ? monthDiff(axis.start, monthStart(input.benefitStart)) : goLiveIdx;
 
   // Costs: a per-month allocation override (participatory budgeting) wins.
   // Otherwise the whole business-case investment (Σ costSlices) accrues in the
@@ -105,8 +109,8 @@ export function epicFlows(
       oneTimeFlow[idx] = cum - prev;
       prev = cum;
     }
-  } else if (goLiveIdx >= 0 && goLiveIdx < axis.monthCount) {
-    oneTimeFlow[goLiveIdx] = input.oneTimeBenefit;
+  } else if (benefitIdx >= 0 && benefitIdx < axis.monthCount) {
+    oneTimeFlow[benefitIdx] = input.oneTimeBenefit;
   }
 
   const recurring = input.kpiRecurringByMonth;
@@ -114,7 +118,7 @@ export function epicFlows(
     for (let idx = 0; idx < axis.monthCount; idx++) recurringFlow[idx] = recurring[idx] ?? 0;
   } else {
     const recPerMonth = input.recurringBenefit / 12;
-    for (let idx = Math.max(0, goLiveIdx); idx < axis.monthCount; idx++) {
+    for (let idx = Math.max(0, benefitIdx); idx < axis.monthCount; idx++) {
       recurringFlow[idx] = recPerMonth;
     }
   }
@@ -132,9 +136,12 @@ export function epicFlows(
   //  - **Noch nicht abgenommen**: nur in der Zukunft, ab dem geplanten L4.2 —
   //    als Prognose. In Vergangenheit und laufendem Monat steht nichts, denn
   //    dort ist nachweislich nichts geliefert worden.
-  const acceptedAt = input.quantityFrozenAt ?? null;
-  const benefitFrom =
-    acceptedAt != null ? Math.max(0, goLiveIdx) : Math.max(goLiveIdx, todayIndex + 1, 0);
+  //
+  // **Seit September 2026 ab L5 statt ab L4.2** (`benefitStart`): bestätigt ist
+  // der Start mit dem L5-Stempel; nur geschätzt zählt er als Prognose. Ohne
+  // L5-Angabe gilt das Obige unverändert.
+  const confirmed = input.benefitConfirmed ?? input.quantityFrozenAt != null;
+  const benefitFrom = confirmed ? Math.max(0, benefitIdx) : Math.max(benefitIdx, todayIndex + 1, 0);
 
   // Der einmalige Nutzen, der vor der Abnahme schon realisiert war, geht nicht
   // verloren — er wird im ersten zählenden Monat gutgeschrieben. Die laufende
@@ -159,7 +166,7 @@ export function epicFlows(
   // Genau das hat den Break-Even fertiger Epics dauerhaft geschönt.
   const atFull = input.kpiRecurringAtFull;
   if (recurring && atFull != null && atFull > 0 && input.quantityFrozenAt == null) {
-    const from = Math.max(goLiveIdx, todayIndex + 1, 0);
+    const from = Math.max(benefitIdx, todayIndex + 1, 0);
     for (let idx = from; idx < axis.monthCount; idx++) {
       const gap = atFull - (recurring[idx] ?? 0);
       benefitUplift[idx] = gap > 0 ? gap : 0;

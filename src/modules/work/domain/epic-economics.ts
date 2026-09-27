@@ -23,6 +23,8 @@ import {
   resolveCostStart,
   resolveGoLive,
   resolveImplementationWindow,
+  resolveAllocationWindow,
+  resolveBenefitStart,
 } from "@/modules/work/domain/epic-schedule";
 import type { KpiMeasurement } from "@/modules/core/kpi/domain/kpi";
 import { benefitKindOrDefault } from "@/modules/core/kpi/domain/kpi-benefit-kind";
@@ -55,6 +57,10 @@ export interface EpicEconomicsSource {
   hypothesisApprovedAt: Date | null;
   /** Actual L4.1 stamp (Initiative column) — anchors the estimated-cost window. */
   implementationStartedAt?: Date | null;
+  /** Actual L4.2 acceptance — confirms the go-live fallback of the benefit start. */
+  implementationCompletedAt?: Date | null;
+  /** Actual L5 stamp „Nutzen erkannt" — the benefit start (`resolveBenefitStart`). */
+  impactRecognizedAt?: Date | null;
   createdAt: Date;
   /** Linked KPIs; pass `[]` when the consumer does not load them. */
   kpis: EpicEconomicsKpiInput[];
@@ -93,6 +99,16 @@ export interface EpicEconomicsView {
    * cost accrues (`resolveImplementationWindow`).
    */
   implementationWindow: { start: Date; endExclusive: Date };
+  /**
+   * From L4.1 (to L4.2 if known) — where **allocated** budget becomes cost
+   * (`resolveAllocationWindow`).
+   */
+  allocationWindow: { start: Date; endExclusive: Date | null };
+  /**
+   * Ab wann Nutzen zählt (L5, sonst Go-Live); `confirmed` = Ist, sonst nur als
+   * Prognose (`resolveBenefitStart`).
+   */
+  benefitStart: { at: Date; confirmed: boolean };
   /** Linked KPIs with resolved weights; empty → flat-forecast fallback. */
   benefitKpis: BenefitKpi[];
 }
@@ -183,6 +199,17 @@ export function deriveEpicEconomics(source: EpicEconomicsSource): EpicEconomicsV
     costStart,
     costSlices.length,
   );
+  const allocationWindow = resolveAllocationWindow(
+    timeline,
+    source.implementationStartedAt ?? null,
+    costStart,
+  );
+  const benefitStart = resolveBenefitStart({
+    timeline,
+    impactRecognizedAt: source.impactRecognizedAt ?? null,
+    goLive,
+    implementationAcceptedAt: source.implementationCompletedAt ?? null,
+  });
   // Nutzen wird direkt aus den KPIs berechnet (100 %-Zielerreichung), nicht mehr
   // manuell im Business Case gepflegt — kein bewerteter KPI → 0.
   const benefit = epicBenefitFromKpis(source.kpis);
@@ -196,6 +223,8 @@ export function deriveEpicEconomics(source: EpicEconomicsSource): EpicEconomicsV
     costStart,
     goLive,
     implementationWindow,
+    allocationWindow,
+    benefitStart,
     benefitKpis: resolveBenefitWeights(source.kpis),
   };
 }

@@ -208,21 +208,56 @@ describe("recurringFactorByMonth", () => {
   });
 });
 
-describe("allocatedCostByMonth", () => {
+describe("allocatedCostByMonth — ab L4.1, taggenau", () => {
   const axis = buildMonthAxis(utc("2026-01-01"), utc("2027-12-01")); // 24 months
+  const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+  const frueh = { start: utc("2026-01-01"), endExclusive: null };
 
-  it("spreads each half-year allocation evenly across its six months", () => {
-    const cost = allocatedCostByMonth({ "2026-H2": 60000, "2027-H1": 30000 }, axis);
-    // H2'26 = months 6..11 (Jul–Dec 2026) → 10000 each
-    expect(cost.slice(0, 6)).toEqual(new Array(6).fill(0)); // H1'26 unfunded
-    expect(cost.slice(6, 12)).toEqual(new Array(6).fill(10000));
-    // H1'27 = months 12..17 → 5000 each
-    expect(cost.slice(12, 18)).toEqual(new Array(6).fill(5000));
-    expect(cost.slice(18, 24)).toEqual(new Array(6).fill(0));
+  it("Umsetzung läuft schon: jedes Halbjahr ganz, nach Tagen auf die Monate", () => {
+    const cost = allocatedCostByMonth({ "2026-H2": 60000, "2027-H1": 30000 }, axis, frueh);
+    expect(cost.slice(0, 6)).toEqual(new Array(6).fill(0)); // H1'26 ohne Geld
+    expect(cost[6]).toBeCloseTo((60000 * 31) / 184); // Juli: 31 von 184 Tagen
+    expect(sum(cost.slice(6, 12))).toBeCloseTo(60000);
+    expect(sum(cost.slice(12, 18))).toBeCloseTo(30000);
+    expect(sum(cost.slice(18, 24))).toBe(0);
   });
 
-  it("ignores zero amounts and malformed keys", () => {
-    expect(allocatedCostByMonth({ "2026-H1": 0, bad: 100 }, axis).every((v) => v === 0)).toBe(true);
+  /*
+   * „Einkauf optimieren": angelegt am 23.09., L4.1 am 27.09., 19.000 € für
+   * H2 2026, ohne L4.2. Bis September 2026 lagen 106 €/Tag auch auf den
+   * L0- und L2-Tagen.
+   */
+  it("das Geld liegt ab L4.1, nichts davor, voller Betrag", () => {
+    const cost = allocatedCostByMonth({ "2026-H2": 19000 }, axis, {
+      start: utc("2026-09-27"),
+      endExclusive: null,
+    });
+    expect(sum(cost.slice(6, 8))).toBe(0); // Juli, August
+    expect(cost[8]).toBeCloseTo((19000 * 4) / 96); // 27.–30.09.
+    expect(sum(cost)).toBeCloseTo(19000);
+  });
+
+  it("L4.2 vor Halbjahresende: nur bis L4.2", () => {
+    const cost = allocatedCostByMonth({ "2026-H2": 12000 }, axis, {
+      start: utc("2026-07-01"),
+      endExclusive: utc("2026-09-01"),
+    });
+    expect(sum(cost.slice(6, 8))).toBeCloseTo(12000);
+    expect(sum(cost.slice(8, 12))).toBe(0);
+  });
+
+  it("Umsetzung erst im nächsten Halbjahr: das Geld bleibt im ganzen Halbjahr", () => {
+    const cost = allocatedCostByMonth({ "2026-H2": 60000 }, axis, {
+      start: utc("2027-02-01"),
+      endExclusive: null,
+    });
+    expect(sum(cost.slice(6, 12))).toBeCloseTo(60000);
+  });
+
+  it("ignoriert Nullbeträge und kaputte Schlüssel", () => {
+    expect(
+      allocatedCostByMonth({ "2026-H1": 0, bad: 100 }, axis, frueh).every((v) => v === 0),
+    ).toBe(true);
   });
 });
 
@@ -695,5 +730,63 @@ describe("foldTopEpicSeries", () => {
     ]);
     expect(folded[2]!.title).toBe("3 weitere Epics");
     expect(folded[3]!.title).toBe("1 weiteres Epic");
+  });
+});
+
+/**
+ * **Nutzen ab L5 „Nutzen erkannt"** statt ab L4.2. Go-Live (L4.2) liegt in
+ * diesen Fällen auf idx 12 (2025-01), L5 auf idx 18 (2025-07).
+ */
+describe("epicMonthlyFlows — Nutzen ab L5", () => {
+  const axis = buildMonthAxis(utc("2024-01-01"), utc("2026-12-01"));
+  const L5 = utc("2025-07-01");
+
+  it("L5 geschätzt: zwischen L4.2 und heute nichts, danach als Prognose", () => {
+    const today = 20; // 2025-09
+    const { benefit } = epicMonthlyFlows(
+      epic({ benefitStart: L5, benefitConfirmed: false }),
+      axis,
+      today,
+    );
+    for (let i = 12; i <= today; i++) expect(benefit[i]).toBe(0);
+    // Der einmalige Nutzen (am L5-Monat) wird im ersten zählenden Monat gutgeschrieben.
+    expect(benefit[21]).toBeCloseTo(100 + 500);
+    expect(benefit[22]).toBeCloseTo(100);
+  });
+
+  it("L5 als Ist: ab dem Ist-Monat, auch rückwirkend; der Spike liegt auf L5", () => {
+    const { benefit } = epicMonthlyFlows(
+      epic({ benefitStart: L5, benefitConfirmed: true }),
+      axis,
+      axis.monthCount,
+    );
+    expect(benefit[12]).toBe(0); // Go-Live, aber noch kein Nutzen
+    expect(benefit[17]).toBe(0);
+    expect(benefit[18]).toBeCloseTo(100 + 500);
+    expect(benefit[19]).toBeCloseTo(100);
+  });
+
+  it("der Rest-zum-Ziel beginnt frühestens bei L5", () => {
+    // Noch nicht abgenommen (kein L4.2-Stempel), sonst gäbe es keinen Uplift.
+    const { quantityFrozenAt: _abgenommen, ...offen } = epic({
+      benefitStart: L5,
+      benefitConfirmed: false,
+      kpiRecurringByMonth: zerosArr(axis.monthCount),
+      kpiRecurringAtFull: 1000,
+    });
+    const { benefitUplift } = epicMonthlyFlows(offen, axis, 5);
+    expect(benefitUplift[12]).toBe(0);
+    expect(benefitUplift[17]).toBe(0);
+    expect(benefitUplift[18]).toBe(1000);
+  });
+
+  it("ohne L5-Angabe unverändert ab Go-Live", () => {
+    const ohne = epicMonthlyFlows(epic(), axis, axis.monthCount).benefit;
+    const mitGoLive = epicMonthlyFlows(
+      epic({ benefitStart: utc("2025-01-01"), benefitConfirmed: true }),
+      axis,
+      axis.monthCount,
+    ).benefit;
+    expect(mitGoLive).toEqual(ohne);
   });
 });

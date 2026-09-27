@@ -38,6 +38,7 @@ import {
 import { epicFlows } from "@/modules/work/domain/epic-flows";
 import {
   allocatedCostByMonth,
+  allocationSegments,
   kpiRealizedValueByMonth,
   kpiRecurringByMonth,
   kpiRecurringAtFullTotal,
@@ -109,6 +110,8 @@ export interface BcCalcSummary {
   /** Erster Tag mit Kosten (effektiver Kostenbeginn; Fallback: Backlog-Monat). */
   costStart: string;
   goLive: string;
+  /** Ab wann Nutzen zählt — L5 „Nutzen erkannt", ohne L5 der Go-Live (ISO-Tag). */
+  benefitStart: string;
   breakEvenDay: string | null;
   /**
    * **Zugeteilt** — die Kosten, welche die Kurve tatsaechlich traegt. Liegt eine
@@ -171,6 +174,7 @@ export function buildEpicBusinessCaseCalc(input: BcCalcInput): BcCalcResult {
     businessCaseApprovedAt: input.businessCaseApprovedAt,
     hypothesisApprovedAt: input.hypothesisApprovedAt,
     implementationStartedAt: input.implementationStartedAt,
+    impactRecognizedAt: input.impactRecognizedAt,
     createdAt: input.createdAt,
     kpis: input.kpis,
   });
@@ -192,9 +196,14 @@ export function buildEpicBusinessCaseCalc(input: BcCalcInput): BcCalcResult {
     const iso = actualByPhase[p.estimate] ?? tl.estimates[p.estimate] ?? null;
     if (iso) phaseTransitions.push({ gate: p.gate, day: parseIsoDay(iso) });
   }
-  // L0-Start = frühestes Datum (schützt vor createdAt in der Zukunft).
+  // Zugeteiltes Budget liegt ab L4.1 in seinem Halbjahr (`allocationSegments`).
+  const segments = allocationSegments(input.allocatedByPeriod, eco.allocationWindow);
+  // L0-Start = frühestes Datum (schützt vor createdAt in der Zukunft). Auch ein
+  // Zuteilungs-Segment vor `createdAt` zählt mit: bis September 2026 fiel alles
+  // vor dem Anlagetag weg — bei „Einkauf optimieren" 8.656 € von 19.000 €.
   let axisStart = dayStart(input.createdAt);
   for (const t of phaseTransitions) if (t.day.getTime() < axisStart.getTime()) axisStart = t.day;
+  for (const seg of segments) if (seg.start.getTime() < axisStart.getTime()) axisStart = seg.start;
   const transitions = [{ gate: "L0" as StageGate, day: axisStart }, ...phaseTransitions].sort(
     (a, b) => a.day.getTime() - b.day.getTime(),
   );
@@ -246,8 +255,12 @@ export function buildEpicBusinessCaseCalc(input: BcCalcInput): BcCalcResult {
     goLive: eco.goLive,
     implementationStart: eco.implementationWindow.start,
     implementationEndExclusive: eco.implementationWindow.endExclusive,
+    benefitStart: eco.benefitStart.at,
+    benefitConfirmed: eco.benefitStart.confirmed,
     hasAllocation,
-    ...(hasAllocation ? { costByMonth: allocatedCostByMonth(input.allocatedByPeriod, axis) } : {}),
+    ...(hasAllocation
+      ? { costByMonth: allocatedCostByMonth(input.allocatedByPeriod, axis, eco.allocationWindow) }
+      : {}),
     ...(realized ? { kpiRealizedValueByMonth: realized } : {}),
     ...(recurring ? { kpiRecurringByMonth: recurring } : {}),
     ...(recurringAtFull > 0 ? { kpiRecurringAtFull: recurringAtFull } : {}),
@@ -268,7 +281,19 @@ export function buildEpicBusinessCaseCalc(input: BcCalcInput): BcCalcResult {
       ? totalInvest / windowDays
       : 0;
 
-  // ── Tagesschleife: Monatsbetrag ÷ Kalendertage (Kosten veranschlagt: Fenster) ─
+  // Zugeteilt: Betrag ÷ Segmenttage an jedem Segmenttag — taggenau ab L4.1.
+  // Bisher Monatswert ÷ Kalendertage: im Startmonat bekamen auch die Tage vor
+  // L4.1 Geld. Die Monatssumme bleibt dieselbe wie in `epicFlows`.
+  const allocatedCostAt = (d: Date): number =>
+    segments.reduce(
+      (sum, seg) =>
+        d.getTime() >= seg.start.getTime() && d.getTime() < seg.endExclusive.getTime()
+          ? sum + seg.amount / daysBetween(seg.start, seg.endExclusive)
+          : sum,
+      0,
+    );
+
+  // ── Tagesschleife: Benefit Monatsbetrag ÷ Kalendertage, Kosten taggenau ─
   const rows: BcCalcDay[] = [];
   const months: BcCalcMonth[] = [];
   let cumBenefit = 0;
@@ -278,7 +303,7 @@ export function buildEpicBusinessCaseCalc(input: BcCalcInput): BcCalcResult {
   for (let d = axisStart; d.getTime() <= end.getTime(); d = addDays(d, 1)) {
     const mIdx = monthDiff(axis.start, monthStart(d));
     const dim = daysInMonth(mIdx);
-    const cost = hasAllocation ? (flows.cost[mIdx] ?? 0) / dim : estimatedCostAt(d);
+    const cost = hasAllocation ? allocatedCostAt(d) : estimatedCostAt(d);
     const benefit = ((flows.benefit[mIdx] ?? 0) + (flows.benefitUplift[mIdx] ?? 0)) / dim;
     const isForecast = mIdx > todayIndex;
     if (firstCostDay === null && cost > 0) firstCostDay = isoDay(d);
@@ -331,6 +356,7 @@ export function buildEpicBusinessCaseCalc(input: BcCalcInput): BcCalcResult {
     // nicht mehr zwingend der Backlog-Monat.
     costStart: firstCostDay ?? isoDay(eco.costStart),
     goLive: isoDay(eco.goLive),
+    benefitStart: isoDay(eco.benefitStart.at),
     breakEvenDay,
     totalCost,
     estimatedCost: eco.totals.implementationCost,

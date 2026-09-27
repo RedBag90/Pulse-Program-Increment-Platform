@@ -27,6 +27,10 @@ const dto = (over: Partial<EpicEconomicsDTO> = {}): EpicEconomicsDTO => ({
   goLiveIso: "2026-01-01",
   implementationStartIso: "2026-01-01",
   implementationEndExclusiveIso: "2027-01-01",
+  benefitStartIso: "2026-01-01",
+  benefitConfirmed: true,
+  allocationStartIso: "2026-01-01",
+  allocationEndExclusiveIso: null,
   implementationCompletedIso: "2026-01-01",
   hasBusinessCase: true,
   benefitKpis: [],
@@ -213,7 +217,8 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
   });
 
   it("uses the budget allocation as the cost override when present", () => {
-    // 60000 allocated to H1'26 → 10000/month across Jan–Jun, overriding the slices.
+    // 60000 allocated to H1'26, implementation already running → the whole
+    // half-year, by days (Jan: 31 of 181), overriding the slices.
     const d = data([
       dto({ id: "a", hasAllocation: true, allocatedByPeriod: { "2026-H1": 60000 } }),
     ]);
@@ -226,6 +231,6 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
       },
       NOW,
     );
-    expect(series.costs[0]).toBeCloseTo(10000); // allocation, not the 100/month forecast
+    expect(series.costs[0]).toBeCloseTo((60000 * 31) / 181); // allocation, not the forecast
   });
 });

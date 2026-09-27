@@ -1611,7 +1611,8 @@
       "artEpicsAusArtRahmen": "ART epics · {amount} · from the ART envelopes",
       "epicsNochNichtEingeordnet": "{count} epics are not yet classified — without an approved business case there is no reliable cost estimate. They remain a portfolio matter until it is in place.",
       "davonOhneArtKeinFinanzierungsweg": "{count} of them have no ART and would have no funding path after the split.",
-      "leerLassenHeisstGeerbtAktuellGilt": "Leaving it empty means <b>inherited</b>. Currently: Business {business}% / Enabler {enabler}% / Maintenance {maintenance}%, portfolio limit {limit} — {source}. The three shares are set together: half a mix axis can't add up to 100."
+      "leerLassenHeisstGeerbtAktuellGilt": "Leaving it empty means <b>inherited</b>. Currently: Business {business}% / Enabler {enabler}% / Maintenance {maintenance}%, portfolio limit {limit} — {source}. The three shares are set together: half a mix axis can't add up to 100.",
+      "nutzenAb": "Benefit from (L5)"
     },
     "dashboard": {
       "benefitWasserfall": "Benefit waterfall",

@@ -144,6 +144,8 @@ export async function getPortfolioEconomics(
       businessCaseApprovedAt: row.businessCaseApprovedAt,
       hypothesisApprovedAt: row.hypothesisApprovedAt,
       implementationStartedAt: row.implementationStartedAt,
+      implementationCompletedAt: row.implementationCompletedAt,
+      impactRecognizedAt: row.impactRecognizedAt,
       createdAt: row.createdAt,
       kpis: row.kpis.map((k) => ({
         id: k.id,
@@ -200,6 +202,12 @@ export async function getPortfolioEconomics(
       goLiveIso: isoDay(view.goLive),
       implementationStartIso: isoDay(view.implementationWindow.start),
       implementationEndExclusiveIso: isoDay(view.implementationWindow.endExclusive),
+      benefitStartIso: isoDay(view.benefitStart.at),
+      benefitConfirmed: view.benefitStart.confirmed,
+      allocationStartIso: isoDay(view.allocationWindow.start),
+      allocationEndExclusiveIso: view.allocationWindow.endExclusive
+        ? isoDay(view.allocationWindow.endExclusive)
+        : null,
       // L4.2-Abnahme: ab hier steht die gelieferte Menge fest.
       implementationCompletedIso: row.implementationCompletedAt
         ? isoDay(row.implementationCompletedAt)

@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   resolveCostStart,
   resolveGoLive,
+  resolveAllocationWindow,
+  resolveBenefitStart,
   timelinePlannedWindow,
   resolveEpicWindow,
   plannedEpicWindow,
@@ -172,5 +174,97 @@ describe("plannedEpicWindow + rangeOverlapsPlannedWindow", () => {
     expect(
       rangeOverlapsPlannedWindow(epic, { start: utc("2026-09-30"), end: utc("2026-12-31") }),
     ).toBe(true);
+  });
+});
+
+/**
+ * **Wo zugeteiltes Budget Kosten wird** — ab L4.1, bis L4.2 falls bekannt.
+ * Ohne L4.2 kein erfundenes Ende: das Geld läuft bis zum Ende seines Halbjahrs.
+ */
+describe("resolveAllocationWindow", () => {
+  const costStart = utc("2026-09-01");
+
+  it("L4.1: Ist schlägt Schätzung schlägt costStart", () => {
+    const tl: TimelineFields = {
+      estimates: { implementation_started: "2026-10-01" },
+      actuals: {},
+    };
+    expect(resolveAllocationWindow(tl, utc("2026-09-27"), costStart).start).toEqual(
+      utc("2026-09-27"),
+    );
+    expect(resolveAllocationWindow(tl, null, costStart).start).toEqual(utc("2026-10-01"));
+    expect(resolveAllocationWindow(emptyTimeline(), null, costStart).start).toEqual(costStart);
+  });
+
+  it("L4.2 als Ist oder Schätzung, einen Tag danach; sonst kein Ende", () => {
+    const geschaetzt: TimelineFields = { estimates: { implementation: "2026-11-30" }, actuals: {} };
+    const ist: TimelineFields = {
+      estimates: { implementation: "2026-11-30" },
+      actuals: { implementation: "2026-12-15" },
+    };
+    expect(resolveAllocationWindow(geschaetzt, utc("2026-09-27"), costStart).endExclusive).toEqual(
+      utc("2026-12-01"),
+    );
+    expect(resolveAllocationWindow(ist, utc("2026-09-27"), costStart).endExclusive).toEqual(
+      utc("2026-12-16"),
+    );
+    expect(
+      resolveAllocationWindow(emptyTimeline(), utc("2026-09-27"), costStart).endExclusive,
+    ).toBeNull();
+  });
+
+  it("ein L4.2 vor L4.1 zählt nicht als Ende", () => {
+    const verdreht: TimelineFields = { estimates: { implementation: "2026-09-01" }, actuals: {} };
+    expect(resolveAllocationWindow(verdreht, utc("2026-09-27"), costStart).endExclusive).toBeNull();
+  });
+});
+
+/** **Ab wann Nutzen zählt** — L5 als Ist, sonst als Schätzung, sonst Go-Live. */
+describe("resolveBenefitStart", () => {
+  const goLive = utc("2026-01-01");
+  const tl = (done?: string): TimelineFields => ({
+    estimates: done ? { done } : {},
+    actuals: {},
+  });
+
+  it("L5 als Ist: bestätigt, schlägt die Schätzung", () => {
+    expect(
+      resolveBenefitStart({
+        timeline: tl("2026-09-15"),
+        impactRecognizedAt: utc("2026-05-20"),
+        goLive,
+        implementationAcceptedAt: null,
+      }),
+    ).toEqual({ at: utc("2026-05-01"), confirmed: true });
+  });
+
+  it("L5 geschätzt: der Monat der Schätzung, nur Prognose", () => {
+    expect(
+      resolveBenefitStart({
+        timeline: tl("2026-09-15"),
+        impactRecognizedAt: null,
+        goLive,
+        implementationAcceptedAt: utc("2026-01-10"),
+      }),
+    ).toEqual({ at: utc("2026-09-01"), confirmed: false });
+  });
+
+  it("ohne L5: der Go-Live wie bisher, bestätigt nur mit L4.2-Stempel", () => {
+    expect(
+      resolveBenefitStart({
+        timeline: tl(),
+        impactRecognizedAt: null,
+        goLive,
+        implementationAcceptedAt: utc("2026-01-10"),
+      }),
+    ).toEqual({ at: goLive, confirmed: true });
+    expect(
+      resolveBenefitStart({
+        timeline: tl(),
+        impactRecognizedAt: null,
+        goLive,
+        implementationAcceptedAt: null,
+      }).confirmed,
+    ).toBe(false);
   });
 });

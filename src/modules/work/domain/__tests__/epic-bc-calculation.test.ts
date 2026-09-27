@@ -41,21 +41,44 @@ const monthSum = (rows: { day: string; costPerDay: number }[], ym: string) =>
   rows.filter((r) => r.day.startsWith(ym)).reduce((a, r) => a + r.costPerDay, 0);
 
 describe("buildEpicBusinessCaseCalc", () => {
-  it("Allocation treibt die Kosten (Σ = Allocation; Monatswert = Allocation/6)", () => {
+  /*
+   * Zugeteiltes Geld wird erst ab L4.1 Kosten (29.01.2025), innerhalb seines
+   * Halbjahrs (2025-H1 endet am 30.06.): 153 Tage. Bis September 2026 lag es
+   * gleichmäßig auf allen sechs Monaten — auch auf den Tagen vor L4.1.
+   */
+  it("Allocation treibt die Kosten: voller Betrag, taggenau ab L4.1", () => {
     const { rows, summary } = buildEpicBusinessCaseCalc(base);
     expect(summary.hasAllocation).toBe(true);
     expect(Math.round(summary.totalCost)).toBe(104_000);
-    // Tageswert = Monatswert (104000/6) ÷ Kalendertage des Monats — deckungsgleich
-    // mit dem Portfolio-Dashboard (nicht mehr die alte 181-Tage-Gleichverteilung).
-    expect(at(rows, "2025-03-15")!.costPerDay).toBeCloseTo(104_000 / 6 / 31, 2);
-    expect(at(rows, "2025-07-15")!.costPerDay).toBe(0); // nach Jun 2025 keine Kosten
+    expect(summary.costStart).toBe("2025-01-29");
+    expect(at(rows, "2025-01-28")!.costPerDay).toBe(0); // L2, vor L4.1
+    expect(at(rows, "2025-03-15")!.costPerDay).toBeCloseTo(104_000 / 153, 6);
+    expect(at(rows, "2025-07-15")!.costPerDay).toBe(0); // nach dem Halbjahr
   });
 
-  it("Monats-Summe der Tage = App-Monatswert (Allocation/6 je H1-Monat)", () => {
+  it("Monats-Summe der Tage = Monatswert des geteilten Kerns (nach Tagen)", () => {
     const { rows } = buildEpicBusinessCaseCalc(base);
-    for (const ym of ["2025-01", "2025-02", "2025-03", "2025-06"]) {
-      expect(monthSum(rows, ym)).toBeCloseTo(104_000 / 6, 6);
+    expect(monthSum(rows, "2025-01")).toBeCloseTo((104_000 * 3) / 153, 6); // 29.–31.01.
+    expect(monthSum(rows, "2025-03")).toBeCloseTo((104_000 * 31) / 153, 6);
+    expect(monthSum(rows, "2025-06")).toBeCloseTo((104_000 * 30) / 153, 6);
+  });
+
+  it("L0 und L2 tragen keine zugeteilten Kosten", () => {
+    const { rows } = buildEpicBusinessCaseCalc(base);
+    for (const r of rows.filter((x) => x.gate === "L0" || x.gate === "L2")) {
+      expect(r.costPerDay).toBe(0);
     }
+  });
+
+  it("ein Segment vor createdAt verschiebt den Achsenstart, statt Geld zu verlieren", () => {
+    // Umsetzung vor dem Halbjahr (L4.1 2025-01-29), Geld für 2024-H2: Rückfall
+    // auf das ganze Halbjahr — auch wenn das Epic erst später angelegt wurde.
+    const { summary, rows } = buildEpicBusinessCaseCalc({
+      ...base,
+      allocatedByPeriod: { "2024-H2": 18_400 },
+    });
+    expect(Math.round(summary.totalCost)).toBe(18_400);
+    expect(rows[0]!.day <= "2024-07-01").toBe(true);
   });
 
   it("Ohne Allocation: veranschlagt, Kosten taggenau im Umsetzungsfenster L4.1→L4.2", () => {
@@ -143,5 +166,27 @@ describe("Monatsebene", () => {
     expect(monthOnly.months).toEqual(full.months);
     // Die Rechnung selbst bleibt taggenau — die Zusammenfassung ist identisch.
     expect(monthOnly.summary).toEqual(full.summary);
+  });
+
+  /*
+   * Nutzen ab L5 statt ab L4.2: L4.2 ist auf den 07.08.2025 geschätzt, L5 auf
+   * den 01.11.2025. Bis dahin trägt kein Tag Nutzen.
+   */
+  it("Nutzen erst ab dem geschätzten L5", () => {
+    const { rows, summary } = buildEpicBusinessCaseCalc({
+      ...base,
+      timeline: {
+        actuals: {},
+        estimates: {
+          implementation_started: "2025-01-29",
+          implementation: "2025-08-07",
+          done: "2025-11-01",
+        },
+      },
+    });
+    expect(summary.goLive.slice(0, 7)).toBe("2025-08");
+    expect(summary.benefitStart).toBe("2025-11-01");
+    expect(at(rows, "2025-09-15")!.benefitPerDay).toBe(0);
+    expect(at(rows, "2025-10-31")!.benefitPerDay).toBe(0);
   });
 });

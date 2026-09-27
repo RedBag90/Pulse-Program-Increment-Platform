@@ -100,6 +100,69 @@ export function resolveImplementationWindow(
 }
 
 /**
+ * **Ab wann Nutzen zählt: L5 „Nutzen erkannt"**, nicht L4.2.
+ *
+ * Bis September 2026 begann der Nutzen am Go-Live (L4.2, „Umsetzung
+ * fertig"). Fertig gebaut heißt aber nicht, dass der Nutzen schon eintritt —
+ * dafür gibt es L5. Der Nutzen beginnt deshalb im Monat von L5:
+ *
+ * - L5 als Ist (`impactRecognizedAt` — der Workflow-Stempel) →
+ *   `confirmed`, zählt auch rückwirkend;
+ * - L5 als Schätzung (`timeline.estimates.done`) → nicht bestätigt, zählt nur
+ *   als Prognose;
+ * - ohne L5-Angabe der Rückfall auf den Go-Live (L4.2) — das bisherige
+ *   Verhalten, bestätigt nur mit L4.2-Stempel (`implementationAcceptedAt`).
+ */
+export function resolveBenefitStart(input: {
+  timeline: TimelineFields;
+  impactRecognizedAt: Date | null;
+  goLive: Date;
+  implementationAcceptedAt: Date | null;
+}): { at: Date; confirmed: boolean } {
+  if (input.impactRecognizedAt) {
+    return { at: monthStart(input.impactRecognizedAt), confirmed: true };
+  }
+  const estimate = parseIsoMonth(input.timeline.estimates.done);
+  if (estimate) return { at: estimate, confirmed: false };
+  return { at: monthStart(input.goLive), confirmed: input.implementationAcceptedAt != null };
+}
+
+/**
+ * **Where allocated budget becomes cost:** from L4.1 on, up to L4.2 if known.
+ *
+ * Allocated money (participatory budgeting, per half-year) used to be spread
+ * evenly across all six months of its half-year — an Epic created on 23 Sept
+ * showed costs on its L0 and L2 days although implementation started on
+ * 27 Sept. Costs belong to implementation, so the allocation lands from L4.1.
+ *
+ * - start = actual L4.1 → estimated `implementation_started` →
+ *   `monthStart(costStart)` — the same chain as `resolveImplementationWindow`.
+ * - endExclusive = day after (actual → estimated) L4.2; `null` when unknown.
+ *   **No synthetic fallback** here: the implementation window's
+ *   `costStart + #slices × 6 months` collapses to one day for an Epic without
+ *   slices, which would book a whole half-year's money on a single day. Without
+ *   L4.2 the allocation simply runs to the end of its half-year.
+ */
+export function resolveAllocationWindow(
+  timeline: TimelineFields,
+  implementationStartedAt: Date | null,
+  costStart: Date,
+): { start: Date; endExclusive: Date | null } {
+  const start =
+    (implementationStartedAt ? dayStart(implementationStartedAt) : null) ??
+    (timeline.estimates.implementation_started
+      ? parseIsoDay(timeline.estimates.implementation_started)
+      : null) ??
+    monthStart(costStart);
+  const l42Iso = timeline.actuals.implementation ?? timeline.estimates.implementation ?? null;
+  const endExclusive = l42Iso ? addDays(parseIsoDay(l42Iso), 1) : null;
+  return {
+    start,
+    endExclusive: endExclusive && endExclusive.getTime() > start.getTime() ? endExclusive : null,
+  };
+}
+
+/**
  * The Epic's planned delivery window, derived from the owner's Implementation
  * phase estimates in the timeline: start = L4.1 (`implementation_started`,
  * „Umsetzung gestartet"), end = L4.2 (`implementation`, „Umsetzung fertig").

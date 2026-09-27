@@ -241,6 +241,10 @@ export function EpicBusinessCaseCalcTab({
             value={monthLabel(summary.costStart.slice(0, 7))}
           />
           <Stat label={t("work.epic.goLive")} value={monthLabel(summary.goLive.slice(0, 7))} />
+          <Stat
+            label={t("work.epic.nutzenAb")}
+            value={monthLabel(summary.benefitStart.slice(0, 7))}
+          />
           <Stat label={t("work.epic.einmalig")} value={`${eurShort(summary.oneTimeAtTarget)} €`} />
           <Stat
             label={t("work.epic.nutzenKosten")}

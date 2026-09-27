@@ -1611,7 +1611,8 @@
       "artEpicsAusArtRahmen": "ART-Epics · {amount} · aus den ART-Rahmen",
       "epicsNochNichtEingeordnet": "{count} Epics sind noch nicht eingeordnet — ohne freigegebenen Business Case liegt keine belastbare Kostenschätzung vor. Sie bleiben Portfolio-Sache, bis er steht.",
       "davonOhneArtKeinFinanzierungsweg": "{count} davon tragen keinen ART und hätten nach der Trennung keinen Finanzierungsweg.",
-      "leerLassenHeisstGeerbtAktuellGilt": "Leer lassen heißt <b>geerbt</b>. Aktuell gilt: Business {business} % / Enabler {enabler} % / Maintenance {maintenance} %, Portfolio-Limit {limit} — {source}. Die drei Anteile werden zusammen gesetzt: eine halbe Mix-Achse kann nicht auf 100 summieren."
+      "leerLassenHeisstGeerbtAktuellGilt": "Leer lassen heißt <b>geerbt</b>. Aktuell gilt: Business {business} % / Enabler {enabler} % / Maintenance {maintenance} %, Portfolio-Limit {limit} — {source}. Die drei Anteile werden zusammen gesetzt: eine halbe Mix-Achse kann nicht auf 100 summieren.",
+      "nutzenAb": "Nutzen ab (L5)"
     },
     "dashboard": {
       "benefitWasserfall": "Benefit-Wasserfall",
