@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createRef } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 vi.mock("@/modules/work/features/feature/actions/feature", () => ({
@@ -62,8 +61,7 @@ const erfuellt = feature({
   ],
 });
 
-const card = (f: CockpitFeature) =>
-  render(<FeatureCard feature={f} canDrag canScore={false} draggingId={createRef()} />);
+const card = (f: CockpitFeature) => render(<FeatureCard feature={f} canDrag canScore={false} />);
 
 describe("FeatureCard — Blocker", () => {
   beforeEach(() => setParam.mockClear());

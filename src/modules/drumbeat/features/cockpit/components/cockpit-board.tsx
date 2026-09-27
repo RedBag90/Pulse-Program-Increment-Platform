@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useOptimistic, useRef, useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import {
   setFeaturePiAction,
   setFeatureDeliveryStatusAction,
@@ -35,7 +35,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
-import { FeatureCard } from "./feature-card";
+import { FeatureCard, FeatureCardPreview } from "./feature-card";
+import { BoardDndProvider, useDropCell } from "@/modules/drumbeat/features/lib/board-dnd";
 import { FEATURE_TYPE_STRIPE } from "@/modules/drumbeat/features/lib/feature-type-tokens";
 import {
   FEATURE_TYPES,
@@ -108,8 +109,6 @@ const LANES: ReadonlyArray<LaneDef> = [
   },
 ];
 
-const HIGHLIGHT_DROP = ["ring-2", "ring-primary/60"];
-
 export function CockpitBoard({
   pis,
   features,
@@ -119,7 +118,6 @@ export function CockpitBoard({
   canScoreWsjf = false,
 }: Props) {
   const t = useTranslations();
-  const draggingId = useRef<string | null>(null);
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -198,10 +196,7 @@ export function CockpitBoard({
     });
   }
 
-  function dropOnCell(targetPiId: string, targetStatus: FeatureStatus) {
-    const id = draggingId.current;
-    draggingId.current = null;
-    if (!id) return;
+  function dropOnCell(id: string, targetPiId: string, targetStatus: FeatureStatus) {
     const feature = features.find((f) => f.id === id);
     if (!feature) return;
 
@@ -250,92 +245,111 @@ export function CockpitBoard({
     performDrop({ id, targetPiId, movePi, moveStatus, targetStatus });
   }
 
-  return (
-    <div className="space-y-2">
-      {error && (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {error}
-        </div>
-      )}
+  /** Ziel-Id einer Zelle: `<piKey>|<status>` (Backlog = leerer piKey). */
+  function onDrop(featureId: string, targetId: string) {
+    const [piKey, status] = targetId.split("|") as [string, FeatureStatus];
+    dropOnCell(featureId, piKey, status);
+  }
+  const titleOf = (id: string) => view.find((f) => f.id === id)?.title ?? id;
+  const cellName = (targetId: string) => {
+    const [piKey, status] = targetId.split("|") as [string, FeatureStatus];
+    const col = columns.find((c) => c.id === piKey);
+    return `${col?.name ?? piKey} · ${t(FEATURE_STATUS_KEYS[status])}`;
+  };
 
-      {/* Die Legende zum Streifen der Kacheln: er zeigt den Typ, nicht den
+  return (
+    <BoardDndProvider
+      onDrop={onDrop}
+      renderOverlay={(id) => {
+        const f = view.find((x) => x.id === id);
+        return f ? <FeatureCardPreview feature={f} /> : null;
+      }}
+      describe={{ card: titleOf, target: cellName }}
+    >
+      <div className="space-y-2">
+        {error && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+
+        {/* Die Legende zum Streifen der Kacheln: er zeigt den Typ, nicht den
           Status — der steht in den Zeilen. Ohne Legende stünde die Farbe
           allein (ADR-0021). */}
-      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-label text-muted-foreground">
-        <span>{t("drumbeat.ui.streifenZeigtTyp")}</span>
-        {[...FEATURE_TYPES, ""].map((typ) => (
-          <span key={typ || "none"} className="flex items-center gap-1">
-            <span
-              aria-hidden
-              className={`inline-block h-3 w-1 rounded-sm ${FEATURE_TYPE_STRIPE[typ as FeatureType | ""]}`}
-            />
-            {typ ? t(FEATURE_TYPE_KEYS[typ as FeatureType]) : t("drumbeat.ui.ohneTyp")}
-          </span>
-        ))}
-      </p>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-label text-muted-foreground">
+          <span>{t("drumbeat.ui.streifenZeigtTyp")}</span>
+          {[...FEATURE_TYPES, ""].map((typ) => (
+            <span key={typ || "none"} className="flex items-center gap-1">
+              <span
+                aria-hidden
+                className={`inline-block h-3 w-1 rounded-sm ${FEATURE_TYPE_STRIPE[typ as FeatureType | ""]}`}
+              />
+              {typ ? t(FEATURE_TYPE_KEYS[typ as FeatureType]) : t("drumbeat.ui.ohneTyp")}
+            </span>
+          ))}
+        </p>
 
-      {/* Grid: 1 Label-Spalte + Backlog-Spalte + N PI-Spalten. Status-Lanes
+        {/* Grid: 1 Label-Spalte + Backlog-Spalte + N PI-Spalten. Status-Lanes
           sind die Zeilen. */}
-      <div
-        className="grid gap-2 overflow-x-auto pb-2"
-        style={{
-          gridTemplateColumns: `minmax(120px, 0.6fr) repeat(${columns.length}, minmax(180px, 1fr))`,
-        }}
-      >
-        {/* Header-Zeile: leeres Eck + Spalten-Namen. Klebend — nach zwei
+        <div
+          className="grid gap-2 overflow-x-auto pb-2"
+          style={{
+            gridTemplateColumns: `minmax(120px, 0.6fr) repeat(${columns.length}, minmax(180px, 1fr))`,
+          }}
+        >
+          {/* Header-Zeile: leeres Eck + Spalten-Namen. Klebend — nach zwei
             Bildschirmen wusste sonst niemand mehr, welche Spalte welches PI
             ist. `bg-background`, damit die Karten nicht durchscheinen. */}
-        <div className="sticky top-0 z-10 bg-background" />
-        {columns.map((p) => {
-          const isBacklog = p.id === "";
-          return (
-            <div
-              key={p.id || "__backlog__"}
-              className={`sticky top-0 z-10 rounded-md border px-2 py-1 text-xs font-medium ${
-                isBacklog
-                  ? "border-dashed border-border bg-muted/30 text-muted-foreground"
-                  : p.isCurrent
-                    ? "border-primary bg-primary/5"
-                    : "border-border bg-card"
-              }`}
-            >
-              <div className="flex items-baseline justify-between gap-2">
-                <span>{p.name}</span>
-                <span className="text-label text-muted-foreground">{p.featureCount}</span>
-              </div>
-              {/* Unter dem Titel: wie viel Arbeit hier liegt — nicht nur wie
+          <div className="sticky top-0 z-10 bg-background" />
+          {columns.map((p) => {
+            const isBacklog = p.id === "";
+            return (
+              <div
+                key={p.id || "__backlog__"}
+                className={`sticky top-0 z-10 rounded-md border px-2 py-1 text-xs font-medium ${
+                  isBacklog
+                    ? "border-dashed border-border bg-muted/30 text-muted-foreground"
+                    : p.isCurrent
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-card"
+                }`}
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span>{p.name}</span>
+                  <span className="text-label text-muted-foreground">{p.featureCount}</span>
+                </div>
+                {/* Unter dem Titel: wie viel Arbeit hier liegt — nicht nur wie
                   viele Zeilen. */}
-              <PiJobSize pi={p} />
-            </div>
-          );
-        })}
+                <PiJobSize pi={p} />
+              </div>
+            );
+          })}
 
-        {/* Status-Lanes als Zeilen */}
-        {LANES.map((lane) => (
-          <LaneRow
-            key={lane.value}
-            lane={lane}
-            pis={columns}
-            matrix={matrix}
-            canDrag={canUpdate || canSetDelivery}
-            canScore={canScoreWsjf}
-            onDrop={dropOnCell}
-            onMove={moveFeature}
-            draggingId={draggingId}
-          />
-        ))}
+          {/* Status-Lanes als Zeilen */}
+          {LANES.map((lane) => (
+            <LaneRow
+              key={lane.value}
+              lane={lane}
+              pis={columns}
+              matrix={matrix}
+              canDrag={canUpdate || canSetDelivery}
+              canScore={canScoreWsjf}
+              onMove={moveFeature}
+            />
+          ))}
+        </div>
+
+        <StatusReasonDialog
+          targetStatus={blockPrompt?.targetStatus ?? null}
+          onCancel={() => setBlockPrompt(null)}
+          onConfirm={(grund: string) => {
+            if (!blockPrompt) return;
+            performDrop({ ...blockPrompt, moveStatus: true }, grund);
+            setBlockPrompt(null);
+          }}
+        />
       </div>
-
-      <StatusReasonDialog
-        targetStatus={blockPrompt?.targetStatus ?? null}
-        onCancel={() => setBlockPrompt(null)}
-        onConfirm={(grund: string) => {
-          if (!blockPrompt) return;
-          performDrop({ ...blockPrompt, moveStatus: true }, grund);
-          setBlockPrompt(null);
-        }}
-      />
-    </div>
+    </BoardDndProvider>
   );
 }
 
@@ -345,18 +359,14 @@ function LaneRow({
   matrix,
   canDrag,
   canScore,
-  onDrop,
   onMove,
-  draggingId,
 }: {
   lane: LaneDef;
   pis: CockpitPiSlot[];
   matrix: BoardMatrix;
   canDrag: boolean;
   canScore: boolean;
-  onDrop: (piId: string, status: FeatureStatus) => void;
   onMove: (id: string, target: { targetPiId?: string; targetStatus?: FeatureStatus }) => void;
-  draggingId: React.RefObject<string | null>;
 }) {
   const t = useTranslations();
   return (
@@ -371,32 +381,16 @@ function LaneRow({
       {pis.map((p) => {
         const { shown, rest } = splitCell(matrix.cell(p.id, lane.value), lane.limit);
         return (
-          <div
+          <DropCell
             key={`${p.id}:${lane.value}`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.currentTarget.classList.add(...HIGHLIGHT_DROP);
-            }}
-            onDragLeave={(e) => e.currentTarget.classList.remove(...HIGHLIGHT_DROP)}
-            onDrop={(e) => {
-              e.currentTarget.classList.remove(...HIGHLIGHT_DROP);
-              onDrop(p.id, lane.value);
-            }}
-            /* Leer war ein 64-px-Kasten mit dem Wort „leer" — bei sechs Spalten
-               und vier Bahnen bis zu 24 davon, die nichts sagen. Jetzt eine
-               flache Ablagefläche. */
+            id={`${p.id}|${lane.value}`}
             className={`space-y-1.5 rounded-md p-1.5 transition-shadow ${
               shown.length === 0 ? "min-h-10" : "min-h-20"
             } ${lane.color}`}
           >
             {shown.map((f) => (
               <div key={f.id} className="group/card relative">
-                <FeatureCard
-                  feature={f}
-                  canDrag={canDrag}
-                  canScore={canScore}
-                  draggingId={draggingId}
-                />
+                <FeatureCard feature={f} canDrag={canDrag} canScore={canScore} />
                 {canDrag && <FeatureMoveMenu feature={f} pis={pis} lanes={LANES} onMove={onMove} />}
               </div>
             ))}
@@ -416,12 +410,7 @@ function LaneRow({
                 <div className="mt-1.5 space-y-1.5">
                   {rest.map((f) => (
                     <div key={f.id} className="group/card relative">
-                      <FeatureCard
-                        feature={f}
-                        canDrag={canDrag}
-                        canScore={canScore}
-                        draggingId={draggingId}
-                      />
+                      <FeatureCard feature={f} canDrag={canDrag} canScore={canScore} />
                       {canDrag && (
                         <FeatureMoveMenu feature={f} pis={pis} lanes={LANES} onMove={onMove} />
                       )}
@@ -430,10 +419,28 @@ function LaneRow({
                 </div>
               </details>
             )}
-          </div>
+          </DropCell>
         );
       })}
     </>
+  );
+}
+
+/** Eine Zelle als Ablage; hervorgehoben, solange eine Karte darüber schwebt. */
+function DropCell({
+  id,
+  className,
+  children,
+}: {
+  id: string;
+  className: string;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDropCell(id);
+  return (
+    <div ref={setNodeRef} className={`${className} ${isOver ? "ring-2 ring-primary/60" : ""}`}>
+      {children}
+    </div>
   );
 }
 
@@ -458,7 +465,7 @@ function FeatureMoveMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={`${feature.title} verschieben`}
-        className="absolute right-1 top-1 rounded-sm p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 group-hover/card:opacity-100"
+        className="absolute right-1 top-1 rounded-sm p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 group-hover/card:opacity-100 [@media(hover:none)]:opacity-100"
       >
         <MoreVertical className="size-3.5" />
       </DropdownMenuTrigger>

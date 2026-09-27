@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { createRef } from "react";
 import { render, screen } from "@testing-library/react";
 
 vi.mock("@/modules/work/features/feature/actions/feature", () => ({
@@ -50,9 +49,7 @@ const feature = (over: Partial<CockpitFeature> = {}): CockpitFeature => ({
 });
 
 const streifen = (f: CockpitFeature) => {
-  const { unmount } = render(
-    <FeatureCard feature={f} canDrag={false} canScore={false} draggingId={createRef()} />,
-  );
+  const { unmount } = render(<FeatureCard feature={f} canDrag={false} canScore={false} />);
   const label = f.featureType
     ? { feature: "Feature", enabler: "Enabler", maintenance: "Maintenance" }[f.featureType]
     : "ohne Typ";

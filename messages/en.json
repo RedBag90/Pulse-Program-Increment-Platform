@@ -3068,6 +3068,13 @@
         "ohneRoam": "{n} risk not ROAMed",
         "oeffnen": "Open status →"
       }
+    },
+    "dnd": {
+      "anleitung": "Drag the card with the mouse, or press and hold on touch devices, then drag. With the keyboard, move it via the card menu.",
+      "aufgenommen": "Picked up \"{karte}\".",
+      "ueber": "\"{karte}\" over {ziel}.",
+      "abgelegt": "Dropped \"{karte}\" in {ziel}.",
+      "zurueck": "\"{karte}\" stays where it was."
     }
   },
   "risks": {

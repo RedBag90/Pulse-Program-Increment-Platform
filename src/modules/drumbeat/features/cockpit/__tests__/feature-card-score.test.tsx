@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createRef } from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 vi.mock("@/modules/work/features/feature/actions/feature", () => ({
@@ -48,7 +47,7 @@ const feature = (over: Partial<CockpitFeature> = {}): CockpitFeature => ({
 });
 
 const card = (f: CockpitFeature, canScore: boolean) =>
-  render(<FeatureCard feature={f} canDrag canScore={canScore} draggingId={createRef()} />);
+  render(<FeatureCard feature={f} canDrag canScore={canScore} />);
 
 describe("FeatureCard — WSJF und Job Size", () => {
   beforeEach(() => setParam.mockClear());

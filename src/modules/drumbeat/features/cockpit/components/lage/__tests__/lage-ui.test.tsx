@@ -1,5 +1,30 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, within, waitFor, act } from "@testing-library/react";
+import type { ReactNode } from "react";
+import type * as DndKit from "@dnd-kit/core";
+
+/**
+ * dnd-kit misst Rechtecke, die jsdom nicht hat. Der Test fängt deshalb den
+ * `DndContext` ab und löst Loslassen und Abbruch direkt aus — geprüft wird,
+ * was das Board daraus macht, und wie die Sensoren eingestellt sind.
+ */
+type Ctx = {
+  onDragStart: (e: unknown) => void;
+  onDragEnd: (e: unknown) => void;
+  onDragCancel: () => void;
+  sensors: { sensor: { name: string }; options: { activationConstraint?: unknown } }[];
+};
+let ctx: Ctx | null = null;
+vi.mock("@dnd-kit/core", async (orig) => {
+  const real = await orig<typeof DndKit>();
+  return {
+    ...real,
+    DndContext: (props: Ctx & { children: ReactNode }) => {
+      ctx = props;
+      return props.children;
+    },
+  };
+});
 
 const setStatus = vi.fn(async (_args: unknown) => ({}));
 vi.mock("@/modules/work/features/feature/actions/feature", () => ({
@@ -159,7 +184,13 @@ describe("PiStatusBoard", () => {
     expect(screen.getByText("Läuft B")).toBeInTheDocument();
   });
 
-  it("Ziehen in eine Spalte setzt den Status", async () => {
+  const drop = (id: string, over: string | null) =>
+    act(() => {
+      ctx!.onDragStart({ active: { id } });
+      ctx!.onDragEnd({ active: { id }, over: over ? { id: over } : null });
+    });
+
+  it("Loslassen über einer Spalte setzt den Status", async () => {
     render(
       <PiStatusBoard
         features={features}
@@ -169,10 +200,23 @@ describe("PiStatusBoard", () => {
         attentionIds={new Set()}
       />,
     );
-    const karte = screen.getByText("Offen A").closest("[draggable]")!;
-    fireEvent.dragStart(karte, { dataTransfer: { effectAllowed: "" } });
-    fireEvent.drop(screen.getByRole("region", { name: "In Umsetzung" }));
+    drop("a", "in_progress");
     await waitFor(() => expect(setStatus).toHaveBeenCalledWith({ id: "a", to: "in_progress" }));
+  });
+
+  it("Loslassen ausserhalb oder Abbruch ändert nichts", () => {
+    render(
+      <PiStatusBoard
+        features={features}
+        piName="PI 2026.3"
+        canSetDelivery
+        canScoreWsjf={false}
+        attentionIds={new Set()}
+      />,
+    );
+    drop("a", null);
+    act(() => ctx!.onDragCancel());
+    expect(setStatus).not.toHaveBeenCalled();
   });
 
   it("nach „Blockiert“ erst mit Grund", async () => {
@@ -185,11 +229,47 @@ describe("PiStatusBoard", () => {
         attentionIds={new Set()}
       />,
     );
-    const karte = screen.getByText("Läuft B").closest("[draggable]")!;
-    fireEvent.dragStart(karte, { dataTransfer: { effectAllowed: "" } });
-    fireEvent.drop(screen.getByRole("region", { name: "Blockiert" }));
+    drop("b", "blocked");
     expect(setStatus).not.toHaveBeenCalled();
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("Touch nimmt erst nach langem Druck auf, die Maus nach ein paar Pixeln", () => {
+    render(
+      <PiStatusBoard
+        features={features}
+        piName="PI 2026.3"
+        canSetDelivery
+        canScoreWsjf={false}
+        attentionIds={new Set()}
+      />,
+    );
+    const byName = Object.fromEntries(
+      ctx!.sensors.map((s) => [s.sensor.name, s.options.activationConstraint]),
+    );
+    expect(byName.TouchSensor).toEqual({ delay: 250, tolerance: 8 });
+    expect(byName.MouseSensor).toEqual({ distance: 4 });
+  });
+
+  it("ein Tippen öffnet das Feature — direkt nach dem Loslassen nicht", () => {
+    // Weit weg vom Loslassen der vorigen Tests; danach steht die Uhr still.
+    const now = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 60_000);
+    render(
+      <PiStatusBoard
+        features={features}
+        piName="PI 2026.3"
+        canSetDelivery
+        canScoreWsjf={false}
+        attentionIds={new Set()}
+      />,
+    );
+    fireEvent.click(screen.getByText("Offen A"));
+    expect(setParam).toHaveBeenCalledWith("featureId", "a");
+    setParam.mockClear();
+    drop("a", null);
+    fireEvent.click(screen.getByText("Offen A"));
+    expect(setParam).not.toHaveBeenCalled();
+    now.mockRestore();
   });
 });
 

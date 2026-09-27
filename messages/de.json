@@ -3068,6 +3068,13 @@
         "ohneRoam": "{n} Risiko nicht ge-ROAM-t",
         "oeffnen": "Lage öffnen →"
       }
+    },
+    "dnd": {
+      "anleitung": "Karte mit der Maus ziehen oder auf Touch-Geräten gedrückt halten und ziehen. Mit der Tastatur verschiebst du über das Kartenmenü.",
+      "aufgenommen": "„{karte}“ aufgenommen.",
+      "ueber": "„{karte}“ über {ziel}.",
+      "abgelegt": "„{karte}“ abgelegt in {ziel}.",
+      "zurueck": "„{karte}“ bleibt, wo sie war."
     }
   },
   "risks": {
