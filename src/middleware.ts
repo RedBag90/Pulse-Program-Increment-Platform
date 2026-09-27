@@ -93,5 +93,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).+)", "/"],
+  // `apple-icon` ist eine Icon-Route ohne Punkt im Pfad (src/app/apple-icon.tsx);
+  // ohne Ausnahme leitete die Sprach-Middleware sie auf /de/apple-icon um.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|apple-icon|.*\\..*).+)", "/"],
 };
