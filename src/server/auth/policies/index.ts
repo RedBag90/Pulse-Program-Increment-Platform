@@ -9,7 +9,6 @@ export type Action =
   | "tenant.users.manage"
   | "platform.tenants.manage"
   | "platform.users.manage"
-  | "integration.manage"
   | "value_stream.create"
   | "value_stream.update"
   | "solution.create"
@@ -68,7 +67,6 @@ export type Action =
   | "rtb_item.manage"
   | "kpi.bind"
   | "role.capability.manage"
-  | "goal.custom_field.manage"
   | "pi.demo.manage"
   | "portfolio_filter.manage"
   | "goal_filter.manage"
@@ -112,7 +110,6 @@ export const POLICIES: Record<Action, Grant[]> = {
   "platform.tenants.manage": [],
   "platform.users.manage": [],
   "tenant.users.manage": [{ roles: [TENANT_ADMIN] }],
-  "integration.manage": [{ roles: [TENANT_ADMIN] }],
   "admin.audit-log.read": [{ roles: [TENANT_ADMIN] }],
   "admin.users.read": [{ roles: [TENANT_ADMIN] }],
   // Wer pro Rolle Capabilities zuweisen/entziehen darf — bewusst getrennt
@@ -121,7 +118,6 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Fast-Path-Bypass deckt das ohnehin ab, der explizite Grant
   // dokumentiert die Absicht.
   "role.capability.manage": [{ roles: [TENANT_ADMIN] }],
-  "goal.custom_field.manage": [{ roles: [TENANT_ADMIN] }],
   // Define/manage the organisation's target operating model (the Soll the
   // transformation drives toward). Management-owned: the LPM/portfolio lead
   // (which now folds in the former transformation-lead) and the tenant admin.

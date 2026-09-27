@@ -310,17 +310,15 @@ Zuteilung übersteuert sie. Woher die Zuteilung kommt, steht in
 
 ## Wer welchen Schritt macht
 
-| Schritt                                                       | Wer                                                            | Recht                      |
-| ------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------- |
-| KPI anlegen, gewichten, löschen                               | Epic Owner, Portfolio Manager, Wertstrom-Owner (scoped)        | `epic.update`              |
-| Messwert erfassen                                             | dieselben                                                      | `epic.update`              |
-| Epic an ein Ziel **anhängen**                                 | dieselben                                                      | `epic.update`              |
-| Einen **bezifferten** Beitrag binden (Faktor, Art, Intervall) | Portfolio Manager / Admin                                      | `kpi.bind`                 |
-| Impact abnehmen (L5)                                          | Finance                                                        | `epic.gate.decide`         |
-| Check-in, Fortschritt, Kommentar                              | Portfolio Manager / Admin; Wertstrom-Owner in seinem Wertstrom | `target.manage`            |
-| Unterziel aus dem Rollup nehmen, Team setzen                  | dieselben                                                      | `target.manage`            |
-| Custom-Field-**Werte** setzen                                 | dieselben                                                      | `target.manage`            |
-| Custom-Field-**Definitionen**                                 | Tenant-Admin                                                   | `goal.custom_field.manage` |
+| Schritt                                                       | Wer                                                            | Recht              |
+| ------------------------------------------------------------- | -------------------------------------------------------------- | ------------------ |
+| KPI anlegen, gewichten, löschen                               | Epic Owner, Portfolio Manager, Wertstrom-Owner (scoped)        | `epic.update`      |
+| Messwert erfassen                                             | dieselben                                                      | `epic.update`      |
+| Epic an ein Ziel **anhängen**                                 | dieselben                                                      | `epic.update`      |
+| Einen **bezifferten** Beitrag binden (Faktor, Art, Intervall) | Portfolio Manager / Admin                                      | `kpi.bind`         |
+| Impact abnehmen (L5)                                          | Finance                                                        | `epic.gate.decide` |
+| Check-in, Fortschritt, Kommentar                              | Portfolio Manager / Admin; Wertstrom-Owner in seinem Wertstrom | `target.manage`    |
+| Unterziel aus dem Rollup nehmen, Team setzen                  | dieselben                                                      | `target.manage`    |
 
 ## Nachschlagepunkte im Code
 

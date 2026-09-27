@@ -1,6 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
 import { sumTrios, type KpiInput, type RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
-import { parseOptions } from "@/modules/core/goals/domain/goal-custom-field";
 import { filterGoalBranches } from "@/modules/core/goals/domain/goal-tree-filter";
 import { goalSetupSteps, type GoalSetupResult } from "@/modules/core/goals/domain/goal-setup";
 import { goalTimeframe, timeframeMatchesPeriodKeys } from "@/modules/core/goals/domain/goal-period";
@@ -16,7 +15,6 @@ import {
   type ForestObjective,
   type ForestRelatedEpic,
   type ForestLookups,
-  type ForestCustomFieldDef,
   type ChartObjective,
   type ChartRootCheckin,
 } from "./goals-forest";
@@ -78,16 +76,6 @@ export interface ScopeRef {
   name: string;
 }
 
-/** Ein Custom Field mit seinem (evtl. leeren) Wert an einem Ziel-Knoten. */
-export interface GoalCustomFieldEntry {
-  defId: string;
-  name: string;
-  /** "text" | "number" | "select". */
-  type: string;
-  options: string[];
-  value: string;
-}
-
 /**
  * **Goal-Knoten** — der eine, rekursive Knotentyp nach der Kaskaden-
  * Vereinheitlichung (Objective + Key Result verschmolzen). `nodeKind`
@@ -138,8 +126,6 @@ export interface GoalNode {
   valueStreams: ScopeRef[];
   /** ART-Verantwortung (Epic 6a, n:m). */
   arts: ScopeRef[];
-  /** Tenant-Custom-Fields mit dem Wert an diesem Knoten (leer wenn ungesetzt). */
-  customFields: GoalCustomFieldEntry[];
   // ── Rekursion + Rollup ──
   /** Kind-Knoten (Sub-Objectives / Key Results), beliebig tief. */
   children: GoalNode[];
@@ -218,12 +204,6 @@ export interface StrategyTree {
   artIds: string[];
   /** Status-Filter: `GoalStatus`-Werte + Sentinel `"none"` (= ohne Status). */
   statuses: string[];
-  /**
-   * Tenant-weite Custom-Field-Definitionen (einmalig, NICHT je Knoten). Die
-   * Knoten tragen nur ihre gesetzten Werte (`GoalNode.customFields`, sparse); der
-   * Drawer merged Defs + Werte fürs Editier-Formular.
-   */
-  customFieldDefs: ForestCustomFieldDef[];
 }
 
 /**
@@ -295,17 +275,14 @@ export async function loadStrategyTree(
   // `IN (nodeIds)`- bzw. tenant-gescopte Query und schreibt in seine eigene
   // Map — keiner konsumiert das Ergebnis eines anderen. Darum laufen sie in
   // EINER Promise.all-Welle statt seriell (spart ~5 Cross-Region-Round-Trips).
-  // Einzige innere Ordnung: die Custom-Field-Werte brauchen die Defs vorab —
-  // diese Kette bleibt in ihrem eigenen Zweig erhalten.
   const latestByNode = new Map<string, GoalLatestCheckin>();
   const relatedByNode = new Map<string, ForestRelatedEpic[]>();
   const autoKpiLinksByNode = new Map<string, AutoKpiLink[]>();
   const relatedWorkByNode = new Map<string, RelatedWorkItem[]>();
   const valueStreamsByNode = new Map<string, ScopeRef[]>();
   const artsByNode = new Map<string, ScopeRef[]>();
-  const valueByNode = new Map<string, Map<string, string>>();
 
-  const [, , , , customFieldDefs] = await Promise.all([
+  await Promise.all([
     // Letzter Status-Check-in je Knoten (eine Query; alle Knoten sind Objectives).
     (async (): Promise<void> => {
       if (nodeIds.length === 0) return;
@@ -504,39 +481,7 @@ export async function loadStrategyTree(
         });
       }
     })(),
-    // Custom Fields: Tenant-Defs einmal + alle Werte über die Knoten-IDs in je
-    // einer Query (kein N+1). Je Knoten werden ALLE Defs mit ihrem Wert gezeigt.
-    // Eigener Zweig mit interner Ordnung: die Werte-Query braucht die Defs vorab
-    // (Gate auf `defs.length`); der Rest der Welle laeuft davon unabhaengig.
-    (async () => {
-      const defs = await db.goalCustomFieldDef.findMany({
-        where: { tenantId },
-        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-        select: { id: true, name: true, type: true, options: true },
-      });
-      if (defs.length > 0 && nodeIds.length > 0) {
-        const values = await db.goalCustomFieldValue.findMany({
-          where: { tenantId, objectiveId: { in: nodeIds } },
-          select: { objectiveId: true, defId: true, value: true },
-        });
-        for (const v of values) {
-          let m = valueByNode.get(v.objectiveId);
-          if (!m) {
-            m = new Map();
-            valueByNode.set(v.objectiveId, m);
-          }
-          m.set(v.defId, v.value);
-        }
-      }
-      return defs;
-    })(),
   ]);
-  const parsedDefs = customFieldDefs.map((d) => ({
-    defId: d.id,
-    name: d.name,
-    type: d.type,
-    options: parseOptions(d.options),
-  }));
 
   // Normalisierte Zeilen fürs Goal-Forest-Read-Model (reine, DB-freie Ableitung).
   const forestRows: ForestObjective[] = objectiveRows.map((o) => ({
@@ -570,8 +515,6 @@ export async function loadStrategyTree(
     relatedWork: relatedWorkByNode,
     valueStreams: valueStreamsByNode,
     arts: artsByNode,
-    customFieldDefs: parsedDefs,
-    customFieldValues: valueByNode,
   };
 
   const { themes: allThemes } = buildStrategyTree({ rows: forestRows, lookups });
@@ -617,7 +560,6 @@ export async function loadStrategyTree(
     valueStreamIds,
     artIds,
     statuses,
-    customFieldDefs: parsedDefs,
   };
 }
 

@@ -21,10 +21,6 @@ export type OutboxHandler = (payload: unknown) => Promise<void>;
  */
 export type OutboxHandlerRegistry = Record<OutboxEventType, OutboxHandler>;
 
-/** @deprecated Use `OutboxHandler` directly. Kept for one release of the
- *  integration handlers (`OutboxHandlerMap[string]` pattern). */
-export type OutboxHandlerMap = Record<string, OutboxHandler>;
-
 /**
  * Processes up to `batchSize` pending outbox events. Each event is handled
  * by the matching entry in `handlers`. An event with no registered handler

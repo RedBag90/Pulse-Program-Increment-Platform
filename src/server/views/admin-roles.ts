@@ -40,7 +40,6 @@ const DOMAIN_ORDER: CapabilityDomain[] = [
     actions: [
       "tenant.create",
       "tenant.users.manage",
-      "integration.manage",
       "admin.audit-log.read",
       "admin.users.read",
       "role.capability.manage",
@@ -140,7 +139,7 @@ const DOMAIN_ORDER: CapabilityDomain[] = [
   {
     key: "goals",
     label: "Ziele / KPI",
-    actions: ["goal.custom_field.manage", "kpi.bind"],
+    actions: ["kpi.bind"],
   },
 ];
 

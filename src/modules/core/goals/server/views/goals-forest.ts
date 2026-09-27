@@ -51,7 +51,6 @@ import type {
   RelatedEpic,
   RelatedWorkItem,
   ScopeRef,
-  GoalCustomFieldEntry,
   ProgressChart,
   ProgressChartPoint,
   ProgressPace,
@@ -103,14 +102,6 @@ export interface ForestObjective {
   progressMode: string | null;
 }
 
-/** Custom-Field-Definition (tenant-weit). */
-export interface ForestCustomFieldDef {
-  defId: string;
-  name: string;
-  type: string;
-  options: string[];
-}
-
 /** Per-Knoten-Lookups; jede Map ist `objectiveId → …`. */
 export interface ForestLookups {
   latestCheckin: ReadonlyMap<string, GoalLatestCheckin>;
@@ -120,8 +111,6 @@ export interface ForestLookups {
   relatedWork: ReadonlyMap<string, RelatedWorkItem[]>;
   valueStreams: ReadonlyMap<string, ScopeRef[]>;
   arts: ReadonlyMap<string, ScopeRef[]>;
-  customFieldDefs: ForestCustomFieldDef[];
-  customFieldValues: ReadonlyMap<string, ReadonlyMap<string, string>>;
 }
 
 export interface GoalForestInput {
@@ -347,18 +336,6 @@ export function buildStrategyTree(input: GoalForestInput): {
       relatedWork: lookups.relatedWork.get(o.id) ?? [],
       valueStreams: lookups.valueStreams.get(o.id) ?? [],
       arts: lookups.arts.get(o.id) ?? [],
-      // Nur **gesetzte** Custom-Field-Werte je Knoten (sparse) — nicht alle Defs ×
-      // alle Knoten. Die vollständige Def-Liste kommt einmal über `customFieldDefs`
-      // im Modell; der Drawer merged Defs + diese Werte für das Editier-Formular.
-      customFields: lookups.customFieldDefs
-        .map((d) => ({
-          defId: d.defId,
-          name: d.name,
-          type: d.type,
-          options: d.options,
-          value: lookups.customFieldValues.get(o.id)?.get(d.defId) ?? "",
-        }))
-        .filter((e) => e.value !== "") satisfies GoalCustomFieldEntry[],
       children: childNodes,
       depth,
       progress,

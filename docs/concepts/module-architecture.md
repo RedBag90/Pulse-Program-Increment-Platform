@@ -150,7 +150,7 @@ Modularer Monolith, ein Postgres. Grenzen werden über **Tabellen-/Spalten-Owner
 | ------------- | ------------- | ------------------------------------------------------------------------------------------------- |
 | `ziele`       | **core**      | Goals in Core gefaltet; Free-Basis, always-on                                                     |
 | `structure`   | **core**      | Org-Struktur/Setup/Solutions/`timelines`-Kadenz → Core (Kadenz-Planung ggf. Drumbeat, s. Roadmap) |
-| `admin`       | **core**      | Administration + `goal-fields` (Core/Goals)                                                       |
+| `admin`       | **core**      | Administration                                                                                    |
 | `portfolio`   | **work**      | Epics/Dashboard/Review                                                                            |
 | `program`     | **drumbeat**  | Umsetzung/PI/ART/Team/Feature-Planung/Dependencies                                                |
 | `controlling` | **budgeting** | Budget/Budget-Plan/ART-Budget                                                                     |

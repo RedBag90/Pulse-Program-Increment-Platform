@@ -358,11 +358,5 @@ Value (conversion)             0 € /year`,
       who: "the same",
       capability: "target.manage",
     },
-    { step: "Set custom-field **values**", who: "the same", capability: "target.manage" },
-    {
-      step: "Custom-field **definitions**",
-      who: "Tenant admin",
-      capability: "goal.custom_field.manage",
-    },
   ],
 };

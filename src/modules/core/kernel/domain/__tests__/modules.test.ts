@@ -104,7 +104,6 @@ describe("moduleForPath", () => {
 describe("moduleForAction", () => {
   it("exakte Namen und Dot-Präfixe", () => {
     expect(moduleForAction("target.manage")).toBe("core");
-    expect(moduleForAction("goal.custom_field.manage")).toBe("core");
     expect(moduleForAction("kpi.bind")).toBe("core");
     expect(moduleForAction("value_stream.create")).toBe("core");
     expect(moduleForAction("timeline.manage")).toBe("drumbeat");

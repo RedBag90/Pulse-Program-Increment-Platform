@@ -51,7 +51,7 @@ export async function publishDomainEvent(
 
 /**
  * Plant das Leeren der Outbox nach dem Response. Lazy-Import von `runOutbox`,
- * damit die Handler-/Integrations-Dependencies nicht in jedes Modul gezogen
+ * damit die Handler-Dependencies (Mail-Versand) nicht in jedes Modul gezogen
  * werden, das Events publiziert. Ohne Request-Scope (Unit-Tests/Skripte) wirft
  * `after()` — dann übernimmt der tägliche Cron (Fehler wird geschluckt).
  */

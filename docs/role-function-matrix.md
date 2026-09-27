@@ -47,7 +47,7 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 | Rolle                 | Persona (Kurzform)                                                                 |
 | --------------------- | ---------------------------------------------------------------------------------- |
 | `platform_admin`      | Plattform-Betreiber — betreibt Pulse mandantenübergreifend                         |
-| `tenant_admin`        | Mandanten-Administrator — Benutzer, Rollen, Integrationen                          |
+| `tenant_admin`        | Mandanten-Administrator — Benutzer, Rollen                                         |
 | `transformation_lead` | Transformations-Lead (Coach / SPC) — definiert den Zielzustand, steuert den Wandel |
 | `portfolio_manager`   | Portfolio-Lead / LPM — Portfolio-Backlog & Wertstrom-Finanzierung                  |
 | `value_stream_owner`  | Wertstrom-Verantwortlicher (~Business Owner) — steuert seinen Wertstrom            |
@@ -70,7 +70,6 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `tenant.create`        | Neuen Mandanten anlegen (nur `platform_admin`)                                                                                     |
 | `tenant.users.manage`  | Benutzer, Rollen und Sichtbarkeits-Scopes verwalten                                                                                |
-| `integration.manage`   | Integrationen (Jira / Azure DevOps) konfigurieren                                                                                  |
 | `admin.audit-log.read` | Audit-Log einsehen                                                                                                                 |
 | `admin.users.read`     | Benutzerliste einsehen                                                                                                             |
 | `target.manage`        | Zielzustand (Target Operating Model) + Outcomes definieren/aktivieren (`tenant_admin`, `transformation_lead`, `portfolio_manager`) |
@@ -215,7 +214,7 @@ einen Scope.
 
 - **Alle** Funktionen innerhalb des eigenen Mandanten (Bypass in `authorize()`).
 - Explizit zugeordnete Governance-Funktionen: `tenant.users.manage`,
-  `integration.manage`, `admin.audit-log.read`, `admin.users.read`,
+  `admin.audit-log.read`, `admin.users.read`,
   `art.delete`, `team.create/delete`, `epic.delete`, `feature.delete`,
   `story.delete`. (`art.create`/`art.update` liegen seit September 2026 beim
   `portfolio_manager`; `feature.delete` ist seit dem 2026-09-20 **nicht mehr**

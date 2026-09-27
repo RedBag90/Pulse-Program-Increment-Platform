@@ -153,10 +153,6 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       { textKey: "onboarding.playbook.tenantAdmin.dieOrganisationAbbildenWertstroeme" },
       {
-        textKey: "onboarding.playbook.tenantAdmin.externeSystemeAnbindenJira",
-        capability: "integration.manage",
-      },
-      {
         textKey: "onboarding.playbook.tenantAdmin.beiRueckfragenAusAudit",
         capability: "admin.audit-log.read",
       },

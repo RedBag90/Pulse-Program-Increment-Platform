@@ -230,22 +230,12 @@ hat er auch nur EINE
         },
         {
           title: "Der Rest des Bereichs",
-          route: "/admin/integrations",
+          route: "/admin/audit-log",
           body: [
             {
               kind: "table",
               head: ["Fläche", "Wofür"],
-              rows: [
-                [
-                  "**Custom Fields**",
-                  "eigene Felder an Zielen **definieren** — gefüllt werden sie von den Ziel-Verantwortlichen",
-                ],
-                [
-                  "**Integrationen**",
-                  "Projekt-Zuordnung zu Jira und Azure DevOps; _Disconnect_ trennt sie samt Mapping",
-                ],
-                ["**Audit-Log**", "wer wann was geändert hat"],
-              ],
+              rows: [["**Audit-Log**", "wer wann was geändert hat"]],
             },
             {
               kind: "paragraph",
@@ -382,10 +372,6 @@ hat er auch nur EINE
       why: "Es macht sie **gesperrt**. Nicht registrierte Pfade sind fail-closed, nicht offen.",
     },
     {
-      claim: "Custom Fields anlegen und ausfüllen ist dasselbe Recht.",
-      why: "Definieren ist Admin-Sache, Füllen Sache der Ziel-Verantwortlichen.",
-    },
-    {
       claim: "Die Tour merkt sich, wo ich war.",
       why: "Sie merkt sich, **was ich gesehen habe**. Der Wiedereinstieg ist der erste offene Schritt.",
     },
@@ -415,16 +401,6 @@ hat er auch nur EINE
       step: "Capabilities je Rolle setzen, entziehen, zurücksetzen",
       who: "Tenant-Admin",
       capability: "role.capability.manage",
-    },
-    {
-      step: "Custom-Field-Definitionen",
-      who: "Tenant-Admin",
-      capability: "goal.custom_field.manage",
-    },
-    {
-      step: "Integrationen verbinden und trennen",
-      who: "Tenant-Admin",
-      capability: "integration.manage",
     },
     { step: "Audit-Log lesen", who: "Tenant-Admin", capability: "admin.audit-log.read" },
     {

@@ -24,7 +24,6 @@ import {
   linkEpicToGoal,
   unlinkEpicFromGoal,
 } from "@/modules/core/goals/server/services/goal-epic-link";
-import { setGoalCustomFieldValue } from "@/modules/core/goals/server/services/goal-custom-field";
 import {
   addGoalRelatedWork,
   removeGoalRelatedWork,
@@ -731,27 +730,4 @@ export const unlinkGoalArtAction = createServerAction({
   service: (ctx, input) => unlinkGoalArt(ctx, { objectiveId: input.goalId, artId: input.artId }),
   revalidate: "ziele",
   mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.unlinkArt" }, t),
-});
-
-/**
- * Custom-Field-Wert an einem Ziel-Knoten setzen/löschen (Epic 7). Leerer Wert
- * ⇒ löschen; Validierung gegen den Feldtyp im Service.
- */
-export const setGoalCustomFieldValueAction = createServerAction({
-  schema: z.object({
-    target: goalTargetEnum,
-    goalId: z.string().uuid(),
-    defId: z.string().uuid(),
-    value: z.string().max(2000),
-  }),
-  action: "target.manage",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    setGoalCustomFieldValue(ctx, {
-      objectiveId: input.goalId,
-      defId: input.defId,
-      value: input.value,
-    }),
-  revalidate: "ziele",
-  mapError: (e, t) => formatDomainError(e, { fallbackKey: "errors.action.setCustomField" }, t),
 });

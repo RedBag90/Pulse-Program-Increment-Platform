@@ -84,13 +84,6 @@ CREATE POLICY tenant_isolation ON audit_events FOR ALL
   USING (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid)
   WITH CHECK (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid);
 
-ALTER TABLE azure_devops_configs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE azure_devops_configs FORCE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_isolation ON azure_devops_configs;
-CREATE POLICY tenant_isolation ON azure_devops_configs FOR ALL
-  USING (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid)
-  WITH CHECK (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid);
-
 ALTER TABLE budget_allocations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE budget_allocations FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON budget_allocations;
@@ -168,20 +161,6 @@ CREATE POLICY tenant_isolation ON goal_comments FOR ALL
   USING (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid)
   WITH CHECK (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid);
 
-ALTER TABLE goal_custom_field_defs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE goal_custom_field_defs FORCE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_isolation ON goal_custom_field_defs;
-CREATE POLICY tenant_isolation ON goal_custom_field_defs FOR ALL
-  USING (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid)
-  WITH CHECK (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid);
-
-ALTER TABLE goal_custom_field_values ENABLE ROW LEVEL SECURITY;
-ALTER TABLE goal_custom_field_values FORCE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_isolation ON goal_custom_field_values;
-CREATE POLICY tenant_isolation ON goal_custom_field_values FOR ALL
-  USING (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid)
-  WITH CHECK (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid);
-
 ALTER TABLE goal_epic_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE goal_epic_links FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON goal_epic_links;
@@ -249,13 +228,6 @@ ALTER TABLE issues ENABLE ROW LEVEL SECURITY;
 ALTER TABLE issues FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON issues;
 CREATE POLICY tenant_isolation ON issues FOR ALL
-  USING (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid)
-  WITH CHECK (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid);
-
-ALTER TABLE jira_configs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE jira_configs FORCE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_isolation ON jira_configs;
-CREATE POLICY tenant_isolation ON jira_configs FOR ALL
   USING (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid)
   WITH CHECK (tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid);
 

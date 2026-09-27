@@ -76,11 +76,11 @@ haben.**
 
 ### Wer die drei sind
 
-| Wer                         | Sein Bereich                                         | Recht                                                    |
-| --------------------------- | ---------------------------------------------------- | -------------------------------------------------------- |
-| **Plattform-Betreiber**     | alle Mandanten: anlegen, Module, Lifecycle           | `platform_admin` — **keine** Capability                  |
-| **Mandanten-Administrator** | ein Mandant: Menschen, Rollen, Rechte, Integrationen | `tenant.users.manage`, `role.capability.manage`, …       |
-| **Der Neue**                | sich selbst: beitreten, Rolle annehmen, Tour         | `role.onboarding.manage` — **jede** Rolle, auch `viewer` |
+| Wer                         | Sein Bereich                                 | Recht                                                    |
+| --------------------------- | -------------------------------------------- | -------------------------------------------------------- |
+| **Plattform-Betreiber**     | alle Mandanten: anlegen, Module, Lifecycle   | `platform_admin` — **keine** Capability                  |
+| **Mandanten-Administrator** | ein Mandant: Menschen, Rollen, Rechte        | `tenant.users.manage`, `role.capability.manage`, …       |
+| **Der Neue**                | sich selbst: beitreten, Rolle annehmen, Tour | `role.onboarding.manage` — **jede** Rolle, auch `viewer` |
 
 > **Die Plattform-Rechte laufen nicht über `authorize()`.** `tenant.create`,
 > `platform.tenants.manage` und `platform.users.manage` stehen zwar in der
@@ -198,11 +198,9 @@ nach, was eine neue Code-Vorgabe nicht mehr erreicht hat — siehe oben.
 
 ## Der Rest des Bereichs
 
-| Fläche                                    | Wofür                                                                                     | Recht                      |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------- |
-| **Custom Fields** (`/admin/goal-fields`)  | eigene Felder an Zielen **definieren** — gefüllt werden sie von den Ziel-Verantwortlichen | `goal.custom_field.manage` |
-| **Integrationen** (`/admin/integrations`) | Projekt-Zuordnung zu Jira und Azure DevOps; „Disconnect" trennt sie samt Mapping          | `integration.manage`       |
-| **Audit-Log** (`/admin/audit-log`)        | wer wann was geändert hat                                                                 | `admin.audit-log.read`     |
+| Fläche                             | Wofür                     | Recht                  |
+| ---------------------------------- | ------------------------- | ---------------------- |
+| **Audit-Log** (`/admin/audit-log`) | wer wann was geändert hat | `admin.audit-log.read` |
 
 Dazu die **DSGVO-Löschung** eines Nutzers auf seiner Detailseite — kein
 Deaktivieren, sondern Löschen.
@@ -295,17 +293,16 @@ erteilt?
 
 ## Sätze, die naheliegen und nicht stimmen
 
-| Satz                                                      | Warum er nicht stimmt                                                                                            |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| „Eine neue Rechte-Vorgabe im Code gilt für alle."         | Nur für Mandanten **ohne** gespeicherte Zeilen. Wer je eine Rolle angepasst hat, behält sein Bündel vollständig. |
-| „Die Rollen-Matrix zeigt alle Berechtigungen."            | Die Plattform-Rechte haben leere Grant-Listen und laufen an `authorize()` vorbei.                                |
-| „Der Plattform-Betreiber lässt Leute in einen Bereich."   | Er sieht die Anfragen, entscheidet aber nicht. Das tut der Tenant-Admin.                                         |
-| „Eine höhere Rolle enthält die niedrigere."               | Das Rollenmodell kennt keine Vererbung. Zwei Aufgaben, zwei Rollen.                                              |
-| „Der Setup-Leitfaden ist meine persönliche Liste."        | Die Häkchen sind tenantweit geteilt — es ist der Stand des Programms.                                            |
-| „Ein abgeschaltetes Modul macht die Seite leer."          | Es macht sie **gesperrt**. Nicht registrierte Pfade sind fail-closed.                                            |
-| „Custom Fields anlegen und ausfüllen ist dasselbe Recht." | Definieren ist Admin-Sache, Füllen Sache der Ziel-Verantwortlichen.                                              |
-| „Die Tour merkt sich, wo ich war."                        | Sie merkt sich, **was ich gesehen habe**. Der Wiedereinstieg ist der erste offene Schritt.                       |
-| „Das Willkommensfenster kann man wegklicken."             | Bei einer neuen Rolle nicht. Die Tour lässt sich verschieben, die Kenntnisnahme nicht.                           |
+| Satz                                                    | Warum er nicht stimmt                                                                                            |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| „Eine neue Rechte-Vorgabe im Code gilt für alle."       | Nur für Mandanten **ohne** gespeicherte Zeilen. Wer je eine Rolle angepasst hat, behält sein Bündel vollständig. |
+| „Die Rollen-Matrix zeigt alle Berechtigungen."          | Die Plattform-Rechte haben leere Grant-Listen und laufen an `authorize()` vorbei.                                |
+| „Der Plattform-Betreiber lässt Leute in einen Bereich." | Er sieht die Anfragen, entscheidet aber nicht. Das tut der Tenant-Admin.                                         |
+| „Eine höhere Rolle enthält die niedrigere."             | Das Rollenmodell kennt keine Vererbung. Zwei Aufgaben, zwei Rollen.                                              |
+| „Der Setup-Leitfaden ist meine persönliche Liste."      | Die Häkchen sind tenantweit geteilt — es ist der Stand des Programms.                                            |
+| „Ein abgeschaltetes Modul macht die Seite leer."        | Es macht sie **gesperrt**. Nicht registrierte Pfade sind fail-closed.                                            |
+| „Die Tour merkt sich, wo ich war."                      | Sie merkt sich, **was ich gesehen habe**. Der Wiedereinstieg ist der erste offene Schritt.                       |
+| „Das Willkommensfenster kann man wegklicken."           | Bei einer neuen Rolle nicht. Die Tour lässt sich verschieben, die Kenntnisnahme nicht.                           |
 
 ## Wer welchen Schritt macht
 
@@ -316,8 +313,6 @@ erteilt?
 | Einladen, Rollen zuweisen und entziehen, DSGVO-Löschung                   | Tenant-Admin                  | `tenant.users.manage`                                   |
 | Einladungslink erzeugen, neu generieren, deaktivieren; Anfragen freigeben | Tenant-Admin                  | `tenant.users.manage`                                   |
 | Capabilities je Rolle setzen, entziehen, zurücksetzen                     | Tenant-Admin                  | `role.capability.manage`                                |
-| Custom-Field-Definitionen                                                 | Tenant-Admin                  | `goal.custom_field.manage`                              |
-| Integrationen verbinden und trennen                                       | Tenant-Admin                  | `integration.manage`                                    |
 | Audit-Log lesen                                                           | Tenant-Admin                  | `admin.audit-log.read`                                  |
 | Setup-Meilensteine abhaken                                                | Tenant-Admin                  | `tenant.users.manage`                                   |
 | Rolle annehmen, Tour sehen und neu starten                                | **jede Rolle**, auch `viewer` | `role.onboarding.manage`                                |

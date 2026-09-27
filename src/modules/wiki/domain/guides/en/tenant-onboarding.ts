@@ -234,22 +234,12 @@ it has even ONE
         },
         {
           title: "The rest of the area",
-          route: "/admin/integrations",
+          route: "/admin/audit-log",
           body: [
             {
               kind: "table",
               head: ["Surface", "What for"],
-              rows: [
-                [
-                  "**Custom fields**",
-                  "**define** your own fields on goals — they are filled in by the goal owners",
-                ],
-                [
-                  "**Integrations**",
-                  "project mapping to Jira and Azure DevOps; _disconnect_ removes them along with the mapping",
-                ],
-                ["**Audit log**", "who changed what, and when"],
-              ],
+              rows: [["**Audit log**", "who changed what, and when"]],
             },
             {
               kind: "paragraph",
@@ -386,10 +376,6 @@ it has even ONE
       why: "It makes it **locked**. Unregistered paths are fail-closed, not open.",
     },
     {
-      claim: "Creating and filling custom fields is the same right.",
-      why: "Defining is the admin's job, filling is the goal owners'.",
-    },
-    {
       claim: "The tour remembers where I was.",
       why: "It remembers **what I have seen**. Resuming lands on the first outstanding step.",
     },
@@ -419,16 +405,6 @@ it has even ONE
       step: "Set, withdraw and reset capabilities per role",
       who: "Tenant admin",
       capability: "role.capability.manage",
-    },
-    {
-      step: "Custom-field definitions",
-      who: "Tenant admin",
-      capability: "goal.custom_field.manage",
-    },
-    {
-      step: "Connect and disconnect integrations",
-      who: "Tenant admin",
-      capability: "integration.manage",
     },
     { step: "Read the audit log", who: "Tenant admin", capability: "admin.audit-log.read" },
     {

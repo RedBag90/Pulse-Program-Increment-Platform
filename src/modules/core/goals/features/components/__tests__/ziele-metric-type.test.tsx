@@ -43,7 +43,6 @@ function modell(node?: Record<string, unknown>): ZieleModel {
     periods: [],
     owners: [],
     modules: { portfolio: true, drumbeat: true },
-    customFieldDefs: [],
   } as unknown as ZieleModel;
 }
 
@@ -63,7 +62,6 @@ const BESTAND = {
   relatedEpics: [],
   valueStreams: [],
   arts: [],
-  customFields: [],
   unitValue: { planned: 0, realized: 0, runRate: 0 },
   precision: 0,
   currencyCode: null,

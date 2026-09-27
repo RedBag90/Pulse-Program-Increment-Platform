@@ -27,7 +27,6 @@ import type {
   RelatedWorkItem,
   ScopeRef,
   GoalNode,
-  GoalCustomFieldEntry,
 } from "@/modules/core/goals/server/views/ziele-view";
 import {
   createGoalNodeAction,
@@ -41,7 +40,6 @@ import {
   unlinkGoalValueStreamAction,
   linkGoalArtAction,
   unlinkGoalArtAction,
-  setGoalCustomFieldValueAction,
   reparentGoalNodeAction,
   setGoalRollupInclusionAction,
 } from "@/modules/core/goals/features/actions/ziele";
@@ -689,26 +687,8 @@ function GoalPane({
         </div>
       )}
 
-      {/* Einstellungen — Custom Fields + vollständiges Formular. */}
-      {tab === "settings" && (
-        <div className="space-y-4">
-          {model.customFieldDefs.length > 0 && (
-            <CustomFields
-              target={detailTarget}
-              goalId={id}
-              // Tenant-Defs (einmalig aus dem Modell) + die gesetzten Werte dieses
-              // Knotens (sparse) → volle editierbare Feldliste, ohne Defs × alle
-              // Knoten im First-Paint-Payload.
-              fields={model.customFieldDefs.map((d) => ({
-                ...d,
-                value: node.customFields.find((f) => f.defId === d.defId)?.value ?? "",
-              }))}
-              canEdit={canEdit}
-            />
-          )}
-          {formNode}
-        </div>
-      )}
+      {/* Einstellungen — das vollständige Formular. */}
+      {tab === "settings" && <div className="space-y-4">{formNode}</div>}
     </div>
   );
 }
@@ -1322,106 +1302,6 @@ export function GoalScopeLinks({
       </div>
       {err && <p className="text-xs text-destructive">{err}</p>}
     </section>
-  );
-}
-
-/**
- * Custom Fields (Epic 7): tenant-weite Zusatzfelder, Werte je Ziel-Knoten.
- * Nur sichtbar, wenn Felder definiert sind. Speichern per Feld (blur/change);
- * leerer Wert löscht den Wert.
- */
-function CustomFields({
-  target,
-  goalId,
-  fields,
-  canEdit,
-}: {
-  target: "objective" | "kr";
-  goalId: string;
-  fields: GoalCustomFieldEntry[];
-  canEdit: boolean;
-}) {
-  const t = useTranslations();
-  if (fields.length === 0) return null;
-  return (
-    <section className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        {t("goals.drawer.customFields")}
-      </h3>
-      <div className="space-y-2">
-        {fields.map((f) => (
-          <CustomFieldRow
-            key={f.defId}
-            target={target}
-            goalId={goalId}
-            field={f}
-            canEdit={canEdit}
-          />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function CustomFieldRow({
-  target,
-  goalId,
-  field,
-  canEdit,
-}: {
-  target: "objective" | "kr";
-  goalId: string;
-  field: GoalCustomFieldEntry;
-  canEdit: boolean;
-}) {
-  const [state, run, pending] = useActionState(setGoalCustomFieldValueAction, {});
-  const [val, setVal] = useState(field.value);
-
-  function save(next: string) {
-    if (next === field.value) return;
-    const fd = new FormData();
-    fd.set("target", target);
-    fd.set("goalId", goalId);
-    fd.set("defId", field.defId);
-    fd.set("value", next);
-    startTransition(() => run(fd));
-  }
-
-  const inputCls =
-    "h-8 w-full rounded-md border bg-background px-2 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50";
-
-  return (
-    <label className="block space-y-1">
-      <span className="text-meta font-medium text-muted-foreground">{field.name}</span>
-      {field.type === "select" ? (
-        <select
-          value={val}
-          disabled={!canEdit || pending}
-          onChange={(e) => {
-            setVal(e.target.value);
-            save(e.target.value);
-          }}
-          className={inputCls}
-        >
-          <option value="">—</option>
-          {field.options.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <input
-          type={field.type === "number" ? "number" : "text"}
-          value={val}
-          disabled={!canEdit || pending}
-          onChange={(e) => setVal(e.target.value)}
-          onBlur={() => save(val)}
-          className={inputCls}
-        />
-      )}
-      {state.error && <span className="text-meta text-destructive">{state.error}</span>}
-    </label>
   );
 }
 

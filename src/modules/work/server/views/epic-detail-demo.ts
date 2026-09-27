@@ -108,8 +108,6 @@ export function demoEpicDetailInputs(): EpicDetailInputs {
     plannedStartAt: new Date("2026-04-01T00:00:00.000Z"),
     plannedEndAt: new Date("2026-09-30T00:00:00.000Z"),
     acceptanceCriteria: [] as string[],
-    externalId: null,
-    externalSystem: null,
     stageGate: "L2",
     status: "draft",
     completedAt: null,

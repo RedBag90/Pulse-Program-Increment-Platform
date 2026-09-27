@@ -251,12 +251,6 @@ valuePerUnit`), summiert über die Messmonate auf den vollen KPI-Wert. Der
   über `upsertDayCheckin` — der letzte Eintrag eines Datums überschreibt den Slot (Wert-Eintrag und
   Status-Update teilen ihn). Die „Latest status"-Card liest den authoritativen `objective.status`
   (nicht den Feed, wo das gleichnamige Audit-Event `goal.checkin` kollidiert).
-- **Goal-Custom-Fields** — tenant-weit definierbare Zusatzfelder an Ziel-Knoten
-  (`GoalCustomFieldDef` type text/number/select; Werte je Knoten in
-  `GoalCustomFieldValue`, `@@unique([objectiveId, defId])`). Tenant-Admin verwaltet
-  die Definitionen unter `/admin/goal-fields` (Capability `goal.custom_field.manage`);
-  Werte pflegt man im Ziel-Drawer. `type`/`value` als validierte Strings am Domain-Seam
-  (`src/domain/goal-custom-field.ts`). Loader hängt `customFields[]` an jeden `GoalNode`.
 - **Strategy Map** — der Netzplan-Layout (`strategy-network-view.tsx`, ReactFlow +
   dagre) rendert den Goal-Baum rekursiv mit Goal-Status-Pill + Progress je Knoten,
   Expand/Collapse je Knoten (eingeklappt = „+N" verborgene Nachfahren, Teilbaum

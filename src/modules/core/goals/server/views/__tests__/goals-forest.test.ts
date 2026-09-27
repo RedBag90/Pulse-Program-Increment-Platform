@@ -15,8 +15,6 @@ const emptyLookups = (): ForestLookups => ({
   relatedWork: new Map(),
   valueStreams: new Map(),
   arts: new Map(),
-  customFieldDefs: [],
-  customFieldValues: new Map(),
 });
 
 const obj = (over: Partial<ForestObjective>): ForestObjective => ({

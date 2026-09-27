@@ -37,7 +37,6 @@ export type RevalidationResource =
   | "story"
   | "dependency"
   | "ziele"
-  | "goalCustomFields"
   | "setup"
   | "risk"
   | "portfolioFilter"
@@ -175,7 +174,6 @@ export const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   dependency: ["/umsetzung", "/feature/[featureId]", "/portfolio/epics/[id]"],
   ziele: ["/ziele"],
   // Feld-Defs wirken auf die Admin-Seite UND auf jeden Ziel-Drawer.
-  goalCustomFields: ["/admin/goal-fields", "/ziele"],
   setup: ["/setup"],
   // `risk`-Actions decken das Issue-Register, den Epic-Issues-Tab und die
   // Portfolio-Übersicht (Risiken-Kachel).

@@ -2218,42 +2218,6 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
       }),
   });
 
-  // Custom Fields (×3)
-  const cfSelect = uid("cf:prio");
-  const cfNumber = uid("cf:konfidenz");
-  await prisma.goalCustomFieldDef.createMany({
-    data: [
-      {
-        id: uid("cf:notiz"),
-        tenantId,
-        name: "Notiz",
-        type: "text",
-        sortOrder: 0,
-        createdBy: ADMIN,
-        updatedBy: ADMIN,
-      },
-      {
-        id: cfNumber,
-        tenantId,
-        name: "Konfidenz",
-        type: "number",
-        sortOrder: 1,
-        createdBy: ADMIN,
-        updatedBy: ADMIN,
-      },
-      {
-        id: cfSelect,
-        tenantId,
-        name: "Priorität",
-        type: "select",
-        options: ["Hoch", "Mittel", "Niedrig"],
-        sortOrder: 2,
-        createdBy: ADMIN,
-        updatedBy: ADMIN,
-      },
-    ],
-  });
-
   // Objective-Bausteine
   const roots: Prisma.ObjectiveCreateManyInput[] = [];
   const children: Prisma.ObjectiveCreateManyInput[] = [];
@@ -2440,11 +2404,9 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
     ["missed", "App-Store-Rating 4.8"],
     ["dropped", "Filial-Kiosk-Pilot"],
   ] as const;
-  const closedIds: string[] = [];
   const closedThemes = [themeTrust, themeBiz, themeTrust, themeEnabler];
   CLOSED.forEach(([status, title], i) => {
     const id = uid(`goal:closed:${i}`);
-    closedIds.push(id);
     roots.push(
       objBase(id, closedThemes[i]!, title, {
         progressMode: "manual",
@@ -2632,48 +2594,6 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
       { id: uid("gal:2"), tenantId, objectiveId: gRollupK2, artId: artIds[5]!, createdBy: ADMIN },
     ],
   });
-
-  // Custom-Field-Werte für die MEISTEN Ziele.
-  const prioObjectives = [
-    gManual,
-    gCIR,
-    gDigital,
-    gRollup,
-    gRollupK1,
-    gRollupK2,
-    gPortfolio,
-    gVs[0]!,
-    gVs[1]!,
-    gVs[2]!,
-    gTatParent,
-    gTatChild,
-    ...closedIds,
-  ];
-  const prioValues = ["Hoch", "Mittel", "Niedrig"];
-  const cfvRows: Prisma.GoalCustomFieldValueCreateManyInput[] = [];
-  prioObjectives.forEach((objId, i) => {
-    cfvRows.push({
-      id: uid(`cfv:prio:${i}`),
-      tenantId,
-      defId: cfSelect,
-      objectiveId: objId,
-      value: prioValues[i % prioValues.length]!,
-      createdBy: ADMIN,
-      updatedBy: ADMIN,
-    });
-    if (i % 3 === 0) {
-      cfvRows.push({
-        id: uid(`cfv:konf:${i}`),
-        tenantId,
-        defId: cfNumber,
-        objectiveId: objId,
-        value: String(60 + (i % 4) * 10),
-        createdBy: ADMIN,
-        updatedBy: ADMIN,
-      });
-    }
-  });
-  await prisma.goalCustomFieldValue.createMany({ data: cfvRows });
 
   // ── Phase 8: Approvals, Audit, Anfragen, Setup, Transformation ────────────
   console.log("\n── Workflow + Admin-Inbox");

@@ -10,7 +10,6 @@ import {
   GitBranch,
   Route,
   ShieldCheck,
-  Plug,
   ClipboardCheck,
   ClipboardList,
   Inbox,
@@ -227,18 +226,6 @@ export const NAV_GROUPS: NavGroup[] = [
         labelKey: "joinRequests",
         icon: Inbox,
         capability: "tenant.users.manage",
-      },
-      {
-        href: "/admin/goal-fields",
-        labelKey: "goalFields",
-        icon: ListTodo,
-        capability: "goal.custom_field.manage",
-      },
-      {
-        href: "/admin/integrations",
-        labelKey: "integrations",
-        icon: Plug,
-        capability: "integration.manage",
       },
       {
         href: "/admin/audit-log",

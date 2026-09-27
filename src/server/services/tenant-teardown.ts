@@ -43,8 +43,6 @@ export const TENANT_TEARDOWN_ORDER: readonly TeardownStep[] = [
   // ── Ziele + Kinder (die meisten kaskadieren vom Objective, explizit ist sicher)
   { model: "goalCheckin" },
   { model: "goalComment" },
-  { model: "goalCustomFieldValue" },
-  { model: "goalCustomFieldDef" },
   { model: "goalRelatedWork" },
   { model: "goalValueStreamLink" },
   { model: "goalArtLink" },
@@ -107,8 +105,6 @@ export const TENANT_TEARDOWN_ORDER: readonly TeardownStep[] = [
   { model: "roleCapability" },
   { model: "roleOnboarding" },
   { model: "viewPreference" },
-  { model: "jiraConfig" },
-  { model: "azureDevOpsConfig" },
   { model: "outboxEvent" },
   { model: "idempotencyKey" },
   { model: "auditEvent" },

@@ -362,11 +362,5 @@ Wert  (Umrechnungsfaktor)        0 € /Jahr`,
       who: "dieselben",
       capability: "target.manage",
     },
-    { step: "Custom-Field-**Werte** setzen", who: "dieselben", capability: "target.manage" },
-    {
-      step: "Custom-Field-**Definitionen**",
-      who: "Tenant-Admin",
-      capability: "goal.custom_field.manage",
-    },
   ],
 };

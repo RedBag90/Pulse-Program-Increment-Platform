@@ -74,7 +74,6 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
     segments: ["ziele", "structure", "setup", "transformation", "admin"],
     actions: [
       "target.manage",
-      "goal.",
       "kpi.bind",
       "value_stream.",
       "art.",
@@ -83,7 +82,6 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
       // Grow-Summe daraus — heisst `epic.` und liegt weiter bei `work`.
       "solution.",
       "tenant.users.manage",
-      "integration.manage",
       "role.capability.manage",
       // Selbstbedienung auf der eigenen Onboarding-Zeile. Liegt bei `core`, weil
       // das Onboarding kein Entitlement-Modul ist und in jedem Tenant laufen
