@@ -51,9 +51,6 @@ export interface NavItem {
 export interface NavGroup {
   labelKey: string;
   items: NavItem[];
-  /** Default-Page, zu der ein Click auf den Top-Nav-Trigger navigiert.
-   *  Wenn nicht gesetzt, faellt es auf das erste sichtbare Item zurueck. */
-  defaultHref?: string;
 }
 
 export const NAV_GROUPS: NavGroup[] = [
@@ -62,19 +59,16 @@ export const NAV_GROUPS: NavGroup[] = [
     // gestapelt auf /my-tasks. Ein-Item-Gruppe → rendert als einfacher Top-Level-
     // Link ohne Dropdown. /my-approvals bleibt als Redirect auf /my-tasks.
     labelKey: "myTasks",
-    defaultHref: "/my-tasks",
     items: [{ href: "/my-tasks", labelKey: "myTasks", icon: ListTodo }],
   },
   {
     // Das Wiki: die Ablaeufe als Anleitungen. Genau ein Item, also rendert die
     // Topbar es als direkten Link mit dem Gruppen-Label — kein Aufklappen.
     labelKey: "wiki",
-    defaultHref: "/wiki",
     items: [{ href: "/wiki", labelKey: "wiki", icon: BookOpen }],
   },
   {
     labelKey: "goals",
-    defaultHref: "/ziele",
     items: [
       // Übersicht + Strategie-Pflege sind zusammengelegt — eine Ziele-Surface
       // (Edit-Affordances Capability-gesteuert via `target.manage`).
@@ -101,7 +95,6 @@ export const NAV_GROUPS: NavGroup[] = [
     // `/structure/solutions` bleibt: fünf Wiki-Stationen, das „+"-Menü und ein
     // Absprung aus dem Epic-Detail hängen an ihr.
     labelKey: "structure",
-    defaultHref: "/structure",
     items: [
       { href: "/structure", labelKey: "organisation", icon: Network, exact: true },
       { href: "/structure/rollen", labelKey: "roleMap", icon: Users },
@@ -110,7 +103,6 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     labelKey: "portfolio",
-    defaultHref: "/portfolio",
     items: [
       {
         href: "/portfolio",
@@ -136,7 +128,6 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     labelKey: "implementation",
-    defaultHref: "/umsetzung",
     items: [
       {
         // Umsetzungs-Hub — Konsolidierungs-Surface (Roadmap-P0). Bestands-
@@ -167,7 +158,6 @@ export const NAV_GROUPS: NavGroup[] = [
     // Gruppe → rendert als eigenständiger Top-Level-Link (wie „Ziele"); via
     // moduleAllowed automatisch ausgeblendet, wenn das Risks-Modul aus ist.
     labelKey: "issues",
-    defaultHref: "/issues",
     items: [{ href: "/issues", labelKey: "issues", icon: ShieldAlert, exact: true }],
   },
   {
@@ -176,7 +166,6 @@ export const NAV_GROUPS: NavGroup[] = [
     // der ART verteilt seines auf seine Epics → der Budget-Plan friert den
     // Stand ein. Via moduleAllowed ausgeblendet, wenn das Modul aus ist.
     labelKey: "budgeting",
-    defaultHref: "/budgeting/periods",
     items: [
       {
         // Kachel-Gallery der Budgeting-Zeiträume — die Arbeitsfläche.
@@ -203,7 +192,6 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     labelKey: "admin",
-    defaultHref: "/admin/users",
     items: [
       // Der Setup-Leitfaden aus der aufgelösten Gruppe „Setup". Bewusst **ohne**
       // Capability, obwohl die übrigen Einträge hier eine tragen: sonst verlöre

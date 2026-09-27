@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
-import { Link, useRouter } from "@/i18n/navigation";
+import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { NAV_GROUPS } from "@/components/nav/nav-config";
 import { isActive } from "@/components/nav/active";
@@ -23,14 +23,13 @@ const triggerBase =
 /**
  * Top-nav trigger row. Single-item groups render as direct links; multi-item
  * groups render as `<button>`s that spread `menu.triggerProps(key)` for the
- * full hover/focus/aria/data-key bag, and add their own `onClick` that
- * navigates to the group's `defaultHref` plus opens the panel. Nicht sichtbare
+ * full hover/focus/aria/data-key bag; a click only opens the panel
+ * (`menu.toggle`) — the page is chosen in the panel, not by the trigger. Nicht sichtbare
  * Items (practice/capability/Modul-Entitlement) werden komplett ausgeblendet —
  * eine Gruppe ohne sichtbares Item taucht gar nicht auf.
  */
 export function TopNavMegaTriggers({ visibleHrefs, menu }: Props) {
   const pathname = usePathname();
-  const router = useRouter();
   const t = useTranslations("nav");
   const visible = new Set(visibleHrefs);
 
@@ -71,22 +70,13 @@ export function TopNavMegaTriggers({ visibleHrefs, menu }: Props) {
         }
 
         const isOpen = menu.openKey === group.labelKey;
-        // Navigations-Ziel: defaultHref nur, wenn sichtbar; sonst das erste
-        // sichtbare Item der Gruppe.
-        const targetHref =
-          group.defaultHref && visible.has(group.defaultHref)
-            ? group.defaultHref
-            : group.items[0]!.href;
         return (
           <div key={group.labelKey} className="relative">
             <button
               type="button"
               {...menu.triggerProps(group.labelKey)}
               data-tour={`group:${group.labelKey}`}
-              onClick={() => {
-                menu.openPanel(group.labelKey);
-                router.push(targetHref);
-              }}
+              onClick={() => menu.toggle(group.labelKey)}
               className={cn(
                 triggerBase,
                 "gap-1",

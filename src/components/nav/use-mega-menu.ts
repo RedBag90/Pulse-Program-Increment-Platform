@@ -5,9 +5,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 /**
  * Owns the full interaction state-machine of the Top-Nav mega-menu: which group
  * is open, the hover-close timer that tolerates a ~150ms mouse jump between
- * trigger and panel, fine/coarse-pointer detection (touch falls back to
- * tap-to-open + navigate), and the ESC handler that restores focus to the
- * trigger that opened the panel.
+ * trigger and panel, fine/coarse-pointer detection (touch opens and closes by
+ * tap), and the ESC handler that restores focus to the trigger that opened the
+ * panel.
+ *
+ * A click on a trigger only opens the panel — it never navigates. Until
+ * September 2026 it also jumped to the group's first page; picking a page is
+ * the panel's job.
  *
  * Consumers (Topbar, Triggers, Panel) spread the returned prop bags and call
  * `openPanel` / `close` — they never own state. That makes the state-machine
@@ -25,14 +29,18 @@ export interface MegaMenuApi {
   /** Close immediately (cancels any pending hover-close). */
   close: () => void;
   /**
+   * The trigger's click: opens the panel. On touch a second tap closes it;
+   * with a mouse the panel is already open from hovering and stays open.
+   */
+  toggle: (key: string) => void;
+  /**
    * Prop bag for a multi-item group's trigger button. Spread on the `<button>`
-   * and add your own `onClick` (typically: openPanel + router.push to the
-   * group's default href).
+   * and wire `onClick` to `toggle`.
    */
   triggerProps: (key: string) => {
     onMouseEnter: (() => void) | undefined;
     onMouseLeave: (() => void) | undefined;
-    onFocus: () => void;
+    onFocus: (e: { currentTarget: Element }) => void;
     "aria-haspopup": "true";
     "aria-expanded": boolean;
     "aria-controls": string;
@@ -45,6 +53,15 @@ export interface MegaMenuApi {
     onMouseEnter: () => void;
     onMouseLeave: () => void;
   };
+}
+
+/** `:focus-visible` = Fokus per Tastatur; ohne Selektor-Unterstützung: ja. */
+function isKeyboardFocus(el: Element): boolean {
+  try {
+    return el.matches(":focus-visible");
+  } catch {
+    return true;
+  }
 }
 
 export function useMegaMenu(): MegaMenuApi {
@@ -88,6 +105,14 @@ export function useMegaMenu(): MegaMenuApi {
     setOpenKey(null);
   }, [cancelClose]);
 
+  const toggle = useCallback(
+    (key: string) => {
+      if (openKey === key && !isFinePointer) close();
+      else openPanel(key);
+    },
+    [openKey, isFinePointer, close, openPanel],
+  );
+
   // ESC: close + restore focus to the trigger that opened it. The trigger is
   // looked up via `data-trigger-key` so we don't have to thread refs through
   // child components.
@@ -111,7 +136,11 @@ export function useMegaMenu(): MegaMenuApi {
     (key) => ({
       onMouseEnter: isFinePointer ? () => openPanel(key) : undefined,
       onMouseLeave: isFinePointer ? scheduleClose : undefined,
-      onFocus: () => openPanel(key),
+      // Nur Tastatur-Fokus öffnet. Ein Tipp setzt ebenfalls den Fokus — öffnete
+      // der, sähe der Klick im selben Tipp ein offenes Menü und schlösse es.
+      onFocus: (e) => {
+        if (isKeyboardFocus(e.currentTarget)) openPanel(key);
+      },
       "aria-haspopup": "true",
       "aria-expanded": openKey === key,
       "aria-controls": PANEL_ID,
@@ -127,5 +156,5 @@ export function useMegaMenu(): MegaMenuApi {
     onMouseLeave: scheduleClose,
   };
 
-  return { openKey, openPanel, close, triggerProps, panelProps };
+  return { openKey, openPanel, close, toggle, triggerProps, panelProps };
 }
