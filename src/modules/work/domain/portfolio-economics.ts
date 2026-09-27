@@ -823,10 +823,6 @@ export interface PortfolioEconomicsData {
   epics: EpicEconomicsDTO[];
   /** Earliest cost start across all Epics (axis lower bound, ISO date). */
   axisFromIso: string;
-  /** Configurable self-funding threshold per month, or null if unset. */
-  costNeutralTarget: number | null;
-  /** €/WSJF-Job-Size point — drives the €-axis of the PI-Planning capacity overlay. */
-  costPerJobSizePoint: number | null;
 }
 
 /** The slicer state that narrows the DTO to a series: which Epics, which window. */

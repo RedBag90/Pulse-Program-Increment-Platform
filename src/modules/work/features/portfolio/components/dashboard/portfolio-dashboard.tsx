@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { Translate } from "@/i18n/translate";
-import { useMemo, useState, useActionState } from "react";
+import { useMemo, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -27,7 +27,6 @@ import {
 } from "@/modules/work/domain/portfolio-economics";
 import type { StageTransition } from "@/modules/work/domain/epic-stage-timeline";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
-import { savePortfolioDashboardSettingsAction } from "@/modules/work/features/portfolio/actions/dashboard-settings";
 import {
   EpicFacetFilterBar,
   type FlagFilter,
@@ -45,9 +44,7 @@ import {
 import { GoalBenefitWaterfallSection, type WaterfallEpicInfo } from "./goal-benefit-waterfall";
 import type { GoalWaterfallData } from "@/modules/work/domain/goal-benefit-waterfall";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { StackTooltip, type Stack, type StackPayloadItem } from "@/components/charts/stack-tooltip";
 import {
   ChartLegend,
@@ -67,7 +64,6 @@ import { STAGE_SHORT_KEYS } from "@/components/detail/initiative-labels";
 
 interface Props {
   data: PortfolioEconomicsData;
-  canEdit: boolean;
   goalWaterfalls: GoalWaterfallData;
 }
 
@@ -139,7 +135,7 @@ function defaultToIso(data: PortfolioEconomicsData): string {
   return future.toISOString().slice(0, 10);
 }
 
-export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
+export function PortfolioDashboard({ data, goalWaterfalls }: Props) {
   const t = useTranslations();
   const [selected, setSelected] = useState<Set<string>>(() => new Set(data.epics.map((e) => e.id)));
   const [fromIso, setFromIso] = useState(data.axisFromIso);
@@ -465,13 +461,6 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
         epicInfoById={epicInfoById}
       />
 
-      {canEdit && (
-        <SettingsEditor
-          costNeutralTarget={data.costNeutralTarget}
-          costPerJobSizePoint={data.costPerJobSizePoint}
-        />
-      )}
-
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel
           title={t("work.dashboard.benefitVelocity")}
@@ -484,16 +473,7 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
             months={months}
             todayIndex={todayIndex}
             uplift
-          >
-            {data.costNeutralTarget != null && (
-              <ReferenceLine
-                y={data.costNeutralTarget}
-                stroke={COST_COLOR}
-                strokeDasharray="5 4"
-                ifOverflow="extendDomain"
-              />
-            )}
-          </StackedChart>
+          />
         </Panel>
 
         <Panel
@@ -907,58 +887,6 @@ function Slicers({
           </div>
         </div>
       </div>
-    </Card>
-  );
-}
-
-// --- settings editor (cost-neutral target line) ----------------------------
-
-function SettingsEditor({
-  costNeutralTarget,
-  costPerJobSizePoint,
-}: {
-  costNeutralTarget: number | null;
-  costPerJobSizePoint: number | null;
-}) {
-  const t = useTranslations();
-  const [state, formAction, pending] = useActionState(savePortfolioDashboardSettingsAction, {});
-  return (
-    <Card className="p-4">
-      <form action={formAction} className="flex flex-wrap items-end gap-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="pd-target">
-            {t("work.dashboard.zielwertKostenneutralerBetriebMonat")}
-          </Label>
-          <Input
-            id="pd-target"
-            name="costNeutralTarget"
-            type="number"
-            min={0}
-            step={100}
-            className="w-52"
-            defaultValue={costNeutralTarget ?? ""}
-            placeholder={t("work.common.example100")}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="pd-cpj">{t("work.dashboard.proWsjfJobSize")}</Label>
-          <Input
-            id="pd-cpj"
-            name="costPerJobSizePoint"
-            type="number"
-            min={0}
-            step={100}
-            className="w-52"
-            defaultValue={costPerJobSizePoint ?? ""}
-            placeholder={t("work.dashboard.leerAchseAus")}
-          />
-        </div>
-        <Button type="submit" variant="outline" disabled={pending}>
-          {pending ? t("work.dashboard.speichertLaeuft") : t("common.save")}
-        </Button>
-        {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-        {state.success && <p className="text-sm text-success">{t("work.dashboard.gespeichert")}</p>}
-      </form>
     </Card>
   );
 }

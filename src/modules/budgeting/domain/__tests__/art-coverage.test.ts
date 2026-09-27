@@ -30,8 +30,7 @@ describe("artCoverage — der Verlauf", () => {
       features: [],
       cycleKey: "2027-H1", // der Umschalter steht auf dem nächsten Halbjahr
       allocatedByCycle: { "2026-H2": 100_000, "2027-H1": 900_000 },
-      tenantDefault: 1_000,
-      artEstimate: null,
+      artEstimate: 1_000,
       burn: { tile: KACHEL, today: HEUTE },
     });
     expect(c.allocated).toBe(900_000); // die Karte folgt dem Umschalter
@@ -55,7 +54,6 @@ describe("artCoverage — der Verlauf", () => {
       features,
       cycleKey: "2026-H2",
       allocatedByCycle,
-      tenantDefault: null,
       artEstimate: null,
       burn: { tile: KACHEL, today: HEUTE },
     });
@@ -64,7 +62,6 @@ describe("artCoverage — der Verlauf", () => {
       features,
       cycleKey: "2027-H1",
       allocatedByCycle,
-      tenantDefault: null,
       artEstimate: null,
       burn: { tile: KACHEL, today: HEUTE },
     });
@@ -81,8 +78,7 @@ describe("artCoverage — der Verlauf", () => {
       features: [fertig("2026-08-01", 5)],
       cycleKey: "2026-H2",
       allocatedByCycle: {},
-      tenantDefault: 1_000,
-      artEstimate: null,
+      artEstimate: 1_000,
     });
     expect(c.burn).toBeNull();
     expect(c.cycleCompletions).toEqual([]);

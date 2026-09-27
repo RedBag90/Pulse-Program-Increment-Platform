@@ -84,7 +84,6 @@ const BURN_KEY: Record<BurnStatus, string> = {
 const SOURCE_KEY: Record<RateSource, string> = {
   empirical: "budgeting.kpi.quelleEmpirisch",
   artEstimate: "budgeting.kpi.quelleSchaetzung",
-  tenantDefault: "budgeting.kpi.quelleVorgabe",
   none: "budgeting.kpi.quelleKeiner",
 };
 
@@ -563,8 +562,6 @@ function RateSentence({ rate }: { rate: JobSizeRate }) {
         </>
       ) : rate.source === "artEstimate" ? (
         t("budgeting.art.schaetzungFuerDiesenArt")
-      ) : rate.source === "tenantDefault" ? (
-        t("budgeting.art.derTenantWeiteVorgabewert")
       ) : (
         t("budgeting.art.wederAusDerHistorie")
       )}

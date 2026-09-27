@@ -25,7 +25,6 @@ const cycle = (
 
 const input = (over: Partial<Parameters<typeof deriveJobSizeRate>[0]> = {}) => ({
   cycles: [],
-  tenantDefault: null,
   undatedFeatures: 0,
   placeholderJobSize: 0,
   ...over,
@@ -70,17 +69,14 @@ describe("deriveJobSizeRate — leere Halbjahre im Fenster", () => {
     expect(r.source).not.toBe("empirical");
   });
 
-  it("… und faellt dann auf den Mandanten-Wert, wenn es einen gibt", () => {
-    // Fuer die Deckungs-Karte ist das der gewollte Weg. Die Guardrail lehnt ihn
-    // ab — siehe `capacityInPoints`.
+  it("… und hat dann keinen Satz — einen Mandanten-Rückfall gibt es nicht mehr", () => {
     const r = deriveJobSizeRate(
       input({
         cycles: [cycle("2026-H1", 130_000, 0, 0), cycle("2025-H2", 125_000, 0, 0)],
-        tenantDefault: 1_500,
       }),
     );
-    expect(r.source).toBe("tenantDefault");
-    expect(r.rate).toBe(1_500);
+    expect(r.source).toBe("none");
+    expect(r.rate).toBeNull();
   });
 });
 
@@ -112,18 +108,15 @@ describe("deriveJobSizeRate", () => {
     expect(r.rate).toBe(10_000);
   });
 
-  it("fällt ohne Abschlüsse auf den Tenant-Wert zurück", () => {
-    const r = deriveJobSizeRate(
-      input({ cycles: [cycle("2026-H1", 500_000, 0, 0)], tenantDefault: 1_800 }),
-    );
-    expect(r.source).toBe("tenantDefault");
-    expect(r.rate).toBe(1_800);
+  it("ohne Abschlüsse kein Satz, und sagt warum", () => {
+    const r = deriveJobSizeRate(input({ cycles: [cycle("2026-H1", 500_000, 0, 0)] }));
+    expect(r.source).toBe("none");
     expect(r.caveats[0]?.code).toBe("noCompletions");
   });
 
-  it("fällt ohne Zyklen auf den Tenant-Wert zurück und sagt warum", () => {
-    const r = deriveJobSizeRate(input({ tenantDefault: 600 }));
-    expect(r.source).toBe("tenantDefault");
+  it("ohne Zyklen kein Satz, und sagt warum", () => {
+    const r = deriveJobSizeRate(input());
+    expect(r.source).toBe("none");
     expect(r.caveats[0]?.code).toBe("noCycle");
   });
 
@@ -183,13 +176,11 @@ describe("deriveJobSizeRate — eigenständiger Anteil", () => {
   it("summiert den Anteil, ohne den Satz zu verändern", () => {
     const mitAnteil = deriveJobSizeRate({
       cycles: [cycle("2026-H1", 100_000, 200, 20, 50, 5)],
-      tenantDefault: null,
       undatedFeatures: 0,
       placeholderJobSize: 0,
     });
     const ohneAnteil = deriveJobSizeRate({
       cycles: [cycle("2026-H1", 100_000, 200, 20)],
-      tenantDefault: null,
       undatedFeatures: 0,
       placeholderJobSize: 0,
     });
@@ -207,11 +198,10 @@ describe("deriveJobSizeRate — eigenständiger Anteil", () => {
  * hergibt, und dann vor dem Mandanten-Satz.
  */
 describe("deriveJobSizeRate — Schätzung je ART", () => {
-  it("ohne Historie: die ART-Schätzung vor dem Mandanten-Satz", () => {
+  it("ohne Historie: die ART-Schätzung", () => {
     const r = deriveJobSizeRate(
       input({
         cycles: [cycle("2026-H1", 500_000, 0, 0)],
-        tenantDefault: 1_800,
         artEstimate: 2_500,
       }),
     );
@@ -241,10 +231,7 @@ describe("deriveJobSizeRate — Schätzung je ART", () => {
     expect(r.caveats.map((c) => c.code)).toContain("placeholder");
   });
 
-  it("eine Schätzung von 0 zählt nicht — dann der Mandanten-Satz oder keiner", () => {
-    expect(deriveJobSizeRate(input({ artEstimate: 0, tenantDefault: 700 })).source).toBe(
-      "tenantDefault",
-    );
+  it("eine Schätzung von 0 zählt nicht — dann kein Satz", () => {
     expect(deriveJobSizeRate(input({ artEstimate: 0 })).source).toBe("none");
   });
 });

@@ -172,15 +172,15 @@ Value, ROI und Break-even je Epic."
 
 Sieben Tafeln auf einer gemeinsamen Monatsachse:
 
-| Tafel                                 | Was sie zeigt                                                         |
-| ------------------------------------- | --------------------------------------------------------------------- |
-| **Benefit Velocity**                  | Business Value je Monat; die Linie ist der **kostenneutrale Betrieb** |
-| **Cost Distribution**                 | Kosten je Monat, gestapelt nach wählbarer Dimension                   |
-| **ROI**                               | Business Value gegen Kosten je Monat                                  |
-| **Break Even Analyse**                | der Monat, in dem es kippt — oder „Kein Break-even im Zeitraum"       |
-| **Gained Value Analyse**              | kumulierter Business Value                                            |
-| **Cost Analysis**                     | kumulierte Kosten                                                     |
-| **Positiver und Negativer Cash-Flow** | laufender Saldo, negativ unter, positiv über der Null-Linie           |
+| Tafel                                 | Was sie zeigt                                                   |
+| ------------------------------------- | --------------------------------------------------------------- |
+| **Benefit Velocity**                  | Business Value je Monat                                         |
+| **Cost Distribution**                 | Kosten je Monat, gestapelt nach wählbarer Dimension             |
+| **ROI**                               | Business Value gegen Kosten je Monat                            |
+| **Break Even Analyse**                | der Monat, in dem es kippt — oder „Kein Break-even im Zeitraum" |
+| **Gained Value Analyse**              | kumulierter Business Value                                      |
+| **Cost Analysis**                     | kumulierte Kosten                                               |
+| **Positiver und Negativer Cash-Flow** | laufender Saldo, negativ unter, positiv über der Null-Linie     |
 
 Drei Rechenregeln muss man kennen, um die Kurven zu lesen:
 

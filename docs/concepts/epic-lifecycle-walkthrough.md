@@ -359,8 +359,7 @@ wertvoller herausstellen, kann unterm Strich trotzdem liefern — und man sieht,
 woran es lag.
 
 Zwischen den Sitzen ist die **Dashboard-Ökonomie** meine Lesefläche: Break-Even,
-Benefit Velocity gegen den Plan, die Kostenkurve gegen den Kostenneutralitäts-
-Zielwert, und der Wasserfall „Wert je Reifegrad-Status" gegen den Zielwert des
+Benefit Velocity gegen den Plan, die Kostenkurve, und der Wasserfall „Wert je Reifegrad-Status" gegen den Zielwert des
 jeweiligen Kopf-Ziels. Was dort als Forecast steht, ist genau das, was ich an
 L2 mitgezeichnet habe — und was als Ist danebensteht, das, was an L5 daraus
 geworden ist.

@@ -276,7 +276,6 @@ describe("der erzeugte Mandant", () => {
         standaloneJobSize: 0,
         standaloneFeatureCount: 0,
       })),
-      tenantDefault: null,
       undatedFeatures: 0,
       placeholderJobSize: 0,
     });

@@ -43,11 +43,10 @@ export const emptyPointCell = (): PointCell => ({ count: 0, jobSize: 0 });
  * keine Kapazitaetszahl. Ein Satz von 0 faellt in denselben Fall: er entstuende
  * nur aus einem Budget von 0 und wuerde sonst durch Null teilen.
  *
- * **Nur der empirische Satz zaehlt — der mandantenweite Rueckfall nicht.**
- * `deriveJobSizeRate` faellt auf `Tenant.costPerJobSizePoint` zurueck, wenn im
- * Fenster nichts fertig wurde. Fuer die Deckungs-Karte ist das richtig: sie
- * **schaetzt**, was eine Last ungefaehr kostet, und ein geliehener Satz ist
- * dafuer brauchbar.
+ * **Nur der empirische Satz zaehlt — eine Schaetzung nicht.** Ohne Historie
+ * nimmt `deriveJobSizeRate` die Schaetzung je ART. Fuer die Deckungs-Karte ist
+ * das richtig: sie **schaetzt**, was eine Last ungefaehr kostet. (Bis September
+ * 2026 gab es dafuer einen mandantenweiten Rueckfall, `costPerJobSizePoint`.)
  *
  * Die Guardrail verteilt dagegen ein **Kontingent**, und da kehrt sich das um.
  * Gemessen: der Rueckfallwert liegt bei 1.500 €/Punkt, die empirischen Saetze

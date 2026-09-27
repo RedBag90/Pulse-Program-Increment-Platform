@@ -506,7 +506,7 @@ export const EPIC_LIFECYCLE: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Break-Even, Benefit Velocity gegen den Plan, die Kostenkurve gegen den Kostenneutralitäts-Zielwert, und der Wasserfall „Wert je Reifegrad-Status“ gegen den Zielwert des jeweiligen Kopf-Ziels.",
+              text: "Break-Even, Benefit Velocity gegen den Plan, die Kostenkurve, und der Wasserfall „Wert je Reifegrad-Status“ gegen den Zielwert des jeweiligen Kopf-Ziels.",
             },
             {
               kind: "paragraph",

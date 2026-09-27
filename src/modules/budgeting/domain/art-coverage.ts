@@ -56,7 +56,6 @@ export interface CoverageInput {
   cycleKey: string;
   /** Veränderungsgeld je Halbjahr (Portfolio plus Rahmen). */
   allocatedByCycle: Record<string, number>;
-  tenantDefault: number | null;
   artEstimate: number | null;
   /** Der Job-Size-Verlauf: die geltende Kachel und der heutige Tag. Ohne ihn kein Verlauf. */
   burn?: { tile: BurnWindow; today: Date } | null;
@@ -145,7 +144,6 @@ export function artCoverage(input: CoverageInput): ArtCoverage {
           standaloneFeatureCount: doneByCycle.get(k)?.standaloneCount ?? 0,
         }),
       ),
-      tenantDefault: input.tenantDefault,
       artEstimate: input.artEstimate,
       undatedFeatures: undated,
       placeholderJobSize: placeholder,

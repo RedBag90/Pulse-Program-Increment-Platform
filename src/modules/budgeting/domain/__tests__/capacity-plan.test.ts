@@ -59,15 +59,15 @@ describe("capacityInPoints", () => {
   /**
    * **Der Test, der die 90 Punkte verhindert.**
    *
-   * `deriveJobSizeRate` faellt auf `Tenant.costPerJobSizePoint` zurueck, wenn im
-   * Fenster nichts fertig wurde. Gemessen liegt dieser Rueckfall bei 1.500 €,
+   * Ohne Historie gilt eine Schaetzung (bis September 2026 der mandantenweite
+   * `costPerJobSizePoint`). Gemessen lag dieser Rueckfall bei 1.500 €,
    * die empirischen Saetze derselben Mandanten bei 9.000–11.000 €. Ohne diese
    * Sperre bekaeme ein ART, das ein Jahr lang nichts abgeschlossen hat,
    * 135.000 ÷ 1.500 = 90 Punkte — mehr als die 19 des ARTs daneben, das
    * tatsaechlich liefert.
    */
-  it("der mandantenweite Rueckfall ergibt keine Kapazitaet", () => {
-    expect(capacityInPoints(135_000, rate(1_500, "tenantDefault"))).toBeNull();
+  it("eine Schaetzung ergibt keine Kapazitaet", () => {
+    expect(capacityInPoints(135_000, rate(1_500, "artEstimate"))).toBeNull();
   });
 
   it("und ohne jeden Satz erst recht nicht", () => {

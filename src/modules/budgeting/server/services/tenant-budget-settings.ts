@@ -1,12 +1,8 @@
 /**
- * Die **zwei Mandanten-Felder**, die das Budgeting liest — in *einer* Abfrage,
- * einmal je Anfrage.
- *
- * Die ART-Budgetseite las die `Tenant`-Zeile bisher **zweimal**: einmal für
- * `guardrailTargets` (die Portfolio-Schwelle) und einmal, eine Ebene tiefer in
- * `art-coverage.ts`, für `costPerJobSizePoint`. Zwei Rundreisen für dieselbe
- * Zeile — und bei ~60 ms nach `eu-west-1` ist eine Rundreise kein Rundungsfehler
- * (Spec `art-budget-consolidation.md` §1.6).
+ * Das Mandanten-Feld, das das Budgeting liest — die Guardrail-Ziele, einmal je
+ * Anfrage. Bis September 2026 kam der €-Satz je Job-Size-Punkt
+ * (`costPerJobSizePoint`) mit; der Rückfall-Satz ist entfallen, die Schätzung
+ * je ART ersetzt ihn.
  *
  * `cache()` sitzt hier und nicht bei den Aufrufern, weil beide dieselbe Frage
  * mit demselben Argument stellen — dasselbe Muster wie
@@ -20,8 +16,6 @@ import type { TenantId } from "@/modules/core/kernel/domain/types";
 export interface TenantBudgetSettings {
   /** Guardrail-Ziele des Mandanten (JSON) — der Rückfall je Wertstrom. */
   guardrailTargets: unknown;
-  /** Tenant-weiter €-Satz je Job-Size-Punkt; Rückfall, wenn die Historie schweigt. */
-  costPerJobSizePoint: number | null;
 }
 
 export const getTenantBudgetSettings = cache(async function getTenantBudgetSettings(
@@ -30,10 +24,7 @@ export const getTenantBudgetSettings = cache(async function getTenantBudgetSetti
 ): Promise<TenantBudgetSettings> {
   const row = await db.tenant.findUnique({
     where: { id: tenantId },
-    select: { guardrailTargets: true, costPerJobSizePoint: true },
+    select: { guardrailTargets: true },
   });
-  return {
-    guardrailTargets: row?.guardrailTargets ?? null,
-    costPerJobSizePoint: row?.costPerJobSizePoint != null ? Number(row.costPerJobSizePoint) : null,
-  };
+  return { guardrailTargets: row?.guardrailTargets ?? null };
 });

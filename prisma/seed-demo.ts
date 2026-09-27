@@ -107,10 +107,7 @@ export async function seedDense(ctx: SeedContext): Promise<void> {
     where: { id: tenantId },
     data: {
       enabledModules: [], // Org ⇒ alle Module
-      costNeutralTarget: 250_000,
       dashboardHorizonEnd: addDays(now, 540),
-      // PB-Default-Aufwand: Kosten-Richtwert im PB-Liste für nur-Hypothese-Epics.
-      costPerJobSizePoint: 1_800,
       guardrailTargets: {
         horizon: { h3: 10, h2: 20, h1: 60, h0: 10 },
         capacity: { business: 70, enabler: 20, maintenance: 10 },

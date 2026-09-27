@@ -1632,10 +1632,6 @@
       "keineEpicsFuerDie": "Keine Epics für die aktuellen Filter.",
       "stichtag": "Stichtag",
       "ansicht": "Ansicht",
-      "zielwertKostenneutralerBetriebMonat": "Zielwert kostenneutraler Betrieb (€/Monat)",
-      "proWsjfJobSize": "€ pro WSJF-Job-Size-Punkt",
-      "leerAchseAus": "leer = €-Achse aus",
-      "gespeichert": "Gespeichert.",
       "zielen": "Zielen",
       "ziel": "Ziel",
       "istRealisiert": "Ist / realisiert",
@@ -1659,8 +1655,7 @@
       "wertJeStatusLueckeZumZiel": "Wert je Status & Lücke zum Ziel",
       "zielMitWert": "Ziel {value}",
       "zielOptionMitWert": "{title} · Ziel {value}",
-      "nochKeineMessbarenZieleMitZielwert": "Noch keine messbaren Ziele mit Zielwert. Lege in den <link>Zielen</link> ein Ziel mit Zielwert an und verknüpfe Epics.",
-      "speichertLaeuft": "Speichert…"
+      "nochKeineMessbarenZieleMitZielwert": "Noch keine messbaren Ziele mit Zielwert. Lege in den <link>Zielen</link> ein Ziel mit Zielwert an und verknüpfe Epics."
     },
     "guardrails": {
       "businessOwnerEngagement": "Business-Owner-Engagement",
@@ -1723,7 +1718,6 @@
     "common": {
       "art": "ART",
       "kpi": "KPI",
-      "example100": "z. B. 100",
       "example10000": "z. B. 10000",
       "viewVariant": "Übersicht-Variante"
     },
@@ -2259,7 +2253,6 @@
     },
     "art": {
       "gedeckt": "Gedeckt",
-      "derTenantWeiteVorgabewert": "— der tenant-weite Vorgabewert, weil sich kein Satz aus der Historie ableiten lässt.",
       "wederAusDerHistorie": "— weder aus der Historie ableitbar noch als Vorgabewert gesetzt.",
       "dieLastIstDie": "Die Last ist die",
       "summe": "Summe",
@@ -2556,7 +2549,6 @@
       "ohneSatzInSumme": "Ohne Satz und damit nicht in der Summe: {names}.",
       "quelleEmpirisch": "empirisch",
       "quelleSchaetzung": "geschätzt",
-      "quelleVorgabe": "Vorgabe",
       "quelleKeiner": "kein Satz",
       "grundKeinBudget": "kein Budget",
       "wieGerechnet": "Wie gerechnet?",

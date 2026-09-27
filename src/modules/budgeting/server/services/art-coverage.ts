@@ -15,7 +15,6 @@ import { InitiativeLevel, type TenantId } from "@/modules/core/kernel/domain/typ
 import type { ArtCoverage } from "@/modules/budgeting/domain/art-budget-model";
 import { artCoverage, type CoverageFeature } from "@/modules/budgeting/domain/art-coverage";
 import type { BurnWindow } from "@/modules/budgeting/domain/job-size-burn";
-import { getTenantBudgetSettings } from "@/modules/budgeting/server/services/tenant-budget-settings";
 import { loadChangeMoney } from "@/modules/budgeting/server/services/change-money";
 
 export interface ArtCoverageSource {
@@ -36,7 +35,7 @@ export async function loadArtCoverages(
   tenantId: TenantId,
   artIds: readonly string[],
 ): Promise<ArtCoverageSource> {
-  const [features, settings, arts, money] = await Promise.all([
+  const [features, arts, money] = await Promise.all([
     db.initiative.findMany({
       where: {
         tenantId,
@@ -54,7 +53,6 @@ export async function loadArtCoverages(
         pi: { select: { startDate: true, endDate: true } },
       },
     }),
-    getTenantBudgetSettings(db, tenantId),
     // Die Schätzung je ART — greift nur ohne ableitbaren Satz.
     db.art.findMany({
       where: { tenantId, id: { in: [...artIds] } },
@@ -76,7 +74,6 @@ export async function loadArtCoverages(
         features: featuresOf.get(artId) ?? [],
         cycleKey,
         allocatedByCycle: money.artTotalByCycle(artId),
-        tenantDefault: settings.costPerJobSizePoint,
         artEstimate: estimateOf.get(artId) ?? null,
         burn,
       }),

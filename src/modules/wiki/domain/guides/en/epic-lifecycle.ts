@@ -510,7 +510,7 @@ export const EPIC_LIFECYCLE_EN: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Break-even, benefit velocity against the plan, the cost curve against the cost-neutrality target, and the waterfall “value by maturity state” against the respective top goal's target.",
+              text: "Break-even, benefit velocity against the plan, the cost curve, and the waterfall “value by maturity state” against the respective top goal's target.",
             },
             {
               kind: "paragraph",

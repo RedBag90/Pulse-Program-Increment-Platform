@@ -202,8 +202,8 @@ describe("coverageVerdict", () => {
     plannedUnclassified: { count: 0, jobSize: 0 },
     rate: {
       rate: 600,
-      source: "tenantDefault" as const,
-      artEstimate: null,
+      source: "artEstimate" as const,
+      artEstimate: 600,
       cycles: [],
       caveats: [],
       budgetSum: 0,

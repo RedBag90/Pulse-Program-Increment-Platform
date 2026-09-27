@@ -11,11 +11,9 @@ import {
 } from "@/modules/work/domain/portfolio-guardrails";
 
 /**
- * Saves the configurable Portfolio Dashboard settings — two tenant-wide
- * economic constants:
- *  • `costNeutralTarget` — self-funding threshold per month (€).
- *  • `costPerJobSizePoint` — €/WSJF-Job-Size point, drives the PI-Planning
- *    capacity overlay's €-axis. Leaving it empty hides that axis.
+ * Saves the configurable Portfolio settings — today the SAFe guardrail
+ * targets. The two economic constants that stood here (cost-neutral target,
+ * € per job-size point) were removed in September 2026.
  */
 const guardrailTargetsSchema = z
   .object({
@@ -57,28 +55,12 @@ const guardrailTargetsSchema = z
 
 export const savePortfolioDashboardSettingsAction = createServerAction({
   schema: z.object({
-    costNeutralTarget: z.number().nonnegative().nullable().optional(),
-    costPerJobSizePoint: z.number().nonnegative().nullable().optional(),
     guardrailTargets: guardrailTargetsSchema.optional(),
   }),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => {
     const num = (key: string) => Number(String(fd.get(key) ?? "").trim());
-    // Partial update: only the fields a given form actually submits are sent on
-    // to the service. The cost-settings editor submits `costNeutralTarget`; the
-    // guardrail-targets editor submits `guardrail_*`. Each save owns its own
-    // fields — the other side stays `undefined` (untouched by the service).
-    const numberOrNull = (key: string): number | null => {
-      const raw = String(fd.get(key) ?? "").trim();
-      return raw === "" ? null : Number(raw);
-    };
-    const costFields = fd.has("costNeutralTarget")
-      ? {
-          costNeutralTarget: numberOrNull("costNeutralTarget"),
-          costPerJobSizePoint: numberOrNull("costPerJobSizePoint"),
-        }
-      : {};
     const hasGuardrailFields = fd.has("guardrail_h1_1");
     const guardrailTargets: GuardrailTargets | undefined = hasGuardrailFields
       ? {
@@ -113,10 +95,7 @@ export const savePortfolioDashboardSettingsAction = createServerAction({
           },
         }
       : undefined;
-    return {
-      ...costFields,
-      ...(guardrailTargets !== undefined && { guardrailTargets }),
-    };
+    return guardrailTargets !== undefined ? { guardrailTargets } : {};
   },
   service: (ctx, input) => savePortfolioDashboardSettings(ctx, input),
   onSuccess: () => {

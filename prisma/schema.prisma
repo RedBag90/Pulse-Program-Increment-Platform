@@ -28,7 +28,6 @@ model Tenant {
   createdAt      DateTime @default(now()) @map("created_at")
 
   // Portfolio Dashboard settings (the "Soll" for the economics view).
-  costNeutralTarget   Decimal?  @map("cost_neutral_target") @db.Decimal(14, 2) // self-funding threshold / month
   dashboardHorizonEnd DateTime? @map("dashboard_horizon_end") @db.Date // recurring-benefit accrual end
 
   // Rolling-Window: die Fenstergröße in Halbjahren (nur Anzeige-Horizont).
@@ -39,11 +38,6 @@ model Tenant {
   // Kachel (`activeCycleFromRounds`) — einen einzelnen aktiven Zyklus gibt es
   // im Kachel-Modell nicht.
   budgetWindowSize Int @default(4) @map("budget_window_size")
-
-  // Conversion rate that turns WSJF Job-Size points into € for the PI-Planning
-  // capacity overlay (Σ Job Size × this = €-Demand vs. ART budget). When null,
-  // the €-axis of the capacity badge is hidden — Job Size alone is rendered.
-  costPerJobSizePoint Decimal? @map("cost_per_job_size_point") @db.Decimal(10, 2)
 
   // SAFe Portfolio Guardrails (Roadmap-G1). Targets je Achse summieren auf
   // 100 %; Defaults in `src/domain/portfolio-guardrails.ts`.

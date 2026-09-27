@@ -15,9 +15,9 @@
  * teure Punkte, nicht gar keine. Bis September 2026 wurden solche Halbjahre
  * uebersprungen, und der Satz griff auf aeltere zurueck.
  *
- * Der tenant-weite `costPerJobSizePoint` bleibt der Rückfall. Er wird heute
- * gepflegt und angezeigt, aber **nirgends multipliziert** — die Fläche, für die
- * er gebaut wurde, gibt es nicht mehr.
+ * Ohne Historie greift die **Schätzung je ART**. Einen tenant-weiten
+ * Rückfall (`Tenant.costPerJobSizePoint`) gab es bis September 2026; er ist
+ * entfallen — ein Satz für alle ARTs kannte keines davon.
  *
  * Der Satz ist eine **Beobachtung, keine Vorgabe**. Deshalb trägt das Ergebnis
  * seine Herkunft mit: Zeitraum, Budget, Punkte, Zahl der Features — und die
@@ -47,10 +47,9 @@ export interface ThroughputCycle {
 
 /**
  * Woher der Satz kommt. `artEstimate` — eine Schätzung, die jemand für dieses
- * ART eingetragen hat, weil die Historie keinen Satz hergibt; sie geht dem
- * Mandanten-Satz vor, weil sie das ART kennt.
+ * ART eingetragen hat, weil die Historie keinen Satz hergibt.
  */
-export type RateSource = "empirical" | "artEstimate" | "tenantDefault" | "none";
+export type RateSource = "empirical" | "artEstimate" | "none";
 
 export interface JobSizeRate {
   source: RateSource;
@@ -106,10 +105,9 @@ export const RATE_WINDOW = 2;
 export interface RateInput {
   /** Abgeschlossene Zyklen, beliebige Reihenfolge. */
   cycles: readonly ThroughputCycle[];
-  tenantDefault: number | null;
   /**
    * Die Schätzung dieses ARTs (`Art.jobSizeRateEstimate`). Sie greift **nur**,
-   * wenn die Historie keinen Satz hergibt — vor dem Mandanten-Satz.
+   * wenn die Historie keinen Satz hergibt.
    */
   artEstimate?: number | null;
   /** Features ohne Abschlussdatum **und** ohne PI-Ende — sie fehlen im Nenner. */
@@ -147,13 +145,8 @@ export function deriveJobSizeRate(input: RateInput): JobSizeRate {
 
   if (jobSizeSum === 0 || cycles.length === 0) {
     return {
-      source:
-        artEstimate != null
-          ? "artEstimate"
-          : input.tenantDefault != null
-            ? "tenantDefault"
-            : "none",
-      rate: artEstimate ?? input.tenantDefault,
+      source: artEstimate != null ? "artEstimate" : "none",
+      rate: artEstimate,
       artEstimate,
       cycles: [],
       budgetSum: 0,

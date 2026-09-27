@@ -49,8 +49,6 @@ const NOW = new Date("2026-06-01T00:00:00.000Z");
 const data = (epics: EpicEconomicsDTO[]): PortfolioEconomicsData => ({
   epics,
   axisFromIso: "2026-01-01",
-  costNeutralTarget: null,
-  costPerJobSizePoint: null,
 });
 
 describe("buildPortfolioSeries — DTO + slicer window → series", () => {

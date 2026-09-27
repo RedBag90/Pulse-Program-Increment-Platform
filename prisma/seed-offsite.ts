@@ -237,11 +237,6 @@ async function main() {
       status: "active",
       enabledModules: [...MODULE_KEYS],
       dashboardHorizonEnd: addDays(OFFSITE_AT, 30),
-      // PB-Default-Aufwand: Kosten-Richtwert im Ballot für nur-Hypothese-Epics.
-      // Ein Job-Size-Punkt Planungsaufwand ≈ ein Personentag.
-      costPerJobSizePoint: 600,
-      // Kleiner, sichtbarer Richtwert, damit die Benefit-Velocity-Ziel-Linie rendert.
-      costNeutralTarget: 5_000,
       guardrailTargets: {
         // Grossgeschriebene Horizont-Schluessel und ein Feld `enablerRatio`,
         // das es nie gab: der Parser kannte beides nicht, das JSON fiel

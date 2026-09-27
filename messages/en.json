@@ -1632,10 +1632,6 @@
       "keineEpicsFuerDie": "No epics for the current filters.",
       "stichtag": "As-of date",
       "ansicht": "View",
-      "zielwertKostenneutralerBetriebMonat": "Target for cost-neutral operation (€/month)",
-      "proWsjfJobSize": "€ per WSJF job-size point",
-      "leerAchseAus": "empty = € axis off",
-      "gespeichert": "Saved.",
       "zielen": "goals",
       "ziel": "Goal",
       "istRealisiert": "Actual / realised",
@@ -1659,8 +1655,7 @@
       "wertJeStatusLueckeZumZiel": "Value by status & gap to goal",
       "zielMitWert": "Goal {value}",
       "zielOptionMitWert": "{title} · goal {value}",
-      "nochKeineMessbarenZieleMitZielwert": "No measurable goals with a target value yet. Create a goal with a target value in <link>goals</link> and link epics to it.",
-      "speichertLaeuft": "Saving…"
+      "nochKeineMessbarenZieleMitZielwert": "No measurable goals with a target value yet. Create a goal with a target value in <link>goals</link> and link epics to it."
     },
     "guardrails": {
       "businessOwnerEngagement": "Business owner engagement",
@@ -1723,7 +1718,6 @@
     "common": {
       "art": "ART",
       "kpi": "KPI",
-      "example100": "e.g. 100",
       "example10000": "e.g. 10000",
       "viewVariant": "Overview variant"
     },
@@ -2259,7 +2253,6 @@
     },
     "art": {
       "gedeckt": "Covered",
-      "derTenantWeiteVorgabewert": "— the tenant-wide default, because no rate can be derived from history.",
       "wederAusDerHistorie": "— neither derivable from history nor set as a default.",
       "dieLastIstDie": "The load is the",
       "summe": "sum",
@@ -2556,7 +2549,6 @@
       "ohneSatzInSumme": "Without a rate and therefore not in the sum: {names}.",
       "quelleEmpirisch": "empirical",
       "quelleSchaetzung": "estimated",
-      "quelleVorgabe": "default",
       "quelleKeiner": "no rate",
       "grundKeinBudget": "no budget",
       "wieGerechnet": "How is this calculated?",

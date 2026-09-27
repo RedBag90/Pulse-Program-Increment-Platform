@@ -1,7 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { authorize } from "@/server/auth/authorize";
 import { getPortfolioEconomics } from "@/modules/work/server/services/portfolio-dashboard";
 import { getEpicAllocationMaps } from "@/modules/budgeting/server/services/epic-allocation";
 import { getGoalBenefitWaterfalls } from "@/modules/work/server/views/goal-benefit-waterfalls";
@@ -37,8 +36,6 @@ export default async function PortfolioDashboardPage() {
     getGoalBenefitWaterfalls(db, principal.tenantId),
   ]);
 
-  const canEdit = authorize("target.manage", { tenantId: principal.tenantId }, principal).allow;
-
   return (
     <Page>
       <PageHeader
@@ -69,7 +66,7 @@ export default async function PortfolioDashboardPage() {
           {t("work.dashboard.nochKeinEpicMit")}
         </div>
       ) : (
-        <PortfolioDashboard data={data} canEdit={canEdit} goalWaterfalls={goalWaterfalls} />
+        <PortfolioDashboard data={data} goalWaterfalls={goalWaterfalls} />
       )}
     </Page>
   );

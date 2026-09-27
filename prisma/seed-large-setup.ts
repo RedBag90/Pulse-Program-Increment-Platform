@@ -66,10 +66,8 @@ export async function seedSkeleton(ctx: SeedContext): Promise<void> {
     where: { id: tenantId },
     data: {
       enabledModules: [],
-      costNeutralTarget: 500_000,
       dashboardHorizonEnd: LAST_CYCLE_END,
       budgetWindowSize: 4,
-      costPerJobSizePoint: 1_500,
       guardrailTargets: {
         horizon: { h3: 10, h2: 25, h1: 55, h0: 10 },
         capacity: { business: 60, enabler: 30, maintenance: 10 },
