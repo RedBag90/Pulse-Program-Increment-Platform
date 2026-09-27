@@ -41,10 +41,18 @@ export interface VelocityInput {
   status: string;
   capacity: number | null;
   delivered: number;
-  /** Σ Business Value der abgeschlossenen Features — nur Auskunft. */
+  /** Σ Business Value der abgeschlossenen Features (Plan) — nur Auskunft. */
   businessValue: number;
-  /** Σ WSJF-Score der abgeschlossenen Features — nur Auskunft. */
+  /** Σ WSJF-Score der abgeschlossenen Features (Plan) — nur Auskunft. */
   wsjf: number;
+  /** Σ Business Value Ist (bestätigt, sonst Plan) — nur Auskunft. */
+  businessValueActual: number;
+  /** Σ WSJF Ist (mit Ist-Business-Value, sonst Plan) — nur Auskunft. */
+  wsjfActual: number;
+  /** Abgeschlossene Features mit bestätigtem Business Value. */
+  confirmedCount: number;
+  /** Abgeschlossene Features — der Nenner zu `confirmedCount`. */
+  completedCount: number;
 }
 
 /** Warum ein PI im Fenster nicht in den Mittelwert eingeht. */
@@ -58,6 +66,10 @@ export interface VelocityRow {
   delivered: number;
   businessValue: number;
   wsjf: number;
+  businessValueActual: number;
+  wsjfActual: number;
+  confirmedCount: number;
+  completedCount: number;
   capacity: number | null;
   /** delivered ÷ capacity; `null` ohne Kapazität. */
   ratio: number | null;
@@ -104,6 +116,10 @@ export function artVelocity(pis: readonly VelocityInput[], window: VelocityWindo
       delivered: p.delivered,
       businessValue: p.businessValue,
       wsjf: p.wsjf,
+      businessValueActual: p.businessValueActual,
+      wsjfActual: p.wsjfActual,
+      confirmedCount: p.confirmedCount,
+      completedCount: p.completedCount,
       capacity: p.capacity,
       ratio: p.capacity != null && p.capacity > 0 ? p.delivered / p.capacity : null,
       skip: skipOf(p),
@@ -140,6 +156,10 @@ export function streamVelocity(perArt: readonly ArtVelocity[]): StreamVelocity {
         cur.delivered += r.delivered;
         cur.businessValue += r.businessValue;
         cur.wsjf += r.wsjf;
+        cur.businessValueActual += r.businessValueActual;
+        cur.wsjfActual += r.wsjfActual;
+        cur.confirmedCount += r.confirmedCount;
+        cur.completedCount += r.completedCount;
         cur.capacity = (cur.capacity ?? 0) + (r.capacity ?? 0);
       }
     }

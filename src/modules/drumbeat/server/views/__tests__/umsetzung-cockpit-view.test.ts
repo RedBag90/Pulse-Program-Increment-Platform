@@ -91,6 +91,7 @@ function featureRow(partial: Partial<CockpitFeatureRow> & { id: string }): Cockp
     wsjfBusinessValue: null,
     wsjfTimeCriticality: null,
     wsjfRiskReduction: null,
+    wsjfBusinessValueActual: null,
     featureType: null,
     art: { id: "art-1", name: "ART 1" },
     parent: null,
@@ -229,6 +230,10 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
       delivered: 0,
       businessValue: 0,
       wsjf: 0,
+      businessValueActual: 0,
+      wsjfActual: 0,
+      confirmedCount: 0,
+      completedCount: 0,
     },
     {
       id: "q2",
@@ -240,6 +245,10 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
       delivered: 0,
       businessValue: 0,
       wsjf: 0,
+      businessValueActual: 0,
+      wsjfActual: 0,
+      confirmedCount: 0,
+      completedCount: 0,
     },
     {
       id: "q3",
@@ -251,6 +260,10 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
       delivered: 0,
       businessValue: 0,
       wsjf: 0,
+      businessValueActual: 0,
+      wsjfActual: 0,
+      confirmedCount: 0,
+      completedCount: 0,
     },
     {
       id: "q4",
@@ -262,6 +275,10 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
       delivered: 0,
       businessValue: 0,
       wsjf: 0,
+      businessValueActual: 0,
+      wsjfActual: 0,
+      confirmedCount: 0,
+      completedCount: 0,
     },
   ];
 
@@ -318,6 +335,10 @@ describe("buildCockpitModel — selected-PI governance scope", () => {
       delivered: 0,
       businessValue: 0,
       wsjf: 0,
+      businessValueActual: 0,
+      wsjfActual: 0,
+      confirmedCount: 0,
+      completedCount: 0,
     },
     {
       id: "q2",
@@ -329,6 +350,10 @@ describe("buildCockpitModel — selected-PI governance scope", () => {
       delivered: 0,
       businessValue: 0,
       wsjf: 0,
+      businessValueActual: 0,
+      wsjfActual: 0,
+      confirmedCount: 0,
+      completedCount: 0,
     },
     {
       id: "q3",
@@ -340,6 +365,10 @@ describe("buildCockpitModel — selected-PI governance scope", () => {
       delivered: 0,
       businessValue: 0,
       wsjf: 0,
+      businessValueActual: 0,
+      wsjfActual: 0,
+      confirmedCount: 0,
+      completedCount: 0,
     },
   ];
   const base = {
@@ -597,6 +626,10 @@ describe("buildCockpitModel — der PI-Scope grenzt ein, außer im Board", () =>
       delivered: 0,
       businessValue: 0,
       wsjf: 0,
+      businessValueActual: 0,
+      wsjfActual: 0,
+      confirmedCount: 0,
+      completedCount: 0,
     },
     {
       id: "q2",
@@ -608,6 +641,10 @@ describe("buildCockpitModel — der PI-Scope grenzt ein, außer im Board", () =>
       delivered: 0,
       businessValue: 0,
       wsjf: 0,
+      businessValueActual: 0,
+      wsjfActual: 0,
+      confirmedCount: 0,
+      completedCount: 0,
     },
   ];
   const base = {
@@ -700,6 +737,10 @@ describe("buildCockpitModel — die Kachel-Zahl folgt den Filtern", () => {
       delivered: 0,
       businessValue: 0,
       wsjf: 0,
+      businessValueActual: 0,
+      wsjfActual: 0,
+      confirmedCount: 0,
+      completedCount: 0,
     },
   ];
   const base = {
@@ -855,6 +896,10 @@ describe("buildCockpitModel — Job-Size-Ziel aus der Formel", () => {
     delivered,
     businessValue: 0,
     wsjf: 0,
+    businessValueActual: 0,
+    wsjfActual: 0,
+    confirmedCount: 0,
+    completedCount: 0,
   });
   const base = {
     arts: [

@@ -7,6 +7,7 @@ import { FEATURE_TYPE_STRIPE } from "@/modules/drumbeat/features/lib/feature-typ
 import { FEATURE_TYPE_KEYS } from "@/modules/work/domain/portfolio-guardrails";
 import { FeatureScore } from "@/modules/drumbeat/features/cockpit/components/feature-score";
 import { FeatureBlockers } from "@/modules/drumbeat/features/cockpit/components/feature-blockers";
+import { FeatureBvActual } from "@/modules/drumbeat/features/cockpit/components/feature-bv-actual";
 import { initials } from "@/components/detail/initiative-labels";
 
 /**
@@ -100,6 +101,7 @@ export function FeatureCardBody({
           )}
         </span>
         <span className="flex shrink-0 items-center gap-1.5">
+          <FeatureBvActual feature={feature} />
           <FeatureBlockers blockers={feature.blockers} successors={feature.successors} />
           <FeatureScore
             feature={feature}

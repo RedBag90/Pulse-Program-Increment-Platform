@@ -92,6 +92,12 @@ export type AuditAction =
   | "pi.completed"
   | "pi.cadence.advanced"
   | "pi.deleted"
+  // PI-Feedback: Business Owner bestätigen den Business Value der gelieferten
+  // Features; „übernommen" schreibt den Ist-Wert je Feature.
+  | "pi.feedback.requested"
+  | "pi.feedback.submitted"
+  | "pi.feedback.applied"
+  | "initiative.bv_actual.applied"
   | "pi_standard.created"
   | "pi_standard.deleted"
   | "system_demo.created"

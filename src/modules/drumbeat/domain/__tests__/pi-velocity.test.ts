@@ -21,6 +21,10 @@ const pi = (
   delivered,
   businessValue: 0,
   wsjf: 0,
+  businessValueActual: 0,
+  wsjfActual: 0,
+  confirmedCount: 0,
+  completedCount: 0,
   ...extra,
 });
 
@@ -107,6 +111,34 @@ describe("streamVelocity — Σ geliefert ÷ Σ Kapazität", () => {
     expect(a.rows[0]).toMatchObject({ businessValue: 40, wsjf: 12.5 });
     const s = streamVelocity([a, b, ohne]);
     expect(s.rows[0]).toMatchObject({ businessValue: 48, wsjf: 15.5 });
+  });
+
+  it("Ist und Bestätigungen summiert der Wertstrom wie den Plan", () => {
+    const a = artVelocity(
+      [
+        pi("p1", "2025-12-01", 30, 10, "completed", {
+          businessValueActual: 50,
+          confirmedCount: 2,
+          completedCount: 3,
+        }),
+      ],
+      FENSTER,
+    );
+    const b = artVelocity(
+      [
+        pi("p1", "2025-12-01", 10, 30, "completed", {
+          businessValueActual: 8,
+          confirmedCount: 0,
+          completedCount: 1,
+        }),
+      ],
+      FENSTER,
+    );
+    expect(streamVelocity([a, b]).rows[0]).toMatchObject({
+      businessValueActual: 58,
+      confirmedCount: 2,
+      completedCount: 4,
+    });
   });
 
   it("gemeinsame Taktung: ein PI, die Summen beider ARTs", () => {

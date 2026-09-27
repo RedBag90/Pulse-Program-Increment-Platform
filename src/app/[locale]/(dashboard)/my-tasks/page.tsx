@@ -29,6 +29,8 @@ import { MyApprovalsList } from "@/modules/work/features/my-approvals/components
 import { listMyHelpRequests } from "@/modules/work/server/services/my-help-requests";
 import { HelpRequestsSection } from "@/modules/work/features/my-tasks/components/help-requests-section";
 import { Page, PageHeader } from "@/components/layout";
+import { listMyPiFeedbackTasks } from "@/modules/drumbeat/server/views/pi-feedback-view";
+import { PiFeedbackTasksSection } from "@/modules/drumbeat/features/feedback/components/pi-feedback-tasks-section";
 
 /** Pickt den jüngsten KPI-Messwert (gleicher Helper wie auf /portfolio/epics). */
 interface KpiMeasurement {
@@ -310,6 +312,12 @@ export default async function MyTasksPage() {
     roles: principal.roles,
   });
 
+  // PI-Feedback: Runden, in denen ich benannt bin (Drumbeat, am
+  // Kompositionsroot geladen wie Budgeting).
+  const feedbackTasks = principal.enabledModules.includes("drumbeat")
+    ? await listMyPiFeedbackTasks(db, tenantId, principal.id)
+    : [];
+
   return (
     <Page>
       <PageHeader
@@ -325,6 +333,7 @@ export default async function MyTasksPage() {
           showWsjf={practices.wsjf}
           notices={
             <>
+              <PiFeedbackTasksSection tasks={feedbackTasks} userLabels={userLabels} />
               <HelpRequestsSection tasks={helpRequests} userLabels={userLabels} />
               <BudgetingTasksSection tasks={budgetingTasks} funding={artFundingTasks} />
             </>

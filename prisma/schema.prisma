@@ -74,6 +74,9 @@ model Tenant {
   artEpicAllocations    ArtEpicAllocation[]
   artOwnWorkAllocations ArtOwnWorkAllocation[]
   artPiCapacities       ArtPiCapacity[]
+  piFeedbackRequests    PiFeedbackRequest[]
+  piFeedbackReviewers   PiFeedbackReviewer[]
+  piFeedbackAnswers     PiFeedbackAnswer[]
 
   @@index([status])
   @@map("tenants")
@@ -638,6 +641,7 @@ model Art {
   epicAllocations    ArtEpicAllocation[]
   ownWorkAllocations ArtOwnWorkAllocation[]
   piCapacities       ArtPiCapacity[]
+  piFeedbackRequests PiFeedbackRequest[]
 
   // Active-row uniqueness via a partial unique index (see prisma/manual-indexes.sql).
   @@index([timelineId])
@@ -738,12 +742,13 @@ model ProgramIncrement {
   retrospectiveNotes String?   @map("retrospective_notes") @db.Text
   retrospectiveAt    DateTime? @map("retrospective_at")
 
-  art           Art?            @relation(fields: [artId], references: [id])
-  timeline      Timeline?       @relation(fields: [timelineId], references: [id], onDelete: Cascade)
-  initiatives   Initiative[]
-  issues        Issue[]
-  systemDemo    SystemDemo?
-  artCapacities ArtPiCapacity[]
+  art              Art?                @relation(fields: [artId], references: [id])
+  timeline         Timeline?           @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  initiatives      Initiative[]
+  issues           Issue[]
+  systemDemo       SystemDemo?
+  artCapacities    ArtPiCapacity[]
+  feedbackRequests PiFeedbackRequest[]
 
   @@unique([timelineId, name])
   @@index([timelineId])
@@ -829,11 +834,17 @@ model Initiative {
   piId          String? @map("pi_id") @db.Uuid // FEATURE only
 
   // WSJF fields (FEATURE only)
-  wsjfBusinessValue   Int?     @map("wsjf_business_value")
-  wsjfTimeCriticality Int?     @map("wsjf_time_criticality")
-  wsjfRiskReduction   Int?     @map("wsjf_risk_reduction")
-  wsjfJobSize         Int?     @map("wsjf_job_size")
-  wsjfComputed        Decimal? @map("wsjf_computed") @db.Decimal(5, 2)
+  wsjfBusinessValue       Int?     @map("wsjf_business_value")
+  wsjfTimeCriticality     Int?     @map("wsjf_time_criticality")
+  wsjfRiskReduction       Int?     @map("wsjf_risk_reduction")
+  wsjfJobSize             Int?     @map("wsjf_job_size")
+  wsjfComputed            Decimal? @map("wsjf_computed") @db.Decimal(5, 2)
+  /// Der Business Value, den der Business Owner nach der Lieferung bestätigt
+  /// hat (PI-Feedback) — der Ist-Wert neben dem geplanten `wsjfBusinessValue`.
+  wsjfBusinessValueActual Int?     @map("wsjf_business_value_actual")
+  /// WSJF mit Ist-Business-Value, TC/RR/JS wie geplant. Gespeichert wie
+  /// `wsjfComputed`, damit Summen je PI per Abfrage gehen.
+  wsjfComputedActual      Decimal? @map("wsjf_computed_actual") @db.Decimal(5, 2)
 
   // Epic artefacts (EPIC only – stored as versioned JSON)
   benefitHypothesis Json? @map("benefit_hypothesis") // L1 Reviewing
@@ -968,6 +979,7 @@ model Initiative {
   dependenciesIn     Dependency[]          @relation("To")
   kpis               Kpi[]
   gateTransitions    StageGateTransition[]
+  piFeedbackAnswers  PiFeedbackAnswer[]
   themeLinks         ThemeEpicLink[]
   goalLinks          GoalEpicLink[]
   budgetAllocation   BudgetAllocation?
@@ -1898,4 +1910,75 @@ model ArtPiCapacity {
   @@unique([artId, piId])
   @@index([tenantId, piId])
   @@map("art_pi_capacities")
+}
+
+/// **PI-Feedback:** eine Runde, in der benannte Personen (meist der Business
+/// Owner) den Business Value der abgeschlossenen Features eines ARTs in einem
+/// PI bestätigen oder korrigieren. Mit „Übernehmen" (`applied`) schreibt die
+/// Runde `Initiative.wsjfBusinessValueActual`.
+///
+/// Welche Features gefragt sind, wird nicht eingefroren: es sind die
+/// abgeschlossenen Features des ARTs im PI, wie sie beim Antworten stehen.
+model PiFeedbackRequest {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  piId        String    @map("pi_id") @db.Uuid
+  artId       String    @map("art_id") @db.Uuid
+  status      String    @default("open") // open | applied
+  dueDate     DateTime? @map("due_date") @db.Date
+  requestedBy String    @map("requested_by") @db.Uuid
+  requestedAt DateTime  @default(now()) @map("requested_at")
+  appliedBy   String?   @map("applied_by") @db.Uuid
+  appliedAt   DateTime? @map("applied_at")
+
+  tenant    Tenant               @relation(fields: [tenantId], references: [id])
+  pi        ProgramIncrement     @relation(fields: [piId], references: [id], onDelete: Cascade)
+  art       Art                  @relation(fields: [artId], references: [id], onDelete: Cascade)
+  reviewers PiFeedbackReviewer[]
+
+  // „Höchstens eine offene Runde je ART und PI" ist ein partieller
+  // Unique-Index (WHERE status = 'open'), siehe prisma/manual-indexes.sql.
+  @@index([tenantId, piId, artId, requestedAt(sort: Desc)])
+  @@map("pi_feedback_requests")
+}
+
+/// Eine benannte Feedback-Person an einer Runde — trägt ihren Eintrag in
+/// „My Tasks".
+model PiFeedbackReviewer {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  requestId   String    @map("request_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  status      String    @default("pending") // pending | submitted
+  submittedAt DateTime? @map("submitted_at")
+  createdBy   String    @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  tenant  Tenant             @relation(fields: [tenantId], references: [id])
+  request PiFeedbackRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  answers PiFeedbackAnswer[]
+
+  @@unique([requestId, userId])
+  // Trägt „My Tasks" — der Zugriffspfad der Feedback-Person.
+  @@index([userId, status])
+  @@map("pi_feedback_reviewers")
+}
+
+/// Die Antwort einer Person zu einem Feature: ihr Business Value (Fibonacci)
+/// und optional warum.
+model PiFeedbackAnswer {
+  id            String  @id @default(uuid()) @db.Uuid
+  tenantId      String  @map("tenant_id") @db.Uuid
+  reviewerId    String  @map("reviewer_id") @db.Uuid
+  featureId     String  @map("feature_id") @db.Uuid
+  businessValue Int     @map("business_value")
+  comment       String? @db.Text
+
+  tenant   Tenant             @relation(fields: [tenantId], references: [id])
+  reviewer PiFeedbackReviewer @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+  feature  Initiative         @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewerId, featureId])
+  @@index([featureId])
+  @@map("pi_feedback_answers")
 }

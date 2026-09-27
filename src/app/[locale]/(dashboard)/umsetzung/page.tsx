@@ -10,6 +10,7 @@ import {
 } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { loadCockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 import { CockpitShell } from "@/modules/drumbeat/features/cockpit/components/cockpit-shell";
+import { loadPiFeedbackPanel } from "@/modules/drumbeat/server/views/pi-feedback-view";
 
 const FEATURE_STATUSES: readonly FeatureStatus[] = [
   "approved",
@@ -84,9 +85,23 @@ export default async function UmsetzungCockpitPage({ searchParams }: PageProps) 
       : Promise.resolve(null),
   ]);
 
+  // PI-Feedback hängt am gewählten ART und PI — erst nach dem Modell bekannt.
+  const feedback =
+    model.selectedArt && model.selectedPi && model.selectedPi.status !== "planned"
+      ? await loadPiFeedbackPanel(db, principal, {
+          piId: model.selectedPi.id,
+          artId: model.selectedArt.id,
+        })
+      : null;
+
   return (
     <Suspense fallback={null}>
-      <CockpitShell model={model} slideOverDetail={slideOverDetail} tenantId={principal.tenantId} />
+      <CockpitShell
+        model={model}
+        slideOverDetail={slideOverDetail}
+        tenantId={principal.tenantId}
+        feedback={feedback}
+      />
     </Suspense>
   );
 }

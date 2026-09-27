@@ -77,6 +77,8 @@ export function demoEpicDetailInputs(): EpicDetailInputs {
     wsjfRiskReduction: null,
     wsjfJobSize: null,
     wsjfComputed: null,
+    wsjfBusinessValueActual: null,
+    wsjfComputedActual: null,
     // Die Parser akzeptieren die flache Form — kein Versions-Umschlag nötig.
     benefitHypothesis: {
       measuresHypothesis: "Anteil digital abgeschlossener Vorgänge",

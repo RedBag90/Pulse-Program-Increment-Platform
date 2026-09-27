@@ -34,3 +34,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS arts_tenant_name_active
 CREATE UNIQUE INDEX IF NOT EXISTS stage_gate_transitions_one_open
   ON stage_gate_transitions (initiative_id)
   WHERE status = 'pending';
+
+-- ---------------------------------------------------------------------------
+-- PI-Feedback: höchstens EINE offene Runde je ART und PI. Eine weitere
+-- Anfrage ergänzt die offene Runde um Personen; erst nach „Übernehmen"
+-- (status = 'applied') darf eine neue beginnen.
+-- ---------------------------------------------------------------------------
+
+CREATE UNIQUE INDEX IF NOT EXISTS pi_feedback_requests_one_open
+  ON pi_feedback_requests (pi_id, art_id)
+  WHERE status = 'open';

@@ -10,6 +10,8 @@ import {
   PiTargetDerivation,
 } from "@/modules/drumbeat/features/cockpit/components/pi-job-size";
 import { PiCapacityField } from "@/modules/drumbeat/features/cockpit/components/pi-capacity-field";
+import { PiFeedbackControls } from "@/modules/drumbeat/features/cockpit/components/pi-feedback-controls";
+import type { PiFeedbackPanel } from "@/modules/drumbeat/server/views/pi-feedback-view";
 
 /**
  * PI-Kontext-Leiste des Cockpits — ersetzt die frühere eigenständige
@@ -30,6 +32,11 @@ interface Props {
   canDelete: boolean;
   /** `pi.update` — die Kapazität setzen. */
   canEditPi: boolean;
+  /**
+   * PI-Feedback dieses ARTs im PI — „einsammeln" und „einsehen". `null` beim
+   * geplanten PI: es hat noch nichts geliefert.
+   */
+  feedback: PiFeedbackPanel | null;
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -60,7 +67,15 @@ function formatDate(d: Date, locale: Locale) {
   });
 }
 
-export function CockpitPiContext({ pi, artId, canStart, canAdvance, canDelete, canEditPi }: Props) {
+export function CockpitPiContext({
+  pi,
+  artId,
+  canStart,
+  canAdvance,
+  canDelete,
+  canEditPi,
+  feedback,
+}: Props) {
   const t = useTranslations();
   const locale = useLocale() as Locale;
   const badgeClass = STATUS_BADGE[pi.status] ?? "bg-muted text-muted-foreground";
@@ -114,7 +129,10 @@ export function CockpitPiContext({ pi, artId, canStart, canAdvance, canDelete, c
       )}
       <PiTargetDerivation pi={pi} />
 
-      <div className="ml-auto flex shrink-0 items-center gap-2">
+      <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
+        {feedback && pi.status !== "planned" && (
+          <PiFeedbackControls piId={pi.id} artId={artId} panel={feedback} />
+        )}
         {pi.status === "planned" && canStart && (
           <PiTransitionButton piId={pi.id} artId={artId} currentStatus="planned" />
         )}

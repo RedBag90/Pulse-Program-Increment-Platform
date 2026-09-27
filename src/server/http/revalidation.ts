@@ -31,6 +31,7 @@ export type RevalidationResource =
   | "budgetPeriodList"
   | "rtbItem"
   | "pi"
+  | "piFeedback"
   | "piStandard"
   | "budgetPlanRevision"
   | "timeline"
@@ -136,6 +137,14 @@ export const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/budgeting/value-streams/[id]",
   ],
   pi: ["/umsetzung", "/structure", "/pi/[piId]", "/pi-planning"],
+  // PI-Feedback: das Cockpit (Knöpfe, Kacheln), der Posteingang der
+  // Feedback-Personen, ihre Seite und die Velocity in den Budget-KPIs.
+  piFeedback: [
+    "/umsetzung",
+    "/umsetzung/feedback/[requestId]",
+    "/my-tasks",
+    "/budgeting/value-streams/[id]",
+  ],
   piStandard: ["/structure", "/structure/value-stream/[id]", "/budgeting/value-streams/[id]"],
   budgetPlanRevision: ["/budgeting", "/budgeting/budget-plan", "/budgeting/budget-plan/[id]"],
   // `/budgeting/rounds` (Plural) stand hier, seit die Kachel-Gallery nach

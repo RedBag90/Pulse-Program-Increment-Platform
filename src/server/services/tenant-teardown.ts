@@ -69,6 +69,11 @@ export const TENANT_TEARDOWN_ORDER: readonly TeardownStep[] = [
   // ── Initiative-Nebentabellen (ADR-0018: Approval → Transition → Initiative)
   { model: "stageGateApproval" },
   { model: "stageGateTransition" },
+  // PI-Feedback: Antwort → Person → Runde; die Antwort haengt am Feature,
+  // die Runde an PI und ART — alles vor den Initiativen.
+  { model: "piFeedbackAnswer" },
+  { model: "piFeedbackReviewer" },
+  { model: "piFeedbackRequest" },
   { model: "kpi" },
   { model: "dependency" },
   { model: "initiativeGraphPosition" },

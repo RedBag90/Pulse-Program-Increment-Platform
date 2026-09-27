@@ -38,6 +38,9 @@ export type Action =
   | "pi.start"
   | "pi.complete"
   | "pi.advance"
+  | "pi.feedback.request"
+  | "pi.feedback.apply"
+  | "pi.feedback.submit"
   | "pi.delete"
   | "pi_standard.manage"
   | "dependency.link"
@@ -349,6 +352,14 @@ export const POLICIES: Record<Action, Grant[]> = {
   "pi.start": [{ roles: [RTE, VALUE_STREAM_OWNER] }],
   "pi.complete": [{ roles: [RTE, VALUE_STREAM_OWNER] }],
   "pi.advance": [{ roles: [RTE, VALUE_STREAM_OWNER] }],
+  // PI-Feedback: wer die Kadenz fortschreibt, fragt auch nach, ob der
+  // gelieferte Business Value stimmt, und übernimmt die Antworten. Antworten
+  // darf, wer benannt ist — das prüft der Service, keine Capability.
+  "pi.feedback.request": [{ roles: [RTE, VALUE_STREAM_OWNER] }],
+  "pi.feedback.apply": [{ roles: [RTE, VALUE_STREAM_OWNER] }],
+  // Antworten: grober Vorfilter über ALLE Rollen wie `budget.group.contribute`
+  // — maßgeblich ist, dass die Person in der Runde benannt ist (Service).
+  "pi.feedback.submit": [{ roles: ALL_ROLES }],
   "pi.delete": [{ roles: [RTE] }],
 
   // Reusable named PI calendars are an org-structure concern — managed by the

@@ -12,7 +12,7 @@ import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
-import { wsjfWriteFields } from "@/domain/schemas/initiative";
+import { computeWsjf, wsjfWriteFields } from "@/domain/schemas/initiative";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import {
@@ -737,10 +737,21 @@ export async function scoreFeature(
       jobSize: wsjfJobSize,
     });
 
+    // Ein bestätigter Ist-Business-Value (PI-Feedback) bleibt; der WSJF mit
+    // Ist-Wert rechnet mit den neuen TC/RR/JS weiter.
+    const actual = existing.wsjfBusinessValueActual;
     await tx.initiative.update({
       where: { id },
       data: {
         ...fields,
+        ...(actual != null && {
+          wsjfComputedActual: computeWsjf({
+            businessValue: actual as FibonacciValue,
+            timeCriticality: wsjfTimeCriticality,
+            riskReduction: wsjfRiskReduction,
+            jobSize: wsjfJobSize,
+          }),
+        }),
         updatedBy: mctx.actorId,
       },
     });

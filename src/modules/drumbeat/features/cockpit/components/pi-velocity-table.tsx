@@ -24,7 +24,9 @@ import {
  * — dieselbe Zahl mit zwei Rechenwegen darf nicht gleich heissen.
  *
  * Σ Business Value und Σ WSJF stehen auf derselben Menge wie „Geliefert":
- * den abgeschlossenen Features des PIs. Sie sind Auskunft, keine Quote.
+ * den abgeschlossenen Features des PIs. Sie sind Auskunft, keine Quote. Je
+ * Plan und Ist: Ist ist der im PI-Feedback bestätigte Wert, sonst der Plan;
+ * ohne jede Bestätigung steht „—", daneben wie viele bestätigt sind.
  */
 export function PiVelocityTable({
   rows,
@@ -82,24 +84,44 @@ export function PiVelocityTable({
         <div className="overflow-x-auto">
           <table className="w-full text-sm tabular-nums">
             <thead className="text-left text-meta text-muted-foreground">
-              <tr className="border-b">
-                <th className="py-1.5 pr-3 font-medium">{t("drumbeat.velocity.pi")}</th>
-                <th className="py-1.5 pr-3 font-medium">{t("drumbeat.velocity.ende")}</th>
-                <th className="py-1.5 pr-3 text-right font-medium">
+              <tr>
+                <th rowSpan={2} className="border-b py-1.5 pr-3 align-bottom font-medium">
+                  {t("drumbeat.velocity.pi")}
+                </th>
+                <th rowSpan={2} className="border-b py-1.5 pr-3 align-bottom font-medium">
+                  {t("drumbeat.velocity.ende")}
+                </th>
+                <th
+                  rowSpan={2}
+                  className="border-b py-1.5 pr-3 text-right align-bottom font-medium"
+                >
                   {t("drumbeat.velocity.geliefert")}
                 </th>
-                <th className="py-1.5 pr-3 text-right font-medium">
+                <th colSpan={2} className="border-l px-3 pt-1.5 text-center font-medium">
                   {t("drumbeat.velocity.businessValue")}
                 </th>
-                <th className="py-1.5 pr-3 text-right font-medium">
+                <th colSpan={2} className="border-l px-3 pt-1.5 text-center font-medium">
                   {t("drumbeat.velocity.wsjf")}
                 </th>
-                <th className="py-1.5 pr-3 text-right font-medium">
+                <th
+                  rowSpan={2}
+                  className="border-b border-l py-1.5 pl-3 pr-3 text-right align-bottom font-medium"
+                >
                   {t("drumbeat.velocity.kapazitaet")}
                 </th>
-                <th className="py-1.5 text-right font-medium">
+                <th rowSpan={2} className="border-b py-1.5 text-right align-bottom font-medium">
                   {t("drumbeat.velocity.jsJeKapazitaet")}
                 </th>
+              </tr>
+              <tr className="border-b">
+                <th className="border-l py-1 pl-3 pr-3 text-right font-normal">
+                  {t("drumbeat.velocity.plan")}
+                </th>
+                <th className="py-1 pr-3 text-right font-normal">{t("drumbeat.velocity.ist")}</th>
+                <th className="border-l py-1 pl-3 pr-3 text-right font-normal">
+                  {t("drumbeat.velocity.plan")}
+                </th>
+                <th className="py-1 pr-3 text-right font-normal">{t("drumbeat.velocity.ist")}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -117,9 +139,15 @@ export function PiVelocityTable({
                   </td>
                   <td className="py-1.5 pr-3">{formatDate(r.endDate, "date", locale)}</td>
                   <td className="py-1.5 pr-3 text-right">{r.delivered}</td>
-                  <td className="py-1.5 pr-3 text-right">{r.businessValue}</td>
-                  <td className="py-1.5 pr-3 text-right">{zahl(r.wsjf)}</td>
-                  <td className="py-1.5 pr-3 text-right">{zahl(r.capacity)}</td>
+                  <td className="border-l py-1.5 pl-3 pr-3 text-right">{r.businessValue}</td>
+                  <td className="py-1.5 pr-3 text-right">
+                    <IstZelle row={r} wert={String(r.businessValueActual)} />
+                  </td>
+                  <td className="border-l py-1.5 pl-3 pr-3 text-right">{zahl(r.wsjf)}</td>
+                  <td className="py-1.5 pr-3 text-right">
+                    <IstZelle row={r} wert={zahl(r.wsjfActual)} />
+                  </td>
+                  <td className="border-l py-1.5 pl-3 pr-3 text-right">{zahl(r.capacity)}</td>
                   <td className="py-1.5 text-right">{zahl(r.ratio)}</td>
                 </tr>
               ))}
@@ -250,5 +278,27 @@ export function PiVelocityRows({
           )}
       </div>
     </Card>
+  );
+}
+
+/**
+ * Eine Ist-Zelle: der Wert und darunter, wie viele Features bestätigt sind.
+ * Ohne jede Bestätigung „—" — sonst stünde der Plan ein zweites Mal da und
+ * sähe bestätigt aus.
+ */
+function IstZelle({ row, wert }: { row: VelocityRow; wert: string }) {
+  const t = useTranslations();
+  if (row.confirmedCount === 0) return <span className="text-muted-foreground">—</span>;
+  const alle = row.confirmedCount === row.completedCount;
+  return (
+    <span className="inline-flex flex-col items-end">
+      <span className="font-medium">{wert}</span>
+      <span className={alle ? "text-label text-muted-foreground" : "text-label text-warning"}>
+        {t("drumbeat.velocity.bestaetigt", {
+          n: row.confirmedCount,
+          total: row.completedCount,
+        })}
+      </span>
+    </span>
   );
 }

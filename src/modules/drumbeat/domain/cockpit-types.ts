@@ -81,6 +81,12 @@ export interface CockpitFeature extends FeatureBreakdown {
   wsjfTimeCriticality: number | null;
   wsjfRiskReduction: number | null;
   /**
+   * Der vom Business Owner bestätigte Business Value (PI-Feedback) — als
+   * „BV 8 → Ist 13" an der Kachel eines abgeschlossenen Features. `null` =
+   * nicht bestätigt.
+   */
+  wsjfBusinessValueActual: number | null;
+  /**
    * Feature, Enabler oder Maintenance; `null` = ohne Typ oder unbekannter Wert.
    * Er färbt den Streifen der Kachel (`FEATURE_TYPE_STRIPE`).
    */

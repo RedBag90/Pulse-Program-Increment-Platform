@@ -298,10 +298,21 @@ export interface CockpitAllPiRow {
    * PI — die Lieferung, aus der die Formel ihre Quote bildet.
    */
   delivered: number;
-  /** Σ Business Value derselben abgeschlossenen Features. */
+  /** Σ Business Value (Plan) derselben abgeschlossenen Features. */
   businessValue: number;
-  /** Σ WSJF-Score (`wsjfComputed`) derselben abgeschlossenen Features. */
+  /** Σ WSJF-Score (`wsjfComputed`, Plan) derselben abgeschlossenen Features. */
   wsjf: number;
+  /**
+   * Σ Business Value **Ist**: der bestätigte Wert aus dem PI-Feedback, sonst
+   * der Plan — ein unbestätigtes Feature zählt, wie es geplant war.
+   */
+  businessValueActual: number;
+  /** Σ WSJF Ist — mit Ist-Business-Value, sonst der Plan-Score. */
+  wsjfActual: number;
+  /** Wie viele der abgeschlossenen Features einen bestätigten Wert tragen. */
+  confirmedCount: number;
+  /** Wie viele Features abgeschlossen sind — der Nenner zu `confirmedCount`. */
+  completedCount: number;
 }
 
 /** Raw feature row of the selected ART (query 6). */
@@ -320,6 +331,8 @@ export interface CockpitFeatureRow {
   wsjfBusinessValue: number | null;
   wsjfTimeCriticality: number | null;
   wsjfRiskReduction: number | null;
+  /** Bestätigter Business Value aus dem PI-Feedback; `null` = offen. */
+  wsjfBusinessValueActual: number | null;
   /** Feature, Enabler, Maintenance — roher Wert; der Builder normalisiert. */
   featureType: string | null;
   /**
@@ -476,6 +489,7 @@ export function buildScopeFeatures(
         wsjfBusinessValue: r.wsjfBusinessValue ?? null,
         wsjfTimeCriticality: r.wsjfTimeCriticality ?? null,
         wsjfRiskReduction: r.wsjfRiskReduction ?? null,
+        wsjfBusinessValueActual: r.wsjfBusinessValueActual ?? null,
         featureType: isFeatureType(r.featureType) ? r.featureType : null,
         hasBlocker: blocking.length > 0,
         blockerHint: blocking[0]?.title ?? null,
@@ -801,6 +815,7 @@ export const COCKPIT_FEATURE_SELECT = {
   wsjfBusinessValue: true,
   wsjfTimeCriticality: true,
   wsjfRiskReduction: true,
+  wsjfBusinessValueActual: true,
   featureType: true,
   pi: { select: { id: true, startDate: true } },
   art: { select: { id: true, name: true } },
@@ -875,8 +890,9 @@ export async function loadArtPiRows(
       where: { tenantId, artId: art.id, piId: { in: piIds } },
       select: { piId: true, capacity: true },
     }),
-    db.initiative.groupBy({
-      by: ["piId"],
+    // Je Feature statt `groupBy`: das Ist fällt je Feature auf den Plan
+    // zurück, und das kann eine Summe in SQL nicht ohne Rohabfrage.
+    db.initiative.findMany({
       where: {
         tenantId,
         level: InitiativeLevel.FEATURE,
@@ -885,18 +901,48 @@ export async function loadArtPiRows(
         piId: { in: piIds },
         status: "completed",
       },
-      _sum: { wsjfJobSize: true, wsjfBusinessValue: true, wsjfComputed: true },
+      select: {
+        piId: true,
+        wsjfJobSize: true,
+        wsjfBusinessValue: true,
+        wsjfBusinessValueActual: true,
+        wsjfComputed: true,
+        wsjfComputedActual: true,
+      },
     }),
   ]);
   const capacityByPi = new Map(capacities.map((c) => [c.piId, Number(c.capacity)]));
-  const deliveredByPi = new Map(geliefert.map((g) => [g.piId ?? "", g._sum] as const));
+  const deliveredByPi = new Map<string, ReturnType<typeof emptyDelivery>>();
+  for (const f of geliefert) {
+    const key = f.piId ?? "";
+    const d = deliveredByPi.get(key) ?? deliveredByPi.set(key, emptyDelivery()).get(key)!;
+    const bv = f.wsjfBusinessValue ?? 0;
+    const wsjf = f.wsjfComputed != null ? Number(f.wsjfComputed) : 0;
+    d.delivered += f.wsjfJobSize ?? 0;
+    d.businessValue += bv;
+    d.wsjf += wsjf;
+    d.businessValueActual += f.wsjfBusinessValueActual ?? bv;
+    d.wsjfActual += f.wsjfComputedActual != null ? Number(f.wsjfComputedActual) : wsjf;
+    d.confirmedCount += f.wsjfBusinessValueActual != null ? 1 : 0;
+    d.completedCount += 1;
+  }
   return piRows.map((p) => ({
     ...p,
     capacity: capacityByPi.get(p.id) ?? null,
-    delivered: deliveredByPi.get(p.id)?.wsjfJobSize ?? 0,
-    businessValue: deliveredByPi.get(p.id)?.wsjfBusinessValue ?? 0,
-    wsjf: Number(deliveredByPi.get(p.id)?.wsjfComputed ?? 0),
+    ...(deliveredByPi.get(p.id) ?? emptyDelivery()),
   }));
+}
+
+function emptyDelivery() {
+  return {
+    delivered: 0,
+    businessValue: 0,
+    wsjf: 0,
+    businessValueActual: 0,
+    wsjfActual: 0,
+    confirmedCount: 0,
+    completedCount: 0,
+  };
 }
 
 /**

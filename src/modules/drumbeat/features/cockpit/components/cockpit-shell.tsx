@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 import type { CockpitModel } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import type { CockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
+import type { PiFeedbackPanel } from "@/modules/drumbeat/server/views/pi-feedback-view";
 import { PageHeader } from "@/components/layout";
 import { CockpitToolbar } from "./cockpit-toolbar";
 import { CockpitCreateFeature } from "./cockpit-create-feature";
@@ -31,9 +32,11 @@ interface Props {
   slideOverDetail: CockpitFeatureDetail | null;
   /** Tenant-Id fuer den Supabase-Realtime-Channel. */
   tenantId: string;
+  /** PI-Feedback des gewählten ARTs im gewählten PI (Kontextleiste). */
+  feedback: PiFeedbackPanel | null;
 }
 
-export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
+export function CockpitShell({ model, slideOverDetail, tenantId, feedback }: Props) {
   const t = useTranslations();
   const {
     availableArts,
@@ -95,6 +98,7 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
             canAdvance={permissions.canAdvance}
             canDelete={permissions.canDelete}
             canEditPi={permissions.canEditPi}
+            feedback={feedback}
           />
         )}
       </div>

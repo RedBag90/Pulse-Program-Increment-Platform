@@ -39,6 +39,7 @@ const feature = (over: Partial<CockpitFeature> = {}): CockpitFeature => ({
   wsjfBusinessValue: null,
   wsjfTimeCriticality: null,
   wsjfRiskReduction: null,
+  wsjfBusinessValueActual: null,
   featureType: null,
   hasBlocker: false,
   blockerHint: null,
