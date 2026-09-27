@@ -95,8 +95,12 @@ function buildDimension(
   epics: readonly GoalWaterfallEpic[],
   selectedEpicIds: ReadonlySet<string> | null,
   epicInfoById: Record<string, WaterfallEpicInfo>,
+  /**
+   * Der Übersetzer der Komponente — hereingereicht, weil diese Funktion in
+   * `useMemo` läuft und dort kein Hook stehen darf.
+   */
+  t: ReturnType<typeof useTranslations>,
 ): WaterfallDimension {
-  const t = useTranslations();
   if (mode === "status") {
     return {
       buckets: STAGE_ORDER.map((gate) => ({
@@ -449,10 +453,10 @@ export function GoalBenefitWaterfallSection({
   const rows = useMemo(() => {
     if (!goal) return [];
     const epics = data.epicsByGoal[goal.id] ?? [];
-    const dimension = buildDimension(groupMode, epics, selectedEpicIds, epicInfoById);
+    const dimension = buildDimension(groupMode, epics, selectedEpicIds, epicInfoById, t);
     const wf = buildGoalWaterfall(goal, epics, selectedEpicIds, dimension);
     return toRows(wf.steps);
-  }, [goal, data.epicsByGoal, selectedEpicIds, groupMode, epicInfoById]);
+  }, [goal, data.epicsByGoal, selectedEpicIds, groupMode, epicInfoById, t]);
 
   if (data.goals.length === 0) {
     return (
