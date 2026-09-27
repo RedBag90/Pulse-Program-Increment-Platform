@@ -11,6 +11,8 @@ import {
 import { loadCockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 import { CockpitShell } from "@/modules/drumbeat/features/cockpit/components/cockpit-shell";
 import { loadPiFeedbackPanel } from "@/modules/drumbeat/server/views/pi-feedback-view";
+import { loadPiLage } from "@/modules/drumbeat/server/views/pi-lage-view";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 
 const FEATURE_STATUSES: readonly FeatureStatus[] = [
   "approved",
@@ -52,7 +54,9 @@ function parseFilters(
  * und P4 (Roadmap).
  */
 function parseView(raw: string | undefined): CockpitView {
-  return raw === "table" || raw === "roadmap" || raw === "network" ? raw : "board";
+  return raw === "lage" || raw === "table" || raw === "roadmap" || raw === "network"
+    ? raw
+    : "board";
 }
 
 interface PageProps {
@@ -85,14 +89,20 @@ export default async function UmsetzungCockpitPage({ searchParams }: PageProps) 
       : Promise.resolve(null),
   ]);
 
-  // PI-Feedback hängt am gewählten ART und PI — erst nach dem Modell bekannt.
-  const feedback =
-    model.selectedArt && model.selectedPi && model.selectedPi.status !== "planned"
-      ? await loadPiFeedbackPanel(db, principal, {
-          piId: model.selectedPi.id,
-          artId: model.selectedArt.id,
-        })
-      : null;
+  // PI-Feedback und Lage hängen am gewählten ART und PI — erst nach dem
+  // Modell bekannt. Die Lage braucht die Sicht „Lage" oder, als Kurzfassung in
+  // der Leiste, ein laufender PI.
+  const art = model.selectedArt;
+  const pi = model.selectedPi;
+  const brauchtLage = pi != null && (model.view === "lage" || pi.status === "active");
+  const [feedback, lage] = await Promise.all([
+    art && pi && pi.status !== "planned"
+      ? loadPiFeedbackPanel(db, principal, { piId: pi.id, artId: art.id })
+      : Promise.resolve(null),
+    art && pi && brauchtLage
+      ? loadPiLage(db, principal.tenantId as TenantId, { piId: pi.id, artId: art.id })
+      : Promise.resolve(null),
+  ]);
 
   return (
     <Suspense fallback={null}>
@@ -101,6 +111,7 @@ export default async function UmsetzungCockpitPage({ searchParams }: PageProps) 
         slideOverDetail={slideOverDetail}
         tenantId={principal.tenantId}
         feedback={feedback}
+        lage={lage}
       />
     </Suspense>
   );

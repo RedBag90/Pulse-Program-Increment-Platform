@@ -6,13 +6,15 @@ import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
 import { ToggleGroup, type ToggleGroupOption } from "@/components/ui/toggle-group";
 
 /**
- * Sicht-Toggle Board / Tabelle / Fahrplan / Netzwerk. URL-Param `?view=<sicht>`,
+ * Sicht-Toggle Lage / Board / Tabelle / Fahrplan / Netzwerk. „Lage" zeigt den
+ * gewählten PI auf einen Blick (`lage/lage-view.tsx`). URL-Param `?view=<sicht>`,
  * Default ist `board` (Entscheidung #1). Filter + Scope ueberleben den
  * Sicht-Wechsel automatisch, weil sie eigene Query-Params sind. Nutzt das
  * geteilte `ToggleGroup`-Primitive (kein Eigenbau-Tablist mehr); Labels folgen
  * dem Wireframe-Vokabular („Fahrplan"/„Netzwerk").
  */
 const TABS: ReadonlyArray<ToggleGroupOption<CockpitView>> = [
+  { id: "lage", label: "Lage" },
   { id: "board", label: "Board" },
   { id: "table", label: "Tabelle" },
   { id: "roadmap", label: "Fahrplan" },

@@ -5,9 +5,10 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "@/i18n/navigation";
 
 /**
- * Subscribed Supabase-Realtime auf die zwei Tabellen, die der Cockpit
- * rendert: `initiatives` (Feature-Status, PI-Zuordnung, Erstellung,
- * Loeschung) und `dependencies` (Blocker-Hinweise). Auf jedes Event
+ * Subscribed Supabase-Realtime auf die Tabellen, die der Cockpit rendert:
+ * `initiatives` (Feature-Status, PI-Zuordnung, Erstellung, Loeschung),
+ * `dependencies` (Blocker-Hinweise) und `issues` (Risiken der Sicht „Lage").
+ * Wirkt nur fuer Tabellen, die in der Publikation `supabase_realtime` stehen. Auf jedes Event
  * triggert ein router.refresh() — die Page-Component laedt das Model
  * neu, Sub-Komponenten rendern via memo nur wo noetig.
  *
@@ -50,6 +51,16 @@ export function useCockpitRealtime(tenantId: string) {
           event: "*",
           schema: "public",
           table: "dependencies",
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        scheduleRefresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "issues",
           filter: `tenant_id=eq.${tenantId}`,
         },
         scheduleRefresh,

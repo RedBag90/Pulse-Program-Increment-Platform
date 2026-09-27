@@ -2,6 +2,9 @@ import { useTranslations } from "next-intl";
 import type { CockpitModel } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import type { CockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 import type { PiFeedbackPanel } from "@/modules/drumbeat/server/views/pi-feedback-view";
+import type { PiLage } from "@/modules/drumbeat/server/views/pi-lage-view";
+import { LageView } from "./lage/lage-view";
+import { LageStrip } from "./lage/lage-strip";
 import { PageHeader } from "@/components/layout";
 import { CockpitToolbar } from "./cockpit-toolbar";
 import { CockpitCreateFeature } from "./cockpit-create-feature";
@@ -34,9 +37,11 @@ interface Props {
   tenantId: string;
   /** PI-Feedback des gewählten ARTs im gewählten PI (Kontextleiste). */
   feedback: PiFeedbackPanel | null;
+  /** Die Lage des gewählten PIs — Sicht „Lage" und Kurzfassung in der Leiste. */
+  lage: PiLage | null;
 }
 
-export function CockpitShell({ model, slideOverDetail, tenantId, feedback }: Props) {
+export function CockpitShell({ model, slideOverDetail, tenantId, feedback, lage }: Props) {
   const t = useTranslations();
   const {
     availableArts,
@@ -101,6 +106,7 @@ export function CockpitShell({ model, slideOverDetail, tenantId, feedback }: Pro
             feedback={feedback}
           />
         )}
+        {view !== "lage" && lage && lage.pi.status === "active" && <LageStrip lage={lage} />}
       </div>
       <CockpitToolbar
         view={view}
@@ -116,6 +122,14 @@ export function CockpitShell({ model, slideOverDetail, tenantId, feedback }: Pro
             title={t("drumbeat.ui.keinArtImScope")}
             body={t("drumbeat.ui.dirIstNochKein")}
             className="h-[420px]"
+          />
+        ) : view === "lage" ? (
+          <LageView
+            lage={lage}
+            feedback={feedback}
+            boardFeatures={features}
+            canSetDelivery={permissions.canSetDelivery}
+            canScoreWsjf={permissions.canScoreWsjf}
           />
         ) : features.length === 0 ? (
           /*

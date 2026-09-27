@@ -31,7 +31,7 @@ import type { PiStatus } from "@/modules/drumbeat/domain/pi-rules";
  * (`?art=<id>`); Persistenz per Cookie ist ein Folgeschritt.
  */
 
-export type CockpitView = "board" | "table" | "roadmap" | "network";
+export type CockpitView = "lage" | "board" | "table" | "roadmap" | "network";
 
 // Board read-model shapes live in `domain/cockpit-types.ts` (so the pure board
 // matrix imports down, not up). Imported for local use here and re-exported so

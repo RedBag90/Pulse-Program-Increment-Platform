@@ -2975,6 +2975,99 @@
       "metaWsjfAenderung": "WSJF {plan} → {ist}",
       "badgeAenderung": "BV {plan}→{ist}",
       "badgeBestaetigt": "BV {ist} ✓"
+    },
+    "lage": {
+      "geplantTitel": "Dieser PI hat noch nicht begonnen",
+      "geplantText": "Die Lage zeigt einen laufenden oder abgeschlossenen PI. Wähle oben einen solchen PI.",
+      "signal": {
+        "planned": "geplant",
+        "onTrack": "im Plan",
+        "behind": "hinterher",
+        "critical": "kritisch",
+        "done": "abgeschlossen"
+      },
+      "lage": "Lage",
+      "endstand": "Endstand: {geliefert} von {plan} JS geliefert.",
+      "unterZeit": "Geliefert liegt {n} Punkte unter dem Zeitanteil. Hinterher ab 6, kritisch ab 16 Punkten.",
+      "ueberZeit": "Geliefert liegt {n} Punkte über dem Zeitanteil.",
+      "zeit": "Zeit",
+      "prozent": "{n} %",
+      "tagVon": "Tag {tag} von {total} · noch {rest} Tage",
+      "geliefert": "Geliefert",
+      "geliefertVon": "{js} von {plan} JS · {n} von {total} Features",
+      "prognose": "Prognose PI-Ende",
+      "prognoseWert": "≈ {n} JS",
+      "prognoseFertig": "Der PI ist abgeschlossen.",
+      "prognoseZuFrueh": "Ab Tag 3 — vorher sagt das Tempo nichts.",
+      "prognoseFehlt": "im bisherigen Tempo · {n} JS fehlen zum Plan",
+      "prognoseReicht": "im bisherigen Tempo reicht es für den Plan",
+      "js": "JS {n}",
+      "burnup": "Burn-up",
+      "burnupUnter": "Job Size über die PI-Tage",
+      "burnupAria": "Burn-up: {geliefert} von {umfang} Job-Size-Punkten geliefert an Tag {tag}",
+      "heute": "heute",
+      "legendeGeliefert": "geliefert",
+      "legendeIdeal": "Ideallinie",
+      "legendeUmfang": "Umfang (springt bei Scope-Änderung)",
+      "legendePrognose": "Prognose",
+      "hilfe": {
+        "titel": "Braucht jetzt Hilfe",
+        "blockiertSeit": "blockiert · seit {n} Tagen",
+        "blockiert": "blockiert",
+        "nurAktiv": "Nur im laufenden PI.",
+        "nichts": "Nichts blockiert."
+      },
+      "scope": {
+        "titel": "Scope seit PI-Start",
+        "vonBis": "{start} → {jetzt} JS",
+        "keine": "Seit dem Start unverändert.",
+        "tag": "Tag {n}",
+        "hineinVon": "hineingeschoben von {name}",
+        "herausVon": "hinausgeschoben von {name}",
+        "heraus": "hinausgeschoben",
+        "angelegtVon": "im PI angelegt von {name}",
+        "hinein": "hineingeschoben"
+      },
+      "risiken": {
+        "titel": "Risiken dieses PIs",
+        "alle": "alle Issues",
+        "keine": "Keine offenen Risiken an diesem PI oder seinen Features.",
+        "nichtGeroamt": "nicht ge-ROAM-t",
+        "ueberfaellig": "Ziel {datum} · überfällig",
+        "ziel": "Ziel {datum}",
+        "an": "an: {titel}",
+        "owner": "Owner {name}"
+      },
+      "wert": {
+        "titel": "Wert",
+        "vonPlan": "von {plan} Plan-BV geliefert",
+        "keineRunde": "Feedback: noch keine Runde",
+        "uebernommen": "Feedback: übernommen",
+        "laeuft": "Feedback läuft: {n} von {total} geantwortet"
+      },
+      "termine": {
+        "titel": "Termine",
+        "inTagen": "in {n} Tagen",
+        "systemDemo": "System Demo",
+        "piEnde": "PI-Ende",
+        "naechsterPi": "Nächster PI",
+        "naechsterPiWert": "{name} · {n} Features geplant"
+      },
+      "board": {
+        "titel": "Board dieses PIs",
+        "text": "Nur die {n} Features in {pi} — kein Backlog, keine anderen PIs. Ziehen wechselt den Status.",
+        "nurAuffaellige": "Nur Auffällige",
+        "summe": "{n} · {js} JS",
+        "verworfen": "{n} verworfen",
+        "statusSetzenFuer": "Status setzen für {titel}"
+      },
+      "strip": {
+        "tag": "Tag {tag} / {total}",
+        "geliefert": "{js} / {plan} JS geliefert",
+        "blockiert": "{n} blockiert",
+        "ohneRoam": "{n} Risiko nicht ge-ROAM-t",
+        "oeffnen": "Lage öffnen →"
+      }
     }
   },
   "risks": {
