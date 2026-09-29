@@ -30,7 +30,12 @@ import {
  * löste beim Einhängen ein zweites Rendern des ganzen Netzplans aus.
  */
 
-export const HALTEZEIT_MS = 400;
+/**
+ * Wie lange ein Finger still liegen muss, bis die Verbindung aufgenommen ist.
+ * 480 ms statt anfangs 400 (×1,2): kürzer griff die Geste, wo jemand nur kurz
+ * zögerte, bevor er eine Kachel verschob.
+ */
+export const HALTEZEIT_MS = 480;
 export const TOLERANZ_PX = 8;
 
 export interface LinkPreview {
