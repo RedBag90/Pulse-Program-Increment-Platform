@@ -266,7 +266,7 @@ function EntryActions({
   }
 
   return (
-    <span className="ml-auto inline-flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+    <span className="ml-auto inline-flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
       {state.error && <span className="mr-1 text-xs text-destructive">{state.error}</span>}
       {mayEdit && (
         <button

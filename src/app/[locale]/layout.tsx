@@ -9,6 +9,7 @@ import { isLocale } from "@/i18n/routing";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { TextareaAutosize } from "@/components/ui/textarea-autosize";
 import { WebVitalsReporter } from "@/components/perf/web-vitals-reporter";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -62,6 +63,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
       suppressHydrationWarning
     >
       <body>
+        <TextareaAutosize />
         <WebVitalsReporter />
         <SpeedInsights />
         <ThemeProvider

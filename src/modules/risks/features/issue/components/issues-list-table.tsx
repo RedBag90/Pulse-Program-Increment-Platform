@@ -260,7 +260,7 @@ function ReparentMenu({
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         aria-label={`${row.title} verschieben`}
-        className="rounded-sm p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 group-hover/row:opacity-100"
+        className="rounded-sm p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 group-hover/row:opacity-100 [@media(hover:none)]:opacity-100"
       >
         <MoreVertical className="size-3.5" />
       </DropdownMenuTrigger>

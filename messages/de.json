@@ -2808,7 +2808,6 @@
       "statusGrundEins": "Ein Wechsel nach „{label}“ hält die Arbeit an. Er braucht einen Grund — wie im Feature-Detail.",
       "blockieren": "Blockieren",
       "verknuepfeLaeuft": "Verknüpfe…",
-      "abhaengigkeitLoesenKurz": "Lösen",
       "aktionBitteBegruenden": "{action} — bitte begründen",
       "umsetzungStarten": "Umsetzung starten",
       "keineDeps": "keine Deps",
@@ -3075,6 +3074,16 @@
       "ueber": "„{karte}“ über {ziel}.",
       "abgelegt": "„{karte}“ abgelegt in {ziel}.",
       "zurueck": "„{karte}“ bleibt, wo sie war."
+    },
+    "touchLink": {
+      "aufZiel": "Auf ein Feature ziehen",
+      "anlegen": "Abhängigkeit zu „{ziel}“",
+      "versetzen": "Versetzen auf „{ziel}“",
+      "quelleAendern": "Quelle ändern …",
+      "zielAendern": "Ziel ändern …",
+      "typFuer": "Typ der Abhängigkeit mit {titel}",
+      "entfernen": "Entfernen",
+      "hinweis": "Per Touch: ein Feature halten und auf ein anderes ziehen; eine Linie halten, um ihr Ende zu versetzen."
     }
   },
   "risks": {

@@ -2808,7 +2808,6 @@
       "statusGrundEins": "Moving to \"{label}\" stops the work. It needs a reason — just like in the feature detail.",
       "blockieren": "Block",
       "verknuepfeLaeuft": "Linking…",
-      "abhaengigkeitLoesenKurz": "Unlink",
       "aktionBitteBegruenden": "{action} — please give a reason",
       "umsetzungStarten": "Start delivery",
       "keineDeps": "no deps",
@@ -3075,6 +3074,16 @@
       "ueber": "\"{karte}\" over {ziel}.",
       "abgelegt": "Dropped \"{karte}\" in {ziel}.",
       "zurueck": "\"{karte}\" stays where it was."
+    },
+    "touchLink": {
+      "aufZiel": "Drag onto a feature",
+      "anlegen": "Dependency to \"{ziel}\"",
+      "versetzen": "Move to \"{ziel}\"",
+      "quelleAendern": "Change source …",
+      "zielAendern": "Change target …",
+      "typFuer": "Type of dependency with {titel}",
+      "entfernen": "Remove",
+      "hinweis": "On touch: hold a feature and drag it onto another; hold a line to move its end."
     }
   },
   "risks": {

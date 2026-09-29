@@ -49,6 +49,8 @@ export interface NetworkEditing {
   onInsertOnEdge: (depId: string, input: QuickAddInput) => void;
   onChangeEdgeType: (depId: string, next: DependencyEdgeType) => void;
   onDeleteEdge: (depId: string) => void;
+  /** Ein Ende über die Feature-Suche versetzen (Menü „Quelle/Ziel ändern…"). */
+  onPickEdgeEnd?: (depId: string, end: "from" | "to", x: number, y: number) => void;
 }
 
 export const NetworkEditingContext = createContext<NetworkEditing | null>(null);
@@ -234,12 +236,17 @@ export const DependencyEdge = memo(function DependencyEdge(props: EdgeProps) {
         {...(props.markerEnd != null ? { markerEnd: props.markerEnd } : {})}
         fill="none"
       />
-      {/* Unsichtbare Trefferfläche: das Überfahren gilt der Linie, nicht ihrem Rahmen. */}
+      {/* Unsichtbare Trefferfläche: das Überfahren gilt der Linie, nicht ihrem Rahmen.
+          Bearbeitbare Kanten tragen ihre Enden — per Touch lässt sich eine Kante
+          halten und ihr näheres Ende versetzen (`useLongPressLink`). */}
       <path
         d={d}
         stroke="transparent"
         strokeWidth={20}
         fill="none"
+        {...(canChangeType
+          ? { "data-dep-edge": id, "data-dep-from": props.source, "data-dep-to": props.target }
+          : {})}
         style={{ cursor: "pointer", pointerEvents: "stroke" }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -265,11 +272,17 @@ export const DependencyEdge = memo(function DependencyEdge(props: EdgeProps) {
                 currentType={type}
                 onChange={(next) => editing.onChangeEdgeType(id, next)}
                 onDelete={() => editing.onDeleteEdge(id)}
+                {...(editing.onPickEdgeEnd
+                  ? {
+                      onMoveEnd: (end: "from" | "to", x: number, y: number) =>
+                        editing.onPickEdgeEnd!(id, end, x, y),
+                    }
+                  : {})}
               >
                 <button
                   type="button"
                   aria-label={t("drumbeat.ui.abhaengigkeitstypAendern")}
-                  className="rounded-sm bg-card px-1 text-label transition-colors hover:bg-muted"
+                  className="rounded-sm bg-card px-1 text-label transition-colors hover:bg-muted [@media(pointer:coarse)]:px-2.5 [@media(pointer:coarse)]:py-1.5 [@media(pointer:coarse)]:text-sm"
                   style={{ color: EDGE_COLOR[type] }}
                 >
                   {t(EDGE_LABEL[type])}

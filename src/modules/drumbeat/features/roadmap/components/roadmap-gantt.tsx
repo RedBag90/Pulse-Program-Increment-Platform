@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@/i18n/navigation";
 import {
   barMetrics,
@@ -102,6 +102,10 @@ export function RoadmapGantt({
 }: Props) {
   const t = useTranslations();
   const [hoverRowId, setHoverRowId] = useState<string | null>(null);
+  // Touch kennt kein Überfahren: dort hebt Tippen auf eine Zeile ihre Pfeile
+  // hervor, erneutes Tippen hebt es auf. Die nachgeahmten Maus-Ereignisse nach
+  // einem Tippen dürfen dabei nicht dazwischenfunken.
+  const letzterZeiger = useRef<string>("mouse");
 
   const trackWidth = axis.months.length * MONTH_PX;
 
@@ -280,10 +284,27 @@ export function RoadmapGantt({
             return (
               <div
                 key={row.id}
-                onMouseEnter={() => setHoverRowId(row.id)}
-                onMouseLeave={() => setHoverRowId((p) => (p === row.id ? null : p))}
-                className="group flex border-b transition-colors duration-100 last:border-b-0
-                  hover:bg-muted/30"
+                // Touch: eine Feature-Zeile halten und auf eine andere ziehen legt
+                // eine Abhängigkeit an (`useLongPressLink` in `cockpit-roadmap.tsx`).
+                {...(onDependencyClick && row.kind === "feature" && bar && bar.widthPct > 0
+                  ? { "data-dep-node": row.id }
+                  : {})}
+                onPointerDownCapture={(e) => {
+                  letzterZeiger.current = e.pointerType;
+                }}
+                onMouseEnter={() => {
+                  if (letzterZeiger.current !== "touch") setHoverRowId(row.id);
+                }}
+                onMouseLeave={() => {
+                  if (letzterZeiger.current !== "touch")
+                    setHoverRowId((p) => (p === row.id ? null : p));
+                }}
+                onClick={() => {
+                  if (letzterZeiger.current === "touch")
+                    setHoverRowId((p) => (p === row.id ? null : row.id));
+                }}
+                className="group flex select-none border-b transition-colors duration-100 last:border-b-0
+                  hover:bg-muted/30 data-[dep-target=true]:bg-primary/10 [-webkit-touch-callout:none]"
                 style={{ minHeight: ROW_H }}
               >
                 <div
@@ -400,14 +421,12 @@ export function RoadmapGantt({
                         e.stopPropagation();
                         onAddDependencyFrom(row.id, e.clientX, e.clientY);
                       }}
-                      className="absolute top-1/2 z-10 -translate-y-1/2 rounded-full border
+                      // Auf Touch ohne Hover dauerhaft sichtbar und gross genug zum Treffen.
+                      className="absolute top-1/2 z-10 size-3.5 -translate-y-1/2 rounded-full border
                         border-background bg-primary text-label font-bold leading-none text-primary-foreground
-                        opacity-0 shadow transition-opacity group-hover:opacity-100"
-                      style={{
-                        left: `calc(${bar.leftPct + bar.widthPct}% + 4px)`,
-                        width: 14,
-                        height: 14,
-                      }}
+                        opacity-0 shadow transition-opacity group-hover:opacity-100
+                        [@media(hover:none)]:opacity-100 [@media(pointer:coarse)]:size-7 [@media(pointer:coarse)]:text-sm"
+                      style={{ left: `calc(${bar.leftPct + bar.widthPct}% + 4px)` }}
                       title={t("drumbeat.ui.newDependency")}
                     >
                       +
@@ -459,32 +478,55 @@ export function RoadmapGantt({
                       ? HIGHLIGHT_OPACITY
                       : FADE_OPACITY;
                 const clickable = onDependencyClick !== undefined;
-                return (
-                  <path
-                    key={d.id}
-                    d={path}
-                    fill="none"
-                    stroke={EDGE_COLOR[d.type]}
-                    strokeWidth={1.75}
-                    strokeDasharray={EDGE_DASH[d.type]}
-                    markerEnd={`url(#gantt-arrow-${d.type})`}
-                    opacity={opacity}
-                    onClick={
-                      clickable
-                        ? (e) => {
-                            e.stopPropagation();
-                            onDependencyClick!(d, e.clientX, e.clientY);
-                          }
-                        : undefined
+                const tippen = clickable
+                  ? (e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      onDependencyClick!(d, e.clientX, e.clientY);
                     }
-                    style={{
-                      transition: "opacity 120ms ease-out",
-                      pointerEvents: clickable ? "stroke" : "none",
-                      cursor: clickable ? "pointer" : undefined,
-                    }}
-                  >
-                    <title>{t(EDGE_LABEL[d.type])}</title>
-                  </path>
+                  : undefined;
+                return (
+                  <g key={d.id}>
+                    {/* Unsichtbare, breite Trefferfläche — die Linie selbst ist knapp
+                      2 px dick, auf Touch nicht zu treffen. Sie trägt die Enden für
+                      das Versetzen per langem Halten. */}
+                    {clickable && (
+                      <path
+                        d={path}
+                        fill="none"
+                        stroke="transparent"
+                        strokeWidth={16}
+                        data-dep-edge={d.id}
+                        data-dep-from={d.fromId}
+                        data-dep-to={d.toId}
+                        onClick={tippen}
+                        style={{ pointerEvents: "stroke", cursor: "pointer" }}
+                      />
+                    )}
+                    <path
+                      d={path}
+                      fill="none"
+                      stroke={EDGE_COLOR[d.type]}
+                      strokeWidth={1.75}
+                      strokeDasharray={EDGE_DASH[d.type]}
+                      markerEnd={`url(#gantt-arrow-${d.type})`}
+                      opacity={opacity}
+                      onClick={
+                        clickable
+                          ? (e) => {
+                              e.stopPropagation();
+                              onDependencyClick!(d, e.clientX, e.clientY);
+                            }
+                          : undefined
+                      }
+                      style={{
+                        transition: "opacity 120ms ease-out",
+                        pointerEvents: clickable ? "stroke" : "none",
+                        cursor: clickable ? "pointer" : undefined,
+                      }}
+                    >
+                      <title>{t(EDGE_LABEL[d.type])}</title>
+                    </path>
+                  </g>
                 );
               })}
             </svg>

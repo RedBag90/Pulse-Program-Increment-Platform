@@ -2,11 +2,14 @@
 
 import { useTranslations } from "next-intl";
 import {
+  createContext,
   memo,
   startTransition,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -33,6 +36,9 @@ import type {
   CockpitFeature,
 } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { useDependencyEdgeEditing } from "@/modules/drumbeat/features/dependencies/hooks/use-dependency-edge-editing";
+import { useLongPressLink } from "@/modules/drumbeat/features/dependencies/hooks/use-long-press-link";
+import { LinkPreviewOverlay } from "@/modules/drumbeat/features/dependencies/components/link-preview-overlay";
+import { tapAction } from "@/modules/drumbeat/domain/tap-focus";
 import { EDGE_LABEL } from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";
 import type { DependencyEdgeType } from "@/modules/drumbeat/features/dependencies/lib/dependency-actions-client";
 import {
@@ -248,12 +254,43 @@ type GhostNodeData = {
  * WSJF-Knopf tragen `nodrag nopan`, damit ein Klick darauf den Knoten nicht
  * zieht.
  */
+/**
+ * **Hervorheben per Tippen.** Mit der Maus hebt das Überfahren eines Knotens
+ * seine Abhängigkeiten hervor, ein Klick öffnet ihn. Touch kennt kein
+ * Überfahren — dort hebt das **erste** Tippen hervor und erst das zweite auf
+ * denselben Knoten öffnet.
+ */
+const TapFocusContext = createContext<{
+  /** War der letzte Zeiger ein Finger? */
+  isTouch: () => boolean;
+  focusedId: string | null;
+  focus: (nodeId: string) => void;
+} | null>(null);
+
+/** Klick auf einen Knoten: auf Touch erst hervorheben, dann öffnen. */
+function useTapOrOpen(nodeId: string, open: () => void) {
+  const tap = useContext(TapFocusContext);
+  return () => {
+    if (tap && tapAction(tap.isTouch(), tap.focusedId, nodeId) === "focus") {
+      tap.focus(nodeId);
+      return;
+    }
+    open();
+  };
+}
+
 const FeatureNode = memo(function FeatureNode({ data }: { data: FeatureNodeData }) {
   const f = data.feature;
+  const onTap = useTapOrOpen(f.id, () => data.onOpen(f.id));
   return (
     // **Feste Box aus den Konstanten** — die Kantenrechnung setzt die Höhe
     // voraus; wäre sie inhaltsabhängig, sässen die Brücken daneben.
-    <div className="group relative" style={{ width: NODE_W, height: NODE_H }}>
+    <div
+      // Touch: lange halten und auf ein anderes Feature ziehen (`useLongPressLink`).
+      data-dep-node={f.id}
+      className="group relative select-none [-webkit-touch-callout:none]"
+      style={{ width: NODE_W, height: NODE_H }}
+    >
       <HandleRow
         type="target"
         position={Position.Left}
@@ -263,14 +300,14 @@ const FeatureNode = memo(function FeatureNode({ data }: { data: FeatureNodeData 
       <div
         role="button"
         tabIndex={0}
-        onClick={() => data.onOpen(f.id)}
+        onClick={onTap}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             data.onOpen(f.id);
           }
         }}
-        className="relative flex h-full w-full cursor-pointer flex-col gap-1 overflow-hidden rounded-md bg-card p-2 pl-2.5 text-left shadow-card transition-shadow hover:shadow-md"
+        className="relative flex h-full w-full cursor-pointer flex-col gap-1 overflow-hidden rounded-md bg-card p-2 pl-2.5 text-left shadow-card transition-shadow hover:shadow-md group-data-[dep-target=true]:ring-2 group-data-[dep-target=true]:ring-primary"
         title={f.title}
       >
         <FeatureCardBody
@@ -296,13 +333,14 @@ const FeatureNode = memo(function FeatureNode({ data }: { data: FeatureNodeData 
   );
 });
 
-const GhostNode = memo(function GhostNode({ data }: { data: GhostNodeData }) {
+const GhostNode = memo(function GhostNode({ id, data }: { id: string; data: GhostNodeData }) {
+  const onTap = useTapOrOpen(id, () => data.onOpen(data.featureId));
   return (
     <div className="relative" style={{ width: NODE_W, height: NODE_H }}>
       <HandleRow type="target" position={Position.Left} connectable={false} visible={false} />
       <button
         type="button"
-        onClick={() => data.onOpen(data.featureId)}
+        onClick={onTap}
         className="flex h-full w-full cursor-pointer flex-col justify-center gap-0.5 rounded-md
           border border-dashed border-muted-foreground/40 bg-muted/30 px-2.5 py-1.5 text-left
           text-muted-foreground transition-colors hover:bg-muted/60"
@@ -437,10 +475,6 @@ export function DependencyNetwork({
     [router, pathname, searchParams],
   );
 
-  function depById(depId: string): CockpitDependency | undefined {
-    return dependencies.find((d) => d.id === depId);
-  }
-
   /** Ein URL-Parameter setzen oder, bei `null`, entfernen — ohne Scrollsprung. */
   const setParam = useCallback(
     (key: string, value: string | null) => {
@@ -565,6 +599,18 @@ export function DependencyNetwork({
    * sind keine Features und haben keine Nachbarn.
    */
   const [hoverId, setHoverId] = useState<string | null>(null);
+  // Der letzte Zeiger: Nach einem Tippen feuert der Browser nachgeahmte
+  // Maus-Ereignisse — ihr „Überfahren" darf die Hervorhebung nicht setzen,
+  // sonst öffnete schon das erste Tippen.
+  const letzterZeiger = useRef<string>("mouse");
+  const tapFocus = useMemo(
+    () => ({
+      isTouch: () => letzterZeiger.current === "touch",
+      focusedId: hoverId,
+      focus: (nodeId: string) => setHoverId(nodeId),
+    }),
+    [hoverId],
+  );
 
   /**
    * **Der laufende Zug in der Zeitachse** — aus welcher Spalte das Feature
@@ -698,9 +744,21 @@ export function DependencyNetwork({
     [callUnlink, rollback, router],
   );
 
+  /** „Quelle/Ziel ändern…" im Kanten-Menü: die Feature-Suche an der Stelle des Tippens. */
+  const [endPick, setEndPick] = useState<{
+    depId: string;
+    end: "from" | "to";
+    x: number;
+    y: number;
+  } | null>(null);
+  const onPickEdgeEnd = useCallback(
+    (depId: string, end: "from" | "to", x: number, y: number) => setEndPick({ depId, end, x, y }),
+    [],
+  );
+
   const editing = useMemo<NetworkEditing>(
-    () => ({ onAddSuccessor, onInsertOnEdge, onChangeEdgeType, onDeleteEdge }),
-    [onAddSuccessor, onInsertOnEdge, onChangeEdgeType, onDeleteEdge],
+    () => ({ onAddSuccessor, onInsertOnEdge, onChangeEdgeType, onDeleteEdge, onPickEdgeEnd }),
+    [onAddSuccessor, onInsertOnEdge, onChangeEdgeType, onDeleteEdge, onPickEdgeEnd],
   );
 
   /**
@@ -751,6 +809,57 @@ export function DependencyNetwork({
     },
     [canLinkDependency, connectType, edges, callLink, router, t],
   );
+
+  /**
+   * **Ein Kantenende versetzen** — mit der Maus über xyflows Kantenende
+   * (`onReconnect`), per Touch über langes Halten der Kante
+   * (`useLongPressLink`). `detectCycle` prüft über die **sichtbaren** Kanten,
+   * **ohne die versetzte** — sonst meldete sie einen Zyklus gegen sich selbst.
+   * Der Graph ist ein Ausschnitt; der Server prüft mandantenweit.
+   */
+  const relinkEdge = useCallback(
+    (edgeId: string, source: string, target: string) => {
+      if (!canLinkDependency) return;
+      if (source === target) {
+        toast.error(t("drumbeat.errors.selfDependency"));
+        return;
+      }
+      if (source.startsWith("ghost:") || target.startsWith("ghost:")) return;
+      const d = dependencies.find((x) => x.id === edgeId);
+      if (!d) return;
+      if (
+        d.type !== "relates_to" &&
+        detectCycle(
+          source,
+          target,
+          edges.filter((e) => e.id !== edgeId).map((e) => ({ fromId: e.source, toId: e.target })),
+        )
+      ) {
+        toast.error(t("drumbeat.errors.wuerdeZyklusErzeugen"));
+        return;
+      }
+      callRelink(edgeId, source, target);
+    },
+    [canLinkDependency, dependencies, edges, callRelink, t],
+  );
+
+  /** Touch: lange halten, dann ziehen — neue Abhängigkeit oder Ende versetzen. */
+  const touchLink = useLongPressLink({
+    enabled: canLinkDependency,
+    onDrop: (drop) => {
+      if (drop.kind === "create") {
+        onConnect({
+          source: drop.fromId,
+          target: drop.toId,
+          sourceHandle: null,
+          targetHandle: null,
+        });
+      } else {
+        relinkEdge(drop.depId, drop.newFromId, drop.newToId);
+      }
+    },
+  });
+  const titelVon = (id: string) => features.find((f) => f.id === id)?.title ?? id;
 
   /** Entf/Backspace auf einer gewählten Kante. Knoten löscht die Taste nie. */
   const onEdgesDelete = useCallback(
@@ -1024,119 +1133,138 @@ export function DependencyNetwork({
         <p className="text-xs text-muted-foreground">
           {canCreate && <>{t("drumbeat.ui.netzplanHinweisPlus")} </>}
           {canLinkDependency && t("drumbeat.ui.netzplanHinweisDragBlockiert")}
+          {/* Nur auf Touch: die Geste, die dort das Ziehen der Anfasser ersetzt. */}
+          {canLinkDependency && (
+            <span className="hidden [@media(pointer:coarse)]:inline">
+              {" "}
+              {t("drumbeat.touchLink.hinweis")}
+            </span>
+          )}
         </p>
       )}
 
-      <div className="relative h-[calc(100vh-320px)] min-h-[400px] overflow-hidden rounded-lg border">
+      <div
+        ref={touchLink.ref}
+        onPointerDownCapture={(e) => {
+          letzterZeiger.current = e.pointerType;
+        }}
+        className="relative h-[calc(100vh-320px)] min-h-[400px] overflow-hidden rounded-lg border"
+      >
+        <LinkPreviewOverlay preview={touchLink.preview} labelOf={titelVon} />
         {error && (
           <div className="absolute left-2 top-2 z-30 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-1 text-xs text-destructive">
             {error}
           </div>
         )}
-        <NetworkEditingContext.Provider value={editing}>
-          <EdgePathContext.Provider value={edgePaths}>
-            <ReactFlow
-              nodes={withDropState(sicht.nodes)}
-              onInit={setFlow}
-              edges={sicht.edges}
-              onNodesChange={onNodesChange}
-              onNodeMouseEnter={(_e, n) =>
-                setHoverId(n.type === "feature" || n.type === "ghost" ? n.id : null)
-              }
-              onNodeMouseLeave={() => setHoverId(null)}
-              nodeTypes={NODE_TYPES}
-              edgeTypes={EDGE_TYPES}
-              /**
-               * **In der Zeitachse ist die Position die Aussage** — deshalb wurde
-               * dort bis September 2026 gar nicht gezogen. Der Satz stimmt, die
-               * Schlussfolgerung war falsch herum: wenn die Position etwas sagt,
-               * muss man sie sagen können. Ein Zug auf eine andere Bahn **ist** eine
-               * Umplanung, und genau so wird er jetzt behandelt.
-               *
-               * In der Topologie ordnet dagre nur vor; wer umräumen will, darf.
-               */
-              nodesDraggable={layout === "topology" || canUpdate}
-              nodesConnectable={canLinkDependency}
-              elementsSelectable
-              edgesFocusable={canLinkDependency}
-              deleteKeyCode={canLinkDependency ? ["Backspace", "Delete"] : null}
-              // Die Taste löscht Kanten, nie Knoten — ein Feature geht über das Slide-Over.
-              onBeforeDelete={async ({ edges: weg }) => ({ nodes: [], edges: weg })}
-              onEdgesDelete={onEdgesDelete}
-              fitView
-              fitViewOptions={{ padding: 0.15, minZoom: MIN_ZOOM }}
-              minZoom={MIN_ZOOM}
-              // React Flow bringt eigene, helle Farben mit (`dist/style.css`);
-              // ohne `colorMode` verschwindet die Navigation im dunklen Modus.
-              colorMode={resolvedTheme === "dark" ? "dark" : "light"}
-              proOptions={{ hideAttribution: true }}
-              onConnect={onConnect}
-              onNodeDragStart={onNodeDragStart}
-              onNodeDrag={onNodeDrag}
-              onNodeDragStop={onNodeDragStop}
-              /**
-               * **Ein Kantenende aufnehmen und woanders ablegen.**
-               *
-               * ReactFlow v12 bringt die Geste mit; sie war nur nie eingeschaltet.
-               * `detectCycle` läuft hier als Vorprüfung über die **sichtbaren**
-               * Kanten — **ohne die Kante, die gerade gezogen wird**, sonst meldete
-               * sie einen Zyklus gegen sich selbst. Der Graph auf dem Bildschirm ist
-               * ein Ausschnitt; der Server prüft mandantenweit und darf strenger
-               * sein.
-               */
-              edgesReconnectable={canLinkDependency}
-              onReconnect={(alteKante, conn) => {
-                if (!canLinkDependency) return;
-                if (!conn.source || !conn.target) return;
-                if (conn.source === conn.target) {
-                  toast.error(t("drumbeat.errors.selfDependency"));
-                  return;
-                }
-                if (conn.source.startsWith("ghost:") || conn.target.startsWith("ghost:")) return;
-                const d = depById(alteKante.id);
-                if (!d) return;
-                if (
-                  d.type !== "relates_to" &&
-                  detectCycle(
-                    conn.source,
-                    conn.target,
-                    edges
-                      .filter((e) => e.id !== alteKante.id)
-                      .map((e) => ({ fromId: e.source, toId: e.target })),
-                  )
-                ) {
-                  toast.error(t("drumbeat.errors.wuerdeZyklusErzeugen"));
-                  return;
-                }
-                callRelink(alteKante.id, conn.source, conn.target);
-              }}
-            >
-              <Background gap={24} />
-              <Controls showInteractive={false} />
-              <Panel position="top-right">
-                <ExportButton name={exportName} />
-              </Panel>
-              <MiniMap
-                pannable
-                zoomable
-                ariaLabel={t("drumbeat.ui.netzplanUebersicht")}
-                // Nach Typ gefärbt, wie der Streifen der Karte; Bänder unsichtbar,
-                // sonst deckten sie die Übersicht zu.
-                nodeColor={(n) => {
-                  if (n.type === "pi-band") return "transparent";
-                  if (n.type === "pi-header") return "var(--muted)";
-                  if (n.type === "ghost") return "var(--border)";
-                  const f = (n.data as FeatureNodeData).feature;
-                  return FEATURE_TYPE_MINIMAP[normalizeFeatureType(f.featureType)];
+        <TapFocusContext.Provider value={tapFocus}>
+          <NetworkEditingContext.Provider value={editing}>
+            <EdgePathContext.Provider value={edgePaths}>
+              <ReactFlow
+                nodes={withDropState(sicht.nodes)}
+                onInit={setFlow}
+                edges={sicht.edges}
+                onNodesChange={onNodesChange}
+                onNodeMouseEnter={(_e, n) => {
+                  if (letzterZeiger.current === "touch") return;
+                  setHoverId(n.type === "feature" || n.type === "ghost" ? n.id : null);
                 }}
-                nodeStrokeWidth={0}
-                maskColor="color-mix(in oklab, var(--background) 92%, transparent)"
-              />
-            </ReactFlow>
-          </EdgePathContext.Provider>
-        </NetworkEditingContext.Provider>
+                onNodeMouseLeave={() => {
+                  if (letzterZeiger.current !== "touch") setHoverId(null);
+                }}
+                // Tippen auf die leere Fläche hebt die Hervorhebung auf.
+                onPaneClick={() => setHoverId(null)}
+                nodeTypes={NODE_TYPES}
+                edgeTypes={EDGE_TYPES}
+                /**
+                 * **In der Zeitachse ist die Position die Aussage** — deshalb wurde
+                 * dort bis September 2026 gar nicht gezogen. Der Satz stimmt, die
+                 * Schlussfolgerung war falsch herum: wenn die Position etwas sagt,
+                 * muss man sie sagen können. Ein Zug auf eine andere Bahn **ist** eine
+                 * Umplanung, und genau so wird er jetzt behandelt.
+                 *
+                 * In der Topologie ordnet dagre nur vor; wer umräumen will, darf.
+                 */
+                nodesDraggable={layout === "topology" || canUpdate}
+                nodesConnectable={canLinkDependency}
+                elementsSelectable
+                edgesFocusable={canLinkDependency}
+                deleteKeyCode={canLinkDependency ? ["Backspace", "Delete"] : null}
+                // Die Taste löscht Kanten, nie Knoten — ein Feature geht über das Slide-Over.
+                onBeforeDelete={async ({ edges: weg }) => ({ nodes: [], edges: weg })}
+                onEdgesDelete={onEdgesDelete}
+                fitView
+                fitViewOptions={{ padding: 0.15, minZoom: MIN_ZOOM }}
+                minZoom={MIN_ZOOM}
+                // React Flow bringt eigene, helle Farben mit (`dist/style.css`);
+                // ohne `colorMode` verschwindet die Navigation im dunklen Modus.
+                colorMode={resolvedTheme === "dark" ? "dark" : "light"}
+                proOptions={{ hideAttribution: true }}
+                onConnect={onConnect}
+                onNodeDragStart={onNodeDragStart}
+                onNodeDrag={onNodeDrag}
+                onNodeDragStop={onNodeDragStop}
+                /**
+                 * **Ein Kantenende aufnehmen und woanders ablegen.**
+                 *
+                 * ReactFlow v12 bringt die Geste mit; sie war nur nie eingeschaltet.
+                 * `detectCycle` läuft hier als Vorprüfung über die **sichtbaren**
+                 * Kanten — **ohne die Kante, die gerade gezogen wird**, sonst meldete
+                 * sie einen Zyklus gegen sich selbst. Der Graph auf dem Bildschirm ist
+                 * ein Ausschnitt; der Server prüft mandantenweit und darf strenger
+                 * sein.
+                 */
+                edgesReconnectable={canLinkDependency}
+                onReconnect={(alteKante, conn) => {
+                  if (!conn.source || !conn.target) return;
+                  relinkEdge(alteKante.id, conn.source, conn.target);
+                }}
+              >
+                <Background gap={24} />
+                <Controls showInteractive={false} />
+                <Panel position="top-right">
+                  <ExportButton name={exportName} />
+                </Panel>
+                <MiniMap
+                  pannable
+                  zoomable
+                  ariaLabel={t("drumbeat.ui.netzplanUebersicht")}
+                  // Nach Typ gefärbt, wie der Streifen der Karte; Bänder unsichtbar,
+                  // sonst deckten sie die Übersicht zu.
+                  nodeColor={(n) => {
+                    if (n.type === "pi-band") return "transparent";
+                    if (n.type === "pi-header") return "var(--muted)";
+                    if (n.type === "ghost") return "var(--border)";
+                    const f = (n.data as FeatureNodeData).feature;
+                    return FEATURE_TYPE_MINIMAP[normalizeFeatureType(f.featureType)];
+                  }}
+                  nodeStrokeWidth={0}
+                  maskColor="color-mix(in oklab, var(--background) 92%, transparent)"
+                />
+              </ReactFlow>
+            </EdgePathContext.Provider>
+          </NetworkEditingContext.Provider>
+        </TapFocusContext.Provider>
       </div>
 
+      {endPick &&
+        (() => {
+          const d = dependencies.find((x) => x.id === endPick.depId);
+          if (!d) return null;
+          return (
+            <FeaturePickerPopover
+              anchorX={endPick.x}
+              anchorY={endPick.y}
+              excludeIds={[d.fromId, d.toId]}
+              onSelect={(neu) => {
+                if (endPick.end === "from") relinkEdge(d.id, neu, d.toId);
+                else relinkEdge(d.id, d.fromId, neu);
+                setEndPick(null);
+              }}
+              onCancel={() => setEndPick(null)}
+              initialQuery=""
+            />
+          );
+        })()}
       {addState &&
         (addState.sourceId === "" ? (
           <FeaturePickerPopover

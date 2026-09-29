@@ -64,7 +64,8 @@ export const linkDependencyAction = createServerAction({
 });
 
 /**
- * Feature-page inline `Unlink` action — called from `UnlinkDependencyButton`.
+ * Unlink action — called from the network and roadmap edge menus and the
+ * feature detail tab (`DependencyRowControls`).
  */
 export const unlinkDependencyAction = createServerAction({
   schema: z.object({

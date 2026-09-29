@@ -87,10 +87,11 @@ export function FeaturePickerPopover({
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onCancel();
     }
-    document.addEventListener("mousedown", onPointerDown);
+    // `pointerdown`: auch ein Tippen daneben schliesst, nicht nur die Maus.
+    document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKey);
     return () => {
-      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKey);
     };
   }, [onCancel]);

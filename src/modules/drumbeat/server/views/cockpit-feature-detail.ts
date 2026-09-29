@@ -25,8 +25,12 @@ import { resolveInitiativeValueStreamId } from "@/modules/core/kernel/domain/ini
 export interface DependencyEdge {
   id: string;
   type: "blocks" | "relates_to";
-  /** Das andere Ende der Kante (nicht das aktuelle Feature). */
-  other: { id: string; title: string };
+  /**
+   * Das andere Ende der Kante (nicht das aktuelle Feature). `artId` braucht
+   * das Bearbeiten eingehender Kanten: die Rechte-Prüfung läuft über das ART
+   * der Quelle, und die ist hier das andere Feature.
+   */
+  other: { id: string; title: string; artId: string | null };
 }
 
 /**
@@ -142,11 +146,11 @@ export async function loadCockpitFeatureDetail(
     listTenantApprovers(db, principal.tenantId),
     db.dependency.findMany({
       where: { tenantId: principal.tenantId, fromId: feature.id },
-      select: { id: true, type: true, to: { select: { id: true, title: true } } },
+      select: { id: true, type: true, to: { select: { id: true, title: true, artId: true } } },
     }),
     db.dependency.findMany({
       where: { tenantId: principal.tenantId, toId: feature.id },
-      select: { id: true, type: true, from: { select: { id: true, title: true } } },
+      select: { id: true, type: true, from: { select: { id: true, title: true, artId: true } } },
     }),
     listInitiativeHistory(db, principal.tenantId, feature.id),
     feature.artId
@@ -237,12 +241,12 @@ export async function loadCockpitFeatureDetail(
   const outgoing: DependencyEdge[] = dependenciesOut.map((d) => ({
     id: d.id,
     type: d.type as DependencyEdge["type"],
-    other: { id: d.to.id, title: d.to.title },
+    other: { id: d.to.id, title: d.to.title, artId: d.to.artId },
   }));
   const incoming: DependencyEdge[] = dependenciesIn.map((d) => ({
     id: d.id,
     type: d.type as DependencyEdge["type"],
-    other: { id: d.from.id, title: d.from.title },
+    other: { id: d.from.id, title: d.from.title, artId: d.from.artId },
   }));
 
   const existingTargetIds = new Set(outgoing.map((e) => e.other.id));

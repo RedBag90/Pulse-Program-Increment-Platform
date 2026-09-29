@@ -39,14 +39,23 @@ interface MenuProps {
   currentType: DependencyEdgeType;
   onChange: EdgeTypeChange;
   onDelete?: (() => void) | undefined;
+  /**
+   * „Quelle ändern…" / „Ziel ändern…" — ein Ende über die Feature-Suche
+   * versetzen, mit dem Punkt des Tippens für die Suche. Der Weg ohne Ziehen,
+   * falls man auf Touch das Kantenende nicht trifft.
+   */
+  onMoveEnd?: ((end: "from" | "to", x: number, y: number) => void) | undefined;
   onClose?: () => void;
 }
+
+/** Auf Touch mindestens 44 px hohe Zeilen. */
+const ZEILE = "px-2 py-1.5 text-xs [@media(pointer:coarse)]:py-3 [@media(pointer:coarse)]:text-sm";
 
 /**
  * Reines Menue-Markup — kein Popover-Wrapper. Caller positioniert
  * selber (Portal / absolute Div etc.).
  */
-export function EdgeTypeMenu({ currentType, onChange, onDelete, onClose }: MenuProps) {
+export function EdgeTypeMenu({ currentType, onChange, onDelete, onMoveEnd, onClose }: MenuProps) {
   const t = useTranslations();
   return (
     <div className="w-48 rounded-md border bg-popover p-1 shadow-md">
@@ -58,7 +67,7 @@ export function EdgeTypeMenu({ currentType, onChange, onDelete, onClose }: MenuP
           <button
             key={typ}
             type="button"
-            className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+            className={`flex items-center gap-2 rounded-md text-left transition-colors ${ZEILE} ${
               typ === currentType ? "bg-muted font-medium" : "hover:bg-muted/50"
             }`}
             onClick={() => {
@@ -80,12 +89,32 @@ export function EdgeTypeMenu({ currentType, onChange, onDelete, onClose }: MenuP
           </button>
         ))}
       </div>
+      {onMoveEnd && (
+        <>
+          <div className="my-1 h-px bg-border" aria-hidden />
+          {(["from", "to"] as const).map((end) => (
+            <button
+              key={end}
+              type="button"
+              className={`flex w-full items-center gap-2 rounded-md text-left transition-colors hover:bg-muted/50 ${ZEILE}`}
+              onClick={(e) => {
+                onMoveEnd(end, e.clientX, e.clientY);
+                onClose?.();
+              }}
+            >
+              {end === "from"
+                ? t("drumbeat.touchLink.quelleAendern")
+                : t("drumbeat.touchLink.zielAendern")}
+            </button>
+          ))}
+        </>
+      )}
       {onDelete && (
         <>
           <div className="my-1 h-px bg-border" aria-hidden />
           <button
             type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-destructive transition-colors hover:bg-destructive/10"
+            className={`flex w-full items-center gap-2 rounded-md text-left text-destructive transition-colors hover:bg-destructive/10 ${ZEILE}`}
             onClick={() => {
               onDelete();
               onClose?.();
@@ -107,7 +136,13 @@ interface PopoverProps extends MenuProps {
  * Popover-Variante — Caller liefert ein Kind-Element als Trigger.
  * Anchor-Position folgt dem Trigger automatisch.
  */
-export function EdgeTypePopover({ children, currentType, onChange, onDelete }: PopoverProps) {
+export function EdgeTypePopover({
+  children,
+  currentType,
+  onChange,
+  onDelete,
+  onMoveEnd,
+}: PopoverProps) {
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -117,6 +152,7 @@ export function EdgeTypePopover({ children, currentType, onChange, onDelete }: P
           currentType={currentType}
           onChange={onChange}
           {...(onDelete ? { onDelete } : {})}
+          {...(onMoveEnd ? { onMoveEnd } : {})}
           onClose={() => setOpen(false)}
         />
       </PopoverContent>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   roadmapAxis,
   cockpitRoadmapRows,
@@ -22,6 +22,8 @@ import type { DependencyEdgeType } from "@/modules/drumbeat/server/views/breakdo
 import { useDependencyEdgeEditing } from "@/modules/drumbeat/features/dependencies/hooks/use-dependency-edge-editing";
 import { EdgeTypeMenu } from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";
 import { FeaturePickerPopover } from "@/modules/drumbeat/features/dependencies/components/feature-picker-popover";
+import { useLongPressLink } from "@/modules/drumbeat/features/dependencies/hooks/use-long-press-link";
+import { LinkPreviewOverlay } from "@/modules/drumbeat/features/dependencies/components/link-preview-overlay";
 
 /**
  * Roadmap-Sicht des Cockpits — kompakter Gantt mit Epic-Grouping,
@@ -58,10 +60,49 @@ export function CockpitRoadmap({
   const t = useTranslations();
   const [edgeAnchor, setEdgeAnchor] = useState<EdgeAnchor | null>(null);
   const [addAnchor, setAddAnchor] = useState<AddAnchor | null>(null);
-  const { error, callLink, callUnlink, callChangeType } = useDependencyEdgeEditing(
+  /** „Quelle/Ziel ändern…" im Pfeil-Menü: die Feature-Suche an der Stelle des Tippens. */
+  const [endPick, setEndPick] = useState<{
+    depId: string;
+    end: "from" | "to";
+    x: number;
+    y: number;
+  } | null>(null);
+  const { error, callLink, callUnlink, callChangeType, callRelink } = useDependencyEdgeEditing(
     artId,
     dependencies,
   );
+
+  /**
+   * Touch: eine Feature-Zeile halten und auf eine andere ziehen legt eine
+   * Abhängigkeit an (`blocks`); einen Pfeil halten versetzt sein näheres Ende.
+   */
+  const touchLink = useLongPressLink({
+    enabled: canLinkDependency,
+    onDrop: (drop) => {
+      if (drop.kind === "create") callLink(drop.fromId, drop.toId);
+      else callRelink(drop.depId, drop.newFromId, drop.newToId);
+    },
+  });
+  const titelVon = (id: string) => features.find((f) => f.id === id)?.title ?? id;
+
+  // Das Pfeil-Menü schliesst bei Tippen oder Klick daneben und mit Escape —
+  // früher beim Verlassen mit der Maus, was es auf Touch nie tat.
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!edgeAnchor) return;
+    const daneben = (e: PointerEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setEdgeAnchor(null);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setEdgeAnchor(null);
+    };
+    document.addEventListener("pointerdown", daneben);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", daneben);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [edgeAnchor]);
 
   const piById = new Map(allPiWindows.map((p) => [p.id, p]));
 
@@ -114,7 +155,8 @@ export function CockpitRoadmap({
     }));
 
   return (
-    <div className="relative">
+    <div className="relative" ref={touchLink.ref}>
+      <LinkPreviewOverlay preview={touchLink.preview} labelOf={titelVon} />
       {error && (
         <div className="mb-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-1 text-xs text-destructive">
           {error}
@@ -135,20 +177,35 @@ export function CockpitRoadmap({
       />
 
       {edgeAnchor && (
-        <div
-          className="fixed z-50"
-          style={{ left: edgeAnchor.x, top: edgeAnchor.y }}
-          onMouseLeave={() => setEdgeAnchor(null)}
-        >
+        <div ref={menuRef} className="fixed z-50" style={{ left: edgeAnchor.x, top: edgeAnchor.y }}>
           <EdgeTypeMenu
             currentType={edgeAnchor.type}
             onChange={(t) => callChangeType(edgeAnchor.depId, t)}
             onDelete={() => callUnlink(edgeAnchor.depId)}
+            onMoveEnd={(end, x, y) => setEndPick({ depId: edgeAnchor.depId, end, x, y })}
             onClose={() => setEdgeAnchor(null)}
           />
         </div>
       )}
 
+      {endPick &&
+        (() => {
+          const d = dependencies.find((x) => x.id === endPick.depId);
+          if (!d) return null;
+          return (
+            <FeaturePickerPopover
+              anchorX={endPick.x}
+              anchorY={endPick.y}
+              excludeIds={[d.fromId, d.toId]}
+              onSelect={(neu) => {
+                if (endPick.end === "from") callRelink(d.id, neu, d.toId);
+                else callRelink(d.id, d.fromId, neu);
+                setEndPick(null);
+              }}
+              onCancel={() => setEndPick(null)}
+            />
+          );
+        })()}
       {addAnchor && (
         <FeaturePickerPopover
           anchorX={addAnchor.x}

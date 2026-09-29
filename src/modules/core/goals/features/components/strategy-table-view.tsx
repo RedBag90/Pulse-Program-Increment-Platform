@@ -746,8 +746,9 @@ function RowActions({
   const t = useTranslations();
   return (
     // Sichtbar bei Hover ODER Tastatur-Fokus (fokussierbar trotz opacity-0);
-    // Trefferflächen ≥32px für Maus/Touch/Tastatur.
-    <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 group-focus-within:opacity-100">
+    // auf Geräten ohne Hover (Touch) immer — dort gäbe es sonst nichts, was sie
+    // einblendet. Trefferflächen ≥32px für Maus/Touch/Tastatur.
+    <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
       {addChildHref && (
         <Link
           href={addChildHref as never}

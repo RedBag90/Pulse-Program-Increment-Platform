@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 import { LinkDependencyDialog } from "@/modules/drumbeat/features/dependencies/components/link-dependency-dialog";
-import { UnlinkDependencyButton } from "@/modules/drumbeat/features/dependencies/components/unlink-dependency-button";
+import { DependencyRowControls } from "@/modules/drumbeat/features/dependencies/components/dependency-row-controls";
 import { DEPENDENCY_TYPE_KEYS } from "@/modules/drumbeat/domain/status";
 import { DEPENDENCY_TYPE_CLASS } from "@/modules/drumbeat/features/lib/status-badges";
 import type { DependencyEdge } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
@@ -26,7 +26,8 @@ interface Props {
 /**
  * Dependencies-Tab des Feature-Details. Zeigt ein- und ausgehende
  * Kanten in zwei Sektionen, mit Link-Dialog (gated auf
- * `dependency.link`-Capability) und Unlink-Buttons.
+ * `dependency.link`-Capability); jede Kante — auch eingehende — lässt sich
+ * im Typ wechseln und entfernen (`DependencyRowControls`).
  */
 export function FeatureDependenciesTab({
   featureId,
@@ -91,7 +92,7 @@ export function FeatureDependenciesTab({
           featureId={featureId}
           artId={artId}
           edges={incoming}
-          canEdit={false}
+          canEdit={canEdit}
           direction="to"
           emptyHint="Keine eingehenden Dependencies."
         />
@@ -128,7 +129,7 @@ function EdgeList({
       {edges.map((edge) => (
         <li
           key={edge.id}
-          className="flex items-center justify-between gap-3 rounded-md border bg-muted/20 px-3 py-2"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/20 px-3 py-2"
         >
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span
@@ -138,12 +139,15 @@ function EdgeList({
             </span>
             <span>{edge.other.title}</span>
           </div>
-          {canEdit && artId && (
-            <UnlinkDependencyButton
+          {canEdit && (direction === "from" ? artId : edge.other.artId) && (
+            <DependencyRowControls
+              id={edge.id}
               fromId={direction === "from" ? featureId : edge.other.id}
               toId={direction === "from" ? edge.other.id : featureId}
               type={edge.type}
-              artId={artId}
+              // Das ART der Quelle: bei eingehenden Kanten das andere Feature.
+              artId={(direction === "from" ? artId : edge.other.artId)!}
+              otherTitle={edge.other.title}
             />
           )}
         </li>
