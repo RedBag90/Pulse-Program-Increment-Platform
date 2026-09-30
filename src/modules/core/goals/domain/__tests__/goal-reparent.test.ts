@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   canReparent,
+  dropPlacement,
+  planDrop,
   planReparent,
   reorderSiblingIds,
 } from "@/modules/core/goals/domain/goal-reparent";
@@ -119,5 +121,55 @@ describe("planReparent — Subtree-Re-Materialisierung", () => {
       parentObjectiveId: null,
     });
     expect(writes[1]).toEqual({ id: "D", path: "N/D", level: 1, themeId: "th_old" });
+  });
+});
+
+describe("dropPlacement", () => {
+  it("oben davor, unten danach, Mitte unterordnen", () => {
+    expect(dropPlacement(0.1, true)).toBe("before");
+    expect(dropPlacement(0.39, true)).toBe("before");
+    expect(dropPlacement(0.5, true)).toBe("inside");
+    expect(dropPlacement(0.61, true)).toBe("after");
+  });
+
+  it("ohne Umsortieren bleibt nur Unterordnen", () => {
+    expect(dropPlacement(0.1, false)).toBe("inside");
+    expect(dropPlacement(0.9, false)).toBe("inside");
+  });
+});
+
+describe("planDrop", () => {
+  interface N {
+    id: string;
+    children: N[];
+  }
+  const n = (id: string, children: N[] = []): N => ({ id, children });
+  // P ─ A, B, C · Q
+  const wald = [n("P", [n("A"), n("B"), n("C")]), n("Q")];
+
+  it("davor und danach unter Geschwistern", () => {
+    expect(planDrop(wald, "C", "A", "before")).toEqual({ newParentId: "P", beforeId: "A" });
+    expect(planDrop(wald, "C", "A", "after")).toEqual({ newParentId: "P", beforeId: "B" });
+  });
+
+  it("hinter den direkten Vorgänger ablegen zeigt nicht auf sich selbst", () => {
+    // B hinter A: das nächste Geschwister ausser B ist C.
+    expect(planDrop(wald, "B", "A", "after")).toEqual({ newParentId: "P", beforeId: "C" });
+  });
+
+  it("hinter das letzte Geschwister = ans Ende", () => {
+    expect(planDrop(wald, "A", "C", "after")).toEqual({ newParentId: "P", beforeId: null });
+  });
+
+  it("unterordnen und oberste Ebene", () => {
+    expect(planDrop(wald, "Q", "B", "inside")).toEqual({ newParentId: "B", beforeId: null });
+    expect(planDrop(wald, "A", null, "inside")).toEqual({ newParentId: null, beforeId: null });
+    expect(planDrop(wald, "Q", "P", "before")).toEqual({ newParentId: null, beforeId: "P" });
+  });
+
+  it("in den eigenen Teilbaum oder auf sich selbst → nichts", () => {
+    expect(planDrop(wald, "P", "A", "inside")).toBeNull();
+    expect(planDrop(wald, "P", "B", "before")).toBeNull();
+    expect(planDrop(wald, "A", "A", "after")).toBeNull();
   });
 });

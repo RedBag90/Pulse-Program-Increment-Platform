@@ -1,16 +1,21 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useCallback, useId, useMemo, useRef, useState, startTransition, memo } from "react";
 import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  startTransition,
-  useActionState,
-  memo,
-} from "react";
+  DndContext,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  pointerWithin,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragMoveEvent,
+} from "@dnd-kit/core";
+import { toast } from "sonner";
 import { STICKY_THEAD } from "@/components/ui/table-chrome";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -27,6 +32,7 @@ import {
   ChevronsUpDown,
   ArrowUp,
   ArrowDown,
+  GripVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
@@ -47,6 +53,11 @@ import {
   isGoalOffTrack,
 } from "@/modules/core/goals/features/lib/goal-node-view";
 import { reparentGoalNodeAction } from "@/modules/core/goals/features/actions/ziele";
+import {
+  dropPlacement,
+  planDrop,
+  type DropPlacement,
+} from "@/modules/core/goals/domain/goal-reparent";
 import { HEAD_GOAL_ACCENT } from "@/modules/core/goals/features/lib/goal-accent";
 import { GoalStatusPill } from "@/modules/core/goals/features/components/goal-status/goal-status-pill";
 import { ConfidenceHand } from "@/modules/core/goals/features/components/confidence-hand";
@@ -55,48 +66,30 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useLocalStorageState } from "@/lib/hooks/use-local-storage-state";
 
-/** Drop-Position relativ zur Ziel-Zeile: davor/dazwischen (Geschwister) oder unterordnen. */
-type Placement = "before" | "inside" | "after";
+type Placement = DropPlacement;
+
+/** Id der Ablage „auf oberste Ebene" (keine Zeile). */
+const TOP_DROP = "__oberste-ebene__";
 
 /**
- * Drag-Kontext — **nur stabile Handler** (durch NodeRows → Row gereicht). Der
- * häufig wechselnde Over-Zustand (`overId`/`overPlacement`) wird bewusst NICHT
- * hier geführt, sondern als Per-Zeilen-Primitive gereicht, damit ein Hover nur
- * die betroffenen (memoisierten) Zeilen neu rendert, nicht den ganzen Baum.
+ * Drag-Kontext — nur, was jede Zeile braucht und selten wechselt. Der häufig
+ * wechselnde Over-Zustand (`overId`/`overPlacement`) wird bewusst NICHT hier
+ * geführt, sondern als Per-Zeilen-Primitive gereicht, damit ein Hover nur die
+ * betroffenen (memoisierten) Zeilen neu rendert, nicht den ganzen Baum.
  */
 interface DragCtx {
   canEdit: boolean;
-  /** Umsortieren (davor/danach) nur im Sortier-Modus „Manuell". */
-  reorderable: boolean;
-  onStart: (node: GoalNode) => void;
-  onDropOn: (target: GoalNode | null, placement: Placement) => void;
-  isValidTarget: (targetId: string) => boolean;
-  setOver: (id: string | null, placement: Placement | null) => void;
 }
 
-/** Findet Parent-Id + Geschwister-Array (das Array, das `targetId` enthält). */
-function locateSiblings(
-  nodes: GoalNode[],
-  targetId: string,
-  parentId: string | null = null,
-): { parentId: string | null; siblings: GoalNode[] } | null {
-  if (nodes.some((n) => n.id === targetId)) return { parentId, siblings: nodes };
-  for (const n of nodes) {
-    const r = locateSiblings(n.children, targetId, n.id);
-    if (r) return r;
-  }
-  return null;
-}
-
-/** Nächster scrollbarer Vorfahr (für Auto-Scroll beim Ziehen); Fallback = Dokument. */
-function getScrollParent(el: HTMLElement | null): HTMLElement | null {
-  let p = el?.parentElement ?? null;
-  while (p) {
-    const oy = getComputedStyle(p).overflowY;
-    if ((oy === "auto" || oy === "scroll") && p.scrollHeight > p.clientHeight) return p;
-    p = p.parentElement;
-  }
-  return (document.scrollingElement as HTMLElement | null) ?? null;
+/**
+ * Senkrechte Zeigerposition während des Ziehens: Startpunkt (Maus oder
+ * Finger) plus zurückgelegter Weg.
+ */
+function pointerY(e: DragMoveEvent | DragEndEvent): number | null {
+  const a = e.activatorEvent as MouseEvent | TouchEvent | null;
+  if (!a) return null;
+  const start = "touches" in a ? a.touches[0]?.clientY : (a as MouseEvent).clientY;
+  return start == null ? null : start + e.delta.y;
 }
 
 /** Collapse-Kontext für den ein-/ausklappbaren Baum. */
@@ -104,12 +97,6 @@ interface TreeCtx {
   collapsed: ReadonlySet<string>;
   toggle: (id: string) => void;
   userLabels: Record<string, string>;
-}
-
-/** Enthält der Subtree von `n` die id `id`? (Client-Zyklus-Guard.) */
-function subtreeHas(n: GoalNode, id: string): boolean {
-  if (n.id === id) return true;
-  return n.children.some((c) => subtreeHas(c, id));
 }
 
 /** Sortierkriterium der Top-Level-Themes (Geschwister); „manual" = Server-Reihenfolge. */
@@ -128,18 +115,23 @@ interface Props {
 
 export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
   const t = useTranslations();
-  const dragNode = useRef<GoalNode | null>(null);
   const [over, setOver] = useState<{ id: string; placement: Placement } | null>(null);
-  const [overTop, setOverTop] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const overRef = useRef(over);
+  overRef.current = over;
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const dndId = useId();
+  const sensors = useSensors(
+    // Maus ab 5 px Weg; Finger nach 250 ms Halten (8 px Toleranz) — ein Wischen
+    // scrollt weiter, ein Tippen bleibt ein Tippen.
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  );
   // Auf-/Zuklapp-Zustand überlebt einen Reload (Geräte-Ansichtspräferenz).
   const [collapsedIds, setCollapsedIds] = useLocalStorageState<string[]>("ziele:collapsed", []);
   const collapsed = useMemo(() => new Set(collapsedIds), [collapsedIds]);
   const [offTrackOnly, setOffTrackOnly] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("manual");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [, reparentRun] = useActionState(reparentGoalNodeAction, {});
 
   const allParentIds = useMemo(() => collectNodeIdsWithChildren(themes), [themes]);
   const visibleThemes = useMemo(
@@ -176,95 +168,61 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
   // lesen (statt via Hook pro Zeile) und als `sp` durch den Baum reichen.
   const sp = useSearchParams();
 
-  const onDropOn = useCallback(
-    (target: GoalNode | null, placement: Placement) => {
-      const src = dragNode.current;
-      dragNode.current = null;
-      setOver(null);
-      setOverTop(false);
-      setDragging(false);
-      if (!src) return;
-      if (target && (src.id === target.id || subtreeHas(src, target.id))) return;
-
-      let newParentId = "";
-      let beforeId = "";
-      if (target && placement === "inside") {
-        newParentId = target.id; // unterordnen (ans Ende)
-      } else if (target) {
-        const loc = locateSiblings(themes, target.id);
-        newParentId = loc?.parentId ?? "";
-        if (placement === "before") {
-          beforeId = target.id;
-        } else {
-          const sibs = loc?.siblings ?? [];
-          const i = sibs.findIndex((s) => s.id === target.id);
-          beforeId = i >= 0 && i + 1 < sibs.length ? (sibs[i + 1]?.id ?? "") : "";
-        }
-      }
-      // target null = oberste Ebene (Append): newParentId "" bleibt.
-
+  /**
+   * Loslassen: aus Quelle, Ziel und Platzierung die Server-Anfrage bauen
+   * (`planDrop`) und abschicken. Scheitert sie, sagt ein Toast warum — vorher
+   * sprang die Zeile kommentarlos zurück.
+   */
+  const commitDrop = useCallback(
+    (srcId: string, targetId: string | null, placement: Placement) => {
+      const plan = planDrop(themes, srcId, targetId, placement);
+      if (!plan) return;
       const fd = new FormData();
-      fd.set("id", src.id);
-      fd.set("newParentId", newParentId);
-      fd.set("beforeId", beforeId);
-      startTransition(() => reparentRun(fd));
+      fd.set("id", srcId);
+      fd.set("newParentId", plan.newParentId ?? "");
+      fd.set("beforeId", plan.beforeId ?? "");
+      startTransition(async () => {
+        const res = await reparentGoalNodeAction({}, fd);
+        if (res.error) toast.error(res.error);
+      });
     },
-    [themes, reparentRun],
+    [themes],
   );
 
-  // Stabile Handler → `drag`-Identität wechselt NICHT bei jedem Hover; der
-  // Over-Zustand kommt separat als Per-Zeilen-Primitive.
-  const drag: DragCtx = useMemo(
-    () => ({
-      canEdit,
-      reorderable,
-      onStart: (node) => {
-        dragNode.current = node;
-        setDragging(true);
-      },
-      isValidTarget: (targetId) => {
-        const src = dragNode.current;
-        return !!src && src.id !== targetId && !subtreeHas(src, targetId);
-      },
-      onDropOn,
-      setOver: (id, placement) => setOver(id && placement ? { id, placement } : null),
-    }),
-    [canEdit, reorderable, onDropOn],
+  const onDragMove = useCallback(
+    (e: DragMoveEvent) => {
+      const o = e.over;
+      if (!o) return setOver(null);
+      const id = String(o.id);
+      if (id === TOP_DROP) return setOver({ id, placement: "inside" });
+      const y = pointerY(e);
+      const rel = y == null ? 0.5 : (y - o.rect.top) / o.rect.height;
+      const placement = dropPlacement(rel, reorderable);
+      // Ungültige Ziele (eigener Teilbaum) gar nicht erst markieren.
+      if (!planDrop(themes, String(e.active.id), id, placement)) return setOver(null);
+      setOver((prev) =>
+        prev?.id === id && prev.placement === placement ? prev : { id, placement },
+      );
+    },
+    [themes, reorderable],
   );
 
-  // Auto-Scroll: natives HTML5-Drag scrollt nicht — am oberen/unteren Rand des
-  // Scroll-Containers automatisch weiterscrollen, damit lange Listen erreichbar sind.
-  useEffect(() => {
-    if (!dragging) return;
-    const scroller = getScrollParent(containerRef.current);
-    if (!scroller) return;
-    let raf = 0;
-    let lastY = 0;
-    const EDGE = 72;
-    const MAX = 22;
-    const onOver = (e: DragEvent) => {
-      lastY = e.clientY;
-    };
-    const step = () => {
-      const r = scroller.getBoundingClientRect();
-      const top = lastY - r.top;
-      const bottom = r.bottom - lastY;
-      if (top >= 0 && top < EDGE) scroller.scrollTop -= MAX * (1 - top / EDGE);
-      else if (bottom >= 0 && bottom < EDGE) scroller.scrollTop += MAX * (1 - bottom / EDGE);
-      raf = requestAnimationFrame(step);
-    };
-    const stop = () => setDragging(false);
-    window.addEventListener("dragover", onOver);
-    window.addEventListener("dragend", stop);
-    window.addEventListener("drop", stop);
-    raf = requestAnimationFrame(step);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("dragover", onOver);
-      window.removeEventListener("dragend", stop);
-      window.removeEventListener("drop", stop);
-    };
-  }, [dragging]);
+  const onDragEnd = useCallback(
+    (e: DragEndEvent) => {
+      const last = overRef.current;
+      setActiveId(null);
+      setOver(null);
+      if (!last || !e.over) return;
+      commitDrop(String(e.active.id), last.id === TOP_DROP ? null : last.id, last.placement);
+    },
+    [commitDrop],
+  );
+
+  const drag: DragCtx = useMemo(() => ({ canEdit }), [canEdit]);
+  const activeNode = useMemo(
+    () => (activeId ? findGoal(themes, activeId) : null),
+    [themes, activeId],
+  );
 
   const toggle = useCallback(
     (id: string) =>
@@ -383,67 +341,99 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
           {reorderable ? t("goals.table.dragHintReorderable") : t("goals.table.dragHintNestOnly")}
         </p>
       )}
-      {canEdit && (
-        <div
-          onDragOver={(e) => {
-            if (dragNode.current) {
-              e.preventDefault();
-              setOverTop(true);
-            }
-          }}
-          onDragLeave={() => setOverTop(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            drag.onDropOn(null, "inside");
-          }}
-          className={cn(
-            "rounded-md border border-dashed px-3 py-1.5 text-center text-meta text-muted-foreground transition-colors",
-            overTop && "border-primary bg-primary/10 text-foreground",
-          )}
-        >
-          {t("goals.table.dropToTopLevel")}
-        </div>
-      )}
-      <div
-        ref={containerRef}
-        data-tour="goals-table"
-        className="overflow-x-auto rounded-lg bg-card shadow-card shadow-sm"
+      <DndContext
+        id={dndId}
+        sensors={sensors}
+        collisionDetection={pointerWithin}
+        onDragStart={(e) => {
+          setActiveId(String(e.active.id));
+          // Ein kurzer Ruck, wo das Gerät es kann: die Zeile ist aufgenommen.
+          if (typeof navigator !== "undefined") navigator.vibrate?.(10);
+        }}
+        onDragMove={onDragMove}
+        onDragEnd={onDragEnd}
+        onDragCancel={() => {
+          setActiveId(null);
+          setOver(null);
+        }}
       >
-        <table className="w-full text-sm">
-          <thead className={STICKY_THEAD}>
-            <tr>
-              <Th>{t("goals.table.name")}</Th>
-              <Th className="w-14">{t("goals.table.owner")}</Th>
-              <Th className="w-32">{t("goals.table.status")}</Th>
-              <Th className="w-36">{t("goals.table.progress")}</Th>
-              <Th className="w-28">{t("goals.table.value")}</Th>
-              <Th className="w-20">{t("goals.table.timeframe")}</Th>
-              {canEdit && (
-                <Th className="sticky right-0 z-30 w-24 border-l bg-muted/95">
-                  {t("goals.table.actions")}
-                </Th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {sortedThemes.map((t) => (
-              <NodeRows
-                key={t.id}
-                node={t}
-                depth={0}
-                canEdit={canEdit}
-                drag={drag}
-                tree={tree}
-                sp={sp}
-                overId={over?.id ?? null}
-                overPlacement={over?.placement ?? null}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
+        {canEdit && (
+          <TopDropZone active={over?.id === TOP_DROP} label={t("goals.table.dropToTopLevel")} />
+        )}
+        <div
+          data-tour="goals-table"
+          className="overflow-x-auto rounded-lg bg-card shadow-card shadow-sm"
+        >
+          <table className="w-full text-sm">
+            <thead className={STICKY_THEAD}>
+              <tr>
+                <Th>{t("goals.table.name")}</Th>
+                <Th className="w-14">{t("goals.table.owner")}</Th>
+                <Th className="w-32">{t("goals.table.status")}</Th>
+                <Th className="w-36">{t("goals.table.progress")}</Th>
+                <Th className="w-28">{t("goals.table.value")}</Th>
+                <Th className="w-20">{t("goals.table.timeframe")}</Th>
+                {canEdit && (
+                  <Th className="sticky right-0 z-30 w-24 border-l bg-muted/95">
+                    {t("goals.table.actions")}
+                  </Th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {sortedThemes.map((t) => (
+                <NodeRows
+                  key={t.id}
+                  node={t}
+                  depth={0}
+                  canEdit={canEdit}
+                  drag={drag}
+                  tree={tree}
+                  sp={sp}
+                  overId={over?.id ?? null}
+                  overPlacement={over?.placement ?? null}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <DragOverlay dropAnimation={null}>
+          {activeNode ? (
+            <div className="flex w-max max-w-md cursor-grabbing items-center gap-2 rounded-md border bg-background px-3 py-1.5 text-sm font-medium shadow-lg">
+              <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span className="truncate">{activeNode.title}</span>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </div>
   );
+}
+
+/** Ablage „auf oberste Ebene" über der Tabelle. */
+function TopDropZone({ active, label }: { active: boolean; label: string }) {
+  const { setNodeRef } = useDroppable({ id: TOP_DROP });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "rounded-md border border-dashed px-3 py-1.5 text-center text-meta text-muted-foreground transition-colors",
+        active && "border-primary bg-primary/10 text-foreground",
+      )}
+    >
+      {label}
+    </div>
+  );
+}
+
+/** Knoten per Id im Baum finden (für die Zeile am Finger). */
+function findGoal(nodes: GoalNode[], id: string): GoalNode | null {
+  for (const n of nodes) {
+    if (n.id === id) return n;
+    const hit = findGoal(n.children, id);
+    if (hit) return hit;
+  }
+  return null;
 }
 
 /**
@@ -582,6 +572,13 @@ const Row = memo(function Row({
   const confidence = goalNodeConfidence(node);
   const confidenceLabel = goalNodeConfidenceLabel(node);
   const placement = isOver ? overPlacement : null;
+  const { setNodeRef: setDropRef } = useDroppable({ id: node.id, disabled: !drag.canEdit });
+  const {
+    setNodeRef: setDragRef,
+    attributes: dragAttributes,
+    listeners: dragListeners,
+    isDragging,
+  } = useDraggable({ id: node.id, disabled: !drag.canEdit });
   // Kopf-Ziele (Top-Level-Themes) tragen eine hellblaue Schiene links; beim Ziehen
   // zeigt eine blaue Linie oben/unten die Einfüge-Position (davor/danach).
   const isHead = depth === 0;
@@ -591,38 +588,31 @@ const Row = memo(function Row({
   if (placement === "after") shadow.push("inset 0 -2px 0 0 var(--primary)");
   return (
     <tr
+      ref={setDropRef}
       className={cn(
         "group align-middle hover:bg-muted/40",
         placement === "inside" && "outline outline-2 -outline-offset-2 outline-primary",
+        isDragging && "opacity-40",
       )}
       style={shadow.length ? { boxShadow: shadow.join(", ") } : undefined}
-      draggable={drag.canEdit}
-      onDragStart={(e) => {
-        if (!drag.canEdit) return;
-        drag.onStart(node);
-        e.dataTransfer.effectAllowed = "move";
-      }}
-      onDragOver={(e) => {
-        if (!drag.canEdit || !drag.isValidTarget(node.id)) return;
-        e.preventDefault();
-        let next: Placement = "inside";
-        if (drag.reorderable) {
-          const r = e.currentTarget.getBoundingClientRect();
-          const rel = (e.clientY - r.top) / r.height;
-          next = rel < 0.4 ? "before" : rel > 0.6 ? "after" : "inside";
-        }
-        if (!isOver || overPlacement !== next) drag.setOver(node.id, next);
-      }}
-      onDragLeave={() => {
-        if (isOver) drag.setOver(null, null);
-      }}
-      onDrop={(e) => {
-        e.preventDefault();
-        drag.onDropOn(node, overPlacement ?? "inside");
-      }}
     >
       <Td>
         <div className="flex min-w-0 items-center">
+          {drag.canEdit && (
+            // Griff: nur hier beginnt das Ziehen. Maus ab 5 px, Finger nach
+            // 250 ms Halten — der Rest der Zeile bleibt Klick = Ziel öffnen.
+            <button
+              type="button"
+              ref={setDragRef}
+              {...dragAttributes}
+              {...dragListeners}
+              aria-label={t("goals.table.dragHandle", { title })}
+              title={t("goals.table.dragHandle", { title })}
+              className="-ml-1 mr-0.5 grid size-6 shrink-0 cursor-grab touch-none place-items-center rounded-sm text-muted-foreground/60 hover:bg-muted hover:text-foreground active:cursor-grabbing [@media(pointer:coarse)]:size-9"
+            >
+              <GripVertical className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          )}
           {/* Tiefen-Linien: ein vertikaler Guide je Einrück-Stufe. */}
           {Array.from({ length: depth }).map((_unused, i) => (
             <span

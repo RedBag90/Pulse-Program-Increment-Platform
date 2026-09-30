@@ -28,7 +28,7 @@ export function GoalStatusPill({ status }: { status: string | null | undefined }
   const tier = goalStatusTier(status);
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${PILL_CLS[tier]}`}
+      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${PILL_CLS[tier]}`}
     >
       <span aria-hidden className={`size-1.5 rounded-full ${DOT_CLS[tier]}`} />
       {t(goalStatusKey(status))}

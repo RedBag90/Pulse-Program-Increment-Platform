@@ -121,6 +121,7 @@ export default async function ZielePage({ searchParams }: PageProps) {
         userLabels={userLabels}
         setupDismissed={setupDismissed}
         tenantName={tenant?.name ?? ""}
+        personal={principal.tenantKind === "personal"}
       />
     </Suspense>
   );

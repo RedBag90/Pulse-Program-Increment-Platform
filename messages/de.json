@@ -720,9 +720,10 @@
       "emptyHint": "Leg ein Ziel an und häng Unterziele dran.",
       "collapse": "Einklappen",
       "expand": "Ausklappen",
-      "dragHintReorderable": "Klick öffnet den Editor · Zeile ziehen: oben/unten = umsortieren, Mitte = unterordnen.",
-      "dragHintNestOnly": "Klick öffnet den Editor · Zeile ziehen: auf ein Ziel = unterordnen (Umsortieren nur im Modus Manuell).",
-      "dropToTopLevel": "⇧ Hierher ziehen = auf oberste Ebene verschieben"
+      "dropToTopLevel": "⇧ Hierher ziehen = auf oberste Ebene verschieben",
+      "dragHintReorderable": "Klick öffnet das Ziel · Am Griff ziehen (per Touch kurz halten): oben/unten = umsortieren, Mitte = unterordnen.",
+      "dragHintNestOnly": "Klick öffnet das Ziel · Am Griff ziehen (per Touch kurz halten): auf ein Ziel = unterordnen (Umsortieren nur im Modus Manuell).",
+      "dragHandle": "„{title}“ verschieben"
     },
     "periodField": {
       "mode": "Zeitraum-Modus",
@@ -888,7 +889,8 @@
       "label": "Ziele-Struktur als Rad",
       "addChild": "Unterziel zu „{title}“ anlegen",
       "addTop": "Neues Ziel anlegen",
-      "targetOnly": "Ziel {value}"
+      "targetOnly": "Ziel {value}",
+      "personalCenter": "Mein Bereich"
     },
     "errors": {
       "kpiAlreadyDrives": "Diese KPI treibt bereits ein anderes Ziel — jede KPI kann nur ein Ziel treiben.",

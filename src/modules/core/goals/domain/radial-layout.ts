@@ -28,8 +28,11 @@
 
 /** Mindestabstand zweier Ringe (Flow-Pixel). */
 export const RING_ABSTAND = 185;
-/** Mindestabstand zweier Knotenmitten auf demselben Ring (Kreis + Name). */
-export const KNOTEN_PLATZ = 130;
+/**
+ * Mindestabstand zweier Knotenmitten auf demselben Ring: Kreis, Name und die
+ * Badge-Zeile (Status + Zeitraum nebeneinander) brauchen rund 170 px.
+ */
+export const KNOTEN_PLATZ = 170;
 
 interface TreeNode {
   id: string;

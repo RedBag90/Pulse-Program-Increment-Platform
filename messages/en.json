@@ -720,9 +720,10 @@
       "emptyHint": "Create a goal and hang sub-goals off it.",
       "collapse": "Collapse",
       "expand": "Expand",
-      "dragHintReorderable": "Click opens the editor · Drag a row: top/bottom = reorder, middle = nest.",
-      "dragHintNestOnly": "Click opens the editor · Drag a row: onto a goal = nest (reordering only in Manual mode).",
-      "dropToTopLevel": "⇧ Drag here = move to top level"
+      "dropToTopLevel": "⇧ Drag here = move to top level",
+      "dragHintReorderable": "Click opens the goal · Drag by the handle (on touch, press and hold): top/bottom = reorder, middle = nest.",
+      "dragHintNestOnly": "Click opens the goal · Drag by the handle (on touch, press and hold): onto a goal = nest (reordering only in Manual mode).",
+      "dragHandle": "Move “{title}”"
     },
     "periodField": {
       "mode": "Timeframe mode",
@@ -888,7 +889,8 @@
       "label": "Goal structure as a wheel",
       "addChild": "Add sub-goal to “{title}”",
       "addTop": "Add goal",
-      "targetOnly": "Target {value}"
+      "targetOnly": "Target {value}",
+      "personalCenter": "My space"
     },
     "errors": {
       "kpiAlreadyDrives": "This KPI already drives another goal — a KPI can drive only one.",

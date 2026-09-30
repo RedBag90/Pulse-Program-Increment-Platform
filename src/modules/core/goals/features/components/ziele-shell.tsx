@@ -38,6 +38,8 @@ interface Props {
   savedFilters?: SavedFilterDTO[];
   /** Name des Mandanten — steht in der Mitte des Netzplans. */
   tenantName?: string;
+  /** Privater Bereich — die Mitte des Netzplans heisst dann „Mein Bereich". */
+  personal?: boolean;
 }
 
 export function ZieleShell({
@@ -47,6 +49,7 @@ export function ZieleShell({
   setupDismissed = false,
   savedFilters = [],
   tenantName = "",
+  personal = false,
 }: Props) {
   const t = useTranslations();
   const { tab, themes, tenantTrio, permissions, modules, setup } = model;
@@ -101,6 +104,7 @@ export function ZieleShell({
             <StrategyNetworkViewLazy
               themes={themes}
               tenantName={tenantName}
+              personal={personal}
               canEdit={permissions.canEditStrategy}
             />
           )}

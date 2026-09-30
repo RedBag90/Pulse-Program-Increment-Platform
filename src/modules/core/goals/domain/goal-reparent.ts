@@ -107,3 +107,85 @@ export function reorderSiblingIds(
   without.splice(idx, 0, movedId);
   return without;
 }
+
+// ── Ziehen in der Ziele-Tabelle (rein & testbar) ──────────────────────────────
+
+/** Drop-Position relativ zur Zielzeile: davor/danach (Geschwister) oder unterordnen. */
+export type DropPlacement = "before" | "inside" | "after";
+
+/**
+ * Wo in der Zielzeile losgelassen wird: oberes 40 % = davor, unteres 40 % =
+ * danach, die Mitte = unterordnen. Ist Umsortieren gerade nicht möglich (eine
+ * andere Sortierung als „Manuell" ist aktiv), bleibt nur das Unterordnen.
+ *
+ * `relY` = Anteil der Fingerposition an der Zeilenhöhe (0 = oben, 1 = unten).
+ */
+export function dropPlacement(relY: number, reorderable: boolean): DropPlacement {
+  if (!reorderable) return "inside";
+  if (relY < 0.4) return "before";
+  if (relY > 0.6) return "after";
+  return "inside";
+}
+
+interface DropTree {
+  id: string;
+  children: readonly DropTree[];
+}
+
+/** Was der Server zum Verschieben braucht; `beforeId: null` = ans Ende. */
+export interface DropPlan {
+  newParentId: string | null;
+  beforeId: string | null;
+}
+
+/**
+ * **Aus einem Loslassen die Server-Anfrage machen.** `targetId = null` ist die
+ * Zone „auf oberste Ebene" (ans Ende). `null` als Ergebnis = nichts tun: das
+ * Ziel liegt im eigenen Teilbaum (Zyklus) oder ist die gezogene Zeile selbst.
+ *
+ * „Danach" heisst: vor das nächste Geschwister — und zwar das nächste **ausser
+ * der gezogenen Zeile**. Sonst zeigte `beforeId` beim Ablegen hinter den
+ * direkten Vorgänger auf die Zeile selbst, und der Server hinge sie ans Ende.
+ */
+export function planDrop(
+  forest: readonly DropTree[],
+  srcId: string,
+  targetId: string | null,
+  placement: DropPlacement,
+): DropPlan | null {
+  if (targetId === null) return { newParentId: null, beforeId: null };
+  if (targetId === srcId) return null;
+  const src = findNode(forest, srcId);
+  if (!src || findNode(src.children, targetId)) return null;
+
+  if (placement === "inside") return { newParentId: targetId, beforeId: null };
+
+  const loc = locate(forest, targetId, null);
+  if (!loc) return null;
+  if (placement === "before") return { newParentId: loc.parentId, beforeId: targetId };
+  const rest = loc.siblings.map((s) => s.id).filter((id) => id !== srcId);
+  const i = rest.indexOf(targetId);
+  return { newParentId: loc.parentId, beforeId: rest[i + 1] ?? null };
+}
+
+function findNode(nodes: readonly DropTree[], id: string): DropTree | null {
+  for (const n of nodes) {
+    if (n.id === id) return n;
+    const hit = findNode(n.children, id);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function locate(
+  nodes: readonly DropTree[],
+  id: string,
+  parentId: string | null,
+): { parentId: string | null; siblings: readonly DropTree[] } | null {
+  if (nodes.some((n) => n.id === id)) return { parentId, siblings: nodes };
+  for (const n of nodes) {
+    const r = locate(n.children, id, n.id);
+    if (r) return r;
+  }
+  return null;
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { ChevronsDownUp, ChevronsUpDown, Plus } from "lucide-react";
+import { CalendarDays, ChevronsDownUp, ChevronsUpDown, Plus } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -24,6 +24,7 @@ import { keyResultProgress, type RollupTrio } from "@/modules/core/goals/domain/
 import { goalStatusColor, goalStatusKey } from "@/modules/core/goals/domain/goal-status";
 import type { ConfidenceValue } from "@/modules/core/goals/domain/goal-confidence";
 import { formatMetricValue, type MetricSpec } from "@/modules/core/goals/domain/goal-metric";
+import { goalTimeframeLabel } from "@/modules/core/goals/domain/goal-period";
 import type { Locale } from "@/i18n/routing";
 import {
   filterGoalBranches,
@@ -38,6 +39,7 @@ import {
 import { tapAction } from "@/modules/core/kernel/domain/tap-focus";
 import {
   goalNodeConfidence,
+  goalNodeTimeframe,
   isGoalDrifting,
   isGoalOffTrack,
 } from "@/modules/core/goals/features/lib/goal-node-view";
@@ -72,6 +74,8 @@ interface Props {
   themes: GoalNode[];
   /** Name des Mandanten für die Mitte. */
   tenantName?: string;
+  /** Privater Bereich: die Mitte heisst nur „Mein Bereich". */
+  personal?: boolean;
   /** Darf Ziele anlegen (`target.manage`) → „+" an jedem Ziel. */
   canEdit?: boolean;
 }
@@ -85,6 +89,8 @@ interface GoalData extends Record<string, unknown> {
   /** Ist- und Zielwert in der Metrik des Ziels; formatiert wird im Knoten. */
   current: number | null;
   target: number | null;
+  /** Zeitraum-Label (Quartal, Halbjahr, Jahr oder Start–Ende); `null` = keiner. */
+  timeframe: string | null;
   spec: MetricSpec;
   color: string;
   /** 0 = Ziel in der Mitte, 1 = erster Ring … */
@@ -102,6 +108,7 @@ interface GoalData extends Record<string, unknown> {
 
 interface CenterData extends Record<string, unknown> {
   tenantName: string;
+  personal?: boolean;
   /** Oberziel anlegen; nur gesetzt, wenn das „+" sichtbar sein soll. */
   onAddTop?: () => void;
 }
@@ -115,7 +122,8 @@ interface SpokeData extends Record<string, unknown> {
 
 const CENTER_ID = "strategie";
 const CENTER_D = 96;
-const NODE_W = 150;
+/** Breite der Knotenfläche — genug für Status- und Zeitraum-Badge nebeneinander. */
+const NODE_W = 190;
 /** Platz unter dem Kreis für Name und Status-Pill. */
 const LABEL_H = 80;
 /** Kreisdurchmesser: Mitte groß, Oberziele mittel, Unterziele klein. */
@@ -123,7 +131,12 @@ const circleSize = (depth: number) => (depth === 0 ? CENTER_D : depth === 1 ? 64
 /** Neutrale Farbe der Mitte in der Mini-Map. */
 const MINIMAP_CENTER = "#475569";
 
-export function StrategyNetworkView({ themes, tenantName = "", canEdit = false }: Props) {
+export function StrategyNetworkView({
+  themes,
+  tenantName = "",
+  personal = false,
+  canEdit = false,
+}: Props) {
   const { resolvedTheme } = useTheme();
   const t = useTranslations();
   const router = useRouter();
@@ -149,7 +162,7 @@ export function StrategyNetworkView({ themes, tenantName = "", canEdit = false }
   // Deep-Link erhält die aktiven Filter/Layout-Params: Schließen des Drawers
   // führt zurück ins Rad.
   const onOpen = useCallback(
-    (goalId: string) => router.push(goalDetailHref(sp, goalId) as never),
+    (goalId: string) => router.push(goalDetailHref(sp, goalId) as never, { scroll: false }),
     [router, sp],
   );
 
@@ -166,13 +179,20 @@ export function StrategyNetworkView({ themes, tenantName = "", canEdit = false }
   // „Nur off-track" zeigt nur Auffälliges — dort gibt es kein „+".
   const showAdd = canEdit && !offTrackOnly;
   const onAdd = useCallback(
-    (parentId?: string) => router.push(goalCreateHref(sp, parentId) as never),
+    (parentId?: string) => router.push(goalCreateHref(sp, parentId) as never, { scroll: false }),
     [router, sp],
   );
   const graph = useMemo(
     () =>
-      buildGraph(visibleThemes, collapsed, onToggle, onOpen, tenantName, showAdd ? onAdd : null),
-    [visibleThemes, collapsed, onToggle, onOpen, tenantName, showAdd, onAdd],
+      buildGraph(
+        visibleThemes,
+        collapsed,
+        onToggle,
+        onOpen,
+        { tenantName, personal },
+        showAdd ? onAdd : null,
+      ),
+    [visibleThemes, collapsed, onToggle, onOpen, tenantName, personal, showAdd, onAdd],
   );
 
   // Nur die Markierung hängt an der Hervorhebung — das Layout rechnet nicht neu.
@@ -392,11 +412,15 @@ function CenterNode({ data }: NodeProps) {
   return (
     <div
       className="grid size-full place-items-center rounded-full bg-foreground p-2 text-center text-background shadow-md"
-      title={d.tenantName}
+      title={d.personal ? t("goals.network.personalCenter") : d.tenantName}
     >
+      {/* Im privaten Bereich nur „Mein Bereich": „Strategie" über dem eigenen
+          Namen „Mein Bereich (vorname.nachname)" wäre doppelt gemoppelt. */}
       <div className="min-w-0">
-        <div className="text-sm font-bold leading-tight">{t("goals.network.center")}</div>
-        {d.tenantName && (
+        <div className="text-sm font-bold leading-tight">
+          {d.personal ? t("goals.network.personalCenter") : t("goals.network.center")}
+        </div>
+        {!d.personal && d.tenantName && (
           <div className="mt-0.5 line-clamp-2 text-label leading-tight opacity-75">
             {d.tenantName}
           </div>
@@ -514,8 +538,17 @@ function GoalCircle({ data }: NodeProps) {
             {werte}
           </span>
         )}
-        <span className="origin-top scale-90">
+        <span className="flex w-max origin-top scale-90 flex-nowrap items-center gap-1 whitespace-nowrap">
           <GoalStatusPill status={d.status} />
+          {d.timeframe && (
+            <span
+              className="inline-flex max-w-40 shrink-0 items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
+              title={d.timeframe}
+            >
+              <CalendarDays className="size-3 shrink-0" aria-hidden />
+              <span className="truncate">{d.timeframe}</span>
+            </span>
+          )}
         </span>
       </div>
       {d.hasChildren && (
@@ -592,7 +625,7 @@ function buildGraph(
   collapsed: Set<string>,
   onToggle: (goalId: string) => void,
   onOpen: (goalId: string) => void,
-  tenantName: string,
+  mitte: { tenantName: string; personal: boolean },
   /** „+" anlegen; `null` = ausgeblendet. Ohne Eltern-Id: neues Oberziel. */
   onAdd: ((parentId?: string) => void) | null,
 ): {
@@ -620,6 +653,10 @@ function buildGraph(
     progress: n.progress ?? (isMeasuredLeaf(n) ? keyResultProgress(n) : trioProgress(n.trio)),
     confidence: goalNodeConfidence(n),
     current: n.current,
+    timeframe: (() => {
+      const tf = goalNodeTimeframe(n);
+      return tf ? goalTimeframeLabel(tf) : null;
+    })(),
     target: n.target,
     spec: {
       metricType: n.metricType,
@@ -660,7 +697,7 @@ function buildGraph(
       type: "center",
       position: { x: -CENTER_D / 2, y: -CENTER_D / 2 },
       data: {
-        tenantName,
+        ...mitte,
         ...(onAdd ? { onAddTop: () => onAdd() } : {}),
       } satisfies CenterData,
       width: CENTER_D,
