@@ -303,6 +303,33 @@
 }
 
 /*
+ * **Datumsfelder auf iPad und iPhone.** Safari auf iOS gibt `input[type=date]`
+ * eine eigene Mindestbreite und ignoriert `width: 100%` — in schmalen Spalten
+ * (Zeitleiste des Epics: Soll | Ist) ragte das Feld in die Nachbarspalte, und
+ * leere Felder schoben sich übereinander. Ohne Browser-Erscheinung hält sich
+ * das Feld an seine Spalte; das Datum steht links wie auf dem Desktop.
+ * `-webkit-touch-callout` gibt es nur auf iOS — andere Browser bleiben
+ * unberührt.
+ */
+@supports (-webkit-touch-callout: none) {
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="month"],
+  input[type="time"] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    max-width: 100%;
+    /* Leer fällt ein iOS-Datumsfeld sonst auf Texthöhe zusammen. */
+    min-height: 2rem;
+  }
+  input[type="date"]::-webkit-date-and-time-value,
+  input[type="datetime-local"]::-webkit-date-and-time-value {
+    text-align: left;
+  }
+}
+
+/*
  * Druck / PDF-Export (LPM-Portfolio-Review „Als PDF"). App-Chrome ist via
  * `print:hidden` ausgeblendet; hier die Seiten-Regeln: Ampel-/Chart-Farben
  * mitdrucken, Karten/Sektionen nicht über Umbrüche zerreißen, Ränder setzen.
