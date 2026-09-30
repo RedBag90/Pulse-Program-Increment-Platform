@@ -661,7 +661,8 @@
       "2": "Große Zweifel",
       "3": "Könnte klappen",
       "4": "Zuversichtlich",
-      "5": "Ganz sicher"
+      "5": "Ganz sicher",
+      "noVote": "Noch kein Vote"
     },
     "shared": {
       "noOffTrack": "Keine off-track-Ziele.",

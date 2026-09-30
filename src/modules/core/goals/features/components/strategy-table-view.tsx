@@ -46,6 +46,7 @@ import {
   goalNodeProgress,
   goalNodeConfidence,
   goalNodeConfidenceLabel,
+  isConfidenceGoal,
   goalNodeOwner,
   goalNodeTimeframeLabel,
   goalInitials,
@@ -701,6 +702,12 @@ const Row = memo(function Row({
             <span className="truncate text-meta text-muted-foreground">
               {t(CONFIDENCE_KEYS[confidence])}
             </span>
+          </span>
+        ) : isConfidenceGoal(node) ? (
+          // Confidence-Ziel ohne Vote: kein „0 %"-Balken, sondern „–/5".
+          <span className="flex items-center gap-2 text-muted-foreground">
+            <span className="shrink-0 text-xs font-semibold tabular-nums">–/5</span>
+            <span className="truncate text-meta">{t("goals.confidence.noVote")}</span>
           </span>
         ) : (
           <ProgressBar value={progress} />

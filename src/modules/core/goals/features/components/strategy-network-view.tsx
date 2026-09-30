@@ -39,6 +39,7 @@ import {
 import { tapAction } from "@/modules/core/kernel/domain/tap-focus";
 import {
   goalNodeConfidence,
+  isConfidenceGoal,
   goalNodeTimeframe,
   isGoalDrifting,
   isGoalOffTrack,
@@ -86,6 +87,8 @@ interface GoalData extends Record<string, unknown> {
   status: string | null;
   progress: number;
   confidence: ConfidenceValue | null;
+  /** Confidence-Ziel — auch ohne Vote nie als Prozent zeigen. */
+  isConfidence: boolean;
   /** Ist- und Zielwert in der Metrik des Ziels; formatiert wird im Knoten. */
   current: number | null;
   target: number | null;
@@ -376,10 +379,10 @@ function AddButton({ label, size, onClick }: { label: string; size: number; onCl
         e.stopPropagation();
         onClick();
       }}
-      className="nopan pointer-events-auto absolute grid size-5 place-items-center rounded-full border border-dashed border-muted-foreground/60 bg-background text-muted-foreground transition-colors hover:border-primary hover:text-primary focus-visible:border-primary focus-visible:text-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [@media(pointer:coarse)]:size-7"
-      style={{ left: `calc(50% + ${size / 2 - 8}px)`, top: size - 12 }}
+      className="nopan pointer-events-auto absolute grid size-5 place-items-center rounded-full border border-dashed border-muted-foreground/60 bg-background text-muted-foreground transition-colors hover:border-primary hover:text-primary focus-visible:border-primary focus-visible:text-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 after:absolute after:-inset-2 after:content-['']"
+      style={{ left: `calc(50% + ${size / 2 - 8}px)`, top: size - 16 }}
     >
-      <Plus className="size-3 [@media(pointer:coarse)]:size-4" strokeWidth={2.5} aria-hidden />
+      <Plus className="size-3" strokeWidth={2.5} aria-hidden />
     </button>
   );
 }
@@ -449,8 +452,11 @@ function GoalCircle({ data }: NodeProps) {
   // Ohne Ist-Wert (etwa ein Ziel, das nur zusammenfasst) steht nur das Ziel —
   // ein „— / 1.665.000 €" läse sich wie ein fehlender Eintrag. Dieselbe Quelle
   // wie der Drawer: `current`, keine eigene Hochrechnung.
-  const werte =
-    d.target == null || d.confidence
+  const werte = d.isConfidence
+    ? d.confidence
+      ? null
+      : t("goals.confidence.noVote")
+    : d.target == null
       ? null
       : d.current == null
         ? t("goals.network.targetOnly", { value: formatMetricValue(d.target, d.spec, locale) })
@@ -475,7 +481,7 @@ function GoalCircle({ data }: NodeProps) {
             d.onOpen(d.goalId);
           }
         }}
-        title={`${d.title} · ${d.confidence ? `${d.confidence}/5` : `${pct} %`} · ${t(goalStatusKey(d.status))}`}
+        title={`${d.title} · ${d.isConfidence ? `${d.confidence ?? "–"}/5` : `${pct} %`} · ${t(goalStatusKey(d.status))}`}
         className="group flex cursor-pointer flex-col items-center gap-1 rounded-lg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <span className="relative block" style={{ width: size, height: size }}>
@@ -507,6 +513,16 @@ function GoalCircle({ data }: NodeProps) {
           >
             {d.confidence ? (
               <ConfidenceHand value={d.confidence} size={size * 0.46} />
+            ) : d.isConfidence ? (
+              // Confidence-Ziel ohne Vote: keine Prozentzahl, sondern „–/5".
+              <span
+                className={cn(
+                  "font-semibold tabular-nums text-muted-foreground",
+                  d.depth === 0 ? "text-base" : "text-xs",
+                )}
+              >
+                –<span className="text-label font-medium">/5</span>
+              </span>
             ) : (
               <span
                 className={cn(
@@ -562,13 +578,13 @@ function GoalCircle({ data }: NodeProps) {
             e.stopPropagation();
             d.onToggle(d.goalId);
           }}
-          className="nopan absolute grid size-5 place-items-center rounded-md border bg-background text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground [@media(pointer:coarse)]:size-7"
+          className="nopan absolute grid size-5 place-items-center rounded-md border bg-background text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground after:absolute after:-inset-2 after:content-['']"
           style={{ right: `calc(50% + ${size / 2 - 8}px)`, top: -4 }}
         >
           {d.collapsed ? (
-            <ChevronsUpDown className="size-3 [@media(pointer:coarse)]:size-4" aria-hidden />
+            <ChevronsUpDown className="size-3" aria-hidden />
           ) : (
-            <ChevronsDownUp className="size-3 [@media(pointer:coarse)]:size-4" aria-hidden />
+            <ChevronsDownUp className="size-3" aria-hidden />
           )}
         </button>
       )}
@@ -652,6 +668,7 @@ function buildGraph(
     // zurück (netzplan-spezifisch); ein messbares Blatt nutzt keyResultProgress.
     progress: n.progress ?? (isMeasuredLeaf(n) ? keyResultProgress(n) : trioProgress(n.trio)),
     confidence: goalNodeConfidence(n),
+    isConfidence: isConfidenceGoal(n),
     current: n.current,
     timeframe: (() => {
       const tf = goalNodeTimeframe(n);

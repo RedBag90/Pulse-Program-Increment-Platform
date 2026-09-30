@@ -48,6 +48,16 @@ export function goalNodeConfidenceLabel(node: GoalNode): string | null {
 }
 
 /**
+ * Wird das Ziel per Confidence Vote gemessen — **auch ohne abgegebenen Vote**?
+ * Getrennt von `goalNodeConfidence`, weil ein Ziel ohne Vote sonst wie ein
+ * Prozent-Ziel aussähe: „0 %" im Kreis und „Ziel 5 %", wo der Metriktyp noch
+ * auf Prozent steht (die Skala setzt nur `baseline`/`target`).
+ */
+export function isConfidenceGoal(node: GoalNode): boolean {
+  return node.progressMode === "confidence";
+}
+
+/**
  * Der Vote eines Confidence-Ziels als Stufe 1–5 — für die Hand. `null` = kein
  * Confidence-Ziel oder noch kein Vote; dann gilt die Prozentanzeige. Ein
  * übergeordnetes Ziel, das nur zusammenfasst, ist nie eines: sein Wert wäre

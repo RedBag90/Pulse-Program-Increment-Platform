@@ -661,7 +661,8 @@
       "2": "Serious doubts",
       "3": "Could work",
       "4": "Confident",
-      "5": "Certain"
+      "5": "Certain",
+      "noVote": "No vote yet"
     },
     "shared": {
       "noOffTrack": "No off-track goals.",

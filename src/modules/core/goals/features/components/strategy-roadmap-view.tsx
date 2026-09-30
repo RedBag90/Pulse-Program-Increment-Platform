@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { goalDetailHref } from "@/modules/core/goals/features/lib/goal-href";
 import {
   goalNodeConfidence,
+  isConfidenceGoal,
   goalNodeProgress,
   goalNodeTimeframe,
 } from "@/modules/core/goals/features/lib/goal-node-view";
@@ -188,7 +189,7 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
                             <ConfidenceHand value={confidence} size={16} className="ml-auto" />
                           ) : (
                             <span className="ml-auto shrink-0 font-mono text-label tabular-nums opacity-80">
-                              {pct}%
+                              {isConfidenceGoal(node) ? "–/5" : `${pct}%`}
                             </span>
                           )}
                         </div>

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { goalDetailHref } from "@/modules/core/goals/features/lib/goal-href";
 import {
   goalNodeConfidence,
+  isConfidenceGoal,
   goalNodeProgress,
   goalNodeTimeframe,
   goalNodeOwner,
@@ -37,10 +38,13 @@ function Ring({
   value,
   status,
   confidence,
+  isConfidence,
 }: {
   value: number;
   status: string | null;
   confidence: ConfidenceValue | null;
+  /** Confidence-Ziel ohne Vote: „–" statt „0". */
+  isConfidence: boolean;
 }) {
   const r = 13;
   const c = 2 * Math.PI * r;
@@ -69,7 +73,7 @@ function Ring({
           textAnchor="middle"
           className="fill-foreground font-mono text-label font-semibold"
         >
-          {Math.round(value * 100)}
+          {isConfidence ? "–" : Math.round(value * 100)}
         </text>
       )}
     </svg>
@@ -123,6 +127,7 @@ function GoalCard({
           value={goalNodeProgress(node)}
           status={node.status}
           confidence={goalNodeConfidence(node)}
+          isConfidence={isConfidenceGoal(node)}
         />
         <Link
           href={goalDetailHref(sp, node.id) as never}

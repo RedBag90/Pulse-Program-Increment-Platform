@@ -7,6 +7,8 @@ import {
   goalInitials,
   isGoalDrifting,
   isGoalOffTrack,
+  isConfidenceGoal,
+  goalNodeConfidence,
 } from "@/modules/core/goals/features/lib/goal-node-view";
 import type { RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
 
@@ -99,5 +101,23 @@ describe("off-track / drift", () => {
     const drifting = node({ status: "on_track", trio: trio({ planned: 100, realized: 10 }) });
     expect(isGoalDrifting(drifting)).toBe(true);
     expect(isGoalOffTrack(drifting)).toBe(true);
+  });
+});
+
+describe("isConfidenceGoal", () => {
+  it("erkennt ein Confidence-Ziel auch ohne abgegebenen Vote", () => {
+    const ohneVote = node({ progressMode: "confidence", current: null });
+    expect(isConfidenceGoal(ohneVote)).toBe(true);
+    expect(goalNodeConfidence(ohneVote)).toBeNull();
+  });
+
+  it("mit Vote liefert goalNodeConfidence die Stufe", () => {
+    const mitVote = node({ progressMode: "confidence", current: 4 });
+    expect(isConfidenceGoal(mitVote)).toBe(true);
+    expect(goalNodeConfidence(mitVote)).toBe(4);
+  });
+
+  it("andere Fortschrittsquellen sind keine Confidence-Ziele", () => {
+    expect(isConfidenceGoal(node({ progressMode: "manual", current: 3 }))).toBe(false);
   });
 });
