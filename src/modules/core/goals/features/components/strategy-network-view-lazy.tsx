@@ -4,8 +4,7 @@ import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 
 /**
- * Lazy-Wrapper für den Ziel-Netzplan (`@xyflow/react` + `@dagrejs/dagre` = ~200 kb
- * gzipped). Server-Components können `dynamic({ ssr:false })` nicht direkt nutzen —
+ * Lazy-Wrapper für den Ziel-Netzplan (`@xyflow/react` = ~150 kb gzipped). Server-Components können `dynamic({ ssr:false })` nicht direkt nutzen —
  * daher dieser Client-Umweg (analog `umsetzung/cockpit-network-lazy.tsx`). Hält den
  * Netzplan-Chunk aus dem Initial-Bundle der /ziele-Route (nur bei `?layout=netzplan`).
  */

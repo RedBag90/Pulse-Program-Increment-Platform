@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Plus } from "lucide-react";
 import { GoalStatusPill } from "@/modules/core/goals/features/components/goal-status/goal-status-pill";
+import { ConfidenceHand } from "@/modules/core/goals/features/components/confidence-hand";
 import { GoalStatusSelect } from "@/modules/core/goals/features/components/goal-status/goal-status-select";
 import { GoalActivityFeed } from "@/modules/core/goals/features/components/goal-status/goal-activity-feed";
 import {
@@ -501,7 +502,7 @@ function FistOfFive({ value, onChange }: { value: string; onChange: (v: string) 
   const t = useTranslations();
   const current = Number(value);
   return (
-    <div className="mt-1 flex gap-1">
+    <div className="mt-1 grid grid-cols-5 gap-1.5">
       {CONFIDENCE_VALUES.map((v) => {
         const active = current === v;
         return (
@@ -511,15 +512,19 @@ function FistOfFive({ value, onChange }: { value: string; onChange: (v: string) 
             onClick={() => onChange(String(v))}
             aria-pressed={active}
             title={t(CONFIDENCE_KEYS[v])}
-            className={`size-9 rounded-md border text-sm font-medium tabular-nums transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
+            className={`flex min-h-16 min-w-11 flex-col items-center justify-center gap-0.5 rounded-md border px-1 py-1.5 transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
               active
                 ? needsReplan(v)
                   ? "border-destructive bg-destructive/10 text-destructive"
                   : "border-primary bg-primary/10 text-primary"
-                : "bg-background hover:bg-muted/50"
+                : "bg-background text-muted-foreground hover:bg-muted/50"
             }`}
           >
-            {v}
+            <ConfidenceHand value={v} size={26} tone="current" />
+            <span className="text-sm font-semibold tabular-nums">{v}</span>
+            <span className="line-clamp-2 text-center text-label leading-tight">
+              {t(CONFIDENCE_KEYS[v])}
+            </span>
           </button>
         );
       })}

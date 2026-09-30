@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { tapAction } from "@/modules/drumbeat/domain/tap-focus";
+import { tapAction } from "@/modules/core/kernel/domain/tap-focus";
 
 describe("tapAction — Tippen hebt hervor, zweites Tippen öffnet", () => {
   it("Touch: erstes Tippen hebt hervor", () => {

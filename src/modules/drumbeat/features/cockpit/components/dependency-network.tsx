@@ -38,7 +38,7 @@ import type {
 import { useDependencyEdgeEditing } from "@/modules/drumbeat/features/dependencies/hooks/use-dependency-edge-editing";
 import { useLongPressLink } from "@/modules/drumbeat/features/dependencies/hooks/use-long-press-link";
 import { LinkPreviewOverlay } from "@/modules/drumbeat/features/dependencies/components/link-preview-overlay";
-import { tapAction } from "@/modules/drumbeat/domain/tap-focus";
+import { tapAction } from "@/modules/core/kernel/domain/tap-focus";
 import { EDGE_LABEL } from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";
 import type { DependencyEdgeType } from "@/modules/drumbeat/features/dependencies/lib/dependency-actions-client";
 import {

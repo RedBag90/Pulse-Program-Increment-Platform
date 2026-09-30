@@ -1,5 +1,5 @@
 /**
- * **Tippen im Netzplan und Fahrplan.** Mit der Maus hebt das Überfahren
+ * **Tippen in Netzplan, Fahrplan und Ziele-Rad.** Mit der Maus hebt das Überfahren
  * hervor und ein Klick öffnet. Touch kennt kein Überfahren: dort hebt das
  * erste Tippen hervor, erst das zweite auf dasselbe Element öffnet.
  */

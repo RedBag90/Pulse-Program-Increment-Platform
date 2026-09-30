@@ -1,17 +1,19 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { useCallback, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { ChevronsDownUp, ChevronsUpDown, Plus } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import dagre from "@dagrejs/dagre";
 import {
   ReactFlow,
-  Background,
+  BaseEdge,
   Controls,
   Handle,
   MiniMap,
   Position,
+  ViewportPortal,
   type Edge,
+  type EdgeProps,
   type Node,
   type NodeProps,
 } from "@xyflow/react";
@@ -19,69 +21,121 @@ import "@xyflow/react/dist/style.css";
 import { useTheme } from "next-themes";
 import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import { keyResultProgress, type RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
-import { goalTimeframeLabel } from "@/modules/core/goals/domain/goal-period";
+import { goalStatusColor, goalStatusKey } from "@/modules/core/goals/domain/goal-status";
+import type { ConfidenceValue } from "@/modules/core/goals/domain/goal-confidence";
+import { formatMetricValue, type MetricSpec } from "@/modules/core/goals/domain/goal-metric";
+import type { Locale } from "@/i18n/routing";
 import {
   filterGoalBranches,
   collectNodeIdsWithChildren,
 } from "@/modules/core/goals/domain/goal-tree-filter";
 import {
-  goalNodeTimeframe,
-  goalNodeOwner,
-  goalInitials,
+  goalLineage,
+  radialLayout,
+  radialRoot,
+  RING_ABSTAND,
+} from "@/modules/core/goals/domain/radial-layout";
+import { tapAction } from "@/modules/core/kernel/domain/tap-focus";
+import {
+  goalNodeConfidence,
   isGoalDrifting,
   isGoalOffTrack,
 } from "@/modules/core/goals/features/lib/goal-node-view";
 import { cn } from "@/lib/utils";
-import { HEAD_GOAL_ACCENT } from "@/modules/core/goals/features/lib/goal-accent";
-import { goalDetailHref } from "@/modules/core/goals/features/lib/goal-href";
+import { goalBranchColor } from "@/modules/core/goals/features/lib/goal-accent";
+import { goalCreateHref, goalDetailHref } from "@/modules/core/goals/features/lib/goal-href";
+import { ConfidenceHand } from "@/modules/core/goals/features/components/confidence-hand";
 import { GoalStatusPill } from "@/modules/core/goals/features/components/goal-status/goal-status-pill";
 
 /**
- * Strategie als Netzplan — flach (Refactor §Hierarchie-Vereinfachung).
+ * **Die Ziele als Rad.** In der Mitte die Strategie des Mandanten, im ersten
+ * Ring die Oberziele, weiter außen ihre Unterziele. Gibt es nur ein
+ * Oberziel, steht es selbst in der Mitte (`radialRoot`). Wer Ziele pflegen
+ * darf, findet an jedem Ziel ein kleines „+" für ein weiteres Unterziel, an
+ * der Mitte eines für ein neues Oberziel. Es ist bewusst kein eigener Knoten
+ * im Layout: es hängt am Ziel wie das ± und kostet keinen Platz im Rad.
  *
- * Top-Down xyflow + dagre: **Themes** (OKRs) oben, **KRs** darunter.
- * Knoten als Cards mit Title, Progress-Bar, Subgoal-Count, Periode +
- * Owner-Initiale. Klick = Deeplink nach `/ziele?entity=…&id=…`.
+ * **Farbe sparsam.** Die Kreise sind hell; die gedämpfte Astfarbe zeigt sich
+ * nur am Rand und an der Kante. Die Aussage tragen der Ring in Statusfarbe
+ * und die Status-Pill darunter. Confidence-Ziele tragen statt der Zahl die
+ * Hand.
  *
- * Read-only — kein Drag-and-Drop, keine Inline-Edits.
+ * **Hervorheben.** Mit der Maus hebt das Überfahren den Baum eines Ziels
+ * hervor (Vorfahren, Ziel, Nachfahren), ein Klick öffnet es. Auf Touch hebt
+ * das erste Tippen hervor, das zweite öffnet (`tapAction`).
+ *
+ * Die Positionen rechnet `radial-layout.ts`; xyflow bleibt für Pan, Zoom,
+ * Pinch, Controls und Mini-Map. Schreibgeschützt: nichts ist ziehbar oder
+ * verbindbar.
  */
 interface Props {
   themes: GoalNode[];
-  /** Owner-Id → Anzeigename (für die Owner-Initialen im Knoten). */
-  userLabels?: Record<string, string>;
+  /** Name des Mandanten für die Mitte. */
+  tenantName?: string;
+  /** Darf Ziele anlegen (`target.manage`) → „+" an jedem Ziel. */
+  canEdit?: boolean;
 }
 
-type Tier = "theme" | "kr";
-
-interface NodeData extends Record<string, unknown> {
-  tier: Tier;
+interface GoalData extends Record<string, unknown> {
   goalId: string;
   title: string;
   status: string | null;
   progress: number;
-  subgoalCount: number;
-  periodLabel: string;
-  ownerInitial: string;
-  ownerLabel: string;
+  confidence: ConfidenceValue | null;
+  /** Ist- und Zielwert in der Metrik des Ziels; formatiert wird im Knoten. */
+  current: number | null;
+  target: number | null;
+  spec: MetricSpec;
+  color: string;
+  /** 0 = Ziel in der Mitte, 1 = erster Ring … */
+  depth: number;
   atRisk: boolean;
-  accent: string;
-  /** Hat der Knoten Kinder (Expand/Collapse-Toggle anzeigen)? */
   hasChildren: boolean;
-  /** Gesamtzahl Nachfahren (Badge „+N" bei eingeklappt). */
   descendantCount: number;
-  /** Teilbaum aktuell eingeklappt? */
   collapsed: boolean;
+  dimmed?: boolean;
   onToggle: (goalId: string) => void;
+  onOpen: (goalId: string) => void;
+  /** Unterziel anlegen; nur gesetzt, wenn das „+" sichtbar sein soll. */
+  onAdd?: (goalId: string) => void;
 }
 
-const NODE_WIDTH = 240;
-const NODE_HEIGHT = 140;
+interface CenterData extends Record<string, unknown> {
+  tenantName: string;
+  /** Oberziel anlegen; nur gesetzt, wenn das „+" sichtbar sein soll. */
+  onAddTop?: () => void;
+}
 
-export function StrategyNetworkView({ themes, userLabels = {} }: Props) {
+interface SpokeData extends Record<string, unknown> {
+  cx: number;
+  cy: number;
+  color: string;
+  emphasis?: "hi" | "dim";
+}
+
+const CENTER_ID = "strategie";
+const CENTER_D = 96;
+const NODE_W = 150;
+/** Platz unter dem Kreis für Name und Status-Pill. */
+const LABEL_H = 80;
+/** Kreisdurchmesser: Mitte groß, Oberziele mittel, Unterziele klein. */
+const circleSize = (depth: number) => (depth === 0 ? CENTER_D : depth === 1 ? 64 : 52);
+/** Neutrale Farbe der Mitte in der Mini-Map. */
+const MINIMAP_CENTER = "#475569";
+
+export function StrategyNetworkView({ themes, tenantName = "", canEdit = false }: Props) {
   const { resolvedTheme } = useTheme();
   const t = useTranslations();
+  const router = useRouter();
+  const sp = useSearchParams();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [offTrackOnly, setOffTrackOnly] = useState(false);
+  /** Hervorgehobenes Ziel: per Überfahren (Maus) oder erstem Tippen (Touch). */
+  const [focusId, setFocusId] = useState<string | null>(null);
+  // Der letzte Zeiger: Nach einem Tippen feuert der Browser nachgeahmte
+  // Maus-Ereignisse — ihr „Überfahren" darf die Hervorhebung nicht setzen,
+  // sonst öffnete schon das erste Tippen.
+  const letzterZeiger = useRef<string>("mouse");
 
   const onToggle = useCallback((goalId: string) => {
     setCollapsed((prev) => {
@@ -91,6 +145,13 @@ export function StrategyNetworkView({ themes, userLabels = {} }: Props) {
       return next;
     });
   }, []);
+
+  // Deep-Link erhält die aktiven Filter/Layout-Params: Schließen des Drawers
+  // führt zurück ins Rad.
+  const onOpen = useCallback(
+    (goalId: string) => router.push(goalDetailHref(sp, goalId) as never),
+    [router, sp],
+  );
 
   const collapseAll = useCallback(
     () => setCollapsed(new Set(collectNodeIdsWithChildren(themes))),
@@ -102,10 +163,36 @@ export function StrategyNetworkView({ themes, userLabels = {} }: Props) {
     () => (offTrackOnly ? filterGoalBranches(themes, isGoalOffTrack) : themes),
     [themes, offTrackOnly],
   );
-  const { nodes, edges } = useMemo(
-    () => buildGraph(visibleThemes, collapsed, onToggle, userLabels),
-    [visibleThemes, collapsed, onToggle, userLabels],
+  // „Nur off-track" zeigt nur Auffälliges — dort gibt es kein „+".
+  const showAdd = canEdit && !offTrackOnly;
+  const onAdd = useCallback(
+    (parentId?: string) => router.push(goalCreateHref(sp, parentId) as never),
+    [router, sp],
   );
+  const graph = useMemo(
+    () =>
+      buildGraph(visibleThemes, collapsed, onToggle, onOpen, tenantName, showAdd ? onAdd : null),
+    [visibleThemes, collapsed, onToggle, onOpen, tenantName, showAdd, onAdd],
+  );
+
+  // Nur die Markierung hängt an der Hervorhebung — das Layout rechnet nicht neu.
+  const { nodes, edges } = useMemo(() => {
+    const linie = focusId ? goalLineage(graph.lineage, focusId) : null;
+    if (!linie || linie.size === 0) return graph;
+    return {
+      nodes: graph.nodes.map((n) =>
+        n.type === "goal" ? { ...n, data: { ...n.data, dimmed: !linie.has(n.id) } } : n,
+      ),
+      edges: graph.edges.map((e) => ({
+        ...e,
+        data: {
+          ...e.data,
+          emphasis:
+            linie.has(e.target) && (e.source === CENTER_ID || linie.has(e.source)) ? "hi" : "dim",
+        },
+      })),
+    };
+  }, [graph, focusId]);
 
   if (themes.length === 0) {
     return (
@@ -148,157 +235,355 @@ export function StrategyNetworkView({ themes, userLabels = {} }: Props) {
           </button>
         </div>
       </div>
-      {offTrackOnly && nodes.length === 0 && (
+      {offTrackOnly && visibleThemes.length === 0 && (
         <p className="text-meta text-muted-foreground">{t("goals.shared.noOffTrack")}</p>
       )}
-      <div className="h-[680px] overflow-hidden rounded-lg bg-card shadow-card">
+      <div
+        className="h-[720px] overflow-hidden rounded-lg bg-card shadow-card"
+        role="figure"
+        aria-label={t("goals.network.label")}
+        onPointerDownCapture={(e) => {
+          letzterZeiger.current = e.pointerType;
+        }}
+      >
         <ReactFlow
           nodes={nodes}
           edges={edges}
           nodeTypes={NODE_TYPES}
+          edgeTypes={EDGE_TYPES}
           fitView
+          // Nie über 100 % einpassen: ein einzelnes Ziel füllte sonst die Fläche.
+          fitViewOptions={{ padding: 0.08, maxZoom: 1 }}
           // React Flow bringt eigene, helle Farben mit (`dist/style.css`);
           // ohne `colorMode` verschwindet die Navigation im dunklen Modus.
           colorMode={resolvedTheme === "dark" ? "dark" : "light"}
           proOptions={{ hideAttribution: true }}
           nodesDraggable={false}
           nodesConnectable={false}
-          elementsSelectable
-          minZoom={0.2}
-          maxZoom={1.4}
+          elementsSelectable={false}
+          // Ohne Klick-Handler setzt xyflow auf nicht ziehbare, nicht wählbare
+          // Knoten `pointer-events: none` — dann kämen weder Öffnen noch ±
+          // an. Der Handler hält sie klickbar.
+          onNodeClick={(_e, n) => {
+            if (n.type !== "goal") return;
+            if (tapAction(letzterZeiger.current === "touch", focusId, n.id) === "focus") {
+              setFocusId(n.id);
+              return;
+            }
+            onOpen(n.id);
+          }}
+          onNodeMouseEnter={(_e, n) => {
+            if (letzterZeiger.current === "touch") return;
+            setFocusId(n.type === "goal" ? n.id : null);
+          }}
+          onNodeMouseLeave={() => {
+            if (letzterZeiger.current !== "touch") setFocusId(null);
+          }}
+          // Tippen auf die leere Fläche hebt die Hervorhebung auf.
+          onPaneClick={() => setFocusId(null)}
+          minZoom={0.1}
+          maxZoom={1.6}
         >
-          <Background gap={20} size={1} />
+          <ViewportPortal>
+            <Rings radii={graph.ringRadii} />
+          </ViewportPortal>
           <Controls showInteractive={false} />
-          <MiniMap pannable zoomable className="!bg-card" />
+          <MiniMap
+            pannable
+            zoomable
+            className="!bg-card"
+            nodeColor={(n) => (n.type === "goal" ? (n.data as GoalData).color : MINIMAP_CENTER)}
+          />
         </ReactFlow>
       </div>
     </div>
   );
 }
 
-const NODE_TYPES = { strategyNode: StrategyNode };
+/**
+ * Die Ringe je Ebene. `z-index: -1` legt sie im Viewport unter Kanten und
+ * Knoten; die Portal-Ebene liegt sonst obenauf. Jede Scheibe ist halb
+ * durchsichtig — übereinander werden sie zur Mitte hin dunkler.
+ */
+function Rings({ radii }: { radii: number[] }) {
+  if (radii.length === 0) return null;
+  const aussen = radii[radii.length - 1]! + RING_ABSTAND / 2;
+  const scheiben = [...radii.map((r) => r + RING_ABSTAND / 2), CENTER_D / 2 + 24].sort(
+    (a, b) => b - a,
+  );
+  return (
+    <svg
+      aria-hidden
+      className="pointer-events-none absolute overflow-visible"
+      style={{ left: -aussen, top: -aussen, zIndex: -1 }}
+      width={aussen * 2}
+      height={aussen * 2}
+      viewBox={`${-aussen} ${-aussen} ${aussen * 2} ${aussen * 2}`}
+    >
+      {scheiben.map((r) => (
+        <circle key={r} cx={0} cy={0} r={r} className="fill-muted" fillOpacity={0.45} />
+      ))}
+      {radii.map((r) => (
+        <circle
+          key={`bahn-${r}`}
+          cx={0}
+          cy={0}
+          r={r}
+          fill="none"
+          className="stroke-border"
+          strokeDasharray="3 6"
+        />
+      ))}
+    </svg>
+  );
+}
 
-function StrategyNode({ data }: NodeProps) {
-  const t = useTranslations();
-  const d = data as NodeData;
-  const router = useRouter();
-  const sp = useSearchParams();
-  // Deep-Link erhält die aktiven Filter/Layout-Params (kein bares ?entity=…).
-  const open = () => router.push(goalDetailHref(sp, d.goalId) as never);
+const NODE_TYPES = { goal: GoalCircle, center: CenterNode };
 
-  const tierStyle: Record<Tier, string> = {
-    theme: "border-l-4 bg-card",
-    kr: "border bg-muted/30",
-  };
-  const tierLabel: Record<Tier, string> = {
-    theme: "ZIEL",
-    kr: "ZIEL",
-  };
+/**
+ * Das „+" am Kreis (rechts unten): legt ein Ziel darunter an. Bewusst anders
+ * als das Ein-/Ausklappen (links oben, Quadrat mit Chevrons): ein Kreis mit
+ * gestricheltem Rand — „hier kann etwas hin". Es stoppt die Weitergabe, damit
+ * der Klick nicht zugleich das Ziel öffnet; eine Touch-Vorstufe gibt es nicht.
+ */
+function AddButton({ label, size, onClick }: { label: string; size: number; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className="nopan pointer-events-auto absolute grid size-5 place-items-center rounded-full border border-dashed border-muted-foreground/60 bg-background text-muted-foreground transition-colors hover:border-primary hover:text-primary focus-visible:border-primary focus-visible:text-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [@media(pointer:coarse)]:size-7"
+      style={{ left: `calc(50% + ${size / 2 - 8}px)`, top: size - 12 }}
+    >
+      <Plus className="size-3 [@media(pointer:coarse)]:size-4" strokeWidth={2.5} aria-hidden />
+    </button>
+  );
+}
+const EDGE_TYPES = { spoke: Spoke };
 
+/** Unsichtbare Anfasser in der Kreismitte: Kanten laufen von Mitte zu Mitte. */
+function CenterHandles({ top }: { top: number }) {
+  const style = {
+    left: "50%",
+    top,
+    width: 1,
+    height: 1,
+    minWidth: 0,
+    minHeight: 0,
+    border: 0,
+    opacity: 0,
+    transform: "translate(-50%, -50%)",
+  } as const;
   return (
     <>
-      <Handle type="target" position={Position.Top} isConnectable={false} />
-      {/* Card is a div (not a button) so the collapse toggle can be a real
-          nested button; body click + keyboard open the drawer (side-pane). */}
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={open}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            open();
-          }
-        }}
-        className={`flex h-full w-full cursor-pointer flex-col gap-1.5 rounded-lg p-3 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 ${tierStyle[d.tier]}`}
-        style={d.tier === "theme" ? { borderLeftColor: d.accent } : undefined}
-      >
-        <header className="flex items-center justify-between gap-2 text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          <span className="flex items-center gap-1">
-            {d.hasChildren && (
-              <button
-                type="button"
-                aria-label={d.collapsed ? "Teilbaum ausklappen" : "Teilbaum einklappen"}
-                aria-expanded={!d.collapsed}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  d.onToggle(d.goalId);
-                }}
-                className="grid size-4 place-items-center rounded-sm border text-label leading-none hover:bg-muted"
-              >
-                {d.collapsed ? "▸" : "▾"}
-              </button>
-            )}
-            {tierLabel[d.tier]}
-          </span>
-          <span className="flex items-center gap-1">
-            {d.collapsed && d.descendantCount > 0 && (
-              <span
-                className="rounded-full bg-primary/15 px-1 py-0.5 text-label font-semibold text-primary"
-                title={`${d.descendantCount} verborgene Nachfahren`}
-              >
-                +{d.descendantCount}
-              </span>
-            )}
-            {d.atRisk && (
-              <span
-                className="rounded-full bg-warning-surface px-1 py-0.5 text-label font-semibold text-warning"
-                title={t("goals.shared.runRateBelowPlan")}
-              >
-                ⚠
-              </span>
-            )}
-          </span>
-        </header>
-        <p className="line-clamp-2 text-xs font-semibold leading-tight">{d.title}</p>
-        <div>
-          <GoalStatusPill status={d.status} />
-        </div>
-        <ProgressBar value={d.progress} />
-        <footer className="mt-auto flex items-center justify-between gap-2 text-label text-muted-foreground">
-          <span className="truncate">
-            {d.subgoalCount > 0 &&
-              (d.subgoalCount === 1
-                ? t("goals.shared.subGoalCountOne", { count: d.subgoalCount })
-                : t("goals.shared.subGoalCountOther", { count: d.subgoalCount }))}
-            {d.subgoalCount > 0 && d.periodLabel && " · "}
-            {d.periodLabel}
-          </span>
-          {d.ownerInitial && (
-            <span
-              className="grid size-5 shrink-0 place-items-center rounded-full bg-primary/15 text-label font-semibold text-primary"
-              title={d.ownerLabel || "Owner"}
-            >
-              {d.ownerInitial}
-            </span>
-          )}
-        </footer>
-      </div>
-      <Handle type="source" position={Position.Bottom} isConnectable={false} />
+      <Handle type="target" position={Position.Top} isConnectable={false} style={style} />
+      <Handle type="source" position={Position.Bottom} isConnectable={false} style={style} />
     </>
   );
 }
 
-function ProgressBar({ value }: { value: number }) {
-  const pct = Math.round(value * 100);
-  const tone =
-    value >= 0.7
-      ? "from-emerald-600 to-emerald-400"
-      : value >= 0.3
-        ? "from-amber-600 to-amber-400"
-        : "from-rose-600 to-rose-400";
+function CenterNode({ data }: NodeProps) {
+  const t = useTranslations();
+  const d = data as CenterData;
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-        <div
-          className={`h-full rounded-full bg-gradient-to-r ${tone}`}
-          style={{ width: `${pct}%` }}
-        />
+    <div
+      className="grid size-full place-items-center rounded-full bg-foreground p-2 text-center text-background shadow-md"
+      title={d.tenantName}
+    >
+      <div className="min-w-0">
+        <div className="text-sm font-bold leading-tight">{t("goals.network.center")}</div>
+        {d.tenantName && (
+          <div className="mt-0.5 line-clamp-2 text-label leading-tight opacity-75">
+            {d.tenantName}
+          </div>
+        )}
       </div>
-      <span className="w-9 shrink-0 text-right text-meta tabular-nums text-muted-foreground">
-        {pct} %
-      </span>
+      {d.onAddTop && (
+        <AddButton label={t("goals.network.addTop")} size={CENTER_D} onClick={d.onAddTop} />
+      )}
+      <CenterHandles top={CENTER_D / 2} />
     </div>
+  );
+}
+
+function GoalCircle({ data }: NodeProps) {
+  const t = useTranslations();
+  const d = data as GoalData;
+
+  const size = circleSize(d.depth);
+  const ring = 3;
+  const r = size / 2 - ring / 2;
+  const umfang = 2 * Math.PI * r;
+  const locale = useLocale() as Locale;
+  const pct = Math.round(d.progress * 100);
+  // Ist / Ziel mit Einheit — nur wo das Ziel eine eigene Metrik hat. Bei
+  // Confidence-Zielen sagt es die Hand schon.
+  // Ohne Ist-Wert (etwa ein Ziel, das nur zusammenfasst) steht nur das Ziel —
+  // ein „— / 1.665.000 €" läse sich wie ein fehlender Eintrag. Dieselbe Quelle
+  // wie der Drawer: `current`, keine eigene Hochrechnung.
+  const werte =
+    d.target == null || d.confidence
+      ? null
+      : d.current == null
+        ? t("goals.network.targetOnly", { value: formatMetricValue(d.target, d.spec, locale) })
+        : `${formatMetricValue(d.current, d.spec, locale)} / ${formatMetricValue(d.target, d.spec, locale)}`;
+
+  return (
+    <div
+      className={cn(
+        "pointer-events-auto relative flex w-full flex-col items-center transition-opacity duration-150",
+        d.dimmed && "opacity-30",
+      )}
+    >
+      {/* Klick öffnet über `onNodeClick` am Flow; hier nur die Tastatur.
+          Ein-/Ausklappen und „+" sind eigene Knöpfe und stoppen die
+          Weitergabe. */}
+      <div
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            d.onOpen(d.goalId);
+          }
+        }}
+        title={`${d.title} · ${d.confidence ? `${d.confidence}/5` : `${pct} %`} · ${t(goalStatusKey(d.status))}`}
+        className="group flex cursor-pointer flex-col items-center gap-1 rounded-lg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <span className="relative block" style={{ width: size, height: size }}>
+          <svg width={size} height={size} className="absolute inset-0" aria-hidden>
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={r}
+              fill="none"
+              className="stroke-muted"
+              strokeWidth={ring}
+            />
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={r}
+              fill="none"
+              stroke={goalStatusColor(d.status)}
+              strokeWidth={ring}
+              strokeLinecap="round"
+              strokeDasharray={umfang}
+              strokeDashoffset={umfang * (1 - Math.max(0, Math.min(1, d.progress)))}
+              transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            />
+          </svg>
+          <span
+            className="absolute grid place-items-center rounded-full border-[1.5px] border-solid bg-card text-foreground shadow-xs transition-transform group-hover:scale-105"
+            style={{ inset: ring + 2, borderColor: d.color }}
+          >
+            {d.confidence ? (
+              <ConfidenceHand value={d.confidence} size={size * 0.46} />
+            ) : (
+              <span
+                className={cn(
+                  "font-semibold tabular-nums",
+                  d.depth === 0 ? "text-base" : "text-xs",
+                )}
+              >
+                {pct}
+                <span className="ml-px text-label font-medium text-muted-foreground">
+                  {locale === "en" ? "%" : "\u202F%"}
+                </span>
+              </span>
+            )}
+          </span>
+        </span>
+        <span
+          className={cn(
+            "line-clamp-2 max-w-full rounded-md border bg-background/90 px-1.5 py-0.5 text-center text-label leading-tight text-foreground",
+            d.depth <= 1 && "font-semibold",
+          )}
+        >
+          {d.title}
+        </span>
+        {werte && (
+          <span
+            className="max-w-full truncate text-label tabular-nums leading-tight text-muted-foreground"
+            title={werte}
+          >
+            {werte}
+          </span>
+        )}
+        <span className="origin-top scale-90">
+          <GoalStatusPill status={d.status} />
+        </span>
+      </div>
+      {d.hasChildren && (
+        <button
+          type="button"
+          aria-label={
+            d.collapsed ? t("goals.network.expandBranch") : t("goals.network.collapseBranch")
+          }
+          aria-expanded={!d.collapsed}
+          onClick={(e) => {
+            e.stopPropagation();
+            d.onToggle(d.goalId);
+          }}
+          className="nopan absolute grid size-5 place-items-center rounded-md border bg-background text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground [@media(pointer:coarse)]:size-7"
+          style={{ right: `calc(50% + ${size / 2 - 8}px)`, top: -4 }}
+        >
+          {d.collapsed ? (
+            <ChevronsUpDown className="size-3 [@media(pointer:coarse)]:size-4" aria-hidden />
+          ) : (
+            <ChevronsDownUp className="size-3 [@media(pointer:coarse)]:size-4" aria-hidden />
+          )}
+        </button>
+      )}
+      {d.collapsed && d.descendantCount > 0 && (
+        <span
+          className="absolute rounded-full bg-primary/15 px-1 text-label font-semibold text-primary"
+          style={{ left: `calc(50% + ${size / 2 - 4}px)`, top: -2 }}
+          title={t("goals.network.hiddenCount", { count: d.descendantCount })}
+        >
+          +{d.descendantCount}
+        </span>
+      )}
+      {d.atRisk && !d.collapsed && (
+        <span
+          className="absolute rounded-full bg-warning-surface px-1 text-label font-semibold text-warning"
+          style={{ left: `calc(50% + ${size / 2 - 4}px)`, top: -2 }}
+          title={t("goals.shared.runRateBelowPlan")}
+        >
+          ⚠
+        </span>
+      )}
+      {d.onAdd && (
+        <AddButton
+          label={t("goals.network.addChild", { title: d.title })}
+          size={size}
+          onClick={() => d.onAdd!(d.goalId)}
+        />
+      )}
+      <CenterHandles top={size / 2} />
+    </div>
+  );
+}
+
+/** Speiche: sanfte Kurve von der Eltern- zur Kindmitte in gedämpfter Astfarbe. */
+function Spoke({ id, sourceX, sourceY, targetX, targetY, data }: EdgeProps) {
+  const d = data as SpokeData;
+  const hi = d.emphasis === "hi";
+  return (
+    <BaseEdge
+      id={id}
+      path={`M ${sourceX} ${sourceY} Q ${d.cx} ${d.cy} ${targetX} ${targetY}`}
+      style={{
+        stroke: d.color,
+        strokeOpacity: hi ? 0.9 : d.emphasis === "dim" ? 0.12 : 0.45,
+        strokeWidth: hi ? 2.5 : 1.5,
+        transition: "stroke-opacity 150ms",
+      }}
+    />
   );
 }
 
@@ -306,90 +591,133 @@ function buildGraph(
   themes: GoalNode[],
   collapsed: Set<string>,
   onToggle: (goalId: string) => void,
-  userLabels: Record<string, string>,
-): { nodes: Node[]; edges: Edge[] } {
-  const rawNodes: Array<{ id: string; data: NodeData }> = [];
-  const rawEdges: Array<{ id: string; source: string; target: string }> = [];
-
-  // Rekursiver Walk über den Goal-Baum: ein Knoten je Ebene + Eltern-Kind-Kante.
-  // Eingeklappte Knoten emittieren ihre Kinder nicht → dagre layoutet nur Sichtbares.
-  const visit = (n: GoalNode, accent: string, parentGraphId: string | null): void => {
-    // „kr"-Tier = messbares Blatt (eigene Metrik); aggregierende Knoten (rollup,
-    // kpi_tree-Ast) sind Container-„theme".
-    const tier: Tier =
-      n.isMeasurable &&
-      n.progressMode !== "rollup" &&
-      !(n.progressMode === "kpi_tree" && n.children.length > 0)
-        ? "kr"
-        : "theme";
-    const gid = nodeId(tier, n.id);
-    const isCollapsed = collapsed.has(n.id);
-    const ownerLabel = goalNodeOwner(n, userLabels) ?? "";
-    const tf = goalNodeTimeframe(n);
-    rawNodes.push({
-      id: gid,
-      data: {
-        tier,
-        goalId: n.id,
-        title: n.title,
-        status: n.status,
-        // Container-Knoten ohne aufgelösten Fortschritt fallen bewusst auf die
-        // €-Trio-Quote zurück (netzplan-spezifisch); ein messbares Blatt nutzt den
-        // Domain-Helfer keyResultProgress (= goalNodeProgress ohne Container-Sonderfall).
-        progress: n.progress ?? (tier === "kr" ? keyResultProgress(n) : trioProgress(n.trio)),
-        subgoalCount: n.children.length,
-        periodLabel: tf ? goalTimeframeLabel(tf) : "",
-        ownerInitial: goalInitials(ownerLabel),
-        ownerLabel,
-        atRisk: isGoalDrifting(n),
-        accent,
-        hasChildren: n.children.length > 0,
-        descendantCount: descendantCount(n),
-        collapsed: isCollapsed,
-        onToggle,
-      },
-    });
-    if (parentGraphId) {
-      rawEdges.push({ id: `${parentGraphId}__${gid}`, source: parentGraphId, target: gid });
-    }
-    if (!isCollapsed) for (const c of n.children) visit(c, accent, gid);
+  onOpen: (goalId: string) => void,
+  tenantName: string,
+  /** „+" anlegen; `null` = ausgeblendet. Ohne Eltern-Id: neues Oberziel. */
+  onAdd: ((parentId?: string) => void) | null,
+): {
+  nodes: Node[];
+  edges: Edge[];
+  ringRadii: number[];
+  /** Eltern-Beziehungen aller sichtbaren Ziele für `goalLineage`. */
+  lineage: { id: string; parentId: string | null }[];
+} {
+  const { center, rings } = radialRoot(themes, collapsed);
+  const layout = radialLayout(rings, collapsed);
+  const byId = new Map<string, GoalNode>();
+  const merke = (n: GoalNode) => {
+    byId.set(n.id, n);
+    n.children.forEach(merke);
   };
-  themes.forEach((t) => visit(t, HEAD_GOAL_ACCENT, null));
+  themes.forEach(merke);
 
-  const g = new dagre.graphlib.Graph();
-  g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: "TB", nodesep: 32, ranksep: 64 });
-  for (const n of rawNodes) g.setNode(n.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
-  for (const e of rawEdges) g.setEdge(e.source, e.target);
-  dagre.layout(g);
-
-  const nodes: Node[] = rawNodes.map((n) => {
-    const pos = g.node(n.id);
-    return {
-      id: n.id,
-      type: "strategyNode",
-      position: { x: pos.x - NODE_WIDTH / 2, y: pos.y - NODE_HEIGHT / 2 },
-      data: n.data,
-      width: NODE_WIDTH,
-      height: NODE_HEIGHT,
-      draggable: false,
-      selectable: true,
-    };
+  const goalData = (n: GoalNode, depth: number, color: string): GoalData => ({
+    goalId: n.id,
+    title: n.title,
+    status: n.status,
+    // Container ohne aufgelösten Fortschritt fallen auf die €-Trio-Quote
+    // zurück (netzplan-spezifisch); ein messbares Blatt nutzt keyResultProgress.
+    progress: n.progress ?? (isMeasuredLeaf(n) ? keyResultProgress(n) : trioProgress(n.trio)),
+    confidence: goalNodeConfidence(n),
+    current: n.current,
+    target: n.target,
+    spec: {
+      metricType: n.metricType,
+      precision: n.precision,
+      currencyCode: n.currencyCode,
+      metricUnit: n.metricUnit,
+    },
+    color,
+    depth,
+    atRisk: isGoalDrifting(n),
+    hasChildren: n.children.length > 0,
+    descendantCount: descendantCount(n),
+    collapsed: collapsed.has(n.id),
+    onToggle,
+    onOpen,
+    ...(onAdd ? { onAdd: (id: string) => onAdd(id) } : {}),
   });
 
-  const edges: Edge[] = rawEdges.map((e) => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    type: "smoothstep",
-    style: { stroke: "#cbd5e1", strokeWidth: 1.5 },
-  }));
+  const rootId = center?.id ?? CENTER_ID;
+  const nodes: Node[] = [];
+  const lineage: { id: string; parentId: string | null }[] = [];
+  if (center) {
+    // Ein einziges Oberziel steht selbst in der Mitte.
+    nodes.push({
+      id: center.id,
+      type: "goal",
+      position: { x: -NODE_W / 2, y: -CENTER_D / 2 },
+      data: goalData(center, 0, MINIMAP_CENTER),
+      width: NODE_W,
+      height: CENTER_D + LABEL_H,
+      draggable: false,
+      selectable: false,
+    });
+    lineage.push({ id: center.id, parentId: null });
+  } else {
+    nodes.push({
+      id: CENTER_ID,
+      type: "center",
+      position: { x: -CENTER_D / 2, y: -CENTER_D / 2 },
+      data: {
+        tenantName,
+        ...(onAdd ? { onAddTop: () => onAdd() } : {}),
+      } satisfies CenterData,
+      width: CENTER_D,
+      height: CENTER_D,
+      draggable: false,
+      selectable: false,
+    });
+  }
 
-  return { nodes, edges };
+  const edges: Edge[] = [];
+  const radius = (depth: number) => (depth <= 0 ? 0 : (layout.ringRadii[depth - 1] ?? 0));
+
+  for (const p of layout.nodes) {
+    const color = goalBranchColor(p.branch);
+    const rp = radius(p.depth - 1);
+    const n = byId.get(p.id)!;
+    const size = circleSize(p.depth);
+    const parentId = p.parentId ?? rootId;
+    nodes.push({
+      id: n.id,
+      type: "goal",
+      position: { x: p.x - NODE_W / 2, y: p.y - size / 2 },
+      data: goalData(n, p.depth, color),
+      width: NODE_W,
+      height: size + LABEL_H,
+      draggable: false,
+      selectable: false,
+    });
+    lineage.push({ id: n.id, parentId: p.parentId ?? (center ? center.id : null) });
+    // Kontrollpunkt auf dem Ring des Elternteils, im Winkel des Kinds: die
+    // Speiche verlässt den Elternteil geradeaus nach außen und biegt dann ab.
+    edges.push({
+      id: `${parentId}__${n.id}`,
+      source: parentId,
+      target: n.id,
+      type: "spoke",
+      data: {
+        cx: rp * Math.cos(p.angle),
+        cy: rp * Math.sin(p.angle),
+        color,
+      } satisfies SpokeData,
+    });
+  }
+
+  return { nodes, edges, ringRadii: layout.ringRadii, lineage };
 }
 
-function nodeId(tier: Tier, id: string): string {
-  return `${tier}-${id}`;
+/**
+ * Messbares Blatt mit eigener Metrik; aggregierende Knoten (rollup,
+ * kpi_tree-Ast) sind Container.
+ */
+function isMeasuredLeaf(n: GoalNode): boolean {
+  return (
+    n.isMeasurable &&
+    n.progressMode !== "rollup" &&
+    !(n.progressMode === "kpi_tree" && n.children.length > 0)
+  );
 }
 
 /** Gesamtzahl der Nachfahren eines Knotens (für das „+N"-Collapse-Badge). */

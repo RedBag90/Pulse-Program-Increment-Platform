@@ -11,7 +11,11 @@
  */
 
 import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
-import { CONFIDENCE_MAX } from "@/modules/core/goals/domain/goal-confidence";
+import {
+  CONFIDENCE_MAX,
+  isConfidenceValue,
+  type ConfidenceValue,
+} from "@/modules/core/goals/domain/goal-confidence";
 import { keyResultProgress, isAtRisk } from "@/modules/core/goals/domain/goals-rollup";
 import {
   goalTimeframe,
@@ -41,6 +45,18 @@ export function goalNodeProgress(node: GoalNode): number {
 export function goalNodeConfidenceLabel(node: GoalNode): string | null {
   if (node.progressMode !== "confidence" || node.current == null) return null;
   return `${Math.round(node.current)} / ${CONFIDENCE_MAX}`;
+}
+
+/**
+ * Der Vote eines Confidence-Ziels als Stufe 1–5 — für die Hand. `null` = kein
+ * Confidence-Ziel oder noch kein Vote; dann gilt die Prozentanzeige. Ein
+ * übergeordnetes Ziel, das nur zusammenfasst, ist nie eines: sein Wert wäre
+ * ein Durchschnitt, keine Hand.
+ */
+export function goalNodeConfidence(node: GoalNode): ConfidenceValue | null {
+  if (node.progressMode !== "confidence" || node.current == null) return null;
+  const v = Math.round(node.current);
+  return isConfidenceValue(v) ? v : null;
 }
 
 /** Effektiver Zeitraum eines Knotens (Range gewinnt über Bucket) oder null. */

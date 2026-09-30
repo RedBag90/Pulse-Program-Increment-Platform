@@ -91,7 +91,7 @@ export function clampPrecision(p: number | null | undefined): number {
   return Math.max(0, Math.min(6, Math.trunc(p)));
 }
 
-interface MetricSpec {
+export interface MetricSpec {
   metricType?: string | null | undefined;
   precision?: number | null | undefined;
   currencyCode?: string | null | undefined;

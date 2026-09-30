@@ -38,6 +38,7 @@ import {
 } from "@/modules/core/goals/domain/goal-tree-filter";
 import {
   goalNodeProgress,
+  goalNodeConfidence,
   goalNodeConfidenceLabel,
   goalNodeOwner,
   goalNodeTimeframeLabel,
@@ -48,6 +49,8 @@ import {
 import { reparentGoalNodeAction } from "@/modules/core/goals/features/actions/ziele";
 import { HEAD_GOAL_ACCENT } from "@/modules/core/goals/features/lib/goal-accent";
 import { GoalStatusPill } from "@/modules/core/goals/features/components/goal-status/goal-status-pill";
+import { ConfidenceHand } from "@/modules/core/goals/features/components/confidence-hand";
+import { CONFIDENCE_KEYS } from "@/modules/core/goals/domain/goal-confidence";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useLocalStorageState } from "@/lib/hooks/use-local-storage-state";
@@ -576,6 +579,7 @@ const Row = memo(function Row({
   const t = useTranslations();
   // Aus `node` abgeleitet statt als Prop durchgereicht: `Row` ist memoisiert und
   // hat den Knoten ohnehin.
+  const confidence = goalNodeConfidence(node);
   const confidenceLabel = goalNodeConfidenceLabel(node);
   const placement = isOver ? overPlacement : null;
   // Kopf-Ziele (Top-Level-Themes) tragen eine hellblaue Schiene links; beim Ziehen
@@ -696,13 +700,16 @@ const Row = memo(function Row({
         </span>
       </Td>
       <Td>
-        {/* Bei Zuversicht sagt die Stufe mehr als der Prozentwert: eine 3 ist
+        {/* Bei Zuversicht sagt die Hand mehr als ein Balken: eine 3 ist
             „mittlere Zuversicht", nicht „halb fertig". */}
-        {confidenceLabel ? (
+        {confidence && confidenceLabel ? (
           <span className="flex items-center gap-2">
-            <ProgressBar value={progress} />
-            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-              {confidenceLabel}
+            <ConfidenceHand value={confidence} size={22} />
+            <span className="shrink-0 text-xs font-semibold tabular-nums">
+              {confidenceLabel.replace(/\s/g, "")}
+            </span>
+            <span className="truncate text-meta text-muted-foreground">
+              {t(CONFIDENCE_KEYS[confidence])}
             </span>
           </span>
         ) : (

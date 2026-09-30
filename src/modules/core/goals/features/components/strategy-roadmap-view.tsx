@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { goalDetailHref } from "@/modules/core/goals/features/lib/goal-href";
 import {
+  goalNodeConfidence,
   goalNodeProgress,
   goalNodeTimeframe,
 } from "@/modules/core/goals/features/lib/goal-node-view";
@@ -20,6 +21,7 @@ import {
   goalStatusKey,
 } from "@/modules/core/goals/domain/goal-status";
 import type { GoalStatusTier } from "@/modules/core/goals/domain/goal-status";
+import { ConfidenceHand } from "@/modules/core/goals/features/components/confidence-hand";
 
 /**
  * Roadmap / Zeitachse — Ziele als Balken über einer Quartals-Achse. Position &
@@ -149,6 +151,7 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
                 const pl = tf ? placeTimeframe(tf, minYear, totalQ) : null;
                 const tier = goalStatusTier(node.status);
                 const pct = Math.round(goalNodeProgress(node) * 100);
+                const confidence = goalNodeConfidence(node);
                 return (
                   <Link
                     key={node.id}
@@ -181,9 +184,13 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
                             style={{ backgroundColor: goalStatusColor(node.status) }}
                           />
                           {shortTag(tf)}
-                          <span className="ml-auto shrink-0 font-mono text-label tabular-nums opacity-80">
-                            {pct}%
-                          </span>
+                          {confidence ? (
+                            <ConfidenceHand value={confidence} size={16} className="ml-auto" />
+                          ) : (
+                            <span className="ml-auto shrink-0 font-mono text-label tabular-nums opacity-80">
+                              {pct}%
+                            </span>
+                          )}
                         </div>
                       ) : (
                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-label text-muted-foreground/60">

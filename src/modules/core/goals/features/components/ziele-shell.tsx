@@ -36,6 +36,8 @@ interface Props {
   setupDismissed?: boolean;
   /** Persönlich gespeicherte Filter dieser Fläche (Scope `goals`). */
   savedFilters?: SavedFilterDTO[];
+  /** Name des Mandanten — steht in der Mitte des Netzplans. */
+  tenantName?: string;
 }
 
 export function ZieleShell({
@@ -44,6 +46,7 @@ export function ZieleShell({
   userLabels = {},
   setupDismissed = false,
   savedFilters = [],
+  tenantName = "",
 }: Props) {
   const t = useTranslations();
   const { tab, themes, tenantTrio, permissions, modules, setup } = model;
@@ -95,7 +98,11 @@ export function ZieleShell({
             />
           )}
           {layout === "netzplan" && (
-            <StrategyNetworkViewLazy themes={themes} userLabels={userLabels} />
+            <StrategyNetworkViewLazy
+              themes={themes}
+              tenantName={tenantName}
+              canEdit={permissions.canEditStrategy}
+            />
           )}
           {layout === "roadmap" && <StrategyRoadmapView themes={themes} />}
           {layout === "alignment" && (

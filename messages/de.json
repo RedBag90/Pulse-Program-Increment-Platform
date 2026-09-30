@@ -880,11 +880,22 @@
       "csv": "CSV exportieren"
     },
     "network": {
-      "loading": "Netzplan wird geladen…"
+      "loading": "Netzplan wird geladen…",
+      "center": "Strategie",
+      "expandBranch": "Ast ausklappen",
+      "collapseBranch": "Ast einklappen",
+      "hiddenCount": "{count} eingeklappte Unterziele",
+      "label": "Ziele-Struktur als Rad",
+      "addChild": "Unterziel zu „{title}“ anlegen",
+      "addTop": "Neues Ziel anlegen",
+      "targetOnly": "Ziel {value}"
     },
     "errors": {
       "kpiAlreadyDrives": "Diese KPI treibt bereits ein anderes Ziel — jede KPI kann nur ein Ziel treiben.",
       "cannotMoveUnderSelf": "Ein Ziel kann nicht unter sich selbst oder einen Nachfahren verschoben werden."
+    },
+    "confidenceHand": {
+      "label": "Confidence {value} von {max} – {meaning}"
     }
   },
   "work": {

@@ -8,6 +8,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { goalDetailHref } from "@/modules/core/goals/features/lib/goal-href";
 import {
+  goalNodeConfidence,
   goalNodeProgress,
   goalNodeTimeframe,
   goalNodeOwner,
@@ -17,6 +18,8 @@ import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import { goalStatusColor } from "@/modules/core/goals/domain/goal-status";
 import { goalTimeframeLabel } from "@/modules/core/goals/domain/goal-period";
 import { GoalStatusPill } from "@/modules/core/goals/features/components/goal-status/goal-status-pill";
+import { ConfidenceHand } from "@/modules/core/goals/features/components/confidence-hand";
+import type { ConfidenceValue } from "@/modules/core/goals/domain/goal-confidence";
 
 /**
  * Alignment-Karten-Baum — Ziele als Karten mit Fortschritts-Ring, Status-Pill und
@@ -24,7 +27,21 @@ import { GoalStatusPill } from "@/modules/core/goals/features/components/goal-st
  * — Klick öffnet das Ziel im Drawer.
  */
 
-function Ring({ value, status }: { value: number; status: string | null }) {
+/**
+ * Fortschrittsring. Bei einem Confidence-Ziel steht **die Hand statt der
+ * Zahl** im Ring — eine 4 als „75" liest sich als Fortschritt, gemeint ist
+ * Zuversicht. Übergeordnete Ziele, die nur zusammenfassen, haben keinen
+ * eigenen Vote und zeigen weiter den Prozentwert.
+ */
+function Ring({
+  value,
+  status,
+  confidence,
+}: {
+  value: number;
+  status: string | null;
+  confidence: ConfidenceValue | null;
+}) {
   const r = 13;
   const c = 2 * Math.PI * r;
   const off = c * (1 - Math.max(0, Math.min(1, value)));
@@ -43,14 +60,18 @@ function Ring({ value, status }: { value: number; status: string | null }) {
         strokeDashoffset={off}
         transform="rotate(-90 17 17)"
       />
-      <text
-        x="17"
-        y="20.5"
-        textAnchor="middle"
-        className="fill-foreground font-mono text-label font-semibold"
-      >
-        {Math.round(value * 100)}
-      </text>
+      {confidence ? (
+        <ConfidenceHand value={confidence} size={18} x={8} y={8} />
+      ) : (
+        <text
+          x="17"
+          y="20.5"
+          textAnchor="middle"
+          className="fill-foreground font-mono text-label font-semibold"
+        >
+          {Math.round(value * 100)}
+        </text>
+      )}
     </svg>
   );
 }
@@ -98,7 +119,11 @@ function GoalCard({
         ) : (
           <span className="w-5 shrink-0" aria-hidden />
         )}
-        <Ring value={goalNodeProgress(node)} status={node.status} />
+        <Ring
+          value={goalNodeProgress(node)}
+          status={node.status}
+          confidence={goalNodeConfidence(node)}
+        />
         <Link
           href={goalDetailHref(sp, node.id) as never}
           scroll={false}

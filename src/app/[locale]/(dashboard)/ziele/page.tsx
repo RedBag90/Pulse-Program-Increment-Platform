@@ -70,7 +70,7 @@ export default async function ZielePage({ searchParams }: PageProps) {
 
   // Baum-Load und User-Labels (inkl. blockierendem Supabase-listUsers) laufen
   // unabhängig → parallel, statt seriell auf dem kritischen Renderpfad.
-  const [tree, userLabels, setupDismissed] = await Promise.all([
+  const [tree, userLabels, setupDismissed, tenant] = await Promise.all([
     loadStrategyTree(db, principal.tenantId, {
       ...(periods.length ? { periods } : {}),
       ...(valueStreamIds.length ? { valueStreamIds } : {}),
@@ -79,6 +79,8 @@ export default async function ZielePage({ searchParams }: PageProps) {
     }),
     listTenantUserLabels(db, principal.tenantId),
     isZieleSetupDismissed(db, principal.tenantId),
+    // Für die Mitte des Netzplans („Strategie" + Mandant).
+    db.tenant.findUnique({ where: { id: principal.tenantId }, select: { name: true } }),
   ]);
 
   // Edit-Affordances sind Capability-gesteuert (nicht mehr route-hart):
@@ -118,6 +120,7 @@ export default async function ZielePage({ searchParams }: PageProps) {
         layout={layout}
         userLabels={userLabels}
         setupDismissed={setupDismissed}
+        tenantName={tenant?.name ?? ""}
       />
     </Suspense>
   );

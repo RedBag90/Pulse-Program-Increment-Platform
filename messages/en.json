@@ -880,11 +880,22 @@
       "csv": "Export CSV"
     },
     "network": {
-      "loading": "Loading network view…"
+      "loading": "Loading network view…",
+      "center": "Strategy",
+      "expandBranch": "Expand branch",
+      "collapseBranch": "Collapse branch",
+      "hiddenCount": "{count} collapsed sub-goals",
+      "label": "Goal structure as a wheel",
+      "addChild": "Add sub-goal to “{title}”",
+      "addTop": "Add goal",
+      "targetOnly": "Target {value}"
     },
     "errors": {
       "kpiAlreadyDrives": "This KPI already drives another goal — a KPI can drive only one.",
       "cannotMoveUnderSelf": "A goal cannot be moved under itself or one of its descendants."
+    },
+    "confidenceHand": {
+      "label": "Confidence {value} of {max} – {meaning}"
     }
   },
   "work": {
