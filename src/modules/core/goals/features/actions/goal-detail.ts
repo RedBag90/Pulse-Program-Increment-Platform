@@ -5,8 +5,10 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import {
   loadGoalDetail,
+  loadGoalSparklines,
   type GoalDetail,
   type GoalTarget,
+  type ProgressChart,
 } from "@/modules/core/goals/server/views/ziele-view";
 
 export type GoalDetailPayload = GoalDetail & {
@@ -36,4 +38,16 @@ export async function getGoalDetailAction(
     listTenantUserLabels(db, principal.tenantId),
   ]);
   return { ...detail, userLabels, viewerId: principal.id };
+}
+
+/**
+ * **Die Verläufe aller Ziele** für die Mini-Linien der Ziele-Tabelle —
+ * nachgeladen nach dem ersten Rendern, damit die Seite nicht auf die
+ * Messreihen wartet. `null` = nicht angemeldet.
+ */
+export async function getGoalSparklinesAction(): Promise<Record<string, ProgressChart> | null> {
+  const principal = await requirePrincipal().catch(() => null);
+  if (!principal) return null;
+  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+  return loadGoalSparklines(db, principal.tenantId);
 }

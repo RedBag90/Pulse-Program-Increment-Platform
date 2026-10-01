@@ -647,6 +647,7 @@ function GoalPane({
             precision={node.precision}
             currencyCode={node.currencyCode}
             metricUnit={node.metricUnit}
+            narrative={node.narrative}
             {...(node.unitValue.planned > 0
               ? { currentValueHint: "Aus verknüpften KPIs und Unterzielen hochgerechnet." }
               : {})}

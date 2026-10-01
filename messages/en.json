@@ -724,7 +724,8 @@
       "dropToTopLevel": "⇧ Drag here = move to top level",
       "dragHintReorderable": "Click opens the goal · Drag by the handle (on touch, press and hold): top/bottom = reorder, middle = nest.",
       "dragHintNestOnly": "Click opens the goal · Drag by the handle (on touch, press and hold): onto a goal = nest (reordering only in Manual mode).",
-      "dragHandle": "Move “{title}”"
+      "dragHandle": "Move “{title}”",
+      "sparkLabel": "Progress {pct}%: history across the goal's timeframe"
     },
     "periodField": {
       "mode": "Timeframe mode",
@@ -866,7 +867,8 @@
       "deleteConfirmUnnamed": "This goal and all its subgoals will be removed. This cannot be undone.",
       "deleting": "Deleting…",
       "goalUnderParent": "Goal · {parent}",
-      "responsibilityHeading": "Responsibility · Value streams & ARTs"
+      "responsibilityHeading": "Responsibility · Value streams & ARTs",
+      "noNarrative": "No narrative yet. Add it under “Settings”."
     },
     "filter": {
       "wertstrom": "Value stream",

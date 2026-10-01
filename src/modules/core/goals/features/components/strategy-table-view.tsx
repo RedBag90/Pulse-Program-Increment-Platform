@@ -1,7 +1,18 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useCallback, useId, useMemo, useRef, useState, startTransition, memo } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  startTransition,
+  memo,
+} from "react";
 import {
   DndContext,
   DragOverlay,
@@ -54,6 +65,9 @@ import {
   isGoalOffTrack,
 } from "@/modules/core/goals/features/lib/goal-node-view";
 import { reparentGoalNodeAction } from "@/modules/core/goals/features/actions/ziele";
+import { getGoalSparklinesAction } from "@/modules/core/goals/features/actions/goal-detail";
+import type { ProgressChart } from "@/modules/core/goals/server/views/ziele-view";
+import { GoalSparkline } from "@/modules/core/goals/features/components/goal-sparkline";
 import {
   dropPlacement,
   planDrop,
@@ -68,6 +82,13 @@ import { Badge } from "@/components/ui/badge";
 import { useLocalStorageState } from "@/lib/hooks/use-local-storage-state";
 
 type Placement = DropPlacement;
+
+/**
+ * Verläufe je Ziel für die Mini-Linien — nachgeladen (`getGoalSparklinesAction`).
+ * Als Context statt Prop, damit die memoisierten Zeilen ihre Props behalten
+ * und nur einmal neu rendern, wenn die Daten da sind.
+ */
+const SparkContext = createContext<Record<string, ProgressChart> | null>(null);
 
 /** Id der Ablage „auf oberste Ebene" (keine Zeile). */
 const TOP_DROP = "__oberste-ebene__";
@@ -168,6 +189,21 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
   // Deep-Links erhalten die aktiven Filter/Layout-Params — einmal an der Wurzel
   // lesen (statt via Hook pro Zeile) und als `sp` durch den Baum reichen.
   const sp = useSearchParams();
+
+  // Mini-Verläufe nach dem ersten Rendern holen; bis dahin bleibt der Balken.
+  // `themes` wechselt nach jeder Änderung (Revalidate) — dann neu holen.
+  const [sparks, setSparks] = useState<Record<string, ProgressChart> | null>(null);
+  useEffect(() => {
+    let live = true;
+    getGoalSparklinesAction()
+      .then((r) => {
+        if (live && r) setSparks(r);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [themes]);
 
   /**
    * Loslassen: aus Quelle, Ziel und Platzierung die Server-Anfrage bauen
@@ -384,21 +420,23 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
                 )}
               </tr>
             </thead>
-            <tbody className="divide-y">
-              {sortedThemes.map((t) => (
-                <NodeRows
-                  key={t.id}
-                  node={t}
-                  depth={0}
-                  canEdit={canEdit}
-                  drag={drag}
-                  tree={tree}
-                  sp={sp}
-                  overId={over?.id ?? null}
-                  overPlacement={over?.placement ?? null}
-                />
-              ))}
-            </tbody>
+            <SparkContext.Provider value={sparks}>
+              <tbody className="divide-y">
+                {sortedThemes.map((t) => (
+                  <NodeRows
+                    key={t.id}
+                    node={t}
+                    depth={0}
+                    canEdit={canEdit}
+                    drag={drag}
+                    tree={tree}
+                    sp={sp}
+                    overId={over?.id ?? null}
+                    overPlacement={over?.placement ?? null}
+                  />
+                ))}
+              </tbody>
+            </SparkContext.Provider>
           </table>
         </div>
         <DragOverlay dropAnimation={null}>
@@ -715,7 +753,7 @@ const Row = memo(function Row({
             <span className="truncate text-meta">{t("goals.confidence.noVote")}</span>
           </span>
         ) : (
-          <ProgressBar value={progress} />
+          <ProgressCell nodeId={node.id} progress={progress} />
         )}
       </Td>
       <Td>
@@ -809,6 +847,32 @@ function relativeGoalTime(iso: string): string {
   if (day < 30) return `vor ${day} Tagen`;
   const mon = Math.floor(day / 30);
   return `vor ${mon} Monat${mon === 1 ? "" : "en"}`;
+}
+
+/**
+ * Fortschritt: die Mini-Linie, sobald der Verlauf geladen ist und es einen
+ * gibt; sonst der Balken in derselben Breite (kein Sprung beim Nachladen).
+ */
+function ProgressCell({ nodeId, progress }: { nodeId: string; progress: number }) {
+  const t = useTranslations();
+  const sparks = useContext(SparkContext);
+  const chart = sparks?.[nodeId];
+  const pct = Math.round(progress * 100);
+  if (!chart || chart.series.length === 0) return <ProgressBar value={progress} />;
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex min-w-0 flex-1 items-center">
+        <GoalSparkline
+          chart={chart}
+          nowMs={Date.now()}
+          label={t("goals.table.sparkLabel", { pct })}
+        />
+      </div>
+      <span className="w-9 shrink-0 text-right font-mono text-meta tabular-nums text-muted-foreground">
+        {pct}%
+      </span>
+    </div>
+  );
 }
 
 function ProgressBar({ value }: { value: number }) {

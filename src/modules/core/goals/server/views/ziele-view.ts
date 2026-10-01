@@ -723,12 +723,69 @@ async function loadProgressChart(
   const empty: ProgressChart = { mode: "percent", series: [], yDomain: [0, 100], pace: null };
   const root = await db.objective.findFirst({
     where: { id, tenantId },
-    select: { id: true, path: true, period: true, periodStart: true, periodEnd: true },
+    select: { path: true },
   });
   if (!root) return empty;
+  const inputs = await loadChartInputs(db, tenantId, {
+    OR: [{ id }, { path: { startsWith: `${root.path}/` } }],
+  });
+  return chartFor(inputs, id, new Date().toISOString());
+}
 
-  const subtreeRows = await db.objective.findMany({
-    where: { tenantId, OR: [{ id }, { path: { startsWith: `${root.path}/` } }] },
+/**
+ * **Die Verläufe aller Ziele** — für die Mini-Linien der Tabelle. Dieselbe
+ * Rechnung wie der große Graph im Detail (`buildProgressChart`), nur einmal für
+ * den ganzen Mandanten geladen statt je Ziel: drei Abfragen, egal wie viele
+ * Ziele es gibt.
+ */
+export async function loadGoalSparklines(
+  db: PrismaClient,
+  tenantId: string,
+): Promise<Record<string, ProgressChart>> {
+  const inputs = await loadChartInputs(db, tenantId, {});
+  const now = new Date().toISOString();
+  const out: Record<string, ProgressChart> = {};
+  for (const r of inputs.rows) out[r.id] = chartFor(inputs, r.id, now);
+  return out;
+}
+
+interface ChartInputs {
+  rows: ChartObjective[];
+  periodById: Map<string, { period: string | null; start: string | null; end: string | null }>;
+  progressByNode: Map<string, { at: string; progress: number }[]>;
+  checkinsByNode: Map<string, ChartRootCheckin[]>;
+  autoKpiSeriesByNode: Map<string, AutoKpiSeriesLink[]>;
+}
+
+/** Graf eines Ziels aus den einmal geladenen Eingaben (rein). */
+function chartFor(inputs: ChartInputs, id: string, now: string): ProgressChart {
+  const tf = inputs.periodById.get(id);
+  return deriveProgressChart({
+    rootId: id,
+    rows: inputs.rows,
+    progressByNode: inputs.progressByNode,
+    autoKpiSeriesByNode: inputs.autoKpiSeriesByNode,
+    rootCheckins: inputs.checkinsByNode.get(id) ?? [],
+    now,
+    rootPeriod: tf?.period ?? null,
+    rootPeriodStart: tf?.start ?? null,
+    rootPeriodEnd: tf?.end ?? null,
+  });
+}
+
+/**
+ * Lädt und normalisiert alles, was `buildProgressChart` braucht — für einen
+ * Teilbaum (`where` = Wurzel + Pfad-Präfix) oder den ganzen Mandanten
+ * (`where = {}`). Zusätzliche Zeilen stören nicht: der Graf läuft nur vom
+ * Wurzelknoten abwärts.
+ */
+async function loadChartInputs(
+  db: PrismaClient,
+  tenantId: string,
+  where: Record<string, unknown>,
+): Promise<ChartInputs> {
+  const objRows = await db.objective.findMany({
+    where: { tenantId, ...where },
     select: {
       id: true,
       parentObjectiveId: true,
@@ -742,9 +799,12 @@ async function loadProgressChart(
       metricType: true,
       currencyCode: true,
       status: true,
+      period: true,
+      periodStart: true,
+      periodEnd: true,
     },
   });
-  const ids = subtreeRows.map((r) => r.id);
+  const ids = objRows.map((r) => r.id);
 
   const [checkinAll, epicLinks] = await Promise.all([
     // Alle Check-ins (auch statuslose Wert-Einträge) — die Linie/Kinder-Serien
@@ -771,7 +831,7 @@ async function loadProgressChart(
 
   // Normalisieren fürs reine Goal-Forest-Chart-Read-Model.
   const progressByNode = new Map<string, { at: string; progress: number }[]>();
-  const rootCheckins: ChartRootCheckin[] = [];
+  const checkinsByNode = new Map<string, ChartRootCheckin[]>();
   for (const c of checkinAll) {
     if (!c.objectiveId) continue;
     if (c.progress != null) {
@@ -780,14 +840,12 @@ async function loadProgressChart(
         progress: Number(c.progress),
       });
     }
-    if (c.objectiveId === id) {
-      rootCheckins.push({
-        atMs: c.createdAt.getTime(),
-        status: c.status,
-        value: toFloat(c.value),
-        progress: toFloat(c.progress),
-      });
-    }
+    (checkinsByNode.get(c.objectiveId) ?? setAndGet(checkinsByNode, c.objectiveId)).push({
+      atMs: c.createdAt.getTime(),
+      status: c.status,
+      value: toFloat(c.value),
+      progress: toFloat(c.progress),
+    });
   }
   // KPI-Blatt-Verlauf: je Link Faktor bevorzugt (gewählte KPI-Messreihe × Faktor),
   // sonst die Messreihen der einheiten-gleichen Epic-KPIs — analog `autoKpiCurrent`.
@@ -817,7 +875,7 @@ async function loadProgressChart(
     );
   }
 
-  const rows: ChartObjective[] = subtreeRows.map((r) => ({
+  const rows: ChartObjective[] = objRows.map((r) => ({
     id: r.id,
     parentObjectiveId: r.parentObjectiveId,
     progressMode: r.progressMode,
@@ -831,18 +889,18 @@ async function loadProgressChart(
     currencyCode: r.currencyCode,
     status: r.status,
   }));
+  const periodById = new Map(
+    objRows.map((r) => [
+      r.id,
+      {
+        period: r.period,
+        start: r.periodStart ? r.periodStart.toISOString() : null,
+        end: r.periodEnd ? r.periodEnd.toISOString() : null,
+      },
+    ]),
+  );
 
-  return deriveProgressChart({
-    rootId: id,
-    rows,
-    progressByNode,
-    autoKpiSeriesByNode,
-    rootCheckins,
-    now: new Date().toISOString(),
-    rootPeriod: root.period,
-    rootPeriodStart: root.periodStart ? root.periodStart.toISOString() : null,
-    rootPeriodEnd: root.periodEnd ? root.periodEnd.toISOString() : null,
-  });
+  return { rows, periodById, progressByNode, checkinsByNode, autoKpiSeriesByNode };
 }
 
 // ── helpers ────────────────────────────────────────────────────────────

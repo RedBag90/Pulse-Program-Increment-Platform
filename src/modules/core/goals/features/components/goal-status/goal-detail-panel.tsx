@@ -57,6 +57,8 @@ interface Props {
   currencyCode?: string | null | undefined;
   /** Freies Einheiten-Label — Achsen-Suffix bei Metriktyp „individuell". */
   metricUnit?: string | null | undefined;
+  /** Narrativ des Ziels — steht im Überblick über der Aktivität. */
+  narrative?: string | null | undefined;
 }
 
 /**
@@ -79,6 +81,7 @@ export function GoalDetailPanel({
   precision,
   currencyCode,
   metricUnit,
+  narrative,
 }: Props) {
   const t = useTranslations();
   const router = useRouter();
@@ -437,6 +440,19 @@ export function GoalDetailPanel({
           <div className="h-3 w-2/3 animate-pulse rounded-sm bg-muted" />
         </div>
       )}
+
+      {/* Narrativ — das Warum des Ziels, vor dem Verlauf der Aktivität.
+          Gepflegt wird es unter „Einstellungen". */}
+      <section className="space-y-1.5">
+        <h3 className="text-sm font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          {t("goals.drawer.narrativ")}
+        </h3>
+        {narrative?.trim() ? (
+          <p className="whitespace-pre-line text-sm leading-relaxed">{narrative}</p>
+        ) : (
+          <p className="text-meta text-muted-foreground">{t("goals.drawer.noNarrative")}</p>
+        )}
+      </section>
 
       {/* Activity + comments */}
       {detail && (

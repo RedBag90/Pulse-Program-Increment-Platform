@@ -724,7 +724,8 @@
       "dropToTopLevel": "⇧ Hierher ziehen = auf oberste Ebene verschieben",
       "dragHintReorderable": "Klick öffnet das Ziel · Am Griff ziehen (per Touch kurz halten): oben/unten = umsortieren, Mitte = unterordnen.",
       "dragHintNestOnly": "Klick öffnet das Ziel · Am Griff ziehen (per Touch kurz halten): auf ein Ziel = unterordnen (Umsortieren nur im Modus Manuell).",
-      "dragHandle": "„{title}“ verschieben"
+      "dragHandle": "„{title}“ verschieben",
+      "sparkLabel": "Fortschritt {pct} %: Verlauf über den Zeitraum des Ziels"
     },
     "periodField": {
       "mode": "Zeitraum-Modus",
@@ -866,7 +867,8 @@
       "deleteConfirmUnnamed": "„Dieses Ziel\" und alle Unterziele werden entfernt. Das lässt sich nicht rückgängig machen.",
       "deleting": "Löscht…",
       "goalUnderParent": "Ziel · {parent}",
-      "responsibilityHeading": "Verantwortung · Value Streams & ARTs"
+      "responsibilityHeading": "Verantwortung · Value Streams & ARTs",
+      "noNarrative": "Noch kein Narrativ. Ergänzen unter „Einstellungen“."
     },
     "filter": {
       "wertstrom": "Wertstrom",
