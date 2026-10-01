@@ -441,7 +441,7 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
         </div>
         <DragOverlay dropAnimation={null}>
           {activeNode ? (
-            <div className="flex w-max max-w-md cursor-grabbing items-center gap-2 rounded-md border bg-background px-3 py-1.5 text-sm font-medium shadow-lg">
+            <div className="flex w-max max-w-md translate-x-6 translate-y-5 cursor-grabbing items-center gap-2 rounded-md border bg-background px-3 py-1.5 text-sm font-medium shadow-lg">
               <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
               <span className="truncate">{activeNode.title}</span>
             </div>
@@ -491,6 +491,8 @@ function NodeRows({
   sp,
   overId,
   overPlacement,
+  rails = "",
+  isLast = true,
 }: {
   node: GoalNode;
   depth: number;
@@ -500,6 +502,10 @@ function NodeRows({
   sp: ReturnType<typeof useSearchParams>;
   overId: string | null;
   overPlacement: Placement | null;
+  /** Je Vorfahren-Ebene „1", wenn dort der Stamm weiterläuft (siehe TreeLines). */
+  rails?: string;
+  /** Letztes Kind seines Elternziels (└ statt ├). */
+  isLast?: boolean;
 }) {
   // Kompakter Inline-Suffix: nur der Beitrags-Anteil bei Unterzielen (die
   // Hierarchie-Ebene zeigt bereits Theme vs. Unterziel).
@@ -539,10 +545,12 @@ function NodeRows({
         overPlacement={isOver ? overPlacement : null}
         editHref={goalDetailHref(sp, node.id)}
         addChildHref={goalCreateHref(sp, node.id)}
+        rails={rails}
+        isLast={isLast}
       />
       {hasChildren &&
         !isCollapsed &&
-        node.children.map((child) => (
+        node.children.map((child, i) => (
           <NodeRows
             key={child.id}
             node={child}
@@ -553,6 +561,10 @@ function NodeRows({
             sp={sp}
             overId={overId}
             overPlacement={overPlacement}
+            // Der Stamm dieses Knotens läuft weiter, solange er nicht das letzte
+            // Kind ist; Oberziele haben keinen eigenen Stamm.
+            rails={depth === 0 ? "" : rails + (isLast ? "0" : "1")}
+            isLast={i === node.children.length - 1}
           />
         ))}
     </>
@@ -583,6 +595,88 @@ interface RowProps {
   overPlacement: Placement | null;
   editHref: string;
   addChildHref: string;
+  rails: string;
+  isLast: boolean;
+}
+
+/**
+ * **Einfügelinie beim Ziehen** — zwischen zwei Zielen, an der Ober- oder
+ * Unterkante der Zielzeile. Ein eigenes Element statt `box-shadow` auf der
+ * Zeile: Safari zeichnet auf <tr> keinen Schatten, die Linie war dort
+ * unsichtbar.
+ *
+ * Sie hängt an der Namenszelle (`relative`) und beginnt waagrecht an ihrer
+ * Fluss-Position — nach der Einrückung, also auf der Ebene, auf der das Ziel
+ * landet. Nach rechts läuft sie über die Zeile; der Tabellen-Container
+ * schneidet sie am Rand ab.
+ */
+function DropLine({ at }: { at: "top" | "bottom" }) {
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute z-20 h-0.5 rounded-full bg-primary"
+      style={{ [at]: -1, width: 4000 }}
+    >
+      <span className="absolute -left-1 top-1/2 size-2.5 -translate-y-1/2 rounded-full border-2 border-primary bg-background" />
+    </span>
+  );
+}
+
+/** Breite einer Baum-Ebene — so breit wie der Auf-/Zuklapp-Pfeil. */
+const TREE_STEP = 20;
+
+/**
+ * **Baum-Linien der Tabelle** wie ein Datei-Baum: je Vorfahren-Ebene ein
+ * durchgehender Stamm, solange dort noch Geschwister folgen; der eigene
+ * Abzweig ├ bzw. └ beim letzten Kind; und vom aufgeklappten Elternziel ein
+ * Strich nach unten zum ersten Kind.
+ *
+ * Die Linien hängen an der **Tabellenzelle** (`relative`), nicht am Inhalt —
+ * nur so reichen sie über die volle Zeilenhöhe, auch wenn eine andere Spalte
+ * die Zeile höher macht, und laufen von Zeile zu Zeile durch. Waagrecht bleibt
+ * der Container an seiner Fluss-Position (kein `left`), also direkt hinter dem
+ * Griff.
+ */
+function TreeLines({
+  depth,
+  rails,
+  isLast,
+  expanded,
+}: {
+  depth: number;
+  rails: string;
+  isLast: boolean;
+  expanded: boolean;
+}) {
+  const mitte = (ebene: number) => ebene * TREE_STEP + TREE_STEP / 2;
+  const linie = "absolute w-px bg-border";
+  return (
+    <span className="pointer-events-none absolute inset-y-0" aria-hidden>
+      {[...rails].map((r, k) =>
+        r === "1" ? (
+          <span key={k} className={cn(linie, "inset-y-0")} style={{ left: mitte(k) }} />
+        ) : null,
+      )}
+      {depth > 0 && (
+        <>
+          <span
+            className={cn(linie, isLast ? "top-0 h-1/2" : "inset-y-0")}
+            style={{ left: mitte(depth - 1) }}
+          />
+          <span
+            className="absolute top-1/2 h-px bg-border"
+            style={{ left: mitte(depth - 1), width: TREE_STEP / 2 + 1 }}
+          />
+        </>
+      )}
+      {expanded && (
+        <span
+          className={cn(linie, "bottom-0")}
+          style={{ left: mitte(depth), top: "calc(50% + 9px)" }}
+        />
+      )}
+    </span>
+  );
 }
 
 const Row = memo(function Row({
@@ -607,6 +701,8 @@ const Row = memo(function Row({
   overPlacement,
   editHref,
   addChildHref,
+  rails,
+  isLast,
 }: RowProps) {
   const t = useTranslations();
   // Aus `node` abgeleitet statt als Prop durchgereicht: `Row` ist memoisiert und
@@ -626,19 +722,19 @@ const Row = memo(function Row({
   const isHead = depth === 0;
   const shadow: string[] = [];
   if (isHead) shadow.push(`inset 3px 0 0 0 ${HEAD_GOAL_ACCENT}`);
-  if (placement === "before") shadow.push("inset 0 2px 0 0 var(--primary)");
-  if (placement === "after") shadow.push("inset 0 -2px 0 0 var(--primary)");
   return (
     <tr
       ref={setDropRef}
       className={cn(
         "group align-middle hover:bg-muted/40",
-        placement === "inside" && "outline outline-2 -outline-offset-2 outline-primary",
+        // Unterordnen: die Zielzeile getönt. Hintergrund statt `outline` auf
+        // <tr> — Safari zeichnet weder `outline` noch `box-shadow` auf Zeilen.
+        placement === "inside" && "bg-primary/10 hover:bg-primary/10",
         isDragging && "opacity-40",
       )}
       style={shadow.length ? { boxShadow: shadow.join(", ") } : undefined}
     >
-      <Td>
+      <Td className="relative">
         <div className="flex min-w-0 items-center">
           {drag.canEdit && (
             // Griff: nur hier beginnt das Ziehen. Maus ab 5 px, Finger nach
@@ -655,71 +751,77 @@ const Row = memo(function Row({
               <GripVertical className="h-3.5 w-3.5" aria-hidden />
             </button>
           )}
-          {/* Tiefen-Linien: ein vertikaler Guide je Einrück-Stufe. */}
-          {Array.from({ length: depth }).map((_unused, i) => (
-            <span
-              key={i}
-              className="w-[18px] shrink-0 self-stretch border-l border-border/40"
-              aria-hidden
+          <div className="flex min-w-0 flex-1 items-center self-stretch">
+            <TreeLines
+              depth={depth}
+              rails={rails}
+              isLast={isLast}
+              expanded={hasChildren && !isCollapsed}
             />
-          ))}
-          {hasChildren ? (
-            <button
-              type="button"
-              onClick={() => toggle(node.id)}
-              aria-expanded={!isCollapsed}
-              aria-label={isCollapsed ? "Ausklappen" : "Einklappen"}
-              className="grid size-5 shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              <ChevronRight
-                className={cn("h-3.5 w-3.5 transition-transform", !isCollapsed && "rotate-90")}
-                aria-hidden
-              />
-            </button>
-          ) : (
-            <span className="w-5 shrink-0" aria-hidden />
-          )}
-          <Link
-            href={href as never}
-            scroll={false}
-            className="flex min-w-0 flex-1 items-center gap-2 hover:underline"
-          >
-            <span className="truncate text-sm font-medium" title={title}>
-              {title}
-            </span>
-            {drift && (
-              <span
-                className="shrink-0 rounded-full bg-warning-surface px-1 py-0.5 text-label font-semibold text-warning dark:bg-amber-500/20 dark:text-amber-300"
-                title={t("goals.shared.runRateBelowPlan")}
+            {depth > 0 && (
+              <span className="shrink-0" style={{ width: depth * TREE_STEP }} aria-hidden />
+            )}
+            {(placement === "before" || placement === "after") && (
+              <DropLine at={placement === "before" ? "top" : "bottom"} />
+            )}
+            {hasChildren ? (
+              <button
+                type="button"
+                onClick={() => toggle(node.id)}
+                aria-expanded={!isCollapsed}
+                aria-label={isCollapsed ? "Ausklappen" : "Einklappen"}
+                className="grid size-5 shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
               >
-                ⚠
-              </span>
+                <ChevronRight
+                  className={cn("h-3.5 w-3.5 transition-transform", !isCollapsed && "rotate-90")}
+                  aria-hidden
+                />
+              </button>
+            ) : (
+              <span className="w-5 shrink-0" aria-hidden />
             )}
-            {depth === 0 && node.valueStreams.length > 0 && (
-              <span className="flex shrink-0 items-center gap-1">
-                {node.valueStreams.slice(0, 2).map((v) => (
-                  <Badge
-                    key={v.id}
-                    variant="secondary"
-                    className="max-w-[8rem] truncate"
-                    title={`Wertstrom: ${v.name}`}
-                  >
-                    {v.name}
-                  </Badge>
-                ))}
-                {node.valueStreams.length > 2 && (
-                  <span className="text-label text-muted-foreground">
-                    +{node.valueStreams.length - 2}
-                  </span>
-                )}
+            <Link
+              href={href as never}
+              scroll={false}
+              className="flex min-w-0 flex-1 items-center gap-2 hover:underline"
+            >
+              <span className="truncate text-sm font-medium" title={title}>
+                {title}
               </span>
-            )}
-            {subtitle && (
-              <span className="shrink-0 text-meta uppercase tracking-[0.1em] text-muted-foreground">
-                {subtitle}
-              </span>
-            )}
-          </Link>
+              {drift && (
+                <span
+                  className="shrink-0 rounded-full bg-warning-surface px-1 py-0.5 text-label font-semibold text-warning dark:bg-amber-500/20 dark:text-amber-300"
+                  title={t("goals.shared.runRateBelowPlan")}
+                >
+                  ⚠
+                </span>
+              )}
+              {depth === 0 && node.valueStreams.length > 0 && (
+                <span className="flex shrink-0 items-center gap-1">
+                  {node.valueStreams.slice(0, 2).map((v) => (
+                    <Badge
+                      key={v.id}
+                      variant="secondary"
+                      className="max-w-[8rem] truncate"
+                      title={`Wertstrom: ${v.name}`}
+                    >
+                      {v.name}
+                    </Badge>
+                  ))}
+                  {node.valueStreams.length > 2 && (
+                    <span className="text-label text-muted-foreground">
+                      +{node.valueStreams.length - 2}
+                    </span>
+                  )}
+                </span>
+              )}
+              {subtitle && (
+                <span className="shrink-0 text-meta uppercase tracking-[0.1em] text-muted-foreground">
+                  {subtitle}
+                </span>
+              )}
+            </Link>
+          </div>
         </div>
       </Td>
       <Td>
