@@ -41,6 +41,7 @@ import {
   goalNodeConfidence,
   isConfidenceGoal,
   goalNodeTimeframe,
+  goalNodeTimeframeShort,
   isGoalDrifting,
   isGoalOffTrack,
 } from "@/modules/core/goals/features/lib/goal-node-view";
@@ -94,6 +95,8 @@ interface GoalData extends Record<string, unknown> {
   target: number | null;
   /** Zeitraum-Label (Quartal, Halbjahr, Jahr oder Start–Ende); `null` = keiner. */
   timeframe: string | null;
+  /** Voller Zeitraum für den Tooltip (mit Tagen). */
+  timeframeFull: string | null;
   spec: MetricSpec;
   color: string;
   /** 0 = Ziel in der Mitte, 1 = erster Ring … */
@@ -128,7 +131,7 @@ const CENTER_D = 96;
 /** Breite der Knotenfläche — genug für Status- und Zeitraum-Badge nebeneinander. */
 const NODE_W = 190;
 /** Platz unter dem Kreis für Name und Status-Pill. */
-const LABEL_H = 80;
+const LABEL_H = 96;
 /** Kreisdurchmesser: Mitte groß, Oberziele mittel, Unterziele klein. */
 const circleSize = (depth: number) => (depth === 0 ? CENTER_D : depth === 1 ? 64 : 52);
 /** Neutrale Farbe der Mitte in der Mini-Map. */
@@ -142,6 +145,7 @@ export function StrategyNetworkView({
 }: Props) {
   const { resolvedTheme } = useTheme();
   const t = useTranslations();
+  const locale = useLocale();
   const router = useRouter();
   const sp = useSearchParams();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -194,8 +198,9 @@ export function StrategyNetworkView({
         onOpen,
         { tenantName, personal },
         showAdd ? onAdd : null,
+        locale,
       ),
-    [visibleThemes, collapsed, onToggle, onOpen, tenantName, personal, showAdd, onAdd],
+    [visibleThemes, collapsed, onToggle, onOpen, tenantName, personal, showAdd, onAdd, locale],
   );
 
   // Nur die Markierung hängt an der Hervorhebung — das Layout rechnet nicht neu.
@@ -482,7 +487,7 @@ function GoalCircle({ data }: NodeProps) {
           }
         }}
         title={`${d.title} · ${d.isConfidence ? `${d.confidence ?? "–"}/5` : `${pct} %`} · ${t(goalStatusKey(d.status))}`}
-        className="group flex cursor-pointer flex-col items-center gap-1 rounded-lg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="group flex w-full cursor-pointer flex-col items-center gap-1 rounded-lg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <span className="relative block" style={{ width: size, height: size }}>
           <svg width={size} height={size} className="absolute inset-0" aria-hidden>
@@ -554,12 +559,14 @@ function GoalCircle({ data }: NodeProps) {
             {werte}
           </span>
         )}
-        <span className="flex w-max origin-top scale-90 flex-nowrap items-center gap-1 whitespace-nowrap">
+        {/* Nie breiter als der Knoten: passen Status und Zeitraum nicht
+            nebeneinander, bricht der Zeitraum in die nächste Zeile um. */}
+        <span className="flex max-w-full origin-top scale-90 flex-wrap items-center justify-center gap-1">
           <GoalStatusPill status={d.status} />
           {d.timeframe && (
             <span
               className="inline-flex max-w-40 shrink-0 items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
-              title={d.timeframe}
+              title={d.timeframeFull ?? d.timeframe}
             >
               <CalendarDays className="size-3 shrink-0" aria-hidden />
               <span className="truncate">{d.timeframe}</span>
@@ -644,6 +651,7 @@ function buildGraph(
   mitte: { tenantName: string; personal: boolean },
   /** „+" anlegen; `null` = ausgeblendet. Ohne Eltern-Id: neues Oberziel. */
   onAdd: ((parentId?: string) => void) | null,
+  locale: string,
 ): {
   nodes: Node[];
   edges: Edge[];
@@ -670,7 +678,9 @@ function buildGraph(
     confidence: goalNodeConfidence(n),
     isConfidence: isConfidenceGoal(n),
     current: n.current,
-    timeframe: (() => {
+    // Kurzform im Badge (sprachabhängig), die Tage stehen im Tooltip.
+    timeframe: goalNodeTimeframeShort(n, locale),
+    timeframeFull: (() => {
       const tf = goalNodeTimeframe(n);
       return tf ? goalTimeframeLabel(tf) : null;
     })(),

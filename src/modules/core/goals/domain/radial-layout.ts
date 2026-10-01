@@ -26,13 +26,19 @@
  * vollständige `GoalNode`s auskommt.
  */
 
-/** Mindestabstand zweier Ringe (Flow-Pixel). */
-export const RING_ABSTAND = 185;
 /**
- * Mindestabstand zweier Knotenmitten auf demselben Ring: Kreis, Name und die
- * Badge-Zeile (Status + Zeitraum nebeneinander) brauchen rund 170 px.
+ * Mindestabstand zweier Ringe (Flow-Pixel). Ein Knoten ist mit Name, Werten
+ * und (umgebrochenen) Badges gut 150 px hoch — der nächste Ring muss darunter
+ * Platz haben, sonst berührt das Schild den Kreis des Kinds.
  */
-export const KNOTEN_PLATZ = 170;
+export const RING_ABSTAND = 210;
+/**
+ * Mindestabstand zweier Knotenmitten auf demselben Ring. Etwas mehr als die
+ * Knotenbreite (190 px, Name und Badges werden darauf begrenzt): liegen zwei
+ * Nachbarn unten oder oben im Rad nebeneinander, dürfen sich ihre Namen nicht
+ * berühren.
+ */
+export const KNOTEN_PLATZ = 200;
 
 interface TreeNode {
   id: string;

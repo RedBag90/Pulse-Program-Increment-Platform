@@ -79,6 +79,28 @@ export function goalNodeTimeframeLabel(node: GoalNode): string {
   return goalTimeframeLabel(goalNodeTimeframe(node));
 }
 
+/**
+ * **Kurzform des Zeitraums für enge Stellen** (Badge im Ziele-Rad): ein Bucket
+ * wie gewohnt („Q3 2026"), ein individueller Bereich nur mit Monat und Jahr in
+ * der Sprache der Oberfläche — „Okt 26 – Mär 27" bzw. „Oct 26 – Mar 27"; im
+ * selben Jahr „Jul – Sep 2026". Die Tage stehen im Tooltip und in der Tabelle.
+ */
+export function goalNodeTimeframeShort(node: GoalNode, locale: string): string | null {
+  const tf = goalNodeTimeframe(node);
+  if (!tf) return null;
+  if (tf.kind === "bucket") return goalTimeframeLabel(tf);
+  const monat = (d: Date) =>
+    new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" })
+      .format(d)
+      .replace(/\.$/, "");
+  const sy = tf.start.getUTCFullYear();
+  const ey = tf.end.getUTCFullYear();
+  const sm = monat(tf.start);
+  const em = monat(tf.end);
+  if (sy === ey) return sm === em ? `${sm} ${ey}` : `${sm} – ${em} ${ey}`;
+  return `${sm} ${String(sy).slice(2)} – ${em} ${String(ey).slice(2)}`;
+}
+
 /** Owner-Anzeigename aus der Label-Map; null wenn kein/unbekannter Owner. */
 export function goalNodeOwner(node: GoalNode, userLabels: Record<string, string>): string | null {
   return node.ownerId ? (userLabels[node.ownerId] ?? null) : null;

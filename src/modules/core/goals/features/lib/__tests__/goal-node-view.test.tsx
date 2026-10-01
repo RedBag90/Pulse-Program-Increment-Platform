@@ -8,6 +8,7 @@ import {
   isGoalDrifting,
   isGoalOffTrack,
   isConfidenceGoal,
+  goalNodeTimeframeShort,
   goalNodeConfidence,
 } from "@/modules/core/goals/features/lib/goal-node-view";
 import type { RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
@@ -119,5 +120,37 @@ describe("isConfidenceGoal", () => {
 
   it("andere Fortschrittsquellen sind keine Confidence-Ziele", () => {
     expect(isConfidenceGoal(node({ progressMode: "manual", current: 3 }))).toBe(false);
+  });
+});
+
+describe("goalNodeTimeframeShort", () => {
+  const range = (a: string, b: string) => node({ periodStart: a, periodEnd: b });
+  // Deutsche Monatskürzel hängen an der ICU-Version („Mär" vs. „März") — der
+  // Test prüft den Aufbau gegen die Intl-Ausgabe dieser Umgebung.
+  const de = (iso: string) =>
+    new Intl.DateTimeFormat("de", { month: "short", timeZone: "UTC" })
+      .format(new Date(iso))
+      .replace(/\.$/, "");
+
+  it("Bucket wie gewohnt", () => {
+    expect(goalNodeTimeframeShort(node({ period: "2026-Q3" }), "de")).toBe("Q3 2026");
+  });
+
+  it("Bereich über zwei Jahre: Monat und zweistelliges Jahr, je Sprache", () => {
+    expect(goalNodeTimeframeShort(range("2026-10-01", "2027-03-31"), "de")).toBe(
+      `${de("2026-10-01")} 26 – ${de("2027-03-31")} 27`,
+    );
+    expect(goalNodeTimeframeShort(range("2026-10-01", "2027-03-31"), "en")).toBe("Oct 26 – Mar 27");
+  });
+
+  it("Bereich im selben Jahr bzw. Monat", () => {
+    expect(goalNodeTimeframeShort(range("2026-07-01", "2026-09-30"), "de")).toBe(
+      `${de("2026-07-01")} – ${de("2026-09-30")} 2026`,
+    );
+    expect(goalNodeTimeframeShort(range("2026-07-01", "2026-07-31"), "en")).toBe("Jul 2026");
+  });
+
+  it("ohne Zeitraum null", () => {
+    expect(goalNodeTimeframeShort(node(), "de")).toBeNull();
   });
 });
