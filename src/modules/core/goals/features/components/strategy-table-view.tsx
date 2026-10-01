@@ -365,15 +365,18 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
           data-tour="goals-table"
           className="overflow-x-auto rounded-lg bg-card shadow-card shadow-sm"
         >
-          <table className="w-full text-sm">
+          {/* Festes Spaltenlayout: die Namensspalte bekommt den Rest und kürzt
+              lange Titel, statt die Tabelle zu verbreitern. Unterhalb von 56rem
+              scrollt der Container waagrecht. */}
+          <table className="w-full min-w-4xl table-fixed text-sm">
             <thead className={STICKY_THEAD}>
               <tr>
                 <Th>{t("goals.table.name")}</Th>
                 <Th className="w-14">{t("goals.table.owner")}</Th>
-                <Th className="w-32">{t("goals.table.status")}</Th>
-                <Th className="w-36">{t("goals.table.progress")}</Th>
-                <Th className="w-28">{t("goals.table.value")}</Th>
-                <Th className="w-20">{t("goals.table.timeframe")}</Th>
+                <Th className="w-44">{t("goals.table.status")}</Th>
+                <Th className="w-44">{t("goals.table.progress")}</Th>
+                <Th className="w-32">{t("goals.table.value")}</Th>
+                <Th className="w-28">{t("goals.table.timeframe")}</Th>
                 {canEdit && (
                   <Th className="sticky right-0 z-30 w-24 border-l bg-muted/95">
                     {t("goals.table.actions")}
@@ -643,7 +646,9 @@ const Row = memo(function Row({
             scroll={false}
             className="flex min-w-0 flex-1 items-center gap-2 hover:underline"
           >
-            <span className="truncate text-sm font-medium">{title}</span>
+            <span className="truncate text-sm font-medium" title={title}>
+              {title}
+            </span>
             {drift && (
               <span
                 className="shrink-0 rounded-full bg-warning-surface px-1 py-0.5 text-label font-semibold text-warning dark:bg-amber-500/20 dark:text-amber-300"
@@ -716,7 +721,9 @@ const Row = memo(function Row({
       <Td>
         <TrioBadge trio={trio} />
       </Td>
-      <Td className="text-xs text-muted-foreground">{periodLabel}</Td>
+      <Td className="truncate text-xs text-muted-foreground">
+        <span title={periodLabel}>{periodLabel}</span>
+      </Td>
       {canEdit && (
         <Td className="sticky right-0 z-10 border-l bg-card group-hover:bg-muted/40">
           <RowActions editHref={editHref} addChildHref={addChildHref} />
